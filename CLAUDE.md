@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an AI-powered cryptocurrency screener for Binance Spot markets that allows users to describe technical trading conditions in natural language. The application uses Google's Gemini API to convert natural language into executable screening filters and visualizes results with real-time charts.
+This is an AI-powered cryptocurrency screener for Binance Spot markets that allows users to describe technical trading conditions in natural language. The application uses Firebase AI Logic with Google's Gemini models to convert natural language into executable screening filters and visualizes results with real-time charts.
 
 ## Development Environment
 Use pnpm
@@ -23,7 +23,8 @@ Work with the PM on debugging
 
 ### Service Layer
 - **binanceService.ts**: Manages all Binance API interactions including WebSocket connections for real-time data
-- **geminiService.ts**: Handles AI integration for generating filters and analysis using Gemini API
+- **geminiService.ts**: Handles AI integration for generating filters and analysis using Firebase AI Logic
+- **config/firebase.ts**: Firebase configuration and AI service initialization
 
 ### Data Flow
 1. Initial load fetches top 100 USDT pairs by volume with 250 historical klines
@@ -34,7 +35,8 @@ Work with the PM on debugging
 ### Key Technical Patterns
 - **State Management**: Uses React state with Map structures for O(1) lookups
 - **Real-time Updates**: WebSocket-based architecture for live market data
-- **AI Integration**: Structured prompts with JSON schema validation and retry logic
+- **AI Integration**: Firebase AI Logic with secure server-side API key management
+- **Prompt Processing**: Structured prompts with JSON schema validation and retry logic
 - **Technical Analysis**: Comprehensive helper functions in `screenerHelpers.ts` for indicators (MA, RSI, MACD, etc.)
 
 ### Component Structure
@@ -51,8 +53,13 @@ Work with the PM on debugging
 
 ### API Limitations
 - Binance API has rate limits - current implementation fetches top 100 pairs
-- Gemini API requires valid API key and has its own rate limits
+- Firebase AI Logic handles Gemini API authentication securely
 - WebSocket connections may disconnect and need reconnection logic
+
+### Security Notes
+- API keys are managed securely through Firebase AI Logic - never exposed in frontend code
+- Firebase configuration is safe to commit as it's meant to be public
+- Consider implementing Firebase App Check for additional security
 
 ### Performance Notes
 - Application filters for USDT spot pairs with >100k volume to reduce data load

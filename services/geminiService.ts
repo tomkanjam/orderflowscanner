@@ -1,5 +1,6 @@
 
-import { GoogleGenAI, GenerateContentResponse, Content } from "@google/genai";
+import { getGenerativeModel } from "firebase/ai";
+import { ai } from '../config/firebase';
 import { AiFilterResponse, Kline, Ticker, CustomIndicatorConfig, IndicatorDataPoint } from '../types';
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS } from "../constants";
 import * as helpers from '../screenerHelpers'; // Import all helpers
@@ -56,19 +57,14 @@ function executeIndicatorFunction(
   }
 }
 
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  console.error("Gemini API key not found. Please set the API_KEY environment variable.");
-}
-const ai = new GoogleGenAI({ apiKey: API_KEY || "YOUR_API_KEY_HERE" }); // Fallback for environments where process.env is not set up
+// Firebase AI Logic handles API keys securely on the server side
+// No need to expose API keys in the frontend code
 
 export async function generateFilterAndChartConfig(
   userPrompt: string,
   modelName: string, 
   klineInterval: string
 ): Promise<AiFilterResponse> {
-  if (!API_KEY) throw new Error("Gemini API key is not configured.");
 
   const systemInstruction = `You are an AI assistant for a crypto screener. The user provides a description of technical conditions. You MUST return a single, valid JSON object with three properties: "description", "screenerCode", and "indicators". Do not include any text outside of this JSON object.
 
@@ -232,21 +228,22 @@ General Guidelines:
 
   async function makeApiCall(promptText: string, isRetry: boolean): Promise<AiFilterResponse> {
     const currentSystemInstruction = isRetry ? "" : systemInstruction + "\n\nUser Request: ";
-    const contents: Content[] = [
-      { role: "user", parts: [{ text: currentSystemInstruction + promptText }] }
-    ];
-
+    
     let rawTextFromGemini: string = "";
     try {
-      const geminiApiResult: GenerateContentResponse = await ai.models.generateContent({
+      // Create a model instance with the specified model name
+      const model = getGenerativeModel(ai, {
         model: modelName,
-        contents: contents,
-        config: {
+        generationConfig: {
           responseMimeType: "application/json",
         }
       });
 
-      rawTextFromGemini = geminiApiResult.text;
+      // Generate content using Firebase AI Logic
+      // Firebase AI Logic expects a simple string or parts array, not the full content structure
+      const result = await model.generateContent(currentSystemInstruction + promptText);
+      const response = result.response;
+      rawTextFromGemini = response.text();
       const parsedResponse = JSON.parse(rawTextFromGemini) as AiFilterResponse;
 
       // ---- Start: Validation of parsedResponse structure ----
@@ -324,8 +321,6 @@ General Guidelines:
            errorMessage = "AI filter generation failed due to safety settings. Please try a different prompt.";
       } else if (error instanceof SyntaxError) {
           errorMessage = `AI returned an invalid JSON response ${retryAttempted ? "(even after an auto-fix attempt)" : ""}. It might be incomplete or malformed. Raw text: ${rawTextFromGemini.substring(0,1000) || "unavailable"}`;
-      } else if (!API_KEY) {
-          errorMessage = "Gemini API key is not configured. Cannot make requests.";
       }
       
       throw new Error(`Gemini API request failed: ${errorMessage}`);
@@ -340,7 +335,6 @@ export async function getMarketAnalysis(
     modelName: string,
     klineInterval: string
 ): Promise<string> {
-    if (!API_KEY) throw new Error("Gemini API key is not configured.");
 
     const prompt = `
 Provide a brief market analysis (2-3 short paragraphs) based on the current top ${topTickers.length} USDT pairs by volume on Binance Spot for the ${klineInterval} interval.
@@ -350,11 +344,13 @@ ${topTickers.slice(0,10).map(t => `${t.s}: ${t.P}%, ${parseFloat(t.c).toFixed(4)
 Consider overall market sentiment if inferable from this limited data.
 `;
     try {
-        const geminiApiResult: GenerateContentResponse = await ai.models.generateContent({ 
-            model: modelName,
-            contents: [{ role: "user", parts: [{text: prompt}] }],
-        });
-        return geminiApiResult.text;
+        // Create a model instance
+        const model = getGenerativeModel(ai, { model: modelName });
+        
+        // Generate content using Firebase AI Logic
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        return response.text();
     } catch (error) {
         console.error("Error calling Gemini API for market analysis:", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -371,7 +367,6 @@ export async function getSymbolAnalysis(
     modelName: string,
     klineInterval: string
 ): Promise<string> {
-    if (!API_KEY) throw new Error("Gemini API key is not configured.");
 
     const analysisKlines = allKlinesForSymbol.slice(-KLINE_HISTORY_LIMIT_FOR_ANALYSIS);
     const klinesForDisplayCount = Math.min(analysisKlines.length, 15); 
@@ -434,11 +429,13 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
     prompt += "\nFocus on price action, potential support/resistance levels, and volume analysis based on the provided data. Do not give financial advice. Keep the analysis concise and data-driven.";
 
     try {
-        const geminiApiResult: GenerateContentResponse = await ai.models.generateContent({ 
-            model: modelName,
-            contents: [{ role: "user", parts: [{text: prompt}] }],
-        });
-        return geminiApiResult.text;
+        // Create a model instance
+        const model = getGenerativeModel(ai, { model: modelName });
+        
+        // Generate content using Firebase AI Logic
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        return response.text();
     } catch (error) {
         console.error(`Error calling Gemini API for ${symbol} analysis:`, error);
         const errorMessage = error instanceof Error ? error.message : String(error);

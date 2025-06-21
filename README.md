@@ -1,14 +1,36 @@
-# Run and deploy your AI Studio app
+# AI-Powered Binance Crypto Screener
 
-This contains everything you need to run your app locally.
+An AI-powered cryptocurrency screener for Binance Spot markets that uses natural language to create technical trading filters.
+
+## Features
+
+- Natural language to technical filter conversion using Gemini AI
+- Real-time market data from Binance WebSocket
+- Interactive candlestick charts with technical indicators
+- Signal tracking and alerts
+- Secure API key management with Firebase AI Logic
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js, pnpm
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+   ```bash
+   pnpm install
+   ```
+
+2. Set up Firebase:
+   - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+   - Enable Firebase AI Logic
+   - Select "Vertex AI Gemini API" as your provider
+   - Ensure your Google Cloud project has billing enabled
+   - Update `config/firebase.ts` with your Firebase configuration (if different)
+
 3. Run the app:
-   `npm run dev`
+   ```bash
+   pnpm dev
+   ```
+
+## Security
+
+This app uses Firebase AI Logic with Vertex AI backend for secure AI integration. API authentication is handled through your Google Cloud project, with no API keys exposed in the frontend code.

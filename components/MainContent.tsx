@@ -2,6 +2,7 @@
 import React from 'react';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry } from '../types';
 import SignalTable from './SignalTable';
+import CryptoTable from './CryptoTable';
 import ChartDisplay from './ChartDisplay';
 import Loader from './Loader';
 import ErrorMessage from './ErrorMessage';
@@ -76,6 +77,19 @@ const MainContent: React.FC<MainContentProps> = ({
                   onRowClick={onRowClick}
                   onAiInfoClick={onAiInfoClick}
                   isLoading={initialLoading}
+                />
+              </div>
+              {/* Hidden CryptoTable to keep screener running */}
+              <div className="hidden">
+                <CryptoTable
+                  allSymbols={allSymbols}
+                  tickers={tickers}
+                  historicalData={historicalData}
+                  currentFilterFn={currentFilterFn}
+                  onRowClick={onRowClick}
+                  onAiInfoClick={onAiInfoClick}
+                  isLoading={initialLoading}
+                  onNewSignal={onNewSignal}
                 />
               </div>
             </>

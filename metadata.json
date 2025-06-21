@@ -1,0 +1,6 @@
+{
+  "name": "AI-Powered Binance Crypto Screener",
+  "description": "A React and Tailwind CSS application that provides a real-time cryptocurrency screener for Binance Spot markets, with AI-powered filtering and analysis capabilities using the Gemini API. Users can describe technical conditions, and the AI generates filters and chart configurations.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}

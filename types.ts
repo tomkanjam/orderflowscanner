@@ -1,0 +1,98 @@
+
+export interface Ticker {
+  s: string; // Symbol
+  P: string; // Price change percent
+  c: string; // Last price
+  q: string; // Total traded quote asset volume
+  // Add other properties from Binance ticker if needed
+  [key: string]: any; // Allow other properties
+}
+
+// Format from Binance: [openTime, open, high, low, close, volume, closeTime, quoteAssetVolume, numberOfTrades, takerBuyBaseAssetVolume, takerBuyQuoteAssetVolume, ignore]
+export type Kline = [
+  number, // openTime
+  string, // open
+  string, // high
+  string, // low
+  string, // close
+  string, // volume
+  number, // closeTime
+  string, // quoteAssetVolume
+  number, // numberOfTrades
+  string, // takerBuyBaseAssetVolume
+  string, // takerBuyQuoteAssetVolume
+  string  // ignore
+];
+
+// Custom indicator configuration for flexible charting
+export interface CustomIndicatorConfig {
+  id: string;                    // Unique identifier
+  name: string;                  // Display name
+  panel: boolean;                // true = separate panel, false = overlay on price
+  calculateFunction: string;     // JavaScript function body that calculates the indicator
+  chartType: 'line' | 'bar' | 'candlestick';
+  style: {
+    color?: string | string[];   // Single color or array for multi-line indicators
+    fillColor?: string;          // For area fills
+    lineWidth?: number;
+    barColors?: { positive: string; negative: string; neutral: string };
+  };
+  yAxisConfig?: {
+    min?: number;
+    max?: number; 
+    position?: 'left' | 'right';
+    label?: string;
+  };
+}
+
+// Data point structure for indicator values
+export interface IndicatorDataPoint {
+  x: number;        // timestamp
+  y: number | null; // primary value
+  y2?: number | null;      // For multi-line indicators (e.g., Bollinger upper band)
+  y3?: number | null;      // For multi-line indicators (e.g., Bollinger lower band)
+  y4?: number | null;      // For OHLC data
+  color?: string;   // Per-point color override (e.g., for volume bars)
+}
+
+export interface AiFilterResponse {
+  description: string[];
+  screenerCode: string;
+  indicators: CustomIndicatorConfig[]; // Renamed from chartConfig for clarity
+}
+
+export interface GeminiContent {
+  parts: [{ text: string }];
+  role: string;
+}
+
+// For Chart.js financial chart - keeping this for the main price candlestick chart
+export interface CandlestickDataPoint {
+  x: number; // timestamp
+  o: number; // open
+  h: number; // high
+  l: number; // low
+  c: number; // close
+}
+
+export enum KlineInterval {
+  ONE_MINUTE = '1m',
+  FIVE_MINUTES = '5m',
+  FIFTEEN_MINUTES = '15m',
+  ONE_HOUR = '1h',
+  FOUR_HOURS = '4h',
+  ONE_DAY = '1d',
+}
+
+export enum GeminiModelOption {
+  FLASH_FAST = 'gemini-2.5-flash-fast',
+  FLASH_ADVANCED = 'gemini-2.5-flash-advanced',
+  PRO = 'gemini-2.5-pro',
+}
+
+export interface SignalLogEntry {
+  timestamp: number;
+  symbol: string;
+  interval: KlineInterval;
+  filterDesc: string; // A short description of the filter active at the time
+}

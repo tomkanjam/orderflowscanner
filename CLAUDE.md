@@ -9,6 +9,10 @@ This is an AI-powered cryptocurrency screener for Binance Spot markets that allo
 ## Development Environment
 Use pnpm
 
+## Workflow
+- Break down tasks into testable sub-tasks
+- As you complete each sub-task, run pnpm build to catch errors, and test the new functionality either programatically or by asking the PM to test it before moving on.
+
 
 ## Architecture Overview
 

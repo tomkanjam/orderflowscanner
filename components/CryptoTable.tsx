@@ -17,7 +17,7 @@ interface CryptoTableProps {
   onNewSignal: (symbol: string, timestamp: number) => void; // Callback for new signals
 }
 
-const SYMBOL_FILTER_INTERVAL_MS = 500; // Run filter every 500ms for more responsive updates
+const SYMBOL_FILTER_INTERVAL_MS = 2000; // Run filter every 2 seconds to reduce UI flashing
 
 const CryptoTable: React.FC<CryptoTableProps> = ({
   allSymbols,
@@ -32,6 +32,7 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
   const { runScreener, resetCache } = useScreenerWorker();
   const [filteredSymbols, setFilteredSymbols] = useState<string[]>([]);
   const [isFiltering, setIsFiltering] = useState(false);
+  const lastFilterTimeRef = useRef(0);
   const loggedSymbolsThisSessionRef = useRef<Set<string>>(new Set());
   const filterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -52,6 +53,11 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
 
   // Run screener in worker on interval
   useEffect(() => {
+    // Don't run if we don't have data yet
+    if (allSymbols.length === 0 || tickers.size === 0) {
+      return;
+    }
+    
     // Clear previous interval
     if (filterIntervalRef.current) {
       clearInterval(filterIntervalRef.current);
@@ -59,44 +65,53 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
 
     // Function to run the screener
     const runFilter = async () => {
-      if (!filterCode) {
-        // No filter - show all symbols with sufficient data
-        const validSymbols = allSymbols.filter(symbol => {
-          const tickerData = tickers.get(symbol);
-          const klineData = historicalData.get(symbol);
-          return !!tickerData && !!klineData && klineData.length >= 20;
-        });
-        setFilteredSymbols(validSymbols);
-        return;
+      const now = Date.now();
+      
+      // Only show "Filtering..." if it's been more than 100ms since last update
+      // This prevents rapid UI flashing
+      if (now - lastFilterTimeRef.current > 100) {
+        setIsFiltering(true);
       }
-
-      setIsFiltering(true);
+      
       try {
-        const result = await runScreener(
-          allSymbols,
-          tickers,
-          historicalData,
-          filterCode
-        );
-        
-        setFilteredSymbols(result.filteredSymbols);
-        
-        // Handle new signals
-        result.signalSymbols.forEach(symbol => {
-          if (!loggedSymbolsThisSessionRef.current.has(symbol)) {
-            onNewSignal(symbol, Date.now());
-            loggedSymbolsThisSessionRef.current.add(symbol);
-          }
-        });
+        if (!filterCode) {
+          // No filter - show all symbols with sufficient data
+          const validSymbols = allSymbols.filter(symbol => {
+            const tickerData = tickers.get(symbol);
+            const klineData = historicalData.get(symbol);
+            return !!tickerData && !!klineData && klineData.length >= 20;
+          });
+          setFilteredSymbols(validSymbols);
+          console.log(`No filter active - showing ${validSymbols.length} valid symbols`);
+        } else {
+          const result = await runScreener(
+            allSymbols,
+            tickers,
+            historicalData,
+            filterCode
+          );
+          
+          setFilteredSymbols(result.filteredSymbols);
+          
+          // Handle new signals
+          result.signalSymbols.forEach(symbol => {
+            if (!loggedSymbolsThisSessionRef.current.has(symbol)) {
+              onNewSignal(symbol, Date.now());
+              loggedSymbolsThisSessionRef.current.add(symbol);
+            }
+          });
+        }
       } catch (error) {
         console.error('Screener error:', error);
         setFilteredSymbols([]);
       } finally {
         setIsFiltering(false);
+        lastFilterTimeRef.current = now;
       }
     };
 
     // Run immediately
+    console.log(`Initial filter run with ${allSymbols.length} symbols, ${tickers.size} tickers`);
     runFilter();
 
     // Then run on interval
@@ -114,11 +129,11 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
     <div className="bg-gray-800 shadow-lg rounded-lg p-3 md:p-4 relative">
       <h2 className="text-lg md:text-xl font-semibold text-yellow-400 mb-3 md:mb-4 flex items-center justify-between">
         <span>Live Crypto Prices</span>
-        {currentFilterFn && (
-          <span className="text-sm text-gray-400">
-            {isFiltering ? 'Filtering...' : `${filteredSymbols.length} matches`}
-          </span>
-        )}
+        <span className="text-sm text-gray-400">
+          {isFiltering && currentFilterFn ? 'Filtering...' : 
+           currentFilterFn ? `${filteredSymbols.length} matches` :
+           `${filteredSymbols.length} pairs`}
+        </span>
       </h2>
       <div className="overflow-y-auto max-h-[500px] md:max-h-[600px]">
         <table className="w-full">
@@ -136,8 +151,8 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
               <TableRow
                 key={symbol}
                 symbol={symbol}
-                ticker={tickers.get(symbol)!}
-                onClick={() => onRowClick(symbol)}
+                tickerData={tickers.get(symbol)}
+                onRowClick={onRowClick}
                 onAiInfoClick={onAiInfoClick}
               />
             ))}

@@ -82,13 +82,16 @@ const App: React.FC = () => {
     loadInitialData(klineInterval);
   }, [klineInterval, loadInitialData]);
 
+  // Separate WebSocket connection effect with stable dependencies
   useEffect(() => {
-    if (initialLoading || initialError || allSymbols.length === 0) {
+    // Only proceed if we have symbols and no error
+    if (allSymbols.length === 0) {
       return;
     }
 
     let ws: WebSocket | null = null;
     let isCleanedUp = false;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const handleTickerUpdate = (tickerUpdate: Ticker) => {
       if (!isCleanedUp) {
@@ -132,60 +135,81 @@ const App: React.FC = () => {
       }
     };
     
-    const connectWithDelay = setTimeout(() => {
-      if (!isCleanedUp) {
-        try {
-            ws = connectWebSocket(
-                allSymbols,
-                klineInterval,
-                handleTickerUpdate,
-                handleKlineUpdate,
-                () => { 
-                  if (!isCleanedUp) {
-                    setStatusText('Live'); 
-                    setStatusLightClass('bg-green-500'); 
-                  }
-                },
-                (errorEvent) => { 
-                  if (!isCleanedUp) {
-                    console.error("WebSocket Error:", errorEvent); 
-                    setStatusText('WS Error'); 
-                    setStatusLightClass('bg-red-500'); 
-                  }
-                },
-                () => { 
-                  if (!isCleanedUp) {
-                    setStatusText('Disconnected'); 
-                    setStatusLightClass('bg-yellow-500'); 
-                  }
-                }
-            );
-        } catch(e) {
+    const connectWebSocketWithRetry = () => {
+      if (isCleanedUp) return;
+      
+      try {
+        ws = connectWebSocket(
+          allSymbols,
+          klineInterval,
+          handleTickerUpdate,
+          handleKlineUpdate,
+          () => { 
             if (!isCleanedUp) {
-              console.error("Failed to connect WebSocket:", e);
-              const errorMessage = e instanceof Error ? e.message : "Unknown WS connection error";
-              setInitialError(`WebSocket connection failed: ${errorMessage}`);
-              setStatusText('WS Failed');
-              setStatusLightClass('bg-red-500');
+              setStatusText('Live'); 
+              setStatusLightClass('bg-green-500'); 
             }
+          },
+          (errorEvent) => { 
+            if (!isCleanedUp) {
+              console.error("WebSocket Error:", errorEvent); 
+              setStatusText('WS Error'); 
+              setStatusLightClass('bg-red-500');
+              
+              // Reconnect after error
+              reconnectTimeout = setTimeout(connectWebSocketWithRetry, 5000);
+            }
+          },
+          () => { 
+            if (!isCleanedUp) {
+              setStatusText('Disconnected'); 
+              setStatusLightClass('bg-yellow-500');
+              
+              // Reconnect after close
+              reconnectTimeout = setTimeout(connectWebSocketWithRetry, 3000);
+            }
+          }
+        );
+      } catch(e) {
+        if (!isCleanedUp) {
+          console.error("Failed to connect WebSocket:", e);
+          setStatusText('WS Failed');
+          setStatusLightClass('bg-red-500');
+          
+          // Retry connection
+          reconnectTimeout = setTimeout(connectWebSocketWithRetry, 5000);
         }
       }
-    }, 100); // Small delay to prevent rapid reconnections
+    };
+    
+    // Initial connection with small delay
+    reconnectTimeout = setTimeout(connectWebSocketWithRetry, 500);
     
 
     return () => {
       isCleanedUp = true;
-      clearTimeout(connectWithDelay);
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+      
+      // Clear any pending reconnect timeout
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      
+      // Close WebSocket if it exists
+      if (ws) {
+        // Remove event handlers to prevent callbacks during cleanup
         ws.onclose = null;
         ws.onerror = null;
         ws.onmessage = null;
         ws.onopen = null;
-        ws.close();
+        
+        // Only close if not already closed
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+          ws.close();
+        }
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allSymbols, klineInterval, initialLoading, initialError]); 
+  // Only re-run when symbols or interval changes
+  }, [allSymbols, klineInterval]); 
 
   const handleNewSignal = useCallback((symbol: string, timestamp: number) => {
     setSignalLog(prevLog => {

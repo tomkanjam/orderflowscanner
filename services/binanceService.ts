@@ -1,4 +1,3 @@
-
 import { API_BASE_URL, WS_BASE_URL, TOP_N_PAIRS_LIMIT, KLINE_HISTORY_LIMIT } from '../constants';
 import { Ticker, Kline, KlineInterval } from '../types';
 
@@ -77,44 +76,68 @@ export function connectWebSocket(
   const klineStreams = symbols.map(s => `${s.toLowerCase()}@kline_${interval}`);
   const allStreams = [...tickerStreams, ...klineStreams].join('/');
   
-  const ws = new WebSocket(WS_BASE_URL + allStreams);
+  // Create WebSocket with proper error handling
+  let ws: WebSocket;
+  try {
+    ws = new WebSocket(WS_BASE_URL + allStreams);
+  } catch (e) {
+    console.error("Failed to create WebSocket:", e);
+    throw e;
+  }
 
-  ws.onopen = onOpen;
-  ws.onerror = onError;
-  ws.onclose = onClose;
+  // Set up event handlers before connection
+  ws.onopen = () => {
+    console.log("WebSocket connected successfully");
+    onOpen();
+  };
+  
+  ws.onerror = (error) => {
+    console.error("WebSocket error:", error);
+    onError(error);
+  };
+  
+  ws.onclose = (event) => {
+    console.log("WebSocket closed:", event.code, event.reason);
+    onClose();
+  };
 
   ws.onmessage = (event) => {
-    const message = JSON.parse(event.data as string);
-    if (message.stream && message.data) {
-      if (message.stream.includes('@ticker')) {
-        const tickerData = message.data;
-        onTickerUpdate({
-          s: tickerData.s, // Symbol
-          P: tickerData.P, // Price change percent
-          c: tickerData.c, // Last price
-          q: tickerData.q, // Total traded quote asset volume in 24hr
-          ...tickerData
-        });
-      } else if (message.stream.includes('@kline')) {
-        const klineData = message.data;
-        const k = klineData.k;
-        const newKline: Kline = [
-          k.t, // Kline start time
-          k.o, // Open price
-          k.h, // High price
-          k.l, // Low price
-          k.c, // Close price
-          k.v, // Base asset volume
-          k.T, // Kline close time
-          k.q, // Quote asset volume
-          k.n, // Number of trades
-          k.V, // Taker buy base asset volume
-          k.Q, // Taker buy quote asset volume
-          k.B  // Ignore
-        ];
-        onKlineUpdate(klineData.s, newKline, k.x); // k.x is 'is this kline closed?' boolean
+    try {
+      const message = JSON.parse(event.data as string);
+      if (message.stream && message.data) {
+        if (message.stream.includes('@ticker')) {
+          const tickerData = message.data;
+          onTickerUpdate({
+            s: tickerData.s, // Symbol
+            P: tickerData.P, // Price change percent
+            c: tickerData.c, // Last price
+            q: tickerData.q, // Total traded quote asset volume in 24hr
+            ...tickerData
+          });
+        } else if (message.stream.includes('@kline')) {
+          const klineData = message.data;
+          const k = klineData.k;
+          const kline: Kline = [
+            k.t,  // openTime
+            k.o,  // open
+            k.h,  // high
+            k.l,  // low
+            k.c,  // close
+            k.v,  // volume
+            k.T,  // closeTime
+            k.q,  // quoteAssetVolume
+            k.n,  // numberOfTrades
+            k.V,  // takerBuyBaseAssetVolume
+            k.Q,  // takerBuyQuoteAssetVolume
+            k.B   // ignore
+          ];
+          onKlineUpdate(klineData.s, kline, k.x); // k.x indicates if the kline is closed
+        }
       }
+    } catch (e) {
+      console.error("Error processing WebSocket message:", e);
     }
   };
+
   return ws;
 }

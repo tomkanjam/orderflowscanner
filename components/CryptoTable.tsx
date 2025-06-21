@@ -1,7 +1,7 @@
-
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { Ticker, Kline } from '../types';
 import TableRow from './TableRow';
+import { useScreenerWorker } from '../hooks/useScreenerWorker';
 import * as screenerHelpers from '../screenerHelpers'; // Import helpers
 
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -17,7 +17,7 @@ interface CryptoTableProps {
   onNewSignal: (symbol: string, timestamp: number) => void; // Callback for new signals
 }
 
-const SYMBOL_FILTER_DEBOUNCE_MS = 2000;
+const SYMBOL_FILTER_INTERVAL_MS = 500; // Run filter every 500ms for more responsive updates
 
 const CryptoTable: React.FC<CryptoTableProps> = ({
   allSymbols,
@@ -29,120 +29,128 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
   isLoading,
   onNewSignal,
 }) => {
-  const lastFilterEvaluationTimeRef = useRef<Map<string, number>>(new Map());
-  const lastFilterResultRef = useRef<Map<string, boolean>>(new Map());
+  const { runScreener, resetCache } = useScreenerWorker();
+  const [filteredSymbols, setFilteredSymbols] = useState<string[]>([]);
+  const [isFiltering, setIsFiltering] = useState(false);
   const loggedSymbolsThisSessionRef = useRef<Set<string>>(new Set());
+  const filterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Clear logged symbols when the filter function changes
-  useEffect(() => {
-    loggedSymbolsThisSessionRef.current.clear();
-    lastFilterEvaluationTimeRef.current.clear(); // Also clear evaluation cache for immediate re-eval
-    lastFilterResultRef.current.clear();
+  // Get filter code from the filter function
+  const filterCode = useMemo(() => {
+    if (!currentFilterFn) return null;
+    // Extract the function body
+    const funcString = currentFilterFn.toString();
+    const match = funcString.match(/\{([\s\S]*)\}/);
+    return match ? match[1] : null;
   }, [currentFilterFn]);
 
-  const filteredSymbols = useMemo(() => {
-    const now = Date.now();
-    const symbolsMatchingFilter: string[] = [];
-
-    if (!currentFilterFn) {
-      allSymbols.forEach(symbol => {
-        const tickerData = tickers.get(symbol);
-        const klineData = historicalData.get(symbol);
-        if (!!tickerData && !!klineData && klineData.length >= 20) {
-            symbolsMatchingFilter.push(symbol);
-        }
-      });
-      return symbolsMatchingFilter;
-    }
-
-    allSymbols.forEach(symbol => {
-      const tickerData = tickers.get(symbol);
-      const klineData = historicalData.get(symbol);
-
-      if (!tickerData || !klineData || klineData.length < 20) {
-        lastFilterResultRef.current.set(symbol, false);
-        return; 
-      }
-
-      const lastEvalTime = lastFilterEvaluationTimeRef.current.get(symbol);
-
-      if (!lastEvalTime || (now - lastEvalTime >= SYMBOL_FILTER_DEBOUNCE_MS)) {
-        try {
-          const result = currentFilterFn(tickerData, klineData, screenerHelpers);
-          lastFilterResultRef.current.set(symbol, result);
-          lastFilterEvaluationTimeRef.current.set(symbol, now);
-          if (result) symbolsMatchingFilter.push(symbol);
-        } catch (e) {
-          console.warn(`Filter function error for ${symbol}:`, e);
-          lastFilterResultRef.current.set(symbol, false);
-          lastFilterEvaluationTimeRef.current.set(symbol, now);
-        }
-      } else {
-        if (lastFilterResultRef.current.get(symbol) ?? false) {
-            symbolsMatchingFilter.push(symbol);
-        }
-      }
-    });
-    return symbolsMatchingFilter;
-  // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [allSymbols, tickers, historicalData, currentFilterFn]);
-
-  // Effect to log new signals
+  // Clear logged symbols and reset cache when filter changes
   useEffect(() => {
-    if (currentFilterFn) { // Only log if a filter is active
-      filteredSymbols.forEach(symbol => {
-        if (!loggedSymbolsThisSessionRef.current.has(symbol)) {
-          onNewSignal(symbol, Date.now());
-          loggedSymbolsThisSessionRef.current.add(symbol);
-        }
-      });
+    loggedSymbolsThisSessionRef.current.clear();
+    resetCache();
+  }, [currentFilterFn, resetCache]);
+
+  // Run screener in worker on interval
+  useEffect(() => {
+    // Clear previous interval
+    if (filterIntervalRef.current) {
+      clearInterval(filterIntervalRef.current);
     }
-  }, [filteredSymbols, onNewSignal, currentFilterFn]);
 
+    // Function to run the screener
+    const runFilter = async () => {
+      if (!filterCode) {
+        // No filter - show all symbols with sufficient data
+        const validSymbols = allSymbols.filter(symbol => {
+          const tickerData = tickers.get(symbol);
+          const klineData = historicalData.get(symbol);
+          return !!tickerData && !!klineData && klineData.length >= 20;
+        });
+        setFilteredSymbols(validSymbols);
+        return;
+      }
 
-  if (isLoading && allSymbols.length === 0) {
-      return null;
-  }
-  
-  if (allSymbols.length === 0 && !isLoading) {
-    return (
-      <div className="text-center py-10 text-gray-400">
-        <p className="text-lg">Could not load any trading pairs. Check connection or try again later.</p>
-      </div>
-    );
-  }
+      setIsFiltering(true);
+      try {
+        const result = await runScreener(
+          allSymbols,
+          tickers,
+          historicalData,
+          filterCode
+        );
+        
+        setFilteredSymbols(result.filteredSymbols);
+        
+        // Handle new signals
+        result.signalSymbols.forEach(symbol => {
+          if (!loggedSymbolsThisSessionRef.current.has(symbol)) {
+            onNewSignal(symbol, Date.now());
+            loggedSymbolsThisSessionRef.current.add(symbol);
+          }
+        });
+      } catch (error) {
+        console.error('Screener error:', error);
+        setFilteredSymbols([]);
+      } finally {
+        setIsFiltering(false);
+      }
+    };
+
+    // Run immediately
+    runFilter();
+
+    // Then run on interval
+    filterIntervalRef.current = setInterval(runFilter, SYMBOL_FILTER_INTERVAL_MS);
+
+    // Cleanup
+    return () => {
+      if (filterIntervalRef.current) {
+        clearInterval(filterIntervalRef.current);
+      }
+    };
+  }, [allSymbols, tickers, historicalData, filterCode, runScreener, onNewSignal]);
 
   return (
-    <div className="bg-gray-800 shadow-lg rounded-lg overflow-hidden">
-      <div className="table-container max-h-[calc(100vh-450px-100px)] xl:max-h-[calc(100vh-480px-100px)] overflow-y-auto"> {/* Adjusted height for signal log */}
-        <table className="min-w-full">
-          <thead className="bg-gray-700">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Pair</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Last Price</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">24h Change (%)</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">24h Volume</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">Analysis</th>
+    <div className="bg-gray-800 shadow-lg rounded-lg p-3 md:p-4 relative">
+      <h2 className="text-lg md:text-xl font-semibold text-yellow-400 mb-3 md:mb-4 flex items-center justify-between">
+        <span>Live Crypto Prices</span>
+        {currentFilterFn && (
+          <span className="text-sm text-gray-400">
+            {isFiltering ? 'Filtering...' : `${filteredSymbols.length} matches`}
+          </span>
+        )}
+      </h2>
+      <div className="overflow-y-auto max-h-[500px] md:max-h-[600px]">
+        <table className="w-full">
+          <thead className="sticky top-0 bg-gray-700 z-10">
+            <tr className="text-left text-xs md:text-sm text-gray-400">
+              <th className="p-2 md:px-4 md:py-2">Pair</th>
+              <th className="p-2 md:px-4 md:py-2 text-right">Price</th>
+              <th className="p-2 md:px-4 md:py-2 text-right">24h Change</th>
+              <th className="p-2 md:px-4 md:py-2 text-right hidden sm:table-cell">Volume</th>
+              <th className="p-2 md:px-4 md:py-2 text-center">AI Info</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-700">
-            {filteredSymbols.map(symbol => (
+          <tbody>
+            {filteredSymbols.map((symbol) => (
               <TableRow
                 key={symbol}
                 symbol={symbol}
-                tickerData={tickers.get(symbol)}
-                onRowClick={onRowClick}
+                ticker={tickers.get(symbol)!}
+                onClick={() => onRowClick(symbol)}
                 onAiInfoClick={onAiInfoClick}
               />
             ))}
+            {filteredSymbols.length === 0 && !isLoading && (
+              <tr>
+                <td colSpan={5} className="text-center text-gray-500 p-4">
+                  {isFiltering ? 'Filtering symbols...' : 'No pairs match the filter criteria.'}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
-      {currentFilterFn && filteredSymbols.length === 0 && (
-        <div className="text-center py-10 text-gray-400 border-t border-gray-700">
-          <p className="text-lg">No pairs match the current AI filter.</p>
-        </div>
-      )}
     </div>
   );
 };

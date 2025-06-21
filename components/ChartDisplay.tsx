@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Chart, registerables, Filler, ChartConfiguration } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { CandlestickController, CandlestickElement, OhlcController, OhlcElement } from 'chartjs-chart-financial';
 import { Kline, CustomIndicatorConfig, CandlestickDataPoint, SignalLogEntry, KlineInterval, IndicatorDataPoint } from '../types';
-import { executeIndicatorFunction } from '../indicatorExecutor';
+import { useIndicatorWorker } from '../hooks/useIndicatorWorker';
 
 Chart.register(...registerables, CandlestickController, CandlestickElement, OhlcController, OhlcElement, Filler);
 
@@ -71,6 +71,13 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   // Dynamic panel refs based on indicators
   const panelCanvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const panelChartInstanceRefs = useRef<(Chart | null)[]>([]);
+  
+  // State for calculated indicator data
+  const [calculatedIndicators, setCalculatedIndicators] = useState<Map<string, IndicatorDataPoint[]>>(new Map());
+  const [isCalculating, setIsCalculating] = useState(false);
+  
+  // Use the indicator worker hook
+  const { calculateIndicators } = useIndicatorWorker();
 
   const destroyAllCharts = () => {
     // Destroy panel charts
@@ -99,10 +106,33 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
     });
   }, []); 
 
+  // Calculate indicators when they change
+  useEffect(() => {
+    if (!indicators || !klines || klines.length === 0) {
+      setCalculatedIndicators(new Map());
+      return;
+    }
+    
+    const calculateAllIndicators = async () => {
+      setIsCalculating(true);
+      try {
+        const results = await calculateIndicators(indicators, klines);
+        setCalculatedIndicators(results);
+      } catch (error) {
+        console.error('Error calculating indicators:', error);
+      } finally {
+        setIsCalculating(false);
+      }
+    };
+    
+    calculateAllIndicators();
+  }, [indicators, klines, calculateIndicators]);
+
+  // Render charts when calculations are complete
   useEffect(() => {
     destroyAllCharts();
 
-    if (!symbol || !klines || klines.length === 0) {
+    if (!symbol || !klines || klines.length === 0 || isCalculating) {
       return;
     }
 
@@ -126,63 +156,56 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
         // Add overlay indicators
         overlayIndicators.forEach(indicator => {
-            try {
-                const dataPoints = executeIndicatorFunction(
-                    indicator.calculateFunction,
-                    klines
-                );
+            const dataPoints = calculatedIndicators.get(indicator.id) || [];
+            
+            if (dataPoints.length === 0) return;
 
-                if (dataPoints.length === 0) return;
-
-                // Check if multi-line indicator
-                const hasMultipleLines = dataPoints.some(p => p.y2 !== undefined);
+            // Check if multi-line indicator
+            const hasMultipleLines = dataPoints.some(p => p.y2 !== undefined);
+            
+            if (hasMultipleLines) {
+                // Handle multi-line indicators
+                const colors = Array.isArray(indicator.style.color) 
+                    ? indicator.style.color 
+                    : [indicator.style.color || '#3b82f6'];
                 
-                if (hasMultipleLines) {
-                    // Handle multi-line indicators
-                    const colors = Array.isArray(indicator.style.color) 
-                        ? indicator.style.color 
-                        : [indicator.style.color || '#3b82f6'];
-                    
-                    // Create dataset for each y value
-                    const lineNames = ['', ' Upper', ' Lower', ' 4th'];
-                    ['y', 'y2', 'y3', 'y4'].forEach((key, idx) => {
-                        const yKey = key as keyof IndicatorDataPoint;
-                        if (dataPoints.some(p => p[yKey] !== undefined)) {
-                            priceChartDatasets.push({
-                                type: 'line',
-                                label: `${indicator.name}${lineNames[idx]}`,
-                                data: dataPoints.map(p => ({x: p.x, y: p[yKey]})),
-                                borderColor: colors[idx] || colors[0],
-                                borderWidth: indicator.style.lineWidth || 1.5,
-                                pointRadius: 0,
-                                yAxisID: 'yPrice',
-                                fill: idx === 0 && indicator.style.fillColor ? {
-                                    target: 'origin',
-                                    above: indicator.style.fillColor
-                                } : false
-                            });
-                        }
-                    });
-                } else {
-                    // Single line indicator
-                    priceChartDatasets.push({
-                        type: 'line',
-                        label: indicator.name,
-                        data: dataPoints.map(p => ({x: p.x, y: p.y})),
-                        borderColor: Array.isArray(indicator.style.color) 
-                            ? indicator.style.color[0] 
-                            : (indicator.style.color || '#3b82f6'),
-                        borderWidth: indicator.style.lineWidth || 1.5,
-                        pointRadius: 0,
-                        yAxisID: 'yPrice',
-                        fill: indicator.style.fillColor ? {
-                            target: 'origin',
-                            above: indicator.style.fillColor
-                        } : false
-                    });
-                }
-            } catch (error) {
-                console.error(`Error executing overlay indicator ${indicator.name}:`, error);
+                // Create dataset for each y value
+                const lineNames = ['', ' Upper', ' Lower', ' 4th'];
+                ['y', 'y2', 'y3', 'y4'].forEach((key, idx) => {
+                    const yKey = key as keyof IndicatorDataPoint;
+                    if (dataPoints.some(p => p[yKey] !== undefined)) {
+                        priceChartDatasets.push({
+                            type: 'line',
+                            label: `${indicator.name}${lineNames[idx]}`,
+                            data: dataPoints.map(p => ({x: p.x, y: p[yKey]})),
+                            borderColor: colors[idx] || colors[0],
+                            borderWidth: indicator.style.lineWidth || 1.5,
+                            pointRadius: 0,
+                            yAxisID: 'yPrice',
+                            fill: idx === 0 && indicator.style.fillColor ? {
+                                target: 'origin',
+                                above: indicator.style.fillColor
+                            } : false
+                        });
+                    }
+                });
+            } else {
+                // Single line indicator
+                priceChartDatasets.push({
+                    type: 'line',
+                    label: indicator.name,
+                    data: dataPoints.map(p => ({x: p.x, y: p.y})),
+                    borderColor: Array.isArray(indicator.style.color) 
+                        ? indicator.style.color[0] 
+                        : (indicator.style.color || '#3b82f6'),
+                    borderWidth: indicator.style.lineWidth || 1.5,
+                    pointRadius: 0,
+                    yAxisID: 'yPrice',
+                    fill: indicator.style.fillColor ? {
+                        target: 'origin',
+                        above: indicator.style.fillColor
+                    } : false
+                });
             }
         });
 
@@ -272,172 +295,164 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         const canvasRef = panelCanvasRefs.current[idx];
         if (!canvasRef) return;
 
-        try {
-            const dataPoints = executeIndicatorFunction(
-                indicator.calculateFunction,
-                klines
-            );
+        const dataPoints = calculatedIndicators.get(indicator.id) || [];
+        if (dataPoints.length === 0) return;
 
-            if (dataPoints.length === 0) return;
-
-            const datasets: any[] = [];
+        const datasets: any[] = [];
+        
+        if (indicator.chartType === 'bar') {
+            // Bar chart (e.g., Volume, MACD Histogram)
+            datasets.push({
+                type: 'bar',
+                label: indicator.name,
+                data: dataPoints.map(p => ({x: p.x, y: p.y})),
+                backgroundColor: (ctx: any) => {
+                    const point = dataPoints[ctx.dataIndex];
+                    if (point?.color) return point.color;
+                    
+                    // Default coloring based on positive/negative
+                    if (indicator.style.barColors) {
+                        const val = point?.y || 0;
+                        if (val > 0) return indicator.style.barColors.positive || '#10b981';
+                        if (val < 0) return indicator.style.barColors.negative || '#ef4444';
+                        return indicator.style.barColors.neutral || '#9ca3af';
+                    }
+                    
+                    return Array.isArray(indicator.style.color) 
+                        ? indicator.style.color[0] 
+                        : (indicator.style.color || '#9ca3af');
+                }
+            });
+        } else if (indicator.chartType === 'line') {
+            // Line chart (can be multi-line)
+            const hasMultipleLines = dataPoints.some(p => p.y2 !== undefined);
             
-            if (indicator.chartType === 'bar') {
-                // Bar chart (e.g., Volume, MACD Histogram)
-                datasets.push({
-                    type: 'bar',
-                    label: indicator.name,
-                    data: dataPoints.map(p => ({x: p.x, y: p.y})),
-                    backgroundColor: (ctx: any) => {
-                        const point = dataPoints[ctx.dataIndex];
-                        if (point?.color) return point.color;
-                        
-                        // Default coloring based on positive/negative
-                        if (indicator.style.barColors) {
-                            const val = point?.y || 0;
-                            if (val > 0) return indicator.style.barColors.positive || '#10b981';
-                            if (val < 0) return indicator.style.barColors.negative || '#ef4444';
-                            return indicator.style.barColors.neutral || '#9ca3af';
+            if (hasMultipleLines) {
+                const colors = Array.isArray(indicator.style.color) 
+                    ? indicator.style.color 
+                    : [indicator.style.color || '#3b82f6'];
+                
+                const lineNames = ['', ' Signal', ' Lower', ' 4th'];
+                ['y', 'y2', 'y3', 'y4'].forEach((key, idx) => {
+                    const yKey = key as keyof IndicatorDataPoint;
+                    if (dataPoints.some(p => p[yKey] !== undefined)) {
+                        // Special handling for histogram-like data in MACD
+                        if (idx === 2 && indicator.name.toLowerCase().includes('macd')) {
+                            // MACD histogram as bars
+                            datasets.push({
+                                type: 'bar',
+                                label: `${indicator.name} Histogram`,
+                                data: dataPoints.map(p => ({x: p.x, y: p.y3})),
+                                backgroundColor: (ctx: any) => {
+                                    const val = dataPoints[ctx.dataIndex]?.y3 || 0;
+                                    return val >= 0 ? '#10b98166' : '#ef444466';
+                                }
+                            });
+                        } else {
+                            // Regular line
+                            datasets.push({
+                                type: 'line',
+                                label: `${indicator.name}${lineNames[idx]}`,
+                                data: dataPoints.map(p => ({x: p.x, y: p[yKey]})),
+                                borderColor: colors[idx] || colors[0],
+                                borderWidth: indicator.style.lineWidth || 1.5,
+                                pointRadius: 0,
+                                fill: false,
+                                borderDash: idx > 0 && indicator.name.toLowerCase().includes('rsi') ? [5, 5] : undefined
+                            });
                         }
-                        
-                        return Array.isArray(indicator.style.color) 
-                            ? indicator.style.color[0] 
-                            : (indicator.style.color || '#9ca3af');
                     }
                 });
-            } else if (indicator.chartType === 'line') {
-                // Line chart (can be multi-line)
-                const hasMultipleLines = dataPoints.some(p => p.y2 !== undefined);
-                
-                if (hasMultipleLines) {
-                    const colors = Array.isArray(indicator.style.color) 
-                        ? indicator.style.color 
-                        : [indicator.style.color || '#3b82f6'];
-                    
-                    const lineNames = ['', ' Signal', ' Lower', ' 4th'];
-                    ['y', 'y2', 'y3', 'y4'].forEach((key, idx) => {
-                        const yKey = key as keyof IndicatorDataPoint;
-                        if (dataPoints.some(p => p[yKey] !== undefined)) {
-                            // Special handling for histogram-like data in MACD
-                            if (idx === 2 && indicator.name.toLowerCase().includes('macd')) {
-                                // MACD histogram as bars
-                                datasets.push({
-                                    type: 'bar',
-                                    label: `${indicator.name} Histogram`,
-                                    data: dataPoints.map(p => ({x: p.x, y: p.y3})),
-                                    backgroundColor: (ctx: any) => {
-                                        const val = dataPoints[ctx.dataIndex]?.y3 || 0;
-                                        return val >= 0 ? '#10b98166' : '#ef444466';
-                                    }
-                                });
-                            } else {
-                                // Regular line
-                                datasets.push({
-                                    type: 'line',
-                                    label: `${indicator.name}${lineNames[idx]}`,
-                                    data: dataPoints.map(p => ({x: p.x, y: p[yKey]})),
-                                    borderColor: colors[idx] || colors[0],
-                                    borderWidth: indicator.style.lineWidth || 1.5,
-                                    pointRadius: 0,
-                                    fill: false,
-                                    borderDash: idx > 0 && indicator.name.toLowerCase().includes('rsi') ? [5, 5] : undefined
-                                });
-                            }
-                        }
-                    });
-                } else {
-                    // Single line
-                    datasets.push({
-                        type: 'line',
-                        label: indicator.name,
-                        data: dataPoints.map(p => ({x: p.x, y: p.y})),
-                        borderColor: Array.isArray(indicator.style.color) 
-                            ? indicator.style.color[0] 
-                            : (indicator.style.color || '#3b82f6'),
-                        borderWidth: indicator.style.lineWidth || 1.5,
-                        pointRadius: 0,
-                        fill: indicator.style.fillColor ? {
-                            target: 'origin',
-                            above: indicator.style.fillColor
-                        } : false
-                    });
-                }
+            } else {
+                // Single line
+                datasets.push({
+                    type: 'line',
+                    label: indicator.name,
+                    data: dataPoints.map(p => ({x: p.x, y: p.y})),
+                    borderColor: Array.isArray(indicator.style.color) 
+                        ? indicator.style.color[0] 
+                        : (indicator.style.color || '#3b82f6'),
+                    borderWidth: indicator.style.lineWidth || 1.5,
+                    pointRadius: 0,
+                    fill: indicator.style.fillColor ? {
+                        target: 'origin',
+                        above: indicator.style.fillColor
+                    } : false
+                });
             }
-
-            const chartConfig: ChartConfiguration = {
-                type: datasets[0]?.type || 'line',
-                data: { datasets },
-                options: {
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    animation: false,
-                    layout: { padding: { top: 2, bottom: 0, left: 0, right: 35 } },
-                    plugins: {
-                        legend: { display: false },
-                        title: { 
-                            display: true, 
-                            text: indicator.name, 
-                            color: '#FFFFFF', 
-                            font: { size: 12 }, 
-                            align: 'left', 
-                            padding: { top: 0, bottom: 2 } 
-                        },
-                        tooltip: { 
-                            enabled: true, 
-                            mode: 'index', 
-                            intersect: false, 
-                            backgroundColor: 'rgba(31, 41, 55, 0.9)', 
-                            titleColor: '#facc15', 
-                            bodyColor: '#e5e7eb',
-                            borderColor: '#4b5563', 
-                            borderWidth: 1, 
-                            displayColors: false,
-                            callbacks: {
-                                label: function(context) {
-                                    const datasetLabel = context.dataset.label || '';
-                                    const value = context.parsed.y;
-                                    return `${datasetLabel}: ${typeof value === 'number' ? value.toFixed(4) : value}`;
-                                }
-                            }
-                        }, 
-                        zoom: { 
-                            pan: { enabled: false }, 
-                            zoom: { wheel: { enabled: false }, pinch: { enabled: false } } 
-                        }
-                    },
-                    scales: {
-                        x: { 
-                            type: 'time', 
-                            time: { unit: 'minute' },
-                            grid: { display: false }, 
-                            ticks: { display: false } 
-                        },
-                        y: { 
-                            type: 'linear', 
-                            display: true, 
-                            position: indicator.yAxisConfig?.position || 'left', 
-                            grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
-                            ticks: { 
-                                color: '#9ca3af', 
-                                font: { size: 10 }, 
-                                maxTicksLimit: 5 
-                            },
-                            min: indicator.yAxisConfig?.min,
-                            max: indicator.yAxisConfig?.max,
-                            title: indicator.yAxisConfig?.label ? {
-                                display: true,
-                                text: indicator.yAxisConfig.label,
-                                color: '#9ca3af'
-                            } : undefined
-                        },
-                    },
-                }
-            };
-
-            panelChartInstanceRefs.current[idx] = new Chart(canvasRef, chartConfig);
-        } catch (error) {
-            console.error(`Error executing panel indicator ${indicator.name}:`, error);
         }
+
+        const chartConfig: ChartConfiguration = {
+            type: datasets[0]?.type || 'line',
+            data: { datasets },
+            options: {
+                responsive: true, 
+                maintainAspectRatio: false, 
+                animation: false,
+                layout: { padding: { top: 2, bottom: 0, left: 0, right: 35 } },
+                plugins: {
+                    legend: { display: false },
+                    title: { 
+                        display: true, 
+                        text: indicator.name, 
+                        color: '#FFFFFF', 
+                        font: { size: 12 }, 
+                        align: 'left', 
+                        padding: { top: 0, bottom: 2 } 
+                    },
+                    tooltip: { 
+                        enabled: true, 
+                        mode: 'index', 
+                        intersect: false, 
+                        backgroundColor: 'rgba(31, 41, 55, 0.9)', 
+                        titleColor: '#facc15', 
+                        bodyColor: '#e5e7eb',
+                        borderColor: '#4b5563', 
+                        borderWidth: 1, 
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                const datasetLabel = context.dataset.label || '';
+                                const value = context.parsed.y;
+                                return `${datasetLabel}: ${typeof value === 'number' ? value.toFixed(4) : value}`;
+                            }
+                        }
+                    }, 
+                    zoom: { 
+                        pan: { enabled: false }, 
+                        zoom: { wheel: { enabled: false }, pinch: { enabled: false } } 
+                    }
+                },
+                scales: {
+                    x: { 
+                        type: 'time', 
+                        time: { unit: 'minute' },
+                        grid: { display: false }, 
+                        ticks: { display: false } 
+                    },
+                    y: { 
+                        type: 'linear', 
+                        display: true, 
+                        position: indicator.yAxisConfig?.position || 'left', 
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
+                        ticks: { 
+                            color: '#9ca3af', 
+                            font: { size: 10 }, 
+                            maxTicksLimit: 5 
+                        },
+                        min: indicator.yAxisConfig?.min,
+                        max: indicator.yAxisConfig?.max,
+                        title: indicator.yAxisConfig?.label ? {
+                            display: true,
+                            text: indicator.yAxisConfig.label,
+                            color: '#9ca3af'
+                        } : undefined
+                    },
+                },
+            }
+        };
+
+        panelChartInstanceRefs.current[idx] = new Chart(canvasRef, chartConfig);
     });
 
     // Update all charts
@@ -453,7 +468,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
       destroyAllCharts();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, klines, indicators, interval, signalLog, syncIndicatorCharts]); 
+  }, [symbol, klines, indicators, interval, signalLog, syncIndicatorCharts, calculatedIndicators, isCalculating]); 
 
   // Calculate panel indicators and heights
   const panelIndicators = indicators?.filter(ind => ind.panel) || [];
@@ -482,6 +497,11 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         <>
           <div className={`${priceChartHeight} relative`}>
             <canvas ref={priceCanvasRef}></canvas>
+            {isCalculating && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
+                <div className="text-yellow-400">Calculating indicators...</div>
+              </div>
+            )}
           </div>
           {panelIndicators.map((indicator, idx) => (
             <div key={indicator.id} className={`${panelHeight} relative border-t border-gray-700 pt-1 mt-1`}>

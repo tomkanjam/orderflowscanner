@@ -6,28 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is an AI-powered cryptocurrency screener for Binance Spot markets that allows users to describe technical trading conditions in natural language. The application uses Google's Gemini API to convert natural language into executable screening filters and visualizes results with real-time charts.
 
-## Development Commands
+## Development Environment
+Use pnpm
 
-```bash
-# Install dependencies (project uses pnpm based on lockfile)
-pnpm install
-
-# Run development server
-pnpm run dev
-
-# Build for production
-pnpm run build
-
-# Preview production build
-pnpm run preview
-```
-
-## Environment Setup
-
-Before running, ensure `.env.local` contains a valid Gemini API key:
-```
-VITE_GEMINI_API_KEY=your_api_key_here
-```
 
 ## Architecture Overview
 

@@ -1,8 +1,60 @@
 
 import { GoogleGenAI, GenerateContentResponse, Content } from "@google/genai";
-import { AiFilterResponse, Kline, Ticker, CustomIndicatorConfig } from '../types';
+import { AiFilterResponse, Kline, Ticker, CustomIndicatorConfig, IndicatorDataPoint } from '../types';
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS } from "../constants";
 import * as helpers from '../screenerHelpers'; // Import all helpers
+
+// Simple indicator executor for analysis (full version is in worker)
+function executeIndicatorFunction(
+  code: string,
+  klines: Kline[],
+  params?: Record<string, any>
+): IndicatorDataPoint[] {
+  try {
+    const func = new Function(
+      'klines', 
+      'helpers', 
+      'params',
+      'Math',
+      'parseFloat',
+      'parseInt',
+      'isNaN',
+      'isFinite',
+      code
+    );
+    
+    const result = func(
+      klines, 
+      helpers, 
+      params || {},
+      Math,
+      parseFloat,
+      parseInt,
+      isNaN,
+      isFinite
+    );
+    
+    if (!Array.isArray(result)) return [];
+    
+    return result.filter(point => 
+      point && 
+      typeof point === 'object' && 
+      typeof point.x === 'number' && 
+      !isNaN(point.x) && 
+      isFinite(point.x)
+    ).map(point => ({
+      x: point.x,
+      y: point.y === null || point.y === undefined ? null : Number(point.y),
+      y2: point.y2 === null || point.y2 === undefined ? null : Number(point.y2),
+      y3: point.y3 === null || point.y3 === undefined ? null : Number(point.y3),
+      y4: point.y4 === null || point.y4 === undefined ? null : Number(point.y4),
+      color: point.color
+    }));
+  } catch (error) {
+    console.error('Indicator execution failed:', error);
+    return [];
+  }
+}
 
 const API_KEY = process.env.API_KEY;
 
@@ -335,8 +387,7 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
     if (indicators && indicators.length > 0 && analysisKlines.length > 0) {
         prompt += "\nIndicator Data (based on last " + analysisKlines.length + " klines, latest 5 values shown - most recent first, 'null' if not calculable):\n";
         
-        // Import the executor function for analysis
-        const { executeIndicatorFunction } = await import('../indicatorExecutor');
+        // Execute indicators inline for analysis
         
         for (const indicator of indicators) {
             try {

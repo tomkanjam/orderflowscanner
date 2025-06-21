@@ -13,6 +13,11 @@ Use pnpm
 - Break down tasks into testable sub-tasks
 - As you complete each sub-task, run pnpm build to catch errors, and test the new functionality either programatically or by asking the PM to test it before moving on.
 
+## Debugging
+If you run into errors, lean towards debugging first before implementing big fixes/changes
+Always includes timestamps in your logging
+Work with the PM on debugging
+
 
 ## Architecture Overview
 

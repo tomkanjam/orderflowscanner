@@ -35,6 +35,24 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
   const lastFilterTimeRef = useRef(0);
   const loggedSymbolsThisSessionRef = useRef<Set<string>>(new Set());
   const filterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
+  // Store data in refs to avoid re-renders
+  const tickersRef = useRef(tickers);
+  const historicalDataRef = useRef(historicalData);
+  const allSymbolsRef = useRef(allSymbols);
+  
+  // Update refs when props change
+  useEffect(() => {
+    tickersRef.current = tickers;
+  }, [tickers]);
+  
+  useEffect(() => {
+    historicalDataRef.current = historicalData;
+  }, [historicalData]);
+  
+  useEffect(() => {
+    allSymbolsRef.current = allSymbols;
+  }, [allSymbols]);
 
   // Get filter code from the filter function
   const filterCode = useMemo(() => {
@@ -53,11 +71,6 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
 
   // Run screener in worker on interval
   useEffect(() => {
-    // Don't run if we don't have data yet
-    if (allSymbols.length === 0 || tickers.size === 0) {
-      return;
-    }
-    
     // Clear previous interval
     if (filterIntervalRef.current) {
       clearInterval(filterIntervalRef.current);
@@ -65,6 +78,16 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
 
     // Function to run the screener
     const runFilter = async () => {
+      // Get current data from refs
+      const currentAllSymbols = allSymbolsRef.current;
+      const currentTickers = tickersRef.current;
+      const currentHistoricalData = historicalDataRef.current;
+      
+      // Don't run if we don't have data yet
+      if (currentAllSymbols.length === 0 || currentTickers.size === 0) {
+        return;
+      }
+      
       const now = Date.now();
       
       // Only show "Filtering..." if it's been more than 100ms since last update
@@ -76,18 +99,17 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
       try {
         if (!filterCode) {
           // No filter - show all symbols with sufficient data
-          const validSymbols = allSymbols.filter(symbol => {
-            const tickerData = tickers.get(symbol);
-            const klineData = historicalData.get(symbol);
+          const validSymbols = currentAllSymbols.filter(symbol => {
+            const tickerData = currentTickers.get(symbol);
+            const klineData = currentHistoricalData.get(symbol);
             return !!tickerData && !!klineData && klineData.length >= 20;
           });
           setFilteredSymbols(validSymbols);
-          console.log(`No filter active - showing ${validSymbols.length} valid symbols`);
         } else {
           const result = await runScreener(
-            allSymbols,
-            tickers,
-            historicalData,
+            currentAllSymbols,
+            currentTickers,
+            currentHistoricalData,
             filterCode
           );
           
@@ -111,7 +133,6 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
     };
 
     // Run immediately
-    console.log(`Initial filter run with ${allSymbols.length} symbols, ${tickers.size} tickers`);
     runFilter();
 
     // Then run on interval
@@ -123,7 +144,7 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
         clearInterval(filterIntervalRef.current);
       }
     };
-  }, [allSymbols, tickers, historicalData, filterCode, runScreener, onNewSignal]);
+  }, [filterCode, runScreener, onNewSignal]); // Only stable dependencies
 
   return (
     <div className="bg-gray-800 shadow-lg rounded-lg p-3 md:p-4 relative">

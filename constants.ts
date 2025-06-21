@@ -6,8 +6,6 @@ export const TOP_N_PAIRS_LIMIT = 100;
 export const KLINE_HISTORY_LIMIT = 250;
 export const KLINE_HISTORY_LIMIT_FOR_ANALYSIS = 100; // Added for symbol analysis
 
-export const MODEL_TEXT_GENERAL = 'gemini-2.5-flash-preview-04-17'; // Per instruction
-
 export const KLINE_INTERVALS: { value: KlineInterval; label: string }[] = [
   { value: KlineInterval.ONE_MINUTE, label: '1 Minute' },
   { value: KlineInterval.FIVE_MINUTES, label: '5 Minutes' },
@@ -18,9 +16,9 @@ export const KLINE_INTERVALS: { value: KlineInterval; label: string }[] = [
 ];
 
 export const GEMINI_MODELS: { value: GeminiModelOption; label: string, internalModel: string }[] = [
-  { value: GeminiModelOption.FLASH_FAST, label: 'Gemini 2.5 Flash (Fast)', internalModel: MODEL_TEXT_GENERAL },
-  { value: GeminiModelOption.FLASH_ADVANCED, label: 'Gemini 2.5 Flash (Advanced)', internalModel: MODEL_TEXT_GENERAL },
-  { value: GeminiModelOption.PRO, label: 'Gemini 2.5 Pro', internalModel: MODEL_TEXT_GENERAL }, // Added Pro option, maps to allowed Flash model
+  { value: GeminiModelOption.FLASH_FAST, label: 'Gemini 2.5 Flash (Fast)', internalModel: 'gemini-2.5-flash' },
+  { value: GeminiModelOption.FLASH_ADVANCED, label: 'Gemini 2.5 Flash (Advanced)', internalModel: 'gemini-2.5-flash' },
+  { value: GeminiModelOption.PRO, label: 'Gemini 2.5 Pro', internalModel: 'gemini-2.5-pro' },
 ];
 
 export const DEFAULT_KLINE_INTERVAL = KlineInterval.ONE_MINUTE;

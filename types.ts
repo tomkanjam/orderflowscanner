@@ -95,4 +95,7 @@ export interface SignalLogEntry {
   symbol: string;
   interval: KlineInterval;
   filterDesc: string; // A short description of the filter active at the time
+  priceAtSignal: number;
+  changePercentAtSignal: number;
+  volumeAtSignal: number;
 }

@@ -7,6 +7,10 @@ node_modules/
 .env.local
 .env.*.local
 
+# Service account credentials
+*.json
+trademind-eae26-*.json
+
 # Build output
 dist/
 build/

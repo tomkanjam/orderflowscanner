@@ -1,11 +1,10 @@
 
 import React from 'react';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry } from '../types';
-import CryptoTable from './CryptoTable';
+import SignalTable from './SignalTable';
 import ChartDisplay from './ChartDisplay';
 import Loader from './Loader';
 import ErrorMessage from './ErrorMessage';
-import SignalLogView from './SignalLogView'; // Import SignalLogView
 import * as screenerHelpers from '../screenerHelpers'; 
 
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -70,22 +69,14 @@ const MainContent: React.FC<MainContentProps> = ({
                 interval={klineInterval}
                 signalLog={signalLog} // Pass signalLog to ChartDisplay
               />
-              <div className="flex flex-col lg:flex-row gap-4 mt-6 flex-grow">
-                <div className="lg:w-2/3"> {/* Table takes more space */}
-                  <CryptoTable
-                    allSymbols={allSymbols}
-                    tickers={tickers}
-                    historicalData={historicalData}
-                    currentFilterFn={currentFilterFn}
-                    onRowClick={onRowClick}
-                    onAiInfoClick={onAiInfoClick}
-                    isLoading={initialLoading}
-                    onNewSignal={onNewSignal} // Pass onNewSignal to CryptoTable
-                  />
-                </div>
-                <div className="lg:w-1/3"> {/* Signal Log takes less space */}
-                  <SignalLogView signalLog={signalLog} />
-                </div>
+              <div className="mt-6 flex-grow">
+                <SignalTable
+                  signalLog={signalLog}
+                  tickers={tickers}
+                  onRowClick={onRowClick}
+                  onAiInfoClick={onAiInfoClick}
+                  isLoading={initialLoading}
+                />
               </div>
             </>
           )}

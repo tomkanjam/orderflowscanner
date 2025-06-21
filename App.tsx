@@ -212,6 +212,9 @@ const App: React.FC = () => {
   }, [allSymbols, klineInterval]); 
 
   const handleNewSignal = useCallback((symbol: string, timestamp: number) => {
+    const tickerData = tickers.get(symbol);
+    if (!tickerData) return;
+    
     setSignalLog(prevLog => {
       const shortDesc = aiFilterDescription && aiFilterDescription.length > 0 ? aiFilterDescription[0] : "AI Filter Active";
       const newEntry: SignalLogEntry = {
@@ -219,11 +222,14 @@ const App: React.FC = () => {
         symbol,
         interval: klineInterval,
         filterDesc: shortDesc,
+        priceAtSignal: parseFloat(tickerData.c),
+        changePercentAtSignal: parseFloat(tickerData.P),
+        volumeAtSignal: parseFloat(tickerData.q),
       };
-      // Keep max 100 log entries for performance, prepending new ones
-      return [newEntry, ...prevLog.slice(0, 99)]; 
+      // Keep max 500 log entries for performance, prepending new ones
+      return [newEntry, ...prevLog.slice(0, 499)]; 
     });
-  }, [aiFilterDescription, klineInterval]);
+  }, [aiFilterDescription, klineInterval, tickers]);
 
   const handleRunAiScreener = useCallback(async () => {
     if (!aiPrompt.trim()) {

@@ -48,15 +48,6 @@ const MainContent: React.FC<MainContentProps> = ({
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-y-hidden">
       <div className="container mx-auto px-4 py-6 md:px-6 md:py-8 flex-grow flex flex-col overflow-y-auto">
-        <header className="text-center mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-yellow-400">Binance Spot Screener</h1>
-          <p className="text-gray-400 mt-2 text-sm md:text-base">
-            Top {allSymbols.length > 0 ? allSymbols.length : ''} Pairs by 24h Volume |{' '}
-            <span className={`inline-block w-3 h-3 rounded-full mr-2 ${statusLightClass}`}></span>
-            <span id="status-text">{statusText}</span>
-          </p>
-        </header>
-
         <main className="flex-grow flex flex-col">
           {initialLoading && <Loader text="Fetching initial market data..." />}
           <ErrorMessage message={initialError} />

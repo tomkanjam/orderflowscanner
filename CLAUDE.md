@@ -65,3 +65,9 @@ Work with the PM on debugging
 - Application filters for USDT spot pairs with >100k volume to reduce data load
 - Historical data limited to 250 klines for screening, 100 for detailed analysis
 - Real-time updates use efficient Map-based state management
+
+
+## Git Commits
+- Create a commit after every task is complete.
+- Do frequent commits so that we can roll back changes easily.
+- Use the Github MCP tool for commits.

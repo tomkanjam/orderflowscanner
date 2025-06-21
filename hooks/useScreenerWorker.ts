@@ -64,6 +64,7 @@ export function useScreenerWorker() {
         }
 
         // Convert Maps to objects for serialization
+        // Limit klines to last 100 to reduce memory usage
         const tickersObj: Record<string, Ticker> = {};
         const historicalDataObj: Record<string, Kline[]> = {};
         
@@ -71,7 +72,10 @@ export function useScreenerWorker() {
           const ticker = tickers.get(symbol);
           const klines = historicalData.get(symbol);
           if (ticker) tickersObj[symbol] = ticker;
-          if (klines) historicalDataObj[symbol] = klines;
+          if (klines) {
+            // Only send last 100 klines to reduce memory usage
+            historicalDataObj[symbol] = klines.slice(-100);
+          }
         });
 
         const id = `screen-${++messageIdCounter.current}`;
@@ -79,17 +83,27 @@ export function useScreenerWorker() {
         // Store pending screener
         pendingScreenerRef.current = { resolve, reject };
 
-        // Send message to worker
-        workerRef.current.postMessage({
-          id,
-          type: 'RUN_SCREENER',
-          data: {
-            symbols,
-            tickers: tickersObj,
-            historicalData: historicalDataObj,
-            filterCode
+        try {
+          // Send message to worker
+          workerRef.current.postMessage({
+            id,
+            type: 'RUN_SCREENER',
+            data: {
+              symbols,
+              tickers: tickersObj,
+              historicalData: historicalDataObj,
+              filterCode
+            }
+          });
+        } catch (error) {
+          pendingScreenerRef.current = null;
+          console.error('Failed to send data to worker:', error);
+          if (error instanceof Error && error.message.includes('memory')) {
+            reject(new Error('Too much data to process. Try reducing the number of pairs or using a shorter timeframe.'));
+          } else {
+            reject(error instanceof Error ? error : new Error('Failed to run screener'));
           }
-        });
+        }
       });
     },
     []

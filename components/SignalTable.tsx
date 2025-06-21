@@ -39,6 +39,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
           <thead className="sticky top-0 bg-gray-700 z-10">
             <tr className="text-left text-xs md:text-sm text-gray-400">
               <th className="p-2 md:px-4 md:py-2">Time</th>
+              <th className="p-2 md:px-4 md:py-2 text-center">Count</th>
               <th className="p-2 md:px-4 md:py-2">Pair</th>
               <th className="p-2 md:px-4 md:py-2 text-right">Signal Price</th>
               <th className="p-2 md:px-4 md:py-2 text-right">Current Price</th>
@@ -59,7 +60,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
             ))}
             {signalLog.length === 0 && !isLoading && (
               <tr>
-                <td colSpan={7} className="text-center text-gray-500 p-4">
+                <td colSpan={8} className="text-center text-gray-500 p-4">
                   No signals generated yet. Run an AI screener to start capturing signals.
                 </td>
               </tr>

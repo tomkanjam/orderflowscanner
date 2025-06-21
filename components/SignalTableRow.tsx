@@ -76,6 +76,13 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-gray-400">
         {formatTime(signal.timestamp)}
       </td>
+      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-center">
+        <span className={`inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 text-xs font-semibold rounded-full ${
+          signal.count > 1 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-600/50 text-gray-400'
+        }`}>
+          {signal.count || 1}
+        </span>
+      </td>
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap">
         <div className="font-semibold text-yellow-400">{signal.symbol}</div>
         <div className="text-xs text-gray-500 truncate max-w-[150px]" title={signal.filterDesc}>
@@ -97,13 +104,25 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
         {Math.round(signal.volumeAtSignal / 1_000_000)}M
       </td>
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-center">
-        <button
-          className="text-blue-400 hover:text-blue-300 text-2xl p-1 focus:outline-none"
-          onClick={(e) => onAiInfoClick(signal.symbol, e)}
-          title={`AI Analysis for ${signal.symbol}`}
-        >
-          ✨
-        </button>
+        <div className="flex items-center justify-center gap-2">
+          {signal.tradeDecision && (
+            <span className={`px-2 py-1 text-xs font-bold rounded ${
+              signal.tradeDecision === 'BUY' ? 'bg-green-500 text-white' :
+              signal.tradeDecision === 'SELL' ? 'bg-red-500 text-white' :
+              signal.tradeDecision === 'HOLD' ? 'bg-blue-500 text-white' :
+              'bg-gray-500 text-white'
+            }`} title={signal.reasoning || ''}>
+              {signal.tradeDecision}
+            </span>
+          )}
+          <button
+            className="text-blue-400 hover:text-blue-300 text-2xl p-1 focus:outline-none"
+            onClick={(e) => onAiInfoClick(signal.symbol, e)}
+            title={`AI Analysis for ${signal.symbol}`}
+          >
+            ✨
+          </button>
+        </div>
       </td>
     </tr>
   );

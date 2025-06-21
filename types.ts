@@ -98,4 +98,17 @@ export interface SignalLogEntry {
   priceAtSignal: number;
   changePercentAtSignal: number;
   volumeAtSignal: number;
+  count: number; // Number of times signal triggered within threshold
+  // Analysis results (populated after analyze is clicked)
+  tradeDecision?: 'BUY' | 'SELL' | 'HOLD' | 'WAIT';
+  reasoning?: string;
+  tradePlan?: string;
+  fullAnalysis?: string;
+}
+
+// Used for tracking signal history in deduplication logic
+export interface SignalHistoryEntry {
+  timestamp: number;
+  barCount: number;
+  signalIndex?: number; // Index in the signal log array for quick lookup
 }

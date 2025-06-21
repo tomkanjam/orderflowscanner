@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import Modal from './components/Modal';
-import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry } from './types';
+import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket } from './services/binanceService';
 import { generateFilterAndChartConfig, getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
 import { KLINE_HISTORY_LIMIT, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
@@ -27,6 +27,27 @@ const App: React.FC = () => {
   const [currentChartConfig, setCurrentChartConfig] = useState<CustomIndicatorConfig[] | null>(null);
 
   const [signalLog, setSignalLog] = useState<SignalLogEntry[]>([]); // New state for signal log
+  const [strategy, setStrategy] = useState<string>(''); // User's trading strategy
+  
+  // Signal deduplication threshold (default 50 bars)
+  const [signalDedupeThreshold, setSignalDedupeThreshold] = useState<number>(() => {
+    const saved = localStorage.getItem('signalDedupeThreshold');
+    return saved ? parseInt(saved, 10) : 50;
+  });
+  
+  // Track signal history for deduplication
+  const [signalHistory, setSignalHistory] = useState<Map<string, SignalHistoryEntry>>(() => {
+    const saved = localStorage.getItem('signalHistory');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return new Map(Object.entries(parsed));
+      } catch {
+        return new Map();
+      }
+    }
+    return new Map();
+  });
 
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [initialError, setInitialError] = useState<string | null>(null);
@@ -47,6 +68,9 @@ const App: React.FC = () => {
   const internalGeminiModelName = useMemo(() => {
     return GEMINI_MODELS.find(m => m.value === selectedGeminiModel)?.internalModel || GEMINI_MODELS[0].internalModel;
   }, [selectedGeminiModel]);
+  
+  // Track kline updates for bar counting
+  const klineUpdateCountRef = React.useRef<Map<string, number>>(new Map());
 
   const loadInitialData = useCallback(async (interval: KlineInterval) => {
     setInitialLoading(true);
@@ -81,6 +105,17 @@ const App: React.FC = () => {
   useEffect(() => {
     loadInitialData(klineInterval);
   }, [klineInterval, loadInitialData]);
+  
+  // Persist signal deduplication threshold to localStorage
+  useEffect(() => {
+    localStorage.setItem('signalDedupeThreshold', signalDedupeThreshold.toString());
+  }, [signalDedupeThreshold]);
+  
+  // Persist signal history to localStorage
+  useEffect(() => {
+    const historyObj = Object.fromEntries(signalHistory);
+    localStorage.setItem('signalHistory', JSON.stringify(historyObj));
+  }, [signalHistory]);
 
   // Separate WebSocket connection effect with stable dependencies
   useEffect(() => {
@@ -101,6 +136,25 @@ const App: React.FC = () => {
 
     const handleKlineUpdate = (symbol: string, kline: Kline, isClosed: boolean) => {
       if (!isCleanedUp) {
+        // Track bar counts for signal deduplication
+        if (isClosed) {
+          const currentCount = klineUpdateCountRef.current.get(symbol) || 0;
+          klineUpdateCountRef.current.set(symbol, currentCount + 1);
+          
+          // Increment bar counts in signal history
+          setSignalHistory(prev => {
+            const newHistory = new Map(prev);
+            const entry = newHistory.get(symbol);
+            if (entry) {
+              newHistory.set(symbol, {
+                ...entry,
+                barCount: entry.barCount + 1
+              });
+            }
+            return newHistory;
+          });
+        }
+        
         setHistoricalData(prevKlines => {
           const newKlinesMap = new Map(prevKlines);
           const symbolKlines = newKlinesMap.get(symbol) ? [...newKlinesMap.get(symbol)!] : [];
@@ -215,21 +269,66 @@ const App: React.FC = () => {
     const tickerData = tickers.get(symbol);
     if (!tickerData) return;
     
+    // Check signal history for deduplication
+    const historyEntry = signalHistory.get(symbol);
+    const shouldCreateNewSignal = !historyEntry || historyEntry.barCount >= signalDedupeThreshold;
+    
     setSignalLog(prevLog => {
       const shortDesc = aiFilterDescription && aiFilterDescription.length > 0 ? aiFilterDescription[0] : "AI Filter Active";
-      const newEntry: SignalLogEntry = {
-        timestamp,
-        symbol,
-        interval: klineInterval,
-        filterDesc: shortDesc,
-        priceAtSignal: parseFloat(tickerData.c),
-        changePercentAtSignal: parseFloat(tickerData.P),
-        volumeAtSignal: parseFloat(tickerData.q),
-      };
-      // Keep max 500 log entries for performance, prepending new ones
-      return [newEntry, ...prevLog.slice(0, 499)]; 
+      
+      if (shouldCreateNewSignal) {
+        // Create new signal
+        const newEntry: SignalLogEntry = {
+          timestamp,
+          symbol,
+          interval: klineInterval,
+          filterDesc: shortDesc,
+          priceAtSignal: parseFloat(tickerData.c),
+          changePercentAtSignal: parseFloat(tickerData.P),
+          volumeAtSignal: parseFloat(tickerData.q),
+          count: 1, // Initial count
+        };
+        
+        // Update signal history
+        setSignalHistory(prev => {
+          const newHistory = new Map(prev);
+          newHistory.set(symbol, {
+            timestamp,
+            barCount: 0,
+            signalIndex: 0, // Will be the first item in the array
+          });
+          return newHistory;
+        });
+        
+        // Keep max 500 log entries for performance, prepending new ones
+        return [newEntry, ...prevLog.slice(0, 499)];
+      } else {
+        // Increment count on existing signal
+        const updatedLog = [...prevLog];
+        const existingIndex = historyEntry.signalIndex;
+        
+        // Find the existing signal (it should be at the stored index)
+        if (existingIndex !== undefined && existingIndex < updatedLog.length && 
+            updatedLog[existingIndex].symbol === symbol) {
+          updatedLog[existingIndex] = {
+            ...updatedLog[existingIndex],
+            count: (updatedLog[existingIndex].count || 1) + 1,
+          };
+        } else {
+          // Fallback: search for the signal
+          const foundIndex = updatedLog.findIndex(entry => entry.symbol === symbol);
+          if (foundIndex !== -1) {
+            updatedLog[foundIndex] = {
+              ...updatedLog[foundIndex],
+              count: (updatedLog[foundIndex].count || 1) + 1,
+            };
+          }
+        }
+        
+        return updatedLog;
+      }
     });
-  }, [aiFilterDescription, klineInterval, tickers]);
+  }, [aiFilterDescription, klineInterval, tickers, signalHistory, signalDedupeThreshold]);
 
   const handleRunAiScreener = useCallback(async () => {
     if (!aiPrompt.trim()) {
@@ -330,8 +429,79 @@ const App: React.FC = () => {
     }
 
     try {
-        const analysisText = await getSymbolAnalysis(symbol, tickerData, klineData, currentChartConfig, internalGeminiModelName, klineInterval);
-        setModalContent(<div className="whitespace-pre-wrap text-sm md:text-base">{analysisText}</div>);
+        const analysisText = await getSymbolAnalysis(symbol, tickerData, klineData, currentChartConfig, internalGeminiModelName, klineInterval, strategy);
+        
+        // Parse the analysis if strategy is provided
+        let decisionMatch = null;
+        let reasoningMatch = null;
+        let tradePlanMatch = null;
+        
+        if (strategy && strategy.trim()) {
+            // Extract decision, reasoning, and trade plan from the analysis
+            decisionMatch = analysisText.match(/DECISION:\s*(BUY|SELL|HOLD|WAIT)/i);
+            reasoningMatch = analysisText.match(/REASONING:\s*([^\n]+)/i);
+            tradePlanMatch = analysisText.match(/TRADE PLAN:\s*([^\n]+)/i);
+            
+            if (decisionMatch) {
+                const decision = decisionMatch[1].toUpperCase() as 'BUY' | 'SELL' | 'HOLD' | 'WAIT';
+                const reasoning = reasoningMatch ? reasoningMatch[1].trim() : '';
+                const tradePlan = tradePlanMatch ? tradePlanMatch[1].trim() : '';
+                
+                // Update the signal log with analysis results
+                setSignalLog(prevLog => 
+                    prevLog.map(signal => 
+                        signal.symbol === symbol 
+                            ? { ...signal, tradeDecision: decision, reasoning, tradePlan, fullAnalysis: analysisText }
+                            : signal
+                    )
+                );
+            }
+        }
+        
+        // Format the modal content with structured display if strategy is used
+        if (strategy && strategy.trim() && decisionMatch) {
+            const decision = decisionMatch[1].toUpperCase();
+            const reasoning = reasoningMatch ? reasoningMatch[1].trim() : '';
+            const tradePlan = tradePlanMatch ? tradePlanMatch[1].trim() : '';
+            
+            // Extract the technical analysis part (everything after the trade plan)
+            const technicalAnalysisStart = analysisText.indexOf('\n\n', analysisText.indexOf('TRADE PLAN:'));
+            const technicalAnalysis = technicalAnalysisStart > -1 ? analysisText.substring(technicalAnalysisStart).trim() : '';
+            
+            setModalContent(
+                <div className="space-y-4 text-sm md:text-base">
+                    <div className="border-l-4 border-yellow-400 pl-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="text-gray-400 font-semibold">Decision:</span>
+                            <span className={`px-3 py-1 text-sm font-bold rounded ${
+                                decision === 'BUY' ? 'bg-green-500 text-white' :
+                                decision === 'SELL' ? 'bg-red-500 text-white' :
+                                decision === 'HOLD' ? 'bg-blue-500 text-white' :
+                                'bg-gray-500 text-white'
+                            }`}>
+                                {decision}
+                            </span>
+                        </div>
+                        <div className="mb-2">
+                            <span className="text-gray-400 font-semibold">Reasoning:</span>
+                            <p className="text-gray-200 mt-1">{reasoning}</p>
+                        </div>
+                        <div>
+                            <span className="text-gray-400 font-semibold">Trade Plan:</span>
+                            <p className="text-gray-200 mt-1">{tradePlan}</p>
+                        </div>
+                    </div>
+                    {technicalAnalysis && (
+                        <div>
+                            <h4 className="text-gray-400 font-semibold mb-2">Technical Analysis:</h4>
+                            <div className="whitespace-pre-wrap text-gray-200">{technicalAnalysis}</div>
+                        </div>
+                    )}
+                </div>
+            );
+        } else {
+            setModalContent(<div className="whitespace-pre-wrap text-sm md:text-base">{analysisText}</div>);
+        }
     } catch (error) {
         console.error(`Symbol Analysis error for ${symbol}:`, error);
         const errorMessage = error instanceof Error ? error.message : "Failed to get analysis.";
@@ -339,7 +509,7 @@ const App: React.FC = () => {
     } finally {
         setIsSymbolAnalysisLoading(false);
     }
-  }, [tickers, historicalData, currentChartConfig, internalGeminiModelName, klineInterval]);
+  }, [tickers, historicalData, currentChartConfig, internalGeminiModelName, klineInterval, strategy]);
 
 
   const handleRowClick = (symbol: string) => {
@@ -366,6 +536,10 @@ const App: React.FC = () => {
         isMarketAnalysisLoading={isMarketAnalysisLoading}
         onShowAiResponse={handleShowAiResponse}
         aiScreenerError={aiScreenerError}
+        strategy={strategy}
+        onStrategyChange={setStrategy}
+        signalDedupeThreshold={signalDedupeThreshold}
+        onSignalDedupeThresholdChange={setSignalDedupeThreshold}
       />
       <MainContent
         statusText={statusText}

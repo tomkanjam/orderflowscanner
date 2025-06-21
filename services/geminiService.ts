@@ -365,7 +365,8 @@ export async function getSymbolAnalysis(
     allKlinesForSymbol: Kline[], 
     indicators: CustomIndicatorConfig[] | null,
     modelName: string,
-    klineInterval: string
+    klineInterval: string,
+    strategy?: string
 ): Promise<string> {
 
     const analysisKlines = allKlinesForSymbol.slice(-KLINE_HISTORY_LIMIT_FOR_ANALYSIS);
@@ -426,7 +427,12 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
             }
         }
     }
-    prompt += "\nFocus on price action, potential support/resistance levels, and volume analysis based on the provided data. Do not give financial advice. Keep the analysis concise and data-driven.";
+    
+    if (strategy && strategy.trim()) {
+        prompt += `\n\nUser's Trading Strategy:\n${strategy}\n\nBased on this strategy and the technical analysis above, provide:\n1. Trade Decision: BUY, SELL, HOLD, or WAIT (one word)\n2. Reasoning: Why this decision? (max 2 sentences)\n3. Trade Plan: Specific action to take (max 2 sentences)\n\nFormat your response as:\nDECISION: [BUY/SELL/HOLD/WAIT]\nREASONING: [Your reasoning]\nTRADE PLAN: [Your plan]\n\nFollowed by your regular technical analysis.`;
+    } else {
+        prompt += "\nFocus on price action, potential support/resistance levels, and volume analysis based on the provided data. Do not give financial advice. Keep the analysis concise and data-driven.";
+    }
 
     try {
         // Create a model instance

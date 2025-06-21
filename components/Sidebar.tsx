@@ -18,6 +18,10 @@ interface SidebarProps {
   isMarketAnalysisLoading: boolean;
   onShowAiResponse: () => void; // Renamed from onShowGeneratedCode
   aiScreenerError: string | null;
+  strategy: string;
+  onStrategyChange: (strategy: string) => void;
+  signalDedupeThreshold: number;
+  onSignalDedupeThresholdChange: (threshold: number) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -35,6 +39,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   isMarketAnalysisLoading,
   onShowAiResponse, // Renamed
   aiScreenerError,
+  strategy,
+  onStrategyChange,
+  signalDedupeThreshold,
+  onSignalDedupeThresholdChange,
 }) => {
   return (
     <aside className="w-full md:w-1/3 xl:w-1/4 bg-gray-800 p-4 md:p-6 flex flex-col border-r border-gray-700 h-screen overflow-y-auto">
@@ -129,6 +137,55 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
       )}
+      
+      {/* Strategy Section */}
+      <div className="mt-6">
+        <h2 className="text-xl font-bold text-yellow-400 mb-4">Strategy</h2>
+        <p className="text-gray-400 text-sm mb-4">
+          Define your trading strategy for signal analysis.
+        </p>
+        <div className="mb-4">
+          <label htmlFor="strategy-input" className="text-gray-300 font-medium mb-1 block text-sm">Your Strategy:</label>
+          <textarea
+            id="strategy-input"
+            rows={4}
+            value={strategy}
+            onChange={(e) => onStrategyChange(e.target.value)}
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+            placeholder="e.g., Buy when RSI < 30 with increasing volume, sell when RSI > 70, hold for at least 4 candles"
+          />
+        </div>
+      </div>
+      
+      {/* Signal Settings Section */}
+      <div className="mt-6">
+        <h2 className="text-xl font-bold text-yellow-400 mb-4">Signal Settings</h2>
+        <div className="mb-4">
+          <label htmlFor="signal-threshold" className="text-gray-300 font-medium mb-1 block text-sm">
+            Signal Deduplication Threshold:
+          </label>
+          <div className="flex items-center space-x-2">
+            <input
+              id="signal-threshold"
+              type="number"
+              min="1"
+              max="500"
+              value={signalDedupeThreshold}
+              onChange={(e) => {
+                const value = parseInt(e.target.value, 10);
+                if (!isNaN(value) && value >= 1 && value <= 500) {
+                  onSignalDedupeThresholdChange(value);
+                }
+              }}
+              className="w-24 bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+            />
+            <span className="text-gray-300 text-sm">bars</span>
+          </div>
+          <p className="text-gray-400 text-xs mt-1">
+            Signals for the same symbol within this bar count will increment the count instead of creating a new entry.
+          </p>
+        </div>
+      </div>
       
       <div className="mt-auto pt-6"> 
         <button

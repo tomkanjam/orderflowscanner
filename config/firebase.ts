@@ -3,7 +3,7 @@ import { getAI, VertexAIBackend } from "firebase/ai";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAfK0qsmlQkudlVwyBEZOjZx3LUvJi2RTI",
+  apiKey: "AIzaSyAZQHIsU9UygNUaLClXRek4RKz55dEljbY",
   authDomain: "trademind-460817.firebaseapp.com",
   projectId: "trademind-460817",
   storageBucket: "trademind-460817.firebasestorage.app",

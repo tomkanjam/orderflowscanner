@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry } from '../types';
+import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry, VolumeNode } from '../types';
 import SignalTable from './SignalTable';
 import CryptoTable from './CryptoTable';
 import ChartDisplay from './ChartDisplay';
@@ -18,7 +18,8 @@ interface MainContentProps {
   allSymbols: string[];
   tickers: Map<string, Ticker>;
   historicalData: Map<string, Kline[]>;
-  currentFilterFn: ((ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType) => boolean) | null;
+  hvnData: Map<string, VolumeNode[]>; // Add hvnData prop
+  currentFilterFn: ((ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: VolumeNode[]) => boolean) | null;
   klineInterval: KlineInterval;
   selectedSymbolForChart: string | null;
   chartConfigForDisplay: CustomIndicatorConfig[] | null;
@@ -36,6 +37,7 @@ const MainContent: React.FC<MainContentProps> = ({
   allSymbols,
   tickers,
   historicalData,
+  hvnData,
   currentFilterFn,
   klineInterval,
   selectedSymbolForChart,
@@ -76,6 +78,7 @@ const MainContent: React.FC<MainContentProps> = ({
                   allSymbols={allSymbols}
                   tickers={tickers}
                   historicalData={historicalData}
+                  hvnData={hvnData}
                   currentFilterFn={currentFilterFn}
                   onRowClick={onRowClick}
                   onAiInfoClick={onAiInfoClick}

@@ -70,7 +70,7 @@ export async function generateFilterAndChartConfig(
 
 description: An array of human-readable strings explaining each condition the AI has implemented. Max 3-4 concise conditions.
 
-screenerCode: A string containing the body of a JavaScript function \`(ticker, klines, helpers)\` that returns a boolean (true if conditions met, false otherwise).
+screenerCode: A string containing the body of a JavaScript function \`(ticker, klines, helpers, hvnNodes)\` that returns a boolean (true if conditions met, false otherwise).
     Function Arguments:
         \`ticker\`: A 24hr summary object for the symbol. Example: \`{ "s": "BNBUSDT", "P": "2.500" (priceChangePercent), "c": "590.5" (lastPrice), "q": "100000000" (quoteVolume), ...otherProps }\`.
         \`klines\`: An array of the last ${KLINE_HISTORY_LIMIT} candlestick data points for the selected \`${klineInterval}\` interval. Each kline is an array: \`[openTime (number), open (string), high (string), low (string), close (string), volume (string), ...otherElements]\`.
@@ -82,6 +82,7 @@ screenerCode: A string containing the body of a JavaScript function \`(ticker, k
             - \`klines[i][5]\` is volume.
             The most recent kline is \`klines[klines.length - 1]\`. This kline might be open/live if data is streaming.
         \`helpers\`: An object providing pre-defined utility functions. Call them as \`helpers.functionName(...)\`.
+        \`hvnNodes\`: An array of high volume nodes (support/resistance levels) calculated using volume profile analysis. Each node is an object with \`{ priceLevel: number, volume: number, strength: 'strong' | 'moderate' | 'weak', type: 'resistance' | 'support' | 'both' }\`. Use these for identifying key support/resistance levels.
 
     Available Helper Functions via \`helpers\` object:
         1.  \`helpers.calculateMA(klines, period)\`: Returns Latest SMA (number) or \`null\`.

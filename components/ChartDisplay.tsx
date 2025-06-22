@@ -245,49 +245,63 @@ const volumeProfilePlugin = {
 // Crosshair plugin for synchronized cursor across charts
 const crosshairPlugin = {
     id: 'crosshair',
-    afterEvent: (chart: Chart, args: any, options: { setCrosshairX?: (x: number | null) => void }) => {
+    events: ['mousemove', 'mouseout'], // Explicitly declare which events to listen to
+    afterEvent: (chart: Chart, args: any, options: any) => {
         const { event } = args;
         
         if (event.type === 'mouseout') {
             delete (chart as any).crosshair;
-            if (options.setCrosshairX) {
-                options.setCrosshairX(null);
+            const pluginOptions = chart.options.plugins?.crosshair as any;
+            if (pluginOptions?.setCrosshairX) {
+                pluginOptions.setCrosshairX(null);
             }
-            chart.draw();
+            args.changed = true; // Force redraw
             return;
         }
         
         if (event.type !== 'mousemove') return;
 
-        const canvasPosition = Chart.helpers.getRelativePosition(event.native, chart);
-        const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
-        const dataY = chart.scales.yPrice?.getValueForPixel(canvasPosition.y) || chart.scales.y?.getValueForPixel(canvasPosition.y);
-
+        // Get mouse position relative to the chart
+        const rect = chart.canvas.getBoundingClientRect();
+        const x = event.native.clientX - rect.left;
+        const y = event.native.clientY - rect.top;
+        
         // Store the position for drawing
         (chart as any).crosshair = {
-            x: canvasPosition.x,
-            y: canvasPosition.y,
-            dataX,
-            dataY
+            x: x,
+            y: y
         };
 
         // Update synchronized X position
-        if (options.setCrosshairX) {
-            options.setCrosshairX(dataX);
+        const pluginOptions = chart.options.plugins?.crosshair as any;
+        if (pluginOptions?.setCrosshairX && chart.scales.x) {
+            const dataX = chart.scales.x.getValueForPixel(x);
+            pluginOptions.setCrosshairX(dataX);
         }
 
-        chart.draw();
+        args.changed = true; // Force redraw
     },
-    afterDatasetsDraw: (chart: Chart, args: any, options: { crosshairX?: number | null }) => {
+    afterDatasetsDraw: (chart: Chart, args: any, options: any) => {
         const { ctx } = chart;
         const crosshair = (chart as any).crosshair;
         const chartArea = chart.chartArea;
+        const pluginOptions = chart.options.plugins?.crosshair as any;
 
         // Use synchronized X position if available
         let x, y;
-        if (options.crosshairX !== undefined && options.crosshairX !== null) {
-            x = chart.scales.x.getPixelForValue(options.crosshairX);
-            y = crosshair?.y || chartArea.top + chartArea.height / 2;
+        if (pluginOptions?.crosshairX !== undefined && pluginOptions?.crosshairX !== null && chart.scales.x) {
+            try {
+                x = chart.scales.x.getPixelForValue(pluginOptions.crosshairX);
+                y = crosshair?.y || chartArea.top + chartArea.height / 2;
+            } catch (e) {
+                // If conversion fails, fall back to crosshair position
+                if (crosshair) {
+                    x = crosshair.x;
+                    y = crosshair.y;
+                } else {
+                    return;
+                }
+            }
         } else if (crosshair) {
             x = crosshair.x;
             y = crosshair.y;
@@ -311,8 +325,8 @@ const crosshairPlugin = {
         ctx.setLineDash([3, 3]);
         ctx.stroke();
 
-        // Draw horizontal line (only for price chart)
-        if (chart.scales.yPrice) {
+        // Draw horizontal line and price label (only for price chart with valid y position)
+        if (chart.scales.yPrice && crosshair && y >= chartArea.top && y <= chartArea.bottom) {
             ctx.beginPath();
             ctx.moveTo(chartArea.left, y);
             ctx.lineTo(chartArea.right, y);
@@ -490,6 +504,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
               responsive: true, 
               maintainAspectRatio: false, 
               animation: false,
+              interaction: {
+                  mode: 'x',
+                  intersect: false
+              },
               layout: { padding: { top: 15, bottom: 0, left: 60, right: 35 } }, 
               plugins: {
                 legend: { 
@@ -673,6 +691,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 responsive: true, 
                 maintainAspectRatio: false, 
                 animation: false,
+                interaction: {
+                    mode: 'x',
+                    intersect: false
+                },
                 layout: { padding: { top: 2, bottom: 0, left: 60, right: 35 } },
                 plugins: {
                     legend: { display: false },
@@ -707,7 +729,8 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                         zoom: { wheel: { enabled: false }, pinch: { enabled: false } } 
                     },
                     crosshair: {
-                        crosshairX: crosshairX
+                        crosshairX: crosshairX,
+                        setCrosshairX: setCrosshairX
                     } as any
                 },
                 scales: {
@@ -754,10 +777,47 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
   // Update crosshair position across all charts
   useEffect(() => {
+    // Update main chart
+    if (priceChartInstanceRef.current) {
+      const chart = priceChartInstanceRef.current;
+      if ((chart as any).config.options.plugins.crosshair) {
+        (chart as any).config.options.plugins.crosshair.crosshairX = crosshairX;
+        // Set crosshair data if we have a valid X position
+        if (crosshairX !== null) {
+          try {
+            (chart as any).crosshair = {
+              x: chart.scales.x.getPixelForValue(crosshairX),
+              y: (chart as any).crosshair?.y || chart.chartArea.top + chart.chartArea.height / 2
+            };
+          } catch (e) {
+            // If conversion fails, clear crosshair
+            delete (chart as any).crosshair;
+          }
+        } else {
+          delete (chart as any).crosshair;
+        }
+        chart.draw();
+      }
+    }
+    
     // Update all panel charts with new crosshair position
     panelChartInstanceRefs.current.forEach(chart => {
       if (chart && (chart as any).config.options.plugins.crosshair) {
         (chart as any).config.options.plugins.crosshair.crosshairX = crosshairX;
+        // Set crosshair data if we have a valid X position
+        if (crosshairX !== null && chart.scales.x) {
+          try {
+            (chart as any).crosshair = {
+              x: chart.scales.x.getPixelForValue(crosshairX),
+              y: chart.chartArea.top + chart.chartArea.height / 2
+            };
+          } catch (e) {
+            // If conversion fails, clear crosshair
+            delete (chart as any).crosshair;
+          }
+        } else {
+          delete (chart as any).crosshair;
+        }
         chart.draw();
       }
     });

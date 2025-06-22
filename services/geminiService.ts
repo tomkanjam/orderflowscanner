@@ -214,7 +214,7 @@ Example Indicators:
   "id": "hvn_levels",
   "name": "Volume Nodes",
   "panel": false,
-  "calculateFunction": "const hvn = helpers.calculateHighVolumeNodes(klines, {lookback: 100}); const lastTime = klines[klines.length-1][0]; return klines.map(k => ({ x: k[0], y: hvn[0]?.price || null, y2: hvn[1]?.price || null, y3: hvn[2]?.price || null, y4: hvn[3]?.price || null }));",
+  "calculateFunction": "const hvnNodes = helpers.calculateHighVolumeNodes(klines, {lookback: 100}); const lastTime = klines[klines.length-1][0]; return klines.map(k => ({ x: k[0], y: hvnNodes[0]?.price || null, y2: hvnNodes[1]?.price || null, y3: hvnNodes[2]?.price || null, y4: hvnNodes[3]?.price || null }));",
   "chartType": "line",
   "style": { "color": ["#f59e0b", "#f59e0b99", "#f59e0b66", "#f59e0b33"], "lineWidth": [2, 1.5, 1, 1] }
 }

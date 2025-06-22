@@ -99,6 +99,7 @@ const App: React.FC = () => {
     filterCode: fullAiFilterResponse?.screenerCode || '',
     filterDescription: aiFilterDescription || [],
     klineInterval,
+    signalDedupeThreshold,
   });
 
   // Update historical signals when scan completes

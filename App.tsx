@@ -108,6 +108,32 @@ const App: React.FC = () => {
     }
   }, [historicalScanResults]);
   
+  // Auto-run historical scan when we have fewer than 10 live signals
+  const hasAutoScanned = useRef(false);
+  useEffect(() => {
+    // Only auto-scan once per filter, when we have an active filter, 
+    // not already scanning, and fewer than 10 live signals
+    if (currentFilterFn && 
+        !isHistoricalScanning && 
+        !hasAutoScanned.current && 
+        signalLog.length < 10 &&
+        signalLog.length > 0 && // At least one signal to know filter is working
+        historicalSignals.length === 0) { // Don't auto-scan if we already have historical signals
+      
+      console.log(`Auto-running historical scan: ${signalLog.length} live signals found`);
+      hasAutoScanned.current = true;
+      // Small delay to ensure initial signals are displayed first
+      setTimeout(() => {
+        startHistoricalScan(historicalScanConfig);
+      }, 1000);
+    }
+    
+    // Reset auto-scan flag when filter changes
+    if (!currentFilterFn) {
+      hasAutoScanned.current = false;
+    }
+  }, [currentFilterFn, signalLog.length, isHistoricalScanning, startHistoricalScan, historicalScanConfig, historicalSignals.length]);
+  
   const loadInitialData = useCallback(async (interval: KlineInterval) => {
     setInitialLoading(true);
     setInitialError(null);
@@ -415,6 +441,7 @@ const App: React.FC = () => {
     setSignalLog([]); // Clear signal log when filter is cleared
     setHistoricalSignals([]); // Clear historical signals
     clearHistoricalSignals();
+    hasAutoScanned.current = false; // Reset auto-scan flag
   };
 
   const handleRunHistoricalScan = () => {

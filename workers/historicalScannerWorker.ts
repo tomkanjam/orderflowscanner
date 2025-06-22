@@ -104,7 +104,9 @@ function detectSignal(
   window: Kline[],
   filterFn: Function,
   config: HistoricalScanConfig,
-  klineInterval: KlineInterval
+  klineInterval: KlineInterval,
+  klines: Kline[],
+  index: number
 ): HistoricalSignal | null {
   try {
     const isSignal = filterFn(ticker, window, helpers);
@@ -175,7 +177,7 @@ self.onmessage = (event: MessageEvent<ScanRequest>) => {
       for (const { window, index } of createSlidingWindows(klines, config)) {
         if (window.length < 20) continue; // Skip if not enough data for basic indicators
         
-        const signal = detectSignal(symbol, ticker, window, filterFn, config, klineInterval);
+        const signal = detectSignal(symbol, ticker, window, filterFn, config, klineInterval, klines, index);
         
         if (signal) {
           symbolSignals.push(signal);

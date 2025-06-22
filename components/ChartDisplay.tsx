@@ -120,6 +120,140 @@ const hvnPlugin = {
     }
 };
 
+// Volume Profile plugin for drawing volume distribution on the left
+const volumeProfilePlugin = {
+    id: 'volumeProfile',
+    beforeDatasetsDraw: (chart: Chart, args: any, options: { klines: Kline[] | undefined, maxBarWidth: number }) => {
+        const { ctx } = chart;
+        const { klines, maxBarWidth = 80 } = options;
+
+        if (!klines || klines.length === 0) {
+            return;
+        }
+
+        const yAxis = chart.scales.yPrice || chart.scales.y;
+        if (!yAxis) return;
+
+        const chartArea = chart.chartArea;
+        const profileLeft = chartArea.left - maxBarWidth - 10; // Position to the left of chart
+        
+        // Calculate volume profile
+        const bins = 30;
+        const priceMin = yAxis.min || 0;
+        const priceMax = yAxis.max || 100;
+        const binSize = (priceMax - priceMin) / bins;
+        
+        // Initialize bins
+        const volumeByBin = new Array(bins).fill(0);
+        const buyVolumeByBin = new Array(bins).fill(0);
+        
+        // Only use visible klines for volume profile
+        const xAxis = chart.scales.x;
+        const visibleKlines = klines.filter(k => {
+            const timestamp = k[0];
+            return timestamp >= xAxis.min && timestamp <= xAxis.max;
+        });
+        
+        // Aggregate volume into bins for visible range
+        visibleKlines.forEach(kline => {
+            const high = parseFloat(kline[2]);
+            const low = parseFloat(kline[3]);
+            const volume = parseFloat(kline[5]);
+            const buyVolume = parseFloat(kline[9]) || volume * 0.5; // Fallback if no buy volume
+            
+            if (isNaN(high) || isNaN(low) || isNaN(volume)) return;
+            
+            // Find bins this candle spans
+            const startBin = Math.floor((low - priceMin) / binSize);
+            const endBin = Math.floor((high - priceMin) / binSize);
+            
+            // Distribute volume across bins
+            const binsSpanned = Math.max(1, endBin - startBin + 1);
+            const volumePerBin = volume / binsSpanned;
+            const buyVolumePerBin = buyVolume / binsSpanned;
+            
+            for (let i = Math.max(0, startBin); i <= Math.min(bins - 1, endBin); i++) {
+                volumeByBin[i] += volumePerBin;
+                buyVolumeByBin[i] += buyVolumePerBin;
+            }
+        });
+        
+        // Find max volume for scaling
+        const maxVolume = Math.max(...volumeByBin);
+        if (maxVolume === 0) return;
+        
+        ctx.save();
+        
+        // Draw background
+        ctx.fillStyle = 'rgba(30, 30, 30, 0.5)';
+        ctx.fillRect(profileLeft - 5, chartArea.top, maxBarWidth + 10, chartArea.height);
+        
+        // Draw volume bars
+        for (let i = 0; i < bins; i++) {
+            const volume = volumeByBin[i];
+            if (volume === 0) continue;
+            
+            const binPrice = priceMin + (i + 0.5) * binSize;
+            const yPixel = yAxis.getPixelForValue(binPrice);
+            
+            // Skip if outside visible area
+            if (yPixel < chartArea.top || yPixel > chartArea.bottom) continue;
+            
+            const barWidth = (volume / maxVolume) * maxBarWidth;
+            const barHeight = Math.max(1, (chartArea.height / bins) * 0.8); // 80% of bin height
+            
+            // Calculate buy/sell ratio for coloring
+            const buyRatio = buyVolumeByBin[i] / volume;
+            
+            // Draw sell volume (red)
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.7)';
+            ctx.fillRect(
+                profileLeft + barWidth * buyRatio,
+                yPixel - barHeight / 2,
+                barWidth * (1 - buyRatio),
+                barHeight
+            );
+            
+            // Draw buy volume (green)
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.7)';
+            ctx.fillRect(
+                profileLeft,
+                yPixel - barHeight / 2,
+                barWidth * buyRatio,
+                barHeight
+            );
+            
+            // Highlight high volume nodes
+            if (volume > maxVolume * 0.7) {
+                ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(
+                    profileLeft,
+                    yPixel - barHeight / 2,
+                    barWidth,
+                    barHeight
+                );
+            }
+        }
+        
+        // Draw vertical line separator
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left - 5, chartArea.top);
+        ctx.lineTo(chartArea.left - 5, chartArea.bottom);
+        ctx.stroke();
+        
+        // Add title
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Volume Profile', profileLeft + maxBarWidth / 2, chartArea.top - 5);
+        
+        ctx.restore();
+    }
+};
+
 const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, hvnNodes }) => {
   const priceCanvasRef = useRef<HTMLCanvasElement>(null);
   const priceChartInstanceRef = useRef<Chart | null>(null);
@@ -268,12 +402,12 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         priceChartInstanceRef.current = new Chart(priceCanvasRef.current, {
             type: 'candlestick',
             data: { datasets: priceChartDatasets },
-            plugins: [signalMarkerPlugin, hvnPlugin], 
+            plugins: [signalMarkerPlugin, hvnPlugin, volumeProfilePlugin], 
             options: {
               responsive: true, 
               maintainAspectRatio: false, 
               animation: false,
-              layout: { padding: { top: 5, bottom: 0, left: 0, right: 35 } }, 
+              layout: { padding: { top: 15, bottom: 0, left: 100, right: 35 } }, 
               plugins: {
                 legend: { 
                     display: true, 
@@ -328,6 +462,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 } as any,
                 hvnLines: {
                     hvnNodes: hvnNodes
+                } as any,
+                volumeProfile: {
+                    klines: klines,
+                    maxBarWidth: 80
                 } as any
               },
               scales: {

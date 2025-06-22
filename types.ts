@@ -115,7 +115,7 @@ export interface SignalHistoryEntry {
 
 // Historical Signal Detection Types
 export interface HistoricalScanConfig {
-  lookbackHours: number;
+  lookbackBars: number; // How many bars to look back
   scanInterval: number; // Check every N bars
   maxSignalsPerSymbol: number;
   includeIndicatorSnapshots: boolean;
@@ -126,6 +126,7 @@ export interface HistoricalSignal extends SignalLogEntry {
   barIndex: number;
   klineTimestamp: number;
   isHistorical: true; // Type discriminator
+  barsAgo?: number; // How many bars ago this signal occurred
   // Snapshot of indicators at signal time
   indicators?: {
     rsi?: number;
@@ -140,6 +141,9 @@ export interface HistoricalSignal extends SignalLogEntry {
   priceChangeSinceSignal?: number;
   percentChangeSinceSignal?: number;
 }
+
+// Combined type for signals that can be either live or historical
+export type CombinedSignal = SignalLogEntry | HistoricalSignal;
 
 export interface HistoricalScanProgress {
   currentSymbol: string;

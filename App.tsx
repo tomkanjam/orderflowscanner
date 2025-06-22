@@ -8,7 +8,7 @@ import { fetchTopPairsAndInitialKlines, connectWebSocket } from './services/bina
 import { generateFilterAndChartConfig, getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
 import { KLINE_HISTORY_LIMIT, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
 import * as screenerHelpers from './screenerHelpers';
-import { HistoricalSignalScanner } from './components/HistoricalSignalScanner';
+import { useHistoricalScanner } from './hooks/useHistoricalScanner';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -67,7 +67,14 @@ const App: React.FC = () => {
   const [modalContent, setModalContent] = useState<React.ReactNode>('');
   
   // Historical signals state
-  const [showHistoricalScanner, setShowHistoricalScanner] = useState<boolean>(false);
+  const [historicalSignals, setHistoricalSignals] = useState<HistoricalSignal[]>([]);
+  const [isHistoricalScanRunning, setIsHistoricalScanRunning] = useState<boolean>(false);
+  const [historicalScanConfig, setHistoricalScanConfig] = useState<HistoricalScanConfig>({
+    lookbackBars: 20,
+    scanInterval: 5,
+    maxSignalsPerSymbol: 5,
+    includeIndicatorSnapshots: false,
+  });
 
   const internalGeminiModelName = useMemo(() => {
     return GEMINI_MODELS.find(m => m.value === selectedGeminiModel)?.internalModel || GEMINI_MODELS[0].internalModel;
@@ -75,7 +82,32 @@ const App: React.FC = () => {
   
   // Track kline updates for bar counting
   const klineUpdateCountRef = React.useRef<Map<string, number>>(new Map());
+  
+  // Historical scanner hook
+  const {
+    isScanning: isHistoricalScanning,
+    progress: historicalScanProgress,
+    signals: historicalScanResults,
+    error: historicalScanError,
+    startScan: startHistoricalScan,
+    cancelScan: cancelHistoricalScan,
+    clearSignals: clearHistoricalSignals,
+  } = useHistoricalScanner({
+    symbols: allSymbols,
+    historicalData,
+    tickers,
+    filterCode: fullAiFilterResponse?.screenerCode || '',
+    filterDescription: aiFilterDescription || [],
+    klineInterval,
+  });
 
+  // Update historical signals when scan completes
+  useEffect(() => {
+    if (historicalScanResults.length > 0) {
+      setHistoricalSignals(historicalScanResults);
+    }
+  }, [historicalScanResults]);
+  
   const loadInitialData = useCallback(async (interval: KlineInterval) => {
     setInitialLoading(true);
     setInitialError(null);
@@ -381,6 +413,13 @@ const App: React.FC = () => {
     setFullAiFilterResponse(null);
     setAiScreenerError(null);
     setSignalLog([]); // Clear signal log when filter is cleared
+    setHistoricalSignals([]); // Clear historical signals
+    clearHistoricalSignals();
+  };
+
+  const handleRunHistoricalScan = () => {
+    if (!currentFilterFn) return;
+    startHistoricalScan(historicalScanConfig);
   };
 
   const handleShowAiResponse = () => {
@@ -544,9 +583,14 @@ const App: React.FC = () => {
         onStrategyChange={setStrategy}
         signalDedupeThreshold={signalDedupeThreshold}
         onSignalDedupeThresholdChange={setSignalDedupeThreshold}
-        showHistoricalScanner={showHistoricalScanner}
-        onToggleHistoricalScanner={() => setShowHistoricalScanner(!showHistoricalScanner)}
         hasActiveFilter={!!currentFilterFn}
+        onRunHistoricalScan={handleRunHistoricalScan}
+        isHistoricalScanning={isHistoricalScanning}
+        historicalScanProgress={historicalScanProgress}
+        historicalScanConfig={historicalScanConfig}
+        onHistoricalScanConfigChange={setHistoricalScanConfig}
+        onCancelHistoricalScan={cancelHistoricalScan}
+        historicalSignalsCount={historicalSignals.length}
       />
       <MainContent
         statusText={statusText}
@@ -564,37 +608,8 @@ const App: React.FC = () => {
         onAiInfoClick={handleAiInfoClick}
         signalLog={signalLog} // Pass signalLog to MainContent
         onNewSignal={handleNewSignal} // Pass handleNewSignal
+        historicalSignals={historicalSignals} // Pass historical signals
       />
-      
-      {/* Historical Signal Scanner */}
-      {showHistoricalScanner && currentFilterFn && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-lg p-4 max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-white">Historical Signal Scanner</h2>
-              <button
-                onClick={() => setShowHistoricalScanner(false)}
-                className="text-gray-400 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <HistoricalSignalScanner
-              symbols={allSymbols}
-              historicalData={historicalData}
-              tickers={tickers}
-              filterCode={fullAiFilterResponse?.screenerCode || ''}
-              filterDescription={aiFilterDescription || []}
-              klineInterval={klineInterval}
-              onSignalClick={(signal) => {
-                handleRowClick(signal.symbol);
-                setShowHistoricalScanner(false);
-              }}
-            />
-          </div>
-        </div>
-      )}
-      
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

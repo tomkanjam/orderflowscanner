@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, Kline, Ticker, KlineInterval } from '../types';
 
 interface UseHistoricalScannerProps {
@@ -165,7 +165,7 @@ export function useHistoricalScanner({
   }, []);
   
   // Cleanup on unmount
-  useRef(() => {
+  useEffect(() => {
     return () => {
       if (workerRef.current) {
         workerRef.current.terminate();
@@ -174,7 +174,7 @@ export function useHistoricalScanner({
         abortControllerRef.current.abort();
       }
     };
-  });
+  }, []);
   
   return {
     isScanning,

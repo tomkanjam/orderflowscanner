@@ -25,10 +25,8 @@ function* createSlidingWindows(
   klines: Kline[],
   config: HistoricalScanConfig
 ): Generator<{ window: Kline[], index: number }> {
-  // Calculate how many bars to look back based on interval
-  // Assuming 1m candles for now, adjust based on actual interval
-  const barsToScan = Math.floor(config.lookbackHours * 60);
-  const startIndex = Math.max(0, klines.length - barsToScan);
+  // Use bar count directly
+  const startIndex = Math.max(0, klines.length - config.lookbackBars);
   
   for (let i = startIndex; i < klines.length; i += config.scanInterval) {
     // Ensure we have enough data for indicators (100 bars minimum)
@@ -113,6 +111,8 @@ function detectSignal(
     
     if (isSignal) {
       const lastKline = window[window.length - 1];
+      const barsFromEnd = klines.length - 1 - index;
+      
       const signal: HistoricalSignal = {
         id: `${symbol}-${lastKline[0]}`, // openTime as unique ID
         timestamp: Date.now(),
@@ -125,7 +125,8 @@ function detectSignal(
         filterDesc: '', // Will be set by main thread
         interval: klineInterval,
         isHistorical: true,
-        count: 1
+        count: 1,
+        barsAgo: barsFromEnd
       };
       
       // Capture indicator snapshots if requested

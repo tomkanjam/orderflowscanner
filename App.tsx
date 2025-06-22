@@ -1,13 +1,14 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import Modal from './components/Modal';
-import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, VolumeNode } from './types';
+import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, VolumeNode, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket } from './services/binanceService';
 import { generateFilterAndChartConfig, getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
 import { KLINE_HISTORY_LIMIT, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
 import * as screenerHelpers from './screenerHelpers';
+import { useHistoricalScanner } from './hooks/useHistoricalScanner';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -65,6 +66,16 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalTitle, setModalTitle] = useState<string>('');
   const [modalContent, setModalContent] = useState<React.ReactNode>('');
+  
+  // Historical signals state
+  const [historicalSignals, setHistoricalSignals] = useState<HistoricalSignal[]>([]);
+  const [isHistoricalScanRunning, setIsHistoricalScanRunning] = useState<boolean>(false);
+  const [historicalScanConfig, setHistoricalScanConfig] = useState<HistoricalScanConfig>({
+    lookbackBars: 20,
+    scanInterval: 5,
+    maxSignalsPerSymbol: 5,
+    includeIndicatorSnapshots: false,
+  });
 
   const internalGeminiModelName = useMemo(() => {
     return GEMINI_MODELS.find(m => m.value === selectedGeminiModel)?.internalModel || GEMINI_MODELS[0].internalModel;
@@ -76,6 +87,58 @@ const App: React.FC = () => {
   // Track HVN update intervals (update every 10 candles)
   const hvnUpdateCountRef = React.useRef<Map<string, number>>(new Map());
 
+  // Historical scanner hook
+  const {
+    isScanning: isHistoricalScanning,
+    progress: historicalScanProgress,
+    signals: historicalScanResults,
+    error: historicalScanError,
+    startScan: startHistoricalScan,
+    cancelScan: cancelHistoricalScan,
+    clearSignals: clearHistoricalSignals,
+  } = useHistoricalScanner({
+    symbols: allSymbols,
+    historicalData,
+    tickers,
+    filterCode: fullAiFilterResponse?.screenerCode || '',
+    filterDescription: aiFilterDescription || [],
+    klineInterval,
+    signalDedupeThreshold,
+  });
+
+  // Update historical signals when scan completes
+  useEffect(() => {
+    if (historicalScanResults.length > 0) {
+      setHistoricalSignals(historicalScanResults);
+    }
+  }, [historicalScanResults]);
+  
+  // Auto-run historical scan when we have fewer than 10 live signals
+  const hasAutoScanned = useRef(false);
+  useEffect(() => {
+    // Only auto-scan once per filter, when we have an active filter, 
+    // not already scanning, and fewer than 10 live signals
+    if (currentFilterFn && 
+        !isHistoricalScanning && 
+        !hasAutoScanned.current && 
+        signalLog.length < 10 &&
+        signalLog.length > 0 && // At least one signal to know filter is working
+        historicalSignals.length === 0) { // Don't auto-scan if we already have historical signals
+      
+      console.log(`Auto-running historical scan: ${signalLog.length} live signals found`);
+      hasAutoScanned.current = true;
+      // Small delay to ensure initial signals are displayed first
+      setTimeout(() => {
+        startHistoricalScan(historicalScanConfig);
+      }, 1000);
+    }
+    
+    // Reset auto-scan flag when filter changes
+    if (!currentFilterFn) {
+      hasAutoScanned.current = false;
+    }
+  }, [currentFilterFn, signalLog.length, isHistoricalScanning, startHistoricalScan, historicalScanConfig, historicalSignals.length]);
+  
   const loadInitialData = useCallback(async (interval: KlineInterval) => {
     setInitialLoading(true);
     setInitialError(null);
@@ -411,6 +474,14 @@ const App: React.FC = () => {
     setFullAiFilterResponse(null);
     setAiScreenerError(null);
     setSignalLog([]); // Clear signal log when filter is cleared
+    setHistoricalSignals([]); // Clear historical signals
+    clearHistoricalSignals();
+    hasAutoScanned.current = false; // Reset auto-scan flag
+  };
+
+  const handleRunHistoricalScan = () => {
+    if (!currentFilterFn) return;
+    startHistoricalScan(historicalScanConfig);
   };
 
   const handleShowAiResponse = () => {
@@ -574,6 +645,14 @@ const App: React.FC = () => {
         onStrategyChange={setStrategy}
         signalDedupeThreshold={signalDedupeThreshold}
         onSignalDedupeThresholdChange={setSignalDedupeThreshold}
+        hasActiveFilter={!!currentFilterFn}
+        onRunHistoricalScan={handleRunHistoricalScan}
+        isHistoricalScanning={isHistoricalScanning}
+        historicalScanProgress={historicalScanProgress}
+        historicalScanConfig={historicalScanConfig}
+        onHistoricalScanConfigChange={setHistoricalScanConfig}
+        onCancelHistoricalScan={cancelHistoricalScan}
+        historicalSignalsCount={historicalSignals.length}
       />
       <MainContent
         statusText={statusText}
@@ -592,6 +671,7 @@ const App: React.FC = () => {
         onAiInfoClick={handleAiInfoClick}
         signalLog={signalLog} // Pass signalLog to MainContent
         onNewSignal={handleNewSignal} // Pass handleNewSignal
+        historicalSignals={historicalSignals} // Pass historical signals
       />
       <Modal
         isOpen={isModalOpen}

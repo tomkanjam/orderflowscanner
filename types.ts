@@ -131,3 +131,43 @@ export interface HVNOptions {
   minStrength?: number;    // Minimum node strength (default: 50)
   cacheKey?: string;       // Optional cache key for performance
 }
+
+// Historical Signal Detection Types
+export interface HistoricalScanConfig {
+  lookbackBars: number; // How many bars to look back
+  scanInterval: number; // Check every N bars
+  maxSignalsPerSymbol: number;
+  includeIndicatorSnapshots: boolean;
+}
+
+export interface HistoricalSignal extends SignalLogEntry {
+  id: string;
+  barIndex: number;
+  klineTimestamp: number;
+  isHistorical: true; // Type discriminator
+  barsAgo?: number; // How many bars ago this signal occurred
+  // Snapshot of indicators at signal time
+  indicators?: {
+    rsi?: number;
+    macd?: { macd: number; signal: number; histogram: number };
+    ma20?: number;
+    ma50?: number;
+    bb?: { upper: number; middle: number; lower: number };
+    volume?: number;
+  };
+  // For comparison with current state
+  currentPrice?: number;
+  priceChangeSinceSignal?: number;
+  percentChangeSinceSignal?: number;
+}
+
+// Combined type for signals that can be either live or historical
+export type CombinedSignal = SignalLogEntry | HistoricalSignal;
+
+export interface HistoricalScanProgress {
+  currentSymbol: string;
+  symbolIndex: number;
+  totalSymbols: number;
+  percentComplete: number;
+  signalsFound: number;
+}

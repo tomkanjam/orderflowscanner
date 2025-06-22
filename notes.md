@@ -1,5 +1,8 @@
 1. Create bollinger band helper
 2. Historical signals are in the wrong order. Newer signals should be at the top.
+3. Fix volumen profile layout
+4. Volume profile improvement - HVN levels should also have a lower volume level above and below so that we catch the peaks.
+5. Implement langfuse.
 
 
 

@@ -135,7 +135,7 @@ const volumeProfilePlugin = {
         if (!yAxis) return;
 
         const chartArea = chart.chartArea;
-        const profileLeft = chartArea.left - maxBarWidth - 10; // Position to the left of chart
+        const profileLeft = chartArea.left + 10; // Position inside the chart area
         
         // Calculate volume profile
         const bins = 30;
@@ -184,10 +184,6 @@ const volumeProfilePlugin = {
         
         ctx.save();
         
-        // Draw background
-        ctx.fillStyle = 'rgba(30, 30, 30, 0.5)';
-        ctx.fillRect(profileLeft - 5, chartArea.top, maxBarWidth + 10, chartArea.height);
-        
         // Draw volume bars
         for (let i = 0; i < bins; i++) {
             const volume = volumeByBin[i];
@@ -206,7 +202,7 @@ const volumeProfilePlugin = {
             const buyRatio = buyVolumeByBin[i] / volume;
             
             // Draw sell volume (red)
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.7)';
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
             ctx.fillRect(
                 profileLeft + barWidth * buyRatio,
                 yPixel - barHeight / 2,
@@ -215,7 +211,7 @@ const volumeProfilePlugin = {
             );
             
             // Draw buy volume (green)
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.7)';
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.3)';
             ctx.fillRect(
                 profileLeft,
                 yPixel - barHeight / 2,
@@ -236,20 +232,104 @@ const volumeProfilePlugin = {
             }
         }
         
-        // Draw vertical line separator
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(chartArea.left - 5, chartArea.top);
-        ctx.lineTo(chartArea.left - 5, chartArea.bottom);
-        ctx.stroke();
-        
         // Add title
         ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.font = '10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('Volume Profile', profileLeft + maxBarWidth / 2, chartArea.top - 5);
+        ctx.textAlign = 'left';
+        ctx.fillText('Volume Profile', profileLeft, chartArea.top - 5);
         
+        ctx.restore();
+    }
+};
+
+// Crosshair plugin for synchronized cursor across charts
+const crosshairPlugin = {
+    id: 'crosshair',
+    afterEvent: (chart: Chart, args: any, options: { setCrosshairX?: (x: number | null) => void }) => {
+        const { event } = args;
+        
+        if (event.type === 'mouseout') {
+            delete (chart as any).crosshair;
+            if (options.setCrosshairX) {
+                options.setCrosshairX(null);
+            }
+            chart.draw();
+            return;
+        }
+        
+        if (event.type !== 'mousemove') return;
+
+        const canvasPosition = Chart.helpers.getRelativePosition(event.native, chart);
+        const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
+        const dataY = chart.scales.yPrice?.getValueForPixel(canvasPosition.y) || chart.scales.y?.getValueForPixel(canvasPosition.y);
+
+        // Store the position for drawing
+        (chart as any).crosshair = {
+            x: canvasPosition.x,
+            y: canvasPosition.y,
+            dataX,
+            dataY
+        };
+
+        // Update synchronized X position
+        if (options.setCrosshairX) {
+            options.setCrosshairX(dataX);
+        }
+
+        chart.draw();
+    },
+    afterDatasetsDraw: (chart: Chart, args: any, options: { crosshairX?: number | null }) => {
+        const { ctx } = chart;
+        const crosshair = (chart as any).crosshair;
+        const chartArea = chart.chartArea;
+
+        // Use synchronized X position if available
+        let x, y;
+        if (options.crosshairX !== undefined && options.crosshairX !== null) {
+            x = chart.scales.x.getPixelForValue(options.crosshairX);
+            y = crosshair?.y || chartArea.top + chartArea.height / 2;
+        } else if (crosshair) {
+            x = crosshair.x;
+            y = crosshair.y;
+        } else {
+            return;
+        }
+
+        // Check if cursor is inside chart area
+        if (x < chartArea.left || x > chartArea.right) {
+            return;
+        }
+
+        ctx.save();
+
+        // Draw vertical line
+        ctx.beginPath();
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.stroke();
+
+        // Draw horizontal line (only for price chart)
+        if (chart.scales.yPrice) {
+            ctx.beginPath();
+            ctx.moveTo(chartArea.left, y);
+            ctx.lineTo(chartArea.right, y);
+            ctx.stroke();
+
+            // Draw price label
+            const price = chart.scales.yPrice.getValueForPixel(y);
+            if (price) {
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.9)';
+                ctx.fillRect(chartArea.right + 2, y - 10, 50, 20);
+                ctx.fillStyle = '#000000';
+                ctx.font = '11px monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(price.toFixed(price < 1 ? 6 : 2), chartArea.right + 4, y + 3);
+            }
+        }
+
         ctx.restore();
     }
 };
@@ -265,6 +345,9 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   // State for calculated indicator data
   const [calculatedIndicators, setCalculatedIndicators] = useState<Map<string, IndicatorDataPoint[]>>(new Map());
   const [isCalculating, setIsCalculating] = useState(false);
+  
+  // State for crosshair synchronization
+  const [crosshairX, setCrosshairX] = useState<number | null>(null);
   
   // Use the indicator worker hook
   const { calculateIndicators } = useIndicatorWorker();
@@ -402,7 +485,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         priceChartInstanceRef.current = new Chart(priceCanvasRef.current, {
             type: 'candlestick',
             data: { datasets: priceChartDatasets },
-            plugins: [signalMarkerPlugin, hvnPlugin, volumeProfilePlugin], 
+            plugins: [signalMarkerPlugin, hvnPlugin, volumeProfilePlugin, crosshairPlugin], 
             options: {
               responsive: true, 
               maintainAspectRatio: false, 
@@ -466,6 +549,9 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 volumeProfile: {
                     klines: klines,
                     maxBarWidth: 40
+                } as any,
+                crosshair: {
+                    setCrosshairX: setCrosshairX
                 } as any
               },
               scales: {
@@ -582,6 +668,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         const chartConfig: ChartConfiguration = {
             type: datasets[0]?.type || 'line',
             data: { datasets },
+            plugins: [crosshairPlugin],
             options: {
                 responsive: true, 
                 maintainAspectRatio: false, 
@@ -618,7 +705,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     zoom: { 
                         pan: { enabled: false }, 
                         zoom: { wheel: { enabled: false }, pinch: { enabled: false } } 
-                    }
+                    },
+                    crosshair: {
+                        crosshairX: crosshairX
+                    } as any
                 },
                 scales: {
                     x: { 
@@ -638,12 +728,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                             maxTicksLimit: 5 
                         },
                         min: indicator.yAxisConfig?.min,
-                        max: indicator.yAxisConfig?.max,
-                        title: indicator.yAxisConfig?.label ? {
-                            display: true,
-                            text: indicator.yAxisConfig.label,
-                            color: '#9ca3af'
-                        } : undefined
+                        max: indicator.yAxisConfig?.max
                     },
                 },
             }
@@ -666,6 +751,17 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, klines, indicators, interval, signalLog, syncIndicatorCharts, calculatedIndicators, isCalculating]); 
+
+  // Update crosshair position across all charts
+  useEffect(() => {
+    // Update all panel charts with new crosshair position
+    panelChartInstanceRefs.current.forEach(chart => {
+      if (chart && (chart as any).config.options.plugins.crosshair) {
+        (chart as any).config.options.plugins.crosshair.crosshairX = crosshairX;
+        chart.draw();
+      }
+    });
+  }, [crosshairX]);
 
   // Calculate panel indicators and heights
   const panelIndicators = indicators?.filter(ind => ind.panel) || [];

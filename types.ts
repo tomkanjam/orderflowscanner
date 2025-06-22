@@ -129,6 +129,7 @@ export interface HVNOptions {
   threshold?: number;      // Percentile for "high" volume (default: 70)
   lookback?: number;       // Number of candles to analyze (default: 250)
   minStrength?: number;    // Minimum node strength (default: 50)
+  peakTolerance?: number;  // Tolerance for peak detection (default: 0.05 = 5%)
   cacheKey?: string;       // Optional cache key for performance
 }
 

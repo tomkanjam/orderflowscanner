@@ -635,9 +635,10 @@ const HVN_CACHE_DURATION = 60000; // 1 minute cache
 
 /**
  * Calculates High Volume Nodes (HVN) from kline data.
+ * Identifies volume peaks that have lower volume above and below them.
  * @param klines - Array of kline data.
  * @param options - HVN calculation options.
- * @returns Array of VolumeNode objects representing high volume areas.
+ * @returns Array of VolumeNode objects representing high volume peaks.
  */
 export function calculateHighVolumeNodes(klines: Kline[], options: HVNOptions = {}): VolumeNode[] {
   const {
@@ -645,6 +646,7 @@ export function calculateHighVolumeNodes(klines: Kline[], options: HVNOptions = 
     threshold = 70,
     lookback = 250,
     minStrength = 50,
+    peakTolerance = 0.05,
     cacheKey
   } = options;
 
@@ -719,30 +721,40 @@ export function calculateHighVolumeNodes(klines: Kline[], options: HVNOptions = 
   const volumeThreshold = sortedVolumes[thresholdIndex] || 0;
   const maxVolume = Math.max(...volumeByBin);
 
-  // Create volume nodes
+  // Create volume nodes - only include peaks
   const nodes: VolumeNode[] = [];
   
   for (let i = 0; i < bins; i++) {
     const volume = volumeByBin[i];
     if (volume >= volumeThreshold && volume > 0) {
-      const binMin = minPrice + (i * binSize);
-      const binMax = binMin + binSize;
-      const binCenter = (binMin + binMax) / 2;
+      // Check if this is a peak (higher than neighbors)
+      const prevVolume = i > 0 ? volumeByBin[i - 1] : 0;
+      const nextVolume = i < bins - 1 ? volumeByBin[i + 1] : 0;
       
-      const strength = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
+      // Require this bin to have higher volume than both neighbors
+      // Use configured tolerance to avoid missing peaks due to minor variations
+      const isPeak = volume > prevVolume * (1 + peakTolerance) && volume > nextVolume * (1 + peakTolerance);
       
-      if (strength >= minStrength) {
-        const buyVol = buyVolumeByBin[i];
-        const sellVol = volume - buyVol;
+      if (isPeak) {
+        const binMin = minPrice + (i * binSize);
+        const binMax = binMin + binSize;
+        const binCenter = (binMin + binMax) / 2;
         
-        nodes.push({
-          price: binCenter,
-          volume: volume,
-          buyVolume: buyVol,
-          sellVolume: sellVol,
-          strength: strength,
-          priceRange: [binMin, binMax]
-        });
+        const strength = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
+        
+        if (strength >= minStrength) {
+          const buyVol = buyVolumeByBin[i];
+          const sellVol = volume - buyVol;
+          
+          nodes.push({
+            price: binCenter,
+            volume: volume,
+            buyVolume: buyVol,
+            sellVolume: sellVol,
+            strength: strength,
+            priceRange: [binMin, binMax]
+          });
+        }
       }
     }
   }

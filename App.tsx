@@ -266,6 +266,10 @@ const App: React.FC = () => {
           if (isClosed) {
             const hvnCount = hvnUpdateCountRef.current.get(symbol) || 0;
             if (hvnCount % 10 === 0) {
+              // Clear cache on first update after app load to use new peak detection
+              if (hvnCount === 0) {
+                screenerHelpers.clearHVNCache(`${symbol}_${klineInterval}`);
+              }
               // Calculate HVN with caching
               const hvnNodes = screenerHelpers.calculateHighVolumeNodes(symbolKlines, {
                 cacheKey: `${symbol}_${klineInterval}`

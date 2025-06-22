@@ -93,15 +93,10 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
         </span>
       </td>
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap">
-        <div className="flex items-center gap-2">
-          {isHistoricalSignal(signal) && (
-            <span className="text-purple-400 text-xs" title="Historical Signal">📊</span>
-          )}
-          <div>
-            <div className="font-semibold text-yellow-400">{signal.symbol}</div>
-            <div className="text-xs text-gray-500 truncate max-w-[150px]" title={signal.filterDesc}>
-              {signal.filterDesc}
-            </div>
+        <div>
+          <div className="font-semibold text-yellow-400">{signal.symbol}</div>
+          <div className="text-xs text-gray-500 truncate max-w-[150px]" title={signal.filterDesc}>
+            {signal.filterDesc}
           </div>
         </div>
       </td>

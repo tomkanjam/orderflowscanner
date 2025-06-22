@@ -1,4 +1,4 @@
-import { Ticker, Kline } from '../types';
+import { Ticker, Kline, VolumeNode } from '../types';
 import * as helpers from '../screenerHelpers';
 
 // Message types for communication with main thread
@@ -9,6 +9,7 @@ export interface ScreenerWorkerMessage {
     symbols: string[];
     tickers: Record<string, Ticker>; // Convert Map to object for serialization
     historicalData: Record<string, Kline[]>; // Convert Map to object
+    hvnData: Record<string, VolumeNode[]>; // Add HVN data
     filterCode: string;
   };
 }
@@ -31,16 +32,18 @@ function runScreenerFilter(
   symbols: string[],
   tickers: Record<string, Ticker>,
   historicalData: Record<string, Kline[]>,
+  hvnData: Record<string, VolumeNode[]>,
   filterCode: string
 ): { filteredSymbols: string[], signalSymbols: string[] } {
   try {
-    // Create the filter function
+    // Create the filter function with HVN data
     const filterFunction = new Function(
       'ticker', 
       'klines', 
-      'helpers', 
+      'helpers',
+      'hvnNodes',
       `try { ${filterCode} } catch(e) { console.error('Screener code runtime error for ticker:', ticker.s, e); return false; }`
-    ) as (ticker: Ticker, klines: Kline[], helpers: typeof helpers) => boolean;
+    ) as (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: VolumeNode[]) => boolean;
     
     const filteredSymbols: string[] = [];
     const signalSymbols: string[] = [];
@@ -50,13 +53,14 @@ function runScreenerFilter(
     for (const symbol of symbols) {
       const ticker = tickers[symbol];
       const klines = historicalData[symbol];
+      const hvnNodes = hvnData[symbol] || [];
       
       if (!ticker || !klines || klines.length === 0) {
         continue;
       }
       
       try {
-        const matches = filterFunction(ticker, klines, helpers);
+        const matches = filterFunction(ticker, klines, helpers, hvnNodes);
         
         if (matches) {
           filteredSymbols.push(symbol);
@@ -93,6 +97,7 @@ self.addEventListener('message', (event: MessageEvent<ScreenerWorkerMessage>) =>
         data.symbols,
         data.tickers,
         data.historicalData,
+        data.hvnData,
         data.filterCode
       );
       

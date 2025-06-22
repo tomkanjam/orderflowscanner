@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react';
-import { Ticker, Kline } from '../types';
+import { Ticker, Kline, VolumeNode } from '../types';
 import TableRow from './TableRow';
 import { useScreenerWorker } from '../hooks/useScreenerWorker';
 import * as screenerHelpers from '../screenerHelpers'; // Import helpers
@@ -10,7 +10,8 @@ interface CryptoTableProps {
   allSymbols: string[];
   tickers: Map<string, Ticker>;
   historicalData: Map<string, Kline[]>;
-  currentFilterFn: ((ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType) => boolean) | null;
+  hvnData: Map<string, VolumeNode[]>; // Add hvnData prop
+  currentFilterFn: ((ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: VolumeNode[]) => boolean) | null;
   onRowClick: (symbol: string) => void;
   onAiInfoClick: (symbol: string, event: React.MouseEvent) => void;
   isLoading: boolean;
@@ -23,6 +24,7 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
   allSymbols,
   tickers,
   historicalData,
+  hvnData,
   currentFilterFn,
   onRowClick,
   onAiInfoClick,
@@ -39,6 +41,7 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
   // Store data in refs to avoid re-renders
   const tickersRef = useRef(tickers);
   const historicalDataRef = useRef(historicalData);
+  const hvnDataRef = useRef(hvnData);
   const allSymbolsRef = useRef(allSymbols);
   
   // Update refs when props change
@@ -49,6 +52,10 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
   useEffect(() => {
     historicalDataRef.current = historicalData;
   }, [historicalData]);
+  
+  useEffect(() => {
+    hvnDataRef.current = hvnData;
+  }, [hvnData]);
   
   useEffect(() => {
     allSymbolsRef.current = allSymbols;
@@ -82,6 +89,7 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
       const currentAllSymbols = allSymbolsRef.current;
       const currentTickers = tickersRef.current;
       const currentHistoricalData = historicalDataRef.current;
+      const currentHvnData = hvnDataRef.current;
       
       // Don't run if we don't have data yet
       if (currentAllSymbols.length === 0 || currentTickers.size === 0) {
@@ -110,6 +118,7 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
             currentAllSymbols,
             currentTickers,
             currentHistoricalData,
+            currentHvnData,
             filterCode
           );
           

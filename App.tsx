@@ -3,11 +3,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import Modal from './components/Modal';
-import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry } from './types';
+import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket } from './services/binanceService';
 import { generateFilterAndChartConfig, getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
 import { KLINE_HISTORY_LIMIT, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
 import * as screenerHelpers from './screenerHelpers';
+import { HistoricalSignalScanner } from './components/HistoricalSignalScanner';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -64,6 +65,9 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalTitle, setModalTitle] = useState<string>('');
   const [modalContent, setModalContent] = useState<React.ReactNode>('');
+  
+  // Historical signals state
+  const [showHistoricalScanner, setShowHistoricalScanner] = useState<boolean>(false);
 
   const internalGeminiModelName = useMemo(() => {
     return GEMINI_MODELS.find(m => m.value === selectedGeminiModel)?.internalModel || GEMINI_MODELS[0].internalModel;
@@ -540,6 +544,9 @@ const App: React.FC = () => {
         onStrategyChange={setStrategy}
         signalDedupeThreshold={signalDedupeThreshold}
         onSignalDedupeThresholdChange={setSignalDedupeThreshold}
+        showHistoricalScanner={showHistoricalScanner}
+        onToggleHistoricalScanner={() => setShowHistoricalScanner(!showHistoricalScanner)}
+        hasActiveFilter={!!currentFilterFn}
       />
       <MainContent
         statusText={statusText}
@@ -558,6 +565,36 @@ const App: React.FC = () => {
         signalLog={signalLog} // Pass signalLog to MainContent
         onNewSignal={handleNewSignal} // Pass handleNewSignal
       />
+      
+      {/* Historical Signal Scanner */}
+      {showHistoricalScanner && currentFilterFn && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-lg p-4 max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-white">Historical Signal Scanner</h2>
+              <button
+                onClick={() => setShowHistoricalScanner(false)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <HistoricalSignalScanner
+              symbols={allSymbols}
+              historicalData={historicalData}
+              tickers={tickers}
+              filterCode={fullAiFilterResponse?.screenerCode || ''}
+              filterDescription={aiFilterDescription || []}
+              klineInterval={klineInterval}
+              onSignalClick={(signal) => {
+                handleRowClick(signal.symbol);
+                setShowHistoricalScanner(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
+      
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

@@ -22,6 +22,9 @@ interface SidebarProps {
   onStrategyChange: (strategy: string) => void;
   signalDedupeThreshold: number;
   onSignalDedupeThresholdChange: (threshold: number) => void;
+  showHistoricalScanner: boolean;
+  onToggleHistoricalScanner: () => void;
+  hasActiveFilter: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -43,6 +46,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   onStrategyChange,
   signalDedupeThreshold,
   onSignalDedupeThresholdChange,
+  showHistoricalScanner,
+  onToggleHistoricalScanner,
+  hasActiveFilter,
 }) => {
   return (
     <aside className="w-full md:w-1/3 xl:w-1/4 bg-gray-800 p-4 md:p-6 flex flex-col border-r border-gray-700 h-screen overflow-y-auto">
@@ -133,6 +139,17 @@ const Sidebar: React.FC<SidebarProps> = ({
               className="w-full bg-purple-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-600 transition duration-300 text-sm"
             >
               📄 Show Response 
+            </button>
+            <button
+              onClick={onToggleHistoricalScanner}
+              disabled={!hasActiveFilter}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                hasActiveFilter 
+                  ? 'bg-purple-600 text-white hover:bg-purple-700 active:bg-purple-800 shadow-sm' 
+                  : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              📊 {showHistoricalScanner ? 'Hide' : 'Show'} Historical
             </button>
           </div>
         </div>

@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { Ticker, SignalLogEntry } from '../types';
+import { Ticker, SignalLogEntry, HistoricalSignal, CombinedSignal } from '../types';
 import SignalTableRow from './SignalTableRow';
 
 interface SignalTableProps {
   signalLog: SignalLogEntry[];
+  historicalSignals?: HistoricalSignal[];
   tickers: Map<string, Ticker>;
   onRowClick: (symbol: string) => void;
   onAiInfoClick: (symbol: string, event: React.MouseEvent) => void;
@@ -12,26 +13,38 @@ interface SignalTableProps {
 
 const SignalTable: React.FC<SignalTableProps> = ({
   signalLog,
+  historicalSignals = [],
   tickers,
   onRowClick,
   onAiInfoClick,
   isLoading,
 }) => {
+  // Combine and sort all signals
+  const allSignals = useMemo(() => {
+    const combined: CombinedSignal[] = [
+      ...signalLog,
+      ...historicalSignals
+    ];
+    
+    // Sort by timestamp, newest first
+    return combined.sort((a, b) => b.timestamp - a.timestamp);
+  }, [signalLog, historicalSignals]);
+  
   // Get current prices for all signals
   const signalsWithCurrentPrices = useMemo(() => {
-    return signalLog.map(signal => ({
+    return allSignals.map(signal => ({
       ...signal,
       currentPrice: tickers.get(signal.symbol)?.c ? parseFloat(tickers.get(signal.symbol)!.c) : signal.priceAtSignal,
       currentChangePercent: tickers.get(signal.symbol)?.P ? parseFloat(tickers.get(signal.symbol)!.P) : signal.changePercentAtSignal,
     }));
-  }, [signalLog, tickers]);
+  }, [allSignals, tickers]);
 
   return (
     <div className="bg-gray-800 shadow-lg rounded-lg p-3 md:p-4 relative">
       <h2 className="text-lg md:text-xl font-semibold text-yellow-400 mb-3 md:mb-4 flex items-center justify-between">
         <span>Signal History</span>
         <span className="text-sm text-gray-400">
-          {signalLog.length} signals
+          {signalLog.length} live {historicalSignals.length > 0 && `+ ${historicalSignals.length} historical`}
         </span>
       </h2>
       <div className="overflow-y-auto max-h-[500px] md:max-h-[600px]">

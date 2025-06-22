@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry } from '../types';
+import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry, HistoricalSignal } from '../types';
 import SignalTable from './SignalTable';
 import CryptoTable from './CryptoTable';
 import ChartDisplay from './ChartDisplay';
@@ -26,6 +26,7 @@ interface MainContentProps {
   onAiInfoClick: (symbol: string, event: React.MouseEvent) => void;
   signalLog: SignalLogEntry[]; // Add signalLog prop
   onNewSignal: (symbol: string, timestamp: number) => void; // Add onNewSignal prop
+  historicalSignals?: HistoricalSignal[]; // Add historicalSignals prop
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -44,6 +45,7 @@ const MainContent: React.FC<MainContentProps> = ({
   onAiInfoClick,
   signalLog, 
   onNewSignal,
+  historicalSignals = [],
 }) => {
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-y-hidden">
@@ -64,6 +66,7 @@ const MainContent: React.FC<MainContentProps> = ({
               <div className="mt-6 flex-grow">
                 <SignalTable
                   signalLog={signalLog}
+                  historicalSignals={historicalSignals}
                   tickers={tickers}
                   onRowClick={onRowClick}
                   onAiInfoClick={onAiInfoClick}

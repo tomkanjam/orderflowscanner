@@ -1,11 +1,16 @@
 import React, { useState, useEffect, memo } from 'react';
-import { SignalLogEntry } from '../types';
+import { CombinedSignal, HistoricalSignal } from '../types';
 
 interface SignalTableRowProps {
-  signal: SignalLogEntry;
+  signal: CombinedSignal;
   currentPrice: number;
   onRowClick: (symbol: string) => void;
   onAiInfoClick: (symbol: string, event: React.MouseEvent) => void;
+}
+
+// Type guard to check if signal is historical
+function isHistoricalSignal(signal: CombinedSignal): signal is HistoricalSignal {
+  return 'isHistorical' in signal && signal.isHistorical === true;
 }
 
 const SignalTableRow: React.FC<SignalTableRowProps> = ({ 
@@ -34,8 +39,12 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
     }
   }, [currentPrice, prevPrice]);
 
-  // Format time
+  // Format time - show bars ago for historical signals
   const formatTime = (timestamp: number) => {
+    if (isHistoricalSignal(signal) && signal.barsAgo !== undefined) {
+      return `${signal.barsAgo} bars ago`;
+    }
+    
     const date = new Date(timestamp);
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
@@ -84,9 +93,16 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
         </span>
       </td>
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap">
-        <div className="font-semibold text-yellow-400">{signal.symbol}</div>
-        <div className="text-xs text-gray-500 truncate max-w-[150px]" title={signal.filterDesc}>
-          {signal.filterDesc}
+        <div className="flex items-center gap-2">
+          {isHistoricalSignal(signal) && (
+            <span className="text-purple-400 text-xs" title="Historical Signal">📊</span>
+          )}
+          <div>
+            <div className="font-semibold text-yellow-400">{signal.symbol}</div>
+            <div className="text-xs text-gray-500 truncate max-w-[150px]" title={signal.filterDesc}>
+              {signal.filterDesc}
+            </div>
+          </div>
         </div>
       </td>
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right font-medium text-gray-300">

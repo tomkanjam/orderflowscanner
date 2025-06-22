@@ -62,6 +62,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 indicators={chartConfigForDisplay}
                 interval={klineInterval}
                 signalLog={signalLog} // Pass signalLog to ChartDisplay
+                hvnNodes={selectedSymbolForChart ? hvnData.get(selectedSymbolForChart) : undefined}
               />
               <div className="mt-6 flex-grow">
                 <SignalTable

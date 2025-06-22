@@ -82,7 +82,7 @@ screenerCode: A string containing the body of a JavaScript function \`(ticker, k
             - \`klines[i][5]\` is volume.
             The most recent kline is \`klines[klines.length - 1]\`. This kline might be open/live if data is streaming.
         \`helpers\`: An object providing pre-defined utility functions. Call them as \`helpers.functionName(...)\`.
-        \`hvnNodes\`: An array of high volume nodes (support/resistance levels) calculated using volume profile analysis. Each node is an object with \`{ priceLevel: number, volume: number, strength: 'strong' | 'moderate' | 'weak', type: 'resistance' | 'support' | 'both' }\`. Use these for identifying key support/resistance levels.
+        \`hvnNodes\`: An array of high volume nodes (support/resistance levels) calculated using volume profile analysis. Each node is an object with \`{ price: number, volume: number, strength: number (0-100), buyVolume: number, sellVolume: number, priceRange: [number, number] }\`. Use these for identifying key support/resistance levels. Nodes are sorted by strength (strongest first).
 
     Available Helper Functions via \`helpers\` object:
         1.  \`helpers.calculateMA(klines, period)\`: Returns Latest SMA (number) or \`null\`.
@@ -101,6 +101,10 @@ screenerCode: A string containing the body of a JavaScript function \`(ticker, k
         14. \`helpers.calculateMASeries(klines, period)\`: Returns SMA series \`(number | null)[]\`.
         15. \`helpers.calculatePVISeries(klines, initialPVI = 1000)\`: Returns Positive Volume Index series \`(number | null)[]\`. PVI changes based on price change percent IF current volume > previous volume, else PVI is unchanged.
         16. \`helpers.getLatestPVI(klines, initialPVI = 1000)\`: Returns Latest PVI (number) or \`null\`.
+        17. \`helpers.calculateHighVolumeNodes(klines, options)\`: Returns array of VolumeNode objects with price levels and strengths. Pre-calculated HVN is already provided in \`hvnNodes\` parameter.
+        18. \`helpers.isNearHVN(price, hvnNodes, tolerance = 0.5)\`: Returns true if price is within tolerance % of any HVN.
+        19. \`helpers.getClosestHVN(price, hvnNodes, direction = 'both')\`: Returns closest VolumeNode. Direction can be 'above', 'below', or 'both'.
+        20. \`helpers.countHVNInRange(priceLow, priceHigh, hvnNodes)\`: Returns count of HVNs within price range.
 
     Structure and Logic in \`screenerCode\`:
         - CRUCIAL: Always check \`klines.length\` before accessing elements or performing calculations. If insufficient, return \`false\`.
@@ -205,6 +209,16 @@ Example Indicators:
   "style": { "color": ["#3b82f6", "#f59e0b", "transparent"] }
 }
 
+// HVN Support/Resistance Levels (overlay on price, horizontal lines)
+{
+  "id": "hvn_levels",
+  "name": "Volume Nodes",
+  "panel": false,
+  "calculateFunction": "const hvn = helpers.calculateHighVolumeNodes(klines, {lookback: 100}); const lastTime = klines[klines.length-1][0]; return klines.map(k => ({ x: k[0], y: hvn[0]?.price || null, y2: hvn[1]?.price || null, y3: hvn[2]?.price || null, y4: hvn[3]?.price || null }));",
+  "chartType": "line",
+  "style": { "color": ["#f59e0b", "#f59e0b99", "#f59e0b66", "#f59e0b33"], "lineWidth": [2, 1.5, 1, 1] }
+}
+
 Example Complete Response:
 {
   "description": [
@@ -213,6 +227,15 @@ Example Complete Response:
     "Bollinger Bands are tightening (volatility squeeze)"
   ],
   "screenerCode": "const ma20 = helpers.calculateMA(klines, 20); const rsi = helpers.getLatestRSI(klines, 14); if (!ma20 || !rsi) return false; const lastClose = parseFloat(klines[klines.length - 1][4]); const bbWidth = /* calculate BB width */; return lastClose > ma20 && rsi < 30 && bbWidth < threshold;",
+
+Example HVN-based Response:
+{
+  "description": [
+    "RSI showing bullish divergence",
+    "Price is near a strong support level (HVN)",
+    "Volume above 20-period average"
+  ],
+  "screenerCode": "const divergence = helpers.detectRSIDivergence(klines); const lastClose = parseFloat(klines[klines.length - 1][4]); const isNearSupport = helpers.isNearHVN(lastClose, hvnNodes, 0.5); const avgVol = helpers.calculateAvgVolume(klines, 20); const currentVol = parseFloat(klines[klines.length - 1][5]); return divergence === 'bullish_regular' && isNearSupport && currentVol > avgVol * 1.5;",
   "indicators": [
     /* Moving Average indicator object */,
     /* RSI indicator object */,

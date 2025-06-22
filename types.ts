@@ -112,3 +112,22 @@ export interface SignalHistoryEntry {
   barCount: number;
   signalIndex?: number; // Index in the signal log array for quick lookup
 }
+
+// Volume Node structure for High Volume Nodes (HVN)
+export interface VolumeNode {
+  price: number;           // Price level of the node
+  volume: number;          // Total volume at this price level
+  buyVolume?: number;      // Optional: buy volume
+  sellVolume?: number;     // Optional: sell volume
+  strength: number;        // 0-100 score based on relative volume
+  priceRange: [number, number]; // [min, max] price boundaries of this bin
+}
+
+// HVN calculation options
+export interface HVNOptions {
+  bins?: number;           // Number of price divisions (default: 30)
+  threshold?: number;      // Percentile for "high" volume (default: 70)
+  lookback?: number;       // Number of candles to analyze (default: 250)
+  minStrength?: number;    // Minimum node strength (default: 50)
+  cacheKey?: string;       // Optional cache key for performance
+}

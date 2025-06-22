@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Chart, registerables, Filler, ChartConfiguration } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { CandlestickController, CandlestickElement, OhlcController, OhlcElement } from 'chartjs-chart-financial';
-import { Kline, CustomIndicatorConfig, CandlestickDataPoint, SignalLogEntry, KlineInterval, IndicatorDataPoint } from '../types';
+import { Kline, CustomIndicatorConfig, CandlestickDataPoint, SignalLogEntry, KlineInterval, IndicatorDataPoint, VolumeNode } from '../types';
 import { useIndicatorWorker } from '../hooks/useIndicatorWorker';
 
 Chart.register(...registerables, CandlestickController, CandlestickElement, OhlcController, OhlcElement, Filler);
@@ -12,7 +12,8 @@ interface ChartDisplayProps {
   klines: Kline[] | undefined;
   indicators: CustomIndicatorConfig[] | null;
   interval: KlineInterval; 
-  signalLog: SignalLogEntry[]; 
+  signalLog: SignalLogEntry[];
+  hvnNodes?: VolumeNode[];
 }
 
 // Signal marker plugin for highlighting signals on the chart
@@ -64,7 +65,62 @@ const signalMarkerPlugin = {
     }
 };
 
-const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog }) => {
+// HVN (High Volume Node) plugin for drawing horizontal support/resistance lines
+const hvnPlugin = {
+    id: 'hvnLines',
+    afterDatasetsDraw: (chart: Chart, args: any, options: { hvnNodes: VolumeNode[] | undefined }) => {
+        const { ctx } = chart;
+        const { hvnNodes } = options;
+
+        if (!hvnNodes || hvnNodes.length === 0) {
+            return;
+        }
+
+        const yAxis = chart.scales.yPrice || chart.scales.y;
+        if (!yAxis) return;
+
+        const chartArea = chart.chartArea;
+
+        ctx.save();
+        
+        // Draw HVN lines
+        hvnNodes.forEach((node, index) => {
+            // Only draw top 5 strongest nodes to avoid clutter
+            if (index >= 5) return;
+            
+            const yPixel = yAxis.getPixelForValue(node.price);
+            
+            // Skip if line is outside visible area
+            if (yPixel < chartArea.top || yPixel > chartArea.bottom) return;
+            
+            // Set line style based on strength
+            ctx.strokeStyle = node.strength > 80 ? 'rgba(255, 165, 0, 0.8)' : // Strong nodes - orange
+                             node.strength > 60 ? 'rgba(255, 165, 0, 0.6)' : // Medium nodes - lighter orange
+                             'rgba(255, 165, 0, 0.4)'; // Weak nodes - very light orange
+            
+            ctx.lineWidth = node.strength > 80 ? 2 : 1;
+            ctx.setLineDash([5, 5]); // Dashed line
+            
+            // Draw horizontal line
+            ctx.beginPath();
+            ctx.moveTo(chartArea.left, yPixel);
+            ctx.lineTo(chartArea.right, yPixel);
+            ctx.stroke();
+            
+            // Draw price label on the right
+            ctx.fillStyle = ctx.strokeStyle;
+            ctx.font = '10px monospace';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            const priceText = node.price.toFixed(node.price < 1 ? 6 : 2);
+            ctx.fillText(priceText, chartArea.right - 5, yPixel);
+        });
+        
+        ctx.restore();
+    }
+};
+
+const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, hvnNodes }) => {
   const priceCanvasRef = useRef<HTMLCanvasElement>(null);
   const priceChartInstanceRef = useRef<Chart | null>(null);
   
@@ -212,7 +268,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         priceChartInstanceRef.current = new Chart(priceCanvasRef.current, {
             type: 'candlestick',
             data: { datasets: priceChartDatasets },
-            plugins: [signalMarkerPlugin], 
+            plugins: [signalMarkerPlugin, hvnPlugin], 
             options: {
               responsive: true, 
               maintainAspectRatio: false, 
@@ -269,7 +325,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     signalLog: signalLog,
                     selectedSymbol: symbol,
                     currentInterval: interval
-                } as any 
+                } as any,
+                hvnLines: {
+                    hvnNodes: hvnNodes
+                } as any
               },
               scales: {
                 x: { 

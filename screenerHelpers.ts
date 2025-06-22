@@ -1,5 +1,5 @@
 
-import { Kline } from './types';
+import { Kline, VolumeNode, HVNOptions } from './types';
 
 /**
  * Calculates the Simple Moving Average (MA).
@@ -627,4 +627,212 @@ export function getLatestPVI(klines: Kline[], initialPVI: number = 1000): number
     if (pviSeries[i] !== null) return pviSeries[i];
   }
   return null;
+}
+
+// Cache for HVN calculations
+const hvnCache = new Map<string, { nodes: VolumeNode[], timestamp: number }>();
+const HVN_CACHE_DURATION = 60000; // 1 minute cache
+
+/**
+ * Calculates High Volume Nodes (HVN) from kline data.
+ * @param klines - Array of kline data.
+ * @param options - HVN calculation options.
+ * @returns Array of VolumeNode objects representing high volume areas.
+ */
+export function calculateHighVolumeNodes(klines: Kline[], options: HVNOptions = {}): VolumeNode[] {
+  const {
+    bins = 30,
+    threshold = 70,
+    lookback = 250,
+    minStrength = 50,
+    cacheKey
+  } = options;
+
+  // Check cache if key provided
+  if (cacheKey) {
+    const cached = hvnCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < HVN_CACHE_DURATION) {
+      return cached.nodes;
+    }
+  }
+
+  if (!klines || klines.length === 0) return [];
+
+  // Use only the most recent 'lookback' candles
+  const relevantKlines = klines.slice(-lookback);
+  if (relevantKlines.length === 0) return [];
+
+  // Find price range
+  let minPrice = Infinity;
+  let maxPrice = -Infinity;
+  
+  for (const kline of relevantKlines) {
+    const low = parseFloat(kline[3]);
+    const high = parseFloat(kline[2]);
+    if (!isNaN(low) && low < minPrice) minPrice = low;
+    if (!isNaN(high) && high > maxPrice) maxPrice = high;
+  }
+
+  if (minPrice === Infinity || maxPrice === -Infinity || minPrice >= maxPrice) {
+    return [];
+  }
+
+  // Create price bins
+  const binSize = (maxPrice - minPrice) / bins;
+  const volumeByBin = new Array(bins).fill(0);
+  const buyVolumeByBin = new Array(bins).fill(0);
+  
+  // Aggregate volume into bins
+  for (const kline of relevantKlines) {
+    const open = parseFloat(kline[1]);
+    const high = parseFloat(kline[2]);
+    const low = parseFloat(kline[3]);
+    const close = parseFloat(kline[4]);
+    const volume = parseFloat(kline[5]);
+    const buyVolume = parseFloat(kline[9]); // taker buy volume
+    
+    if (isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close) || isNaN(volume)) {
+      continue;
+    }
+    
+    // Distribute volume across the candle's price range
+    const candleMin = Math.min(open, close, low);
+    const candleMax = Math.max(open, close, high);
+    
+    const startBin = Math.floor((candleMin - minPrice) / binSize);
+    const endBin = Math.floor((candleMax - minPrice) / binSize);
+    
+    // Distribute volume proportionally across bins
+    const binsSpanned = Math.max(1, endBin - startBin + 1);
+    const volumePerBin = volume / binsSpanned;
+    const buyVolumePerBin = isNaN(buyVolume) ? 0 : buyVolume / binsSpanned;
+    
+    for (let i = Math.max(0, startBin); i <= Math.min(bins - 1, endBin); i++) {
+      volumeByBin[i] += volumePerBin;
+      buyVolumeByBin[i] += buyVolumePerBin;
+    }
+  }
+
+  // Calculate volume statistics
+  const sortedVolumes = [...volumeByBin].sort((a, b) => a - b);
+  const thresholdIndex = Math.floor((threshold / 100) * sortedVolumes.length);
+  const volumeThreshold = sortedVolumes[thresholdIndex] || 0;
+  const maxVolume = Math.max(...volumeByBin);
+
+  // Create volume nodes
+  const nodes: VolumeNode[] = [];
+  
+  for (let i = 0; i < bins; i++) {
+    const volume = volumeByBin[i];
+    if (volume >= volumeThreshold && volume > 0) {
+      const binMin = minPrice + (i * binSize);
+      const binMax = binMin + binSize;
+      const binCenter = (binMin + binMax) / 2;
+      
+      const strength = maxVolume > 0 ? (volume / maxVolume) * 100 : 0;
+      
+      if (strength >= minStrength) {
+        const buyVol = buyVolumeByBin[i];
+        const sellVol = volume - buyVol;
+        
+        nodes.push({
+          price: binCenter,
+          volume: volume,
+          buyVolume: buyVol,
+          sellVolume: sellVol,
+          strength: strength,
+          priceRange: [binMin, binMax]
+        });
+      }
+    }
+  }
+
+  // Sort by strength (strongest first)
+  nodes.sort((a, b) => b.strength - a.strength);
+
+  // Cache the result if key provided
+  if (cacheKey) {
+    hvnCache.set(cacheKey, { nodes, timestamp: Date.now() });
+  }
+
+  return nodes;
+}
+
+/**
+ * Checks if a price is near a High Volume Node.
+ * @param price - The price to check.
+ * @param hvnNodes - Array of volume nodes.
+ * @param tolerance - Percentage tolerance for "near" (default 0.5%).
+ * @returns True if price is near an HVN.
+ */
+export function isNearHVN(price: number, hvnNodes: VolumeNode[], tolerance: number = 0.5): boolean {
+  if (!hvnNodes || hvnNodes.length === 0 || isNaN(price)) return false;
+  
+  const toleranceAmount = price * (tolerance / 100);
+  
+  return hvnNodes.some(node => {
+    const distance = Math.abs(price - node.price);
+    return distance <= toleranceAmount;
+  });
+}
+
+/**
+ * Gets the closest High Volume Node to a price.
+ * @param price - The price to check.
+ * @param hvnNodes - Array of volume nodes.
+ * @param direction - Direction to search ('above', 'below', or 'both').
+ * @returns The closest VolumeNode or null if none found.
+ */
+export function getClosestHVN(
+  price: number, 
+  hvnNodes: VolumeNode[], 
+  direction: 'above' | 'below' | 'both' = 'both'
+): VolumeNode | null {
+  if (!hvnNodes || hvnNodes.length === 0 || isNaN(price)) return null;
+  
+  let closestNode: VolumeNode | null = null;
+  let closestDistance = Infinity;
+  
+  for (const node of hvnNodes) {
+    const distance = node.price - price;
+    const absDistance = Math.abs(distance);
+    
+    // Check direction constraints
+    if (direction === 'above' && distance < 0) continue;
+    if (direction === 'below' && distance > 0) continue;
+    
+    if (absDistance < closestDistance) {
+      closestDistance = absDistance;
+      closestNode = node;
+    }
+  }
+  
+  return closestNode;
+}
+
+/**
+ * Counts the number of HVNs within a price range.
+ * @param priceLow - Lower bound of the range.
+ * @param priceHigh - Upper bound of the range.
+ * @param hvnNodes - Array of volume nodes.
+ * @returns Number of HVNs in the range.
+ */
+export function countHVNInRange(priceLow: number, priceHigh: number, hvnNodes: VolumeNode[]): number {
+  if (!hvnNodes || hvnNodes.length === 0 || isNaN(priceLow) || isNaN(priceHigh)) return 0;
+  
+  return hvnNodes.filter(node => 
+    node.price >= priceLow && node.price <= priceHigh
+  ).length;
+}
+
+/**
+ * Clears the HVN cache for a specific key or all keys.
+ * @param cacheKey - Optional specific cache key to clear.
+ */
+export function clearHVNCache(cacheKey?: string): void {
+  if (cacheKey) {
+    hvnCache.delete(cacheKey);
+  } else {
+    hvnCache.clear();
+  }
 }

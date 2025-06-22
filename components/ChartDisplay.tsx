@@ -125,7 +125,7 @@ const volumeProfilePlugin = {
     id: 'volumeProfile',
     beforeDatasetsDraw: (chart: Chart, args: any, options: { klines: Kline[] | undefined, maxBarWidth: number }) => {
         const { ctx } = chart;
-        const { klines, maxBarWidth = 80 } = options;
+        const { klines, maxBarWidth = 40 } = options;
 
         if (!klines || klines.length === 0) {
             return;
@@ -407,7 +407,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
               responsive: true, 
               maintainAspectRatio: false, 
               animation: false,
-              layout: { padding: { top: 15, bottom: 0, left: 100, right: 35 } }, 
+              layout: { padding: { top: 15, bottom: 0, left: 60, right: 35 } }, 
               plugins: {
                 legend: { 
                     display: true, 
@@ -465,7 +465,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 } as any,
                 volumeProfile: {
                     klines: klines,
-                    maxBarWidth: 80
+                    maxBarWidth: 40
                 } as any
               },
               scales: {
@@ -586,7 +586,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 responsive: true, 
                 maintainAspectRatio: false, 
                 animation: false,
-                layout: { padding: { top: 2, bottom: 0, left: 0, right: 35 } },
+                layout: { padding: { top: 2, bottom: 0, left: 60, right: 35 } },
                 plugins: {
                     legend: { display: false },
                     title: { 

@@ -106,6 +106,10 @@ screenerCode: A string containing the body of a JavaScript function \`(ticker, k
         18. \`helpers.isNearHVN(price, hvnNodes, tolerance = 0.5)\`: Returns true if price is within tolerance % of any HVN.
         19. \`helpers.getClosestHVN(price, hvnNodes, direction = 'both')\`: Returns closest VolumeNode. Direction can be 'above', 'below', or 'both'.
         20. \`helpers.countHVNInRange(priceLow, priceHigh, hvnNodes)\`: Returns count of HVNs within price range.
+        21. \`helpers.calculateVWAPSeries(klines, anchorPeriod?)\`: Returns VWAP series \`(number | null)[]\`. Without anchorPeriod, uses all klines. With anchorPeriod, uses last N klines.
+        22. \`helpers.getLatestVWAP(klines, anchorPeriod?)\`: Returns Latest VWAP (number) or \`null\`.
+        23. \`helpers.calculateVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)\`: Returns \`{ vwap: (number | null)[], upperBand: (number | null)[], lowerBand: (number | null)[] }\`.
+        24. \`helpers.getLatestVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)\`: Returns \`{ vwap: number | null, upperBand: number | null, lowerBand: number | null }\`.
 
     Structure and Logic in \`screenerCode\`:
         - CRUCIAL: Always check \`klines.length\` before accessing elements or performing calculations. If insufficient, return \`false\`.
@@ -113,6 +117,7 @@ screenerCode: A string containing the body of a JavaScript function \`(ticker, k
         - CRUCIAL: The final statement in \`screenerCode\` MUST be a boolean return. E.g., \`return condition1 && condition2;\`.
         - Parse kline values (open, high, low, close, volume) using \`parseFloat()\`.
         - Avoid \`NaN\`/\`Infinity\` without safeguards. If a condition is ambiguous, interpret reasonably or omit and note in \`description\`.
+        - VWAP NOTE: When using VWAP, implement daily reset by calculating candles since day start unless user specifies otherwise.
 
 indicators: An array of custom indicator configurations for charting. Each indicator can display ANY calculation or combination of values. Max 4-5 indicators.
 
@@ -147,6 +152,7 @@ indicators: An array of custom indicator configurations for charting. Each indic
     - Trend indicators (MACD, ADX, Aroon, etc.)
     - Volatility indicators (Bollinger Bands, ATR, Keltner Channels, etc.)
     - Volume indicators (OBV, Volume Profile, MFI, etc.)
+    - VWAP: For daily reset, calculate candles since day start. See VWAP example.
     - Custom combinations or proprietary calculations
 
     Color Guidelines:
@@ -218,6 +224,17 @@ Example Indicators:
   "calculateFunction": "const hvnNodes = helpers.calculateHighVolumeNodes(klines, {lookback: 100}); const lastTime = klines[klines.length-1][0]; return klines.map(k => ({ x: k[0], y: hvnNodes[0]?.price || null, y2: hvnNodes[1]?.price || null, y3: hvnNodes[2]?.price || null, y4: hvnNodes[3]?.price || null }));",
   "chartType": "line",
   "style": { "color": ["#f59e0b", "#f59e0b99", "#f59e0b66", "#f59e0b33"], "lineWidth": [2, 1.5, 1, 1] }
+}
+
+// VWAP with bands (overlay on price)
+// IMPORTANT: For daily VWAP reset, calculate how many candles in current day and use as anchorPeriod
+{
+  "id": "vwap_daily",
+  "name": "VWAP (Daily)",
+  "panel": false,
+  "calculateFunction": "// Calculate candles since day start for daily reset\nconst now = new Date(klines[klines.length-1][0]);\nconst dayStart = new Date(now);\ndayStart.setUTCHours(0,0,0,0);\nlet candlesSinceDayStart = 0;\nfor (let i = klines.length - 1; i >= 0; i--) {\n  if (klines[i][0] < dayStart.getTime()) break;\n  candlesSinceDayStart++;\n}\nconst bands = helpers.calculateVWAPBands(klines, candlesSinceDayStart || undefined, 1);\nreturn klines.map((k, i) => ({x: k[0], y: bands.vwap[i], y2: bands.upperBand[i], y3: bands.lowerBand[i]}));",
+  "chartType": "line",
+  "style": { "color": ["#9333ea", "#a855f7", "#a855f7"], "lineWidth": [2, 1, 1] }
 }
 
 Example Complete Response:

@@ -72,10 +72,6 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoadi
             <span className="text-gray-400">Take Profit:</span>
             <span className="text-green-400">{strategy.tradePlan.takeProfit}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Position:</span>
-            <span className="text-gray-300">{strategy.tradePlan.positionSize}</span>
-          </div>
         </div>
       </div>
 

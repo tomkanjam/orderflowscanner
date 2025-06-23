@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry, VolumeNode, HistoricalSignal } from '../types';
+import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry, VolumeNode, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from '../types';
+import { PrebuiltStrategy } from '../types/strategy';
 import SignalTable from './SignalTable';
 import CryptoTable from './CryptoTable';
 import ChartDisplay from './ChartDisplay';
@@ -36,6 +37,7 @@ interface MainContentProps {
   historicalScanConfig?: HistoricalScanConfig;
   onHistoricalScanConfigChange?: (config: HistoricalScanConfig) => void;
   onCancelHistoricalScan?: () => void;
+  onStrategySelect?: (strategy: PrebuiltStrategy) => void;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -63,6 +65,7 @@ const MainContent: React.FC<MainContentProps> = ({
   historicalScanConfig,
   onHistoricalScanConfigChange,
   onCancelHistoricalScan,
+  onStrategySelect,
 }) => {
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-y-hidden">
@@ -97,6 +100,7 @@ const MainContent: React.FC<MainContentProps> = ({
                   historicalScanConfig={historicalScanConfig}
                   onHistoricalScanConfigChange={onHistoricalScanConfigChange}
                   onCancelHistoricalScan={onCancelHistoricalScan}
+                  onStrategySelect={onStrategySelect}
                 />
               </div>
               {/* Hidden CryptoTable to keep screener running */}

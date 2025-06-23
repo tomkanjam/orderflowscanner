@@ -9,6 +9,7 @@ import { generateFilterAndChartConfig, getSymbolAnalysis, getMarketAnalysis } fr
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
 import * as screenerHelpers from './screenerHelpers';
 import { useHistoricalScanner } from './hooks/useHistoricalScanner';
+import { PrebuiltStrategy } from './types/strategy';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -649,6 +650,82 @@ const App: React.FC = () => {
     setSelectedSymbolForChart(symbol);
   };
   
+  const handleStrategySelect = useCallback(async (strategy: PrebuiltStrategy) => {
+    // Update the kline interval to match the strategy
+    if (strategy.timeframe !== klineInterval) {
+      setKlineInterval(strategy.timeframe);
+      // Wait for data to reload with new interval
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Set the AI prompt to the strategy's natural language prompt
+    setAiPrompt(strategy.prompt);
+    
+    // Set the trading strategy
+    const tradePlanText = `Trade Plan: Entry ${strategy.tradePlan.entry}, Stop Loss ${strategy.tradePlan.stopLoss}, Take Profit ${strategy.tradePlan.takeProfit}`;
+    setStrategy(tradePlanText);
+    
+    // Create the filter function from the strategy's screener code
+    setIsAiScreenerLoading(true);
+    setAiScreenerError(null);
+    setCurrentFilterFn(null);
+    setAiFilterDescription(null);
+    setCurrentChartConfig(null);
+    setFullAiFilterResponse(null);
+    setSignalLog([]);
+    
+    try {
+      // Create a filter function from the strategy's screener code
+      const filterFunction = new Function(
+        'ticker',
+        'klines',
+        'helpers',
+        'hvnNodes',
+        `try { ${strategy.screenerCode} } catch(e) { console.error('Strategy screener error for ticker:', ticker.s, e); return false; }`
+      ) as (ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: VolumeNode[]) => boolean;
+      
+      setCurrentFilterFn(() => filterFunction);
+      setAiFilterDescription(strategy.conditions);
+      
+      // Create indicators based on the strategy
+      const indicators: CustomIndicatorConfig[] = [];
+      
+      // Add relevant indicators based on strategy type
+      if (strategy.id === 'quick-scalp' || strategy.id === '5min-momentum' || strategy.id === 'breakout-scalp') {
+        indicators.push({ type: 'VWAP', color: '#9333EA' });
+      }
+      
+      if (strategy.id === '5min-momentum' || strategy.id === 'hourly-swing') {
+        indicators.push(
+          { type: 'EMA', period: 9, color: '#10B981' },
+          { type: 'EMA', period: 21, color: '#F59E0B' }
+        );
+      }
+      
+      if (strategy.id === 'hourly-swing') {
+        indicators.push(
+          { type: 'SMA', period: 20, color: '#3B82F6' },
+          { type: 'SMA', period: 50, color: '#EF4444' }
+        );
+      }
+      
+      setCurrentChartConfig(indicators);
+      
+      // Create a mock AI response
+      setFullAiFilterResponse({
+        description: strategy.conditions,
+        screenerCode: strategy.screenerCode,
+        indicators: indicators
+      });
+      
+    } catch (error) {
+      console.error("Strategy selection error:", error);
+      setAiScreenerError("Failed to load strategy");
+    } finally {
+      setIsAiScreenerLoading(false);
+    }
+  }, [klineInterval]);
+  
   const chartConfigForDisplay = selectedSymbolForChart ? currentChartConfig : null;
 
 
@@ -709,6 +786,7 @@ const App: React.FC = () => {
         historicalScanConfig={historicalScanConfig}
         onHistoricalScanConfigChange={setHistoricalScanConfig}
         onCancelHistoricalScan={cancelHistoricalScan}
+        onStrategySelect={handleStrategySelect}
       />
       <Modal
         isOpen={isModalOpen}

@@ -220,20 +220,20 @@ const Sidebar: React.FC<SidebarProps> = ({
               id="screener-limit"
               type="number"
               min="50"
-              max="1000"
+              max="2000"
               step="50"
               value={klineHistoryConfig.screenerLimit}
               onChange={(e) => {
-                const value = parseInt(e.target.value) || 250;
+                const value = parseInt(e.target.value) || 1440;
                 onKlineHistoryConfigChange({
                   ...klineHistoryConfig,
-                  screenerLimit: Math.min(Math.max(value, 50), 1000)
+                  screenerLimit: Math.min(Math.max(value, 50), 2000)
                 });
               }}
               className="w-24 bg-gray-700 border border-gray-600 rounded-lg p-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
             <span className="text-gray-400 text-xs">
-              (50-1000)
+              (50-2000)
             </span>
           </div>
           <p className="text-gray-500 text-xs mt-1">

@@ -107,6 +107,32 @@ const Sidebar: React.FC<SidebarProps> = ({
         />
       </div>
 
+      <div className="mb-4">
+        <label htmlFor="signal-threshold" className="text-gray-300 font-medium mb-1 block text-sm">
+          Signal Deduplication Threshold:
+        </label>
+        <div className="flex items-center space-x-2">
+          <input
+            id="signal-threshold"
+            type="number"
+            min="1"
+            max="500"
+            value={signalDedupeThreshold}
+            onChange={(e) => {
+              const value = parseInt(e.target.value, 10);
+              if (!isNaN(value) && value >= 1 && value <= 500) {
+                onSignalDedupeThresholdChange(value);
+              }
+            }}
+            className="w-24 bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+          />
+          <span className="text-gray-300 text-sm">bars</span>
+        </div>
+        <p className="text-gray-400 text-xs mt-1">
+          Signals for the same symbol within this bar count will increment the count instead of creating a new entry.
+        </p>
+      </div>
+
       <button
         id="run-ai-btn"
         onClick={onRunAiScreener}
@@ -174,35 +200,6 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
       
-      {/* Signal Settings Section */}
-      <div className="mt-6">
-        <h2 className="text-xl font-bold text-yellow-400 mb-4">Signal Settings</h2>
-        <div className="mb-4">
-          <label htmlFor="signal-threshold" className="text-gray-300 font-medium mb-1 block text-sm">
-            Signal Deduplication Threshold:
-          </label>
-          <div className="flex items-center space-x-2">
-            <input
-              id="signal-threshold"
-              type="number"
-              min="1"
-              max="500"
-              value={signalDedupeThreshold}
-              onChange={(e) => {
-                const value = parseInt(e.target.value, 10);
-                if (!isNaN(value) && value >= 1 && value <= 500) {
-                  onSignalDedupeThresholdChange(value);
-                }
-              }}
-              className="w-24 bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
-            />
-            <span className="text-gray-300 text-sm">bars</span>
-          </div>
-          <p className="text-gray-400 text-xs mt-1">
-            Signals for the same symbol within this bar count will increment the count instead of creating a new entry.
-          </p>
-        </div>
-      </div>
       
       <div className="mt-auto pt-6"> 
         <button

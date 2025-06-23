@@ -5,12 +5,14 @@ export interface PrebuiltStrategy {
   category: 'scalping' | 'daytrading' | 'momentum' | 'reversal';
   timeframe: '1m' | '5m' | '15m' | '1h';
   holdTime: string;
-  winRate?: string;
-  avgGain?: string;
-  tradesPerDay?: string;
+  conditions: string[];
+  tradePlan: {
+    entry: string;
+    stopLoss: string;
+    takeProfit: string;
+    positionSize: string;
+  };
   screenerCode: string;
-  riskLevel: 'low' | 'medium' | 'high';
-  icon: string;
 }
 
 export const prebuiltStrategies: PrebuiltStrategy[] = [
@@ -21,12 +23,19 @@ export const prebuiltStrategies: PrebuiltStrategy[] = [
     category: 'scalping',
     timeframe: '1m',
     holdTime: '5-15 mins',
-    winRate: '72%',
-    avgGain: '+0.4%',
-    tradesPerDay: '8-12',
+    conditions: [
+      'Price touches VWAP (±0.1%)',
+      'RSI < 35 (oversold)',
+      'Volume spike > 2x average',
+      'No resistance above'
+    ],
+    tradePlan: {
+      entry: 'Market buy on signal',
+      stopLoss: '0.3% below entry',
+      takeProfit: '0.4-0.6% above entry',
+      positionSize: '10% of capital'
+    },
     screenerCode: '',
-    riskLevel: 'high',
-    icon: '⚡',
   },
   {
     id: '5min-momentum',
@@ -35,12 +44,19 @@ export const prebuiltStrategies: PrebuiltStrategy[] = [
     category: 'momentum',
     timeframe: '5m',
     holdTime: '15-45 mins',
-    winRate: '68%',
-    avgGain: '+0.8%',
-    tradesPerDay: '4-6',
+    conditions: [
+      '9 EMA crosses above 21 EMA',
+      'MACD histogram turning positive',
+      'Volume > 1.5x average',
+      'Price above VWAP'
+    ],
+    tradePlan: {
+      entry: 'Buy on EMA cross confirmation',
+      stopLoss: '0.5% below 21 EMA',
+      takeProfit: '1-1.5% above entry',
+      positionSize: '15% of capital'
+    },
     screenerCode: '',
-    riskLevel: 'medium',
-    icon: '🚀',
   },
   {
     id: '15min-reversal',
@@ -49,12 +65,19 @@ export const prebuiltStrategies: PrebuiltStrategy[] = [
     category: 'reversal',
     timeframe: '15m',
     holdTime: '30m-2hr',
-    winRate: '65%',
-    avgGain: '+1.2%',
-    tradesPerDay: '2-4',
+    conditions: [
+      'RSI < 30 (oversold)',
+      'Stochastic < 20',
+      'Near daily pivot support',
+      'Bullish divergence forming'
+    ],
+    tradePlan: {
+      entry: 'Limit buy at support',
+      stopLoss: '0.8% below support',
+      takeProfit: '1.5-2% or next resistance',
+      positionSize: '20% of capital'
+    },
     screenerCode: '',
-    riskLevel: 'medium',
-    icon: '🔄',
   },
   {
     id: 'breakout-scalp',
@@ -63,12 +86,19 @@ export const prebuiltStrategies: PrebuiltStrategy[] = [
     category: 'scalping',
     timeframe: '5m',
     holdTime: '10-30 mins',
-    winRate: '70%',
-    avgGain: '+0.6%',
-    tradesPerDay: '5-8',
+    conditions: [
+      'Break above 30-min high',
+      'Volume > 3x average',
+      'ADX rising above 25',
+      'No immediate resistance'
+    ],
+    tradePlan: {
+      entry: 'Buy stop above breakout',
+      stopLoss: '0.4% below breakout level',
+      takeProfit: '0.8-1% continuation',
+      positionSize: '15% of capital'
+    },
     screenerCode: '',
-    riskLevel: 'medium',
-    icon: '📈',
   },
   {
     id: 'bull-flag-micro',
@@ -77,12 +107,19 @@ export const prebuiltStrategies: PrebuiltStrategy[] = [
     category: 'scalping',
     timeframe: '1m',
     holdTime: '5-20 mins',
-    winRate: '75%',
-    avgGain: '+0.5%',
-    tradesPerDay: '6-10',
+    conditions: [
+      'Flag pattern after 0.5%+ surge',
+      'Volume declining in flag',
+      'RSI cooling from 70 to 50-60',
+      'MACD holding above signal'
+    ],
+    tradePlan: {
+      entry: 'Buy on flag breakout',
+      stopLoss: '0.25% below flag low',
+      takeProfit: '0.5-0.8% measured move',
+      positionSize: '10% of capital'
+    },
     screenerCode: '',
-    riskLevel: 'high',
-    icon: '🏁',
   },
   {
     id: 'hourly-swing',
@@ -91,11 +128,18 @@ export const prebuiltStrategies: PrebuiltStrategy[] = [
     category: 'daytrading',
     timeframe: '1h',
     holdTime: '2-6 hours',
-    winRate: '62%',
-    avgGain: '+2.5%',
-    tradesPerDay: '1-3',
+    conditions: [
+      'Higher low formed',
+      'Price bounces from 20 MA',
+      'MACD above signal line',
+      'Uptrend intact (50 MA rising)'
+    ],
+    tradePlan: {
+      entry: 'Buy at 20 MA test',
+      stopLoss: '1.5% below recent low',
+      takeProfit: '3-4% trend target',
+      positionSize: '25% of capital'
+    },
     screenerCode: '',
-    riskLevel: 'low',
-    icon: '📊',
   },
 ];

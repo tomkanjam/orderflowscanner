@@ -8,19 +8,6 @@ interface StrategyCardProps {
 }
 
 const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoading }) => {
-  const getRiskColor = (level: string) => {
-    switch (level) {
-      case 'low':
-        return 'text-green-400 bg-green-400/10';
-      case 'medium':
-        return 'text-yellow-400 bg-yellow-400/10';
-      case 'high':
-        return 'text-red-400 bg-red-400/10';
-      default:
-        return 'text-gray-400 bg-gray-400/10';
-    }
-  };
-
   const getTimeframeBadgeColor = (timeframe: string) => {
     switch (timeframe) {
       case '1m':
@@ -41,16 +28,13 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoadi
       onClick={() => !isLoading && onSelect(strategy)}
       className={`
         bg-gray-800 rounded-lg p-4 cursor-pointer transition-all duration-300
-        border border-gray-700 hover:border-purple-500/50
+        border border-gray-700 hover:border-purple-500/50 relative
         ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:transform hover:scale-[1.02] hover:shadow-xl'}
       `}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">{strategy.icon}</span>
-          <h3 className="text-lg font-semibold text-white">{strategy.name}</h3>
-        </div>
+        <h3 className="text-lg font-semibold text-white">{strategy.name}</h3>
         <span className={`text-xs px-2 py-1 rounded-md border ${getTimeframeBadgeColor(strategy.timeframe)}`}>
           {strategy.timeframe}
         </span>
@@ -59,35 +43,46 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoadi
       {/* Description */}
       <p className="text-sm text-gray-400 mb-4">{strategy.description}</p>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-gray-900/50 rounded-lg p-2">
-          <p className="text-xs text-gray-500">Win Rate</p>
-          <p className="text-green-400 font-semibold">{strategy.winRate || 'N/A'}</p>
-        </div>
-        <div className="bg-gray-900/50 rounded-lg p-2">
-          <p className="text-xs text-gray-500">Avg Gain</p>
-          <p className="text-blue-400 font-semibold">{strategy.avgGain || 'N/A'}</p>
+      {/* Screener Conditions */}
+      <div className="mb-4">
+        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Screener Conditions</h4>
+        <ul className="space-y-1">
+          {strategy.conditions.map((condition, index) => (
+            <li key={index} className="text-xs text-gray-300 flex items-start">
+              <span className="text-purple-400 mr-1">•</span>
+              {condition}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Trade Plan */}
+      <div className="bg-gray-900/50 rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Trade Plan</h4>
+        <div className="space-y-1 text-xs">
+          <div className="flex justify-between">
+            <span className="text-gray-400">Entry:</span>
+            <span className="text-gray-300">{strategy.tradePlan.entry}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Stop Loss:</span>
+            <span className="text-red-400">{strategy.tradePlan.stopLoss}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Take Profit:</span>
+            <span className="text-green-400">{strategy.tradePlan.takeProfit}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Position:</span>
+            <span className="text-gray-300">{strategy.tradePlan.positionSize}</span>
+          </div>
         </div>
       </div>
 
-      {/* Additional Info */}
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2">
-          <span className="text-gray-500">Hold:</span>
-          <span className="text-gray-300">{strategy.holdTime}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-gray-500">Trades/Day:</span>
-          <span className="text-gray-300">{strategy.tradesPerDay}</span>
-        </div>
-      </div>
-
-      {/* Risk Level */}
-      <div className="mt-3 pt-3 border-t border-gray-700">
-        <span className={`text-xs px-2 py-1 rounded-md ${getRiskColor(strategy.riskLevel)}`}>
-          {strategy.riskLevel.toUpperCase()} RISK
-        </span>
+      {/* Hold Time */}
+      <div className="mt-3 pt-3 border-t border-gray-700 text-center">
+        <span className="text-xs text-gray-500">Hold Time: </span>
+        <span className="text-xs text-gray-300">{strategy.holdTime}</span>
       </div>
 
       {/* Loading State */}

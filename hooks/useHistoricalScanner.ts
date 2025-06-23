@@ -149,8 +149,8 @@ export function useHistoricalScanner({
                 }
               }
               
-              // Sort by newest first for display
-              const finalSignals = deduplicatedSignals.sort((a, b) => b.timestamp - a.timestamp);
+              // Sort by newest first for display (by kline timestamp, not detection time)
+              const finalSignals = deduplicatedSignals.sort((a, b) => b.klineTimestamp - a.klineTimestamp);
               
               setSignals(finalSignals);
               setIsScanning(false);

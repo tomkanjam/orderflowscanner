@@ -24,9 +24,9 @@ const SignalTable: React.FC<SignalTableProps> = ({
     return [...signalLog].sort((a, b) => b.timestamp - a.timestamp);
   }, [signalLog]);
   
-  // Sort historical signals by timestamp, newest first
+  // Sort historical signals by klineTimestamp (when they occurred), newest first
   const sortedHistoricalSignals = useMemo(() => {
-    return [...historicalSignals].sort((a, b) => b.timestamp - a.timestamp);
+    return [...historicalSignals].sort((a, b) => b.klineTimestamp - a.klineTimestamp);
   }, [historicalSignals]);
   
   // Get current prices for signals

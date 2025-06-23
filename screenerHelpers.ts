@@ -848,3 +848,101 @@ export function clearHVNCache(cacheKey?: string): void {
     hvnCache.clear();
   }
 }
+
+/**
+ * Calculates Bollinger Bands (upper, middle, lower) for kline data.
+ * @param klines - Array of kline data.
+ * @param period - The period for the moving average (default 20).
+ * @param stdDev - Number of standard deviations for bands (default 2).
+ * @returns Object with upper, middle, lower band arrays (number | null)[].
+ */
+export function calculateBollingerBands(
+  klines: Kline[], 
+  period: number = 20, 
+  stdDev: number = 2
+): { upper: (number | null)[]; middle: (number | null)[]; lower: (number | null)[] } {
+  const len = klines?.length || 0;
+  const defaultReturn = {
+    upper: new Array(len).fill(null),
+    middle: new Array(len).fill(null),
+    lower: new Array(len).fill(null)
+  };
+
+  if (!klines || klines.length < period || period <= 0) {
+    return defaultReturn;
+  }
+
+  const closePrices = klines.map(k => {
+    const price = parseFloat(k[4]);
+    return isNaN(price) ? null : price;
+  });
+
+  // Calculate moving average (middle band)
+  const middle = calculateMASeries(klines, period);
+  const upper: (number | null)[] = new Array(klines.length).fill(null);
+  const lower: (number | null)[] = new Array(klines.length).fill(null);
+
+  // Calculate standard deviation and bands
+  for (let i = period - 1; i < klines.length; i++) {
+    if (middle[i] === null) continue;
+
+    // Calculate standard deviation for the period
+    let sum = 0;
+    let validPoints = 0;
+    let hasInvalid = false;
+
+    for (let j = 0; j < period; j++) {
+      const price = closePrices[i - j];
+      if (price === null || isNaN(price)) {
+        hasInvalid = true;
+        break;
+      }
+      sum += Math.pow(price - middle[i]!, 2);
+      validPoints++;
+    }
+
+    if (hasInvalid || validPoints !== period) {
+      upper[i] = null;
+      lower[i] = null;
+      continue;
+    }
+
+    const standardDeviation = Math.sqrt(sum / period);
+    upper[i] = middle[i]! + (stdDev * standardDeviation);
+    lower[i] = middle[i]! - (stdDev * standardDeviation);
+  }
+
+  return { upper, middle, lower };
+}
+
+/**
+ * Gets the latest Bollinger Bands values.
+ * @param klines - Array of kline data.
+ * @param period - The period for the moving average (default 20).
+ * @param stdDev - Number of standard deviations for bands (default 2).
+ * @returns Object with latest upper, middle, lower values (number | null).
+ */
+export function getLatestBollingerBands(
+  klines: Kline[], 
+  period: number = 20, 
+  stdDev: number = 2
+): { upper: number | null; middle: number | null; lower: number | null } {
+  const bands = calculateBollingerBands(klines, period, stdDev);
+  
+  let latestUpper: number | null = null;
+  let latestMiddle: number | null = null;
+  let latestLower: number | null = null;
+
+  if (bands.upper.length > 0) {
+    for (let i = bands.upper.length - 1; i >= 0; i--) {
+      if (bands.upper[i] !== null && bands.middle[i] !== null && bands.lower[i] !== null) {
+        latestUpper = bands.upper[i];
+        latestMiddle = bands.middle[i];
+        latestLower = bands.lower[i];
+        break;
+      }
+    }
+  }
+
+  return { upper: latestUpper, middle: latestMiddle, lower: latestLower };
+}

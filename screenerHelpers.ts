@@ -946,3 +946,159 @@ export function getLatestBollingerBands(
 
   return { upper: latestUpper, middle: latestMiddle, lower: latestLower };
 }
+
+/**
+ * Calculates Volume Weighted Average Price (VWAP) series.
+ * VWAP = Σ(Price × Volume) / Σ(Volume)
+ * @param klines - Array of kline data.
+ * @param anchorPeriod - Number of klines to use for VWAP calculation (default uses all klines).
+ * @returns An array of VWAP values (number | null)[], same length as klines.
+ */
+export function calculateVWAPSeries(klines: Kline[], anchorPeriod?: number): (number | null)[] {
+  if (!klines || klines.length === 0) return [];
+
+  const vwapSeries: (number | null)[] = new Array(klines.length).fill(null);
+  
+  // Determine starting point based on anchor period
+  const startIndex = anchorPeriod && anchorPeriod < klines.length 
+    ? klines.length - anchorPeriod 
+    : 0;
+
+  let cumulativePriceVolume = 0;
+  let cumulativeVolume = 0;
+
+  for (let i = startIndex; i < klines.length; i++) {
+    const high = parseFloat(klines[i][2]);
+    const low = parseFloat(klines[i][3]);
+    const close = parseFloat(klines[i][4]);
+    const volume = parseFloat(klines[i][5]);
+
+    if (isNaN(high) || isNaN(low) || isNaN(close) || isNaN(volume)) {
+      vwapSeries[i] = null;
+      continue;
+    }
+
+    // Typical price (HLC/3)
+    const typicalPrice = (high + low + close) / 3;
+    
+    cumulativePriceVolume += typicalPrice * volume;
+    cumulativeVolume += volume;
+
+    if (cumulativeVolume > 0) {
+      vwapSeries[i] = cumulativePriceVolume / cumulativeVolume;
+    } else {
+      vwapSeries[i] = null;
+    }
+  }
+
+  return vwapSeries;
+}
+
+/**
+ * Gets the latest VWAP value.
+ * @param klines - Array of kline data.
+ * @param anchorPeriod - Number of klines to use for VWAP calculation (default uses all klines).
+ * @returns The latest VWAP value (number | null).
+ */
+export function getLatestVWAP(klines: Kline[], anchorPeriod?: number): number | null {
+  const vwapSeries = calculateVWAPSeries(klines, anchorPeriod);
+  if (!vwapSeries || vwapSeries.length === 0) return null;
+  
+  for (let i = vwapSeries.length - 1; i >= 0; i--) {
+    if (vwapSeries[i] !== null) return vwapSeries[i];
+  }
+  return null;
+}
+
+/**
+ * Calculates VWAP with standard deviation bands.
+ * @param klines - Array of kline data.
+ * @param anchorPeriod - Number of klines to use for VWAP calculation.
+ * @param stdDevMultiplier - Multiplier for standard deviation bands (default 1).
+ * @returns Object with vwap, upperBand, lowerBand arrays (number | null)[].
+ */
+export function calculateVWAPBands(
+  klines: Kline[], 
+  anchorPeriod?: number,
+  stdDevMultiplier: number = 1
+): { vwap: (number | null)[]; upperBand: (number | null)[]; lowerBand: (number | null)[] } {
+  const len = klines?.length || 0;
+  const defaultReturn = {
+    vwap: new Array(len).fill(null),
+    upperBand: new Array(len).fill(null),
+    lowerBand: new Array(len).fill(null)
+  };
+
+  if (!klines || klines.length === 0) return defaultReturn;
+
+  const vwap = calculateVWAPSeries(klines, anchorPeriod);
+  const upperBand: (number | null)[] = new Array(klines.length).fill(null);
+  const lowerBand: (number | null)[] = new Array(klines.length).fill(null);
+
+  // Determine starting point
+  const startIndex = anchorPeriod && anchorPeriod < klines.length 
+    ? klines.length - anchorPeriod 
+    : 0;
+
+  // Calculate standard deviation at each point
+  for (let i = startIndex; i < klines.length; i++) {
+    if (vwap[i] === null) continue;
+
+    let sumSquaredDiff = 0;
+    let validPoints = 0;
+
+    // Calculate variance from VWAP
+    for (let j = startIndex; j <= i; j++) {
+      const high = parseFloat(klines[j][2]);
+      const low = parseFloat(klines[j][3]);
+      const close = parseFloat(klines[j][4]);
+      
+      if (isNaN(high) || isNaN(low) || isNaN(close) || vwap[i] === null) continue;
+      
+      const typicalPrice = (high + low + close) / 3;
+      sumSquaredDiff += Math.pow(typicalPrice - vwap[i]!, 2);
+      validPoints++;
+    }
+
+    if (validPoints > 0) {
+      const variance = sumSquaredDiff / validPoints;
+      const stdDev = Math.sqrt(variance);
+      upperBand[i] = vwap[i]! + (stdDev * stdDevMultiplier);
+      lowerBand[i] = vwap[i]! - (stdDev * stdDevMultiplier);
+    }
+  }
+
+  return { vwap, upperBand, lowerBand };
+}
+
+/**
+ * Gets the latest VWAP with bands values.
+ * @param klines - Array of kline data.
+ * @param anchorPeriod - Number of klines to use for VWAP calculation.
+ * @param stdDevMultiplier - Multiplier for standard deviation bands (default 1).
+ * @returns Object with latest vwap, upperBand, lowerBand values (number | null).
+ */
+export function getLatestVWAPBands(
+  klines: Kline[], 
+  anchorPeriod?: number,
+  stdDevMultiplier: number = 1
+): { vwap: number | null; upperBand: number | null; lowerBand: number | null } {
+  const bands = calculateVWAPBands(klines, anchorPeriod, stdDevMultiplier);
+  
+  let latestVwap: number | null = null;
+  let latestUpper: number | null = null;
+  let latestLower: number | null = null;
+
+  if (bands.vwap.length > 0) {
+    for (let i = bands.vwap.length - 1; i >= 0; i--) {
+      if (bands.vwap[i] !== null) {
+        latestVwap = bands.vwap[i];
+        latestUpper = bands.upperBand[i];
+        latestLower = bands.lowerBand[i];
+        break;
+      }
+    }
+  }
+
+  return { vwap: latestVwap, upperBand: latestUpper, lowerBand: latestLower };
+}

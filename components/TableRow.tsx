@@ -12,22 +12,40 @@ interface TableRowProps {
 const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onAiInfoClick }) => {
   const [priceFlashClass, setPriceFlashClass] = useState('');
   const [prevPrice, setPrevPrice] = useState<number | null>(null);
+  const [flashEndTime, setFlashEndTime] = useState<number>(0);
 
+  // Handle price changes and set flash color
   useEffect(() => {
     if (tickerData) {
       const currentPrice = parseFloat(tickerData.c);
-      if (prevPrice !== null) {
+      if (prevPrice !== null && currentPrice !== prevPrice) {
         if (currentPrice > prevPrice) {
           setPriceFlashClass('text-green-400');
         } else if (currentPrice < prevPrice) {
           setPriceFlashClass('text-red-400');
         }
-        const timer = setTimeout(() => setPriceFlashClass(''), 700);
-        return () => clearTimeout(timer);
+        setFlashEndTime(Date.now() + 700);
       }
       setPrevPrice(currentPrice);
     }
   }, [tickerData, prevPrice]);
+
+  // Handle returning to white after flash duration
+  useEffect(() => {
+    if (flashEndTime > 0) {
+      const timeUntilEnd = flashEndTime - Date.now();
+      if (timeUntilEnd <= 0) {
+        setPriceFlashClass('');
+        setFlashEndTime(0);
+      } else {
+        const timer = setTimeout(() => {
+          setPriceFlashClass('');
+          setFlashEndTime(0);
+        }, timeUntilEnd);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [flashEndTime]);
 
   if (!tickerData) {
     // Render a placeholder or nothing if ticker data is not yet available for this symbol

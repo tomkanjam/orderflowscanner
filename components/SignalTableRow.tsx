@@ -21,23 +21,41 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
 }) => {
   const [priceFlashClass, setPriceFlashClass] = useState('');
   const [prevPrice, setPrevPrice] = useState<number>(currentPrice);
+  const [flashEndTime, setFlashEndTime] = useState<number>(0);
 
   // Calculate gain/loss
   const priceChange = currentPrice - signal.priceAtSignal;
   const priceChangePercent = (priceChange / signal.priceAtSignal) * 100;
 
+  // Handle price changes and set flash color
   useEffect(() => {
-    if (currentPrice !== prevPrice) {
+    if (currentPrice !== prevPrice && prevPrice !== null) {
       if (currentPrice > prevPrice) {
         setPriceFlashClass('text-green-400');
       } else if (currentPrice < prevPrice) {
         setPriceFlashClass('text-red-400');
       }
-      const timer = setTimeout(() => setPriceFlashClass(''), 700);
+      setFlashEndTime(Date.now() + 700);
       setPrevPrice(currentPrice);
-      return () => clearTimeout(timer);
     }
   }, [currentPrice, prevPrice]);
+
+  // Handle returning to white after flash duration
+  useEffect(() => {
+    if (flashEndTime > 0) {
+      const timeUntilEnd = flashEndTime - Date.now();
+      if (timeUntilEnd <= 0) {
+        setPriceFlashClass('');
+        setFlashEndTime(0);
+      } else {
+        const timer = setTimeout(() => {
+          setPriceFlashClass('');
+          setFlashEndTime(0);
+        }, timeUntilEnd);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [flashEndTime]);
 
   // Format time - show bars ago for historical signals
   const formatTime = (timestamp: number) => {

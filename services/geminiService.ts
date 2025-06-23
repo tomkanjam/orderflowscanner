@@ -117,7 +117,7 @@ screenerCode: A string containing the body of a JavaScript function \`(ticker, k
         - CRUCIAL: The final statement in \`screenerCode\` MUST be a boolean return. E.g., \`return condition1 && condition2;\`.
         - Parse kline values (open, high, low, close, volume) using \`parseFloat()\`.
         - Avoid \`NaN\`/\`Infinity\` without safeguards. If a condition is ambiguous, interpret reasonably or omit and note in \`description\`.
-        - VWAP NOTE: When using VWAP, implement daily reset by calculating candles since day start unless user specifies otherwise.
+        - VWAP NOTE: When using VWAP, implement daily reset at UTC midnight by calculating candles since UTC day start unless user specifies otherwise.
 
 indicators: An array of custom indicator configurations for charting. Each indicator can display ANY calculation or combination of values. Max 4-5 indicators.
 
@@ -227,12 +227,13 @@ Example Indicators:
 }
 
 // VWAP with bands (overlay on price)
-// IMPORTANT: For daily VWAP reset, calculate how many candles in current day and use as anchorPeriod
+// IMPORTANT: Daily VWAP resets at 00:00 UTC (Binance server time)
+// For other reset times, user should specify in their prompt
 {
   "id": "vwap_daily",
   "name": "VWAP (Daily)",
   "panel": false,
-  "calculateFunction": "// Calculate candles since day start for daily reset\nconst now = new Date(klines[klines.length-1][0]);\nconst dayStart = new Date(now);\ndayStart.setUTCHours(0,0,0,0);\nlet candlesSinceDayStart = 0;\nfor (let i = klines.length - 1; i >= 0; i--) {\n  if (klines[i][0] < dayStart.getTime()) break;\n  candlesSinceDayStart++;\n}\nconst bands = helpers.calculateVWAPBands(klines, candlesSinceDayStart || undefined, 1);\nreturn klines.map((k, i) => ({x: k[0], y: bands.vwap[i], y2: bands.upperBand[i], y3: bands.lowerBand[i]}));",
+  "calculateFunction": "// Calculate candles since UTC midnight for daily reset\nconst lastKlineTime = klines[klines.length-1][0];\nconst lastDate = new Date(lastKlineTime);\n// Get UTC midnight of the current day\nconst utcMidnight = Date.UTC(lastDate.getUTCFullYear(), lastDate.getUTCMonth(), lastDate.getUTCDate(), 0, 0, 0, 0);\nlet candlesSinceMidnight = 0;\n// Count candles since UTC midnight\nfor (let i = klines.length - 1; i >= 0; i--) {\n  if (klines[i][0] < utcMidnight) break;\n  candlesSinceMidnight++;\n}\n// Use all klines if no candles found since midnight (for safety)\nconst anchorPeriod = candlesSinceMidnight > 0 ? candlesSinceMidnight : undefined;\nconst bands = helpers.calculateVWAPBands(klines, anchorPeriod, 1);\nreturn klines.map((k, i) => ({x: k[0], y: bands.vwap[i], y2: bands.upperBand[i], y3: bands.lowerBand[i]}));",
   "chartType": "line",
   "style": { "color": ["#9333ea", "#a855f7", "#a855f7"], "lineWidth": [2, 1, 1] }
 }

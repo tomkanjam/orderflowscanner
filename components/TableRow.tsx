@@ -10,7 +10,7 @@ interface TableRowProps {
 }
 
 const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onAiInfoClick }) => {
-  const [flashClass, setFlashClass] = useState('');
+  const [priceFlashClass, setPriceFlashClass] = useState('');
   const [prevPrice, setPrevPrice] = useState<number | null>(null);
 
   useEffect(() => {
@@ -18,11 +18,11 @@ const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onA
       const currentPrice = parseFloat(tickerData.c);
       if (prevPrice !== null) {
         if (currentPrice > prevPrice) {
-          setFlashClass('flash-green');
+          setPriceFlashClass('text-green-400');
         } else if (currentPrice < prevPrice) {
-          setFlashClass('flash-red');
+          setPriceFlashClass('text-red-400');
         }
-        const timer = setTimeout(() => setFlashClass(''), 700);
+        const timer = setTimeout(() => setPriceFlashClass(''), 700);
         return () => clearTimeout(timer);
       }
       setPrevPrice(currentPrice);
@@ -54,14 +54,16 @@ const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onA
 
   return (
     <tr
-      className={`hover:bg-gray-700/50 transition-colors duration-150 cursor-pointer ${flashClass}`}
+      className="hover:bg-gray-700/50 transition-colors duration-150 cursor-pointer"
       onClick={() => onRowClick(symbol)}
     >
       <td className="px-4 py-3 whitespace-nowrap">
         <div className="font-semibold text-yellow-400">{symbol}</div>
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-right font-medium">
-        {lastPrice.toFixed(priceFixed)}
+        <span className={`transition-colors duration-700 ${priceFlashClass || 'text-white'}`}>
+          {lastPrice.toFixed(priceFixed)}
+        </span>
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-right">
         <span className={priceChangePercent >= 0 ? 'text-green-400' : 'text-red-400'}>

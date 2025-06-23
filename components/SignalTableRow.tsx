@@ -19,7 +19,7 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
   onRowClick, 
   onAiInfoClick 
 }) => {
-  const [flashClass, setFlashClass] = useState('');
+  const [priceFlashClass, setPriceFlashClass] = useState('');
   const [prevPrice, setPrevPrice] = useState<number>(currentPrice);
 
   // Calculate gain/loss
@@ -29,11 +29,11 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
   useEffect(() => {
     if (currentPrice !== prevPrice) {
       if (currentPrice > prevPrice) {
-        setFlashClass('flash-green');
+        setPriceFlashClass('text-green-400');
       } else if (currentPrice < prevPrice) {
-        setFlashClass('flash-red');
+        setPriceFlashClass('text-red-400');
       }
-      const timer = setTimeout(() => setFlashClass(''), 700);
+      const timer = setTimeout(() => setPriceFlashClass(''), 700);
       setPrevPrice(currentPrice);
       return () => clearTimeout(timer);
     }
@@ -79,7 +79,7 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
 
   return (
     <tr
-      className={`hover:bg-gray-700/50 transition-colors duration-150 cursor-pointer ${flashClass}`}
+      className="hover:bg-gray-700/50 transition-colors duration-150 cursor-pointer"
       onClick={() => onRowClick(signal.symbol)}
     >
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-gray-400">
@@ -104,7 +104,9 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
         {signal.priceAtSignal.toFixed(priceFixed)}
       </td>
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right font-medium">
-        {currentPrice.toFixed(priceFixed)}
+        <span className={`transition-colors duration-700 ${priceFlashClass || 'text-white'}`}>
+          {currentPrice.toFixed(priceFixed)}
+        </span>
       </td>
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right">
         <span className={priceChangePercent >= 0 ? 'text-green-400' : 'text-red-400'}>

@@ -948,6 +948,32 @@ export function getLatestBollingerBands(
 }
 
 /**
+ * Calculates the current Volume Weighted Average Price (VWAP).
+ * VWAP = Σ(Price × Volume) / Σ(Volume)
+ * @param klines - Array of kline data.
+ * @returns The current VWAP value.
+ */
+export function calculateVWAP(klines: Kline[]): number {
+  if (!klines || klines.length === 0) return 0;
+  
+  let cumulativeTPV = 0;
+  let cumulativeVolume = 0;
+  
+  for (const kline of klines) {
+    const high = parseFloat(kline[2]);
+    const low = parseFloat(kline[3]);
+    const close = parseFloat(kline[4]);
+    const volume = parseFloat(kline[5]);
+    
+    const typicalPrice = (high + low + close) / 3;
+    cumulativeTPV += typicalPrice * volume;
+    cumulativeVolume += volume;
+  }
+  
+  return cumulativeVolume > 0 ? cumulativeTPV / cumulativeVolume : 0;
+}
+
+/**
  * Calculates Volume Weighted Average Price (VWAP) series.
  * VWAP = Σ(Price × Volume) / Σ(Volume)
  * @param klines - Array of kline data.

@@ -131,7 +131,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {aiFilterDescription && aiFilterDescription.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold text-gray-200 border-b border-gray-600 pb-2 mb-3">Active AI Conditions:</h3>
+          <h3 className="text-lg font-semibold text-gray-200 border-b border-gray-600 pb-2 mb-3">Active Conditions:</h3>
           <ul className="list-disc list-inside text-gray-300 space-y-1 text-sm">
             {aiFilterDescription.map((desc, index) => (
               <li key={index}>{desc}</li>

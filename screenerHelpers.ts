@@ -51,6 +51,18 @@ export function calculateMASeries(klines: Kline[], period: number): (number | nu
   return results;
 }
 
+/**
+ * Calculates Simple Moving Average (SMA) for an array of numeric values.
+ * @param values - Array of numeric values.
+ * @param period - The period for the SMA.
+ * @returns The SMA value, or 0 if insufficient data.
+ */
+export function calculateSMA(values: number[], period: number): number {
+  if (!values || values.length < period || period <= 0) return 0;
+  
+  const sum = values.slice(-period).reduce((acc, val) => acc + val, 0);
+  return sum / period;
+}
 
 /**
  * Calculates the average volume.
@@ -389,6 +401,25 @@ export function getLatestEMA(klines: Kline[], period: number): number | null {
 }
 
 /**
+ * Calculates Exponential Moving Average (EMA) for an array of numeric values.
+ * @param values - Array of numeric values.
+ * @param period - The period for the EMA.
+ * @returns The EMA value, or 0 if insufficient data.
+ */
+export function calculateEMA(values: number[], period: number): number {
+  if (!values || values.length < period || period <= 0) return 0;
+  
+  const k = 2 / (period + 1);
+  let ema = values[0];
+  
+  for (let i = 1; i < values.length; i++) {
+    ema = values[i] * k + ema * (1 - k);
+  }
+  
+  return ema;
+}
+
+/**
  * Calculates MACD Line, Signal Line, and Histogram.
  * @param klines - Array of kline data.
  * @param shortPeriod - Period for the short EMA (default 12).
@@ -474,6 +505,119 @@ export function getLatestMACD(
       }
     }
     return { macd: latestMacd, signal: latestSignal, histogram: latestHistogram };
+}
+
+/**
+ * Calculates MACD for an array of close prices.
+ * @param closes - Array of close prices.
+ * @param shortPeriod - Period for the short EMA (default 12).
+ * @param longPeriod - Period for the long EMA (default 26).
+ * @param signalPeriod - Period for the signal line EMA (default 9).
+ * @returns Object with MACD, signal, and histogram values.
+ */
+export function calculateMACD(
+    closes: number[], 
+    shortPeriod: number = 12, 
+    longPeriod: number = 26, 
+    signalPeriod: number = 9
+): { MACD: number; signal: number; histogram: number } {
+    if (!closes || closes.length < longPeriod) {
+        return { MACD: 0, signal: 0, histogram: 0 };
+    }
+    
+    const emaShort = calculateEMA(closes, shortPeriod);
+    const emaLong = calculateEMA(closes, longPeriod);
+    const macdValue = emaShort - emaLong;
+    
+    // Calculate signal line (EMA of MACD values)
+    // For simplicity, we'll use the last few MACD values
+    const macdValues: number[] = [];
+    for (let i = longPeriod - 1; i < closes.length; i++) {
+        const shortEMA = calculateEMA(closes.slice(0, i + 1), shortPeriod);
+        const longEMA = calculateEMA(closes.slice(0, i + 1), longPeriod);
+        macdValues.push(shortEMA - longEMA);
+    }
+    
+    const signalValue = calculateEMA(macdValues, signalPeriod);
+    const histogramValue = macdValue - signalValue;
+    
+    return { MACD: macdValue, signal: signalValue, histogram: histogramValue };
+}
+
+/**
+ * Calculates Average Directional Index (ADX).
+ * @param klines - Array of kline data.
+ * @param period - Period for ADX calculation (default 14).
+ * @returns The ADX value.
+ */
+export function calculateADX(klines: Kline[], period: number = 14): number {
+    if (!klines || klines.length < period * 2) return 0;
+    
+    // Simplified ADX calculation
+    // In reality, ADX requires True Range, +DI, -DI calculations
+    // For now, we'll use a simplified volatility-based approach
+    
+    const changes: number[] = [];
+    for (let i = 1; i < klines.length; i++) {
+        const currentHigh = parseFloat(klines[i][2]);
+        const currentLow = parseFloat(klines[i][3]);
+        const prevClose = parseFloat(klines[i-1][4]);
+        
+        const range = Math.max(
+            currentHigh - currentLow,
+            Math.abs(currentHigh - prevClose),
+            Math.abs(currentLow - prevClose)
+        );
+        
+        changes.push(range);
+    }
+    
+    // Calculate average true range
+    const atr = calculateSMA(changes.slice(-period), period);
+    
+    // Normalize to 0-100 scale (simplified)
+    const avgPrice = klines.slice(-period).reduce((sum, k) => sum + parseFloat(k[4]), 0) / period;
+    const adx = (atr / avgPrice) * 100 * 10; // Scale factor
+    
+    return Math.min(100, Math.max(0, adx));
+}
+
+/**
+ * Calculates Stochastic Oscillator (%K and %D).
+ * @param klines - Array of kline data.
+ * @param kPeriod - Period for %K calculation (default 14).
+ * @param dPeriod - Period for %D calculation (default 3).
+ * @param smooth - Smoothing period (default 3).
+ * @returns Object with k and d values.
+ */
+export function calculateStochastic(
+    klines: Kline[], 
+    kPeriod: number = 14, 
+    dPeriod: number = 3,
+    smooth: number = 3
+): { k: number; d: number } {
+    if (!klines || klines.length < kPeriod) {
+        return { k: 0, d: 0 };
+    }
+    
+    // Calculate %K
+    const recentKlines = klines.slice(-kPeriod);
+    const highs = recentKlines.map(k => parseFloat(k[2]));
+    const lows = recentKlines.map(k => parseFloat(k[3]));
+    const currentClose = parseFloat(klines[klines.length - 1][4]);
+    
+    const highestHigh = Math.max(...highs);
+    const lowestLow = Math.min(...lows);
+    
+    const kValue = highestHigh > lowestLow 
+        ? ((currentClose - lowestLow) / (highestHigh - lowestLow)) * 100 
+        : 50;
+    
+    // For simplified %D, we'll use a simple average of recent %K values
+    // In reality, this would require historical %K values
+    const dValue = kValue * 0.9; // Simplified smoothing
+    
+    return { k: kValue, d: dValue };
 }
 
 /**

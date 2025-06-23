@@ -63,7 +63,8 @@ function executeIndicatorFunction(
 export async function generateFilterAndChartConfig(
   userPrompt: string,
   modelName: string, 
-  klineInterval: string
+  klineInterval: string,
+  klineLimit: number = KLINE_HISTORY_LIMIT
 ): Promise<AiFilterResponse> {
 
   const systemInstruction = `You are an AI assistant for a crypto screener. The user provides a description of technical conditions. You MUST return a single, valid JSON object with three properties: "description", "screenerCode", and "indicators". Do not include any text outside of this JSON object.
@@ -73,7 +74,7 @@ description: An array of human-readable strings explaining each condition the AI
 screenerCode: A string containing the body of a JavaScript function \`(ticker, klines, helpers, hvnNodes)\` that returns a boolean (true if conditions met, false otherwise).
     Function Arguments:
         \`ticker\`: A 24hr summary object for the symbol. Example: \`{ "s": "BNBUSDT", "P": "2.500" (priceChangePercent), "c": "590.5" (lastPrice), "q": "100000000" (quoteVolume), ...otherProps }\`.
-        \`klines\`: An array of the last ${KLINE_HISTORY_LIMIT} candlestick data points for the selected \`${klineInterval}\` interval. Each kline is an array: \`[openTime (number), open (string), high (string), low (string), close (string), volume (string), ...otherElements]\`.
+        \`klines\`: An array of the last ${klineLimit} candlestick data points for the selected \`${klineInterval}\` interval. Each kline is an array: \`[openTime (number), open (string), high (string), low (string), close (string), volume (string), ...otherElements]\`.
             - \`klines[i][0]\` is openTime (timestamp).
             - \`klines[i][1]\` is open price.
             - \`klines[i][2]\` is high price.
@@ -390,10 +391,11 @@ export async function getSymbolAnalysis(
     indicators: CustomIndicatorConfig[] | null,
     modelName: string,
     klineInterval: string,
+    analysisKlineLimit: number = KLINE_HISTORY_LIMIT_FOR_ANALYSIS,
     strategy?: string
 ): Promise<string> {
 
-    const analysisKlines = allKlinesForSymbol.slice(-KLINE_HISTORY_LIMIT_FOR_ANALYSIS);
+    const analysisKlines = allKlinesForSymbol.slice(-analysisKlineLimit);
     const klinesForDisplayCount = Math.min(analysisKlines.length, 15); 
 
     let prompt = `Provide a brief technical analysis (2-3 short paragraphs) for ${symbol} on the ${klineInterval} interval.

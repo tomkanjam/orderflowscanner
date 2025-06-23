@@ -172,3 +172,9 @@ export interface HistoricalScanProgress {
   percentComplete: number;
   signalsFound: number;
 }
+
+// Kline history limit configuration
+export interface KlineHistoryConfig {
+  screenerLimit: number;      // Number of klines for screener operations (default: 250)
+  analysisLimit: number;      // Number of klines for symbol analysis (default: 100)
+}

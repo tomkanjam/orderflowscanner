@@ -3,10 +3,10 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import Modal from './components/Modal';
-import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, VolumeNode, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from './types';
+import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, VolumeNode, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket } from './services/binanceService';
 import { generateFilterAndChartConfig, getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
-import { KLINE_HISTORY_LIMIT, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
+import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
 import * as screenerHelpers from './screenerHelpers';
 import { useHistoricalScanner } from './hooks/useHistoricalScanner';
 
@@ -77,6 +77,25 @@ const App: React.FC = () => {
     includeIndicatorSnapshots: false,
   });
 
+  // Kline history limits configuration
+  const [klineHistoryConfig, setKlineHistoryConfig] = useState<KlineHistoryConfig>(() => {
+    const saved = localStorage.getItem('klineHistoryConfig');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return {
+          screenerLimit: KLINE_HISTORY_LIMIT,
+          analysisLimit: KLINE_HISTORY_LIMIT_FOR_ANALYSIS
+        };
+      }
+    }
+    return {
+      screenerLimit: KLINE_HISTORY_LIMIT,
+      analysisLimit: KLINE_HISTORY_LIMIT_FOR_ANALYSIS
+    };
+  });
+
   const internalGeminiModelName = useMemo(() => {
     return GEMINI_MODELS.find(m => m.value === selectedGeminiModel)?.internalModel || GEMINI_MODELS[0].internalModel;
   }, [selectedGeminiModel]);
@@ -112,6 +131,11 @@ const App: React.FC = () => {
       setHistoricalSignals(historicalScanResults);
     }
   }, [historicalScanResults]);
+
+  // Save kline history config to localStorage
+  useEffect(() => {
+    localStorage.setItem('klineHistoryConfig', JSON.stringify(klineHistoryConfig));
+  }, [klineHistoryConfig]);
   
   // Auto-run historical scan when we have fewer than 10 live signals
   const hasAutoScanned = useRef(false);
@@ -139,7 +163,7 @@ const App: React.FC = () => {
     }
   }, [currentFilterFn, signalLog.length, isHistoricalScanning, startHistoricalScan, historicalScanConfig, historicalSignals.length]);
   
-  const loadInitialData = useCallback(async (interval: KlineInterval) => {
+  const loadInitialData = useCallback(async (interval: KlineInterval, klineLimit: number) => {
     setInitialLoading(true);
     setInitialError(null);
     setStatusText('Fetching initial data...');
@@ -151,7 +175,7 @@ const App: React.FC = () => {
     setSignalLog([]); // Clear signal log on new data load
 
     try {
-      const { symbols, tickers: initialTickers, klinesData } = await fetchTopPairsAndInitialKlines(interval);
+      const { symbols, tickers: initialTickers, klinesData } = await fetchTopPairsAndInitialKlines(interval, klineLimit);
       setAllSymbols(symbols);
       setTickers(initialTickers);
       setHistoricalData(klinesData);
@@ -180,8 +204,8 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadInitialData(klineInterval);
-  }, [klineInterval, loadInitialData]);
+    loadInitialData(klineInterval, klineHistoryConfig.screenerLimit);
+  }, [klineInterval, klineHistoryConfig.screenerLimit, loadInitialData]);
   
   // Persist signal deduplication threshold to localStorage
   useEffect(() => {
@@ -444,7 +468,7 @@ const App: React.FC = () => {
     setSignalLog([]); // Clear signal log for new filter
 
     try {
-      const response: AiFilterResponse = await generateFilterAndChartConfig(aiPrompt, internalGeminiModelName, klineInterval);
+      const response: AiFilterResponse = await generateFilterAndChartConfig(aiPrompt, internalGeminiModelName, klineInterval, klineHistoryConfig.screenerLimit);
       
       const filterFunction = new Function(
           'ticker', 
@@ -538,7 +562,7 @@ const App: React.FC = () => {
     }
 
     try {
-        const analysisText = await getSymbolAnalysis(symbol, tickerData, klineData, currentChartConfig, internalGeminiModelName, klineInterval, strategy);
+        const analysisText = await getSymbolAnalysis(symbol, tickerData, klineData, currentChartConfig, internalGeminiModelName, klineInterval, klineHistoryConfig.analysisLimit, strategy);
         
         // Parse the analysis if strategy is provided
         let decisionMatch = null;
@@ -657,6 +681,8 @@ const App: React.FC = () => {
         onHistoricalScanConfigChange={setHistoricalScanConfig}
         onCancelHistoricalScan={cancelHistoricalScan}
         historicalSignalsCount={historicalSignals.length}
+        klineHistoryConfig={klineHistoryConfig}
+        onKlineHistoryConfigChange={setKlineHistoryConfig}
       />
       <MainContent
         statusText={statusText}

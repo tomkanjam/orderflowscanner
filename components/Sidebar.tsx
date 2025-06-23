@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { KLINE_INTERVALS, GEMINI_MODELS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL } from '../constants';
-import { KlineInterval, GeminiModelOption, HistoricalScanConfig, HistoricalScanProgress } from '../types';
+import { KlineInterval, GeminiModelOption, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from '../types';
 
 interface SidebarProps {
   klineInterval: KlineInterval;
@@ -30,6 +30,8 @@ interface SidebarProps {
   onHistoricalScanConfigChange: (config: HistoricalScanConfig) => void;
   onCancelHistoricalScan: () => void;
   historicalSignalsCount: number;
+  klineHistoryConfig: KlineHistoryConfig;
+  onKlineHistoryConfigChange: (config: KlineHistoryConfig) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -59,6 +61,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onHistoricalScanConfigChange,
   onCancelHistoricalScan,
   historicalSignalsCount,
+  klineHistoryConfig,
+  onKlineHistoryConfigChange,
 }) => {
   return (
     <aside className="w-full md:w-1/3 xl:w-1/4 bg-gray-800 p-4 md:p-6 flex flex-col border-r border-gray-700 h-screen overflow-y-auto">
@@ -200,6 +204,73 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
       
+      {/* Data Settings Section */}
+      <div className="mt-6">
+        <h2 className="text-xl font-bold text-yellow-400 mb-4">Data Settings</h2>
+        <p className="text-gray-400 text-sm mb-4">
+          Configure the number of candles used for screeners and analysis.
+        </p>
+        
+        <div className="mb-4">
+          <label htmlFor="screener-limit" className="text-gray-300 font-medium mb-1 block text-sm">
+            Screener Candles:
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="screener-limit"
+              type="number"
+              min="50"
+              max="1000"
+              step="50"
+              value={klineHistoryConfig.screenerLimit}
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 250;
+                onKlineHistoryConfigChange({
+                  ...klineHistoryConfig,
+                  screenerLimit: Math.min(Math.max(value, 50), 1000)
+                });
+              }}
+              className="w-24 bg-gray-700 border border-gray-600 rounded-lg p-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            />
+            <span className="text-gray-400 text-xs">
+              (50-1000)
+            </span>
+          </div>
+          <p className="text-gray-500 text-xs mt-1">
+            Number of candles for screener filters
+          </p>
+        </div>
+        
+        <div className="mb-4">
+          <label htmlFor="analysis-limit" className="text-gray-300 font-medium mb-1 block text-sm">
+            Analysis Candles:
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="analysis-limit"
+              type="number"
+              min="20"
+              max="500"
+              step="10"
+              value={klineHistoryConfig.analysisLimit}
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 100;
+                onKlineHistoryConfigChange({
+                  ...klineHistoryConfig,
+                  analysisLimit: Math.min(Math.max(value, 20), 500)
+                });
+              }}
+              className="w-24 bg-gray-700 border border-gray-600 rounded-lg p-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            />
+            <span className="text-gray-400 text-xs">
+              (20-500)
+            </span>
+          </div>
+          <p className="text-gray-500 text-xs mt-1">
+            Number of candles for AI analysis
+          </p>
+        </div>
+      </div>
       
       <div className="mt-auto pt-6"> 
         <button

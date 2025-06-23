@@ -2,7 +2,8 @@ import { API_BASE_URL, WS_BASE_URL, TOP_N_PAIRS_LIMIT, KLINE_HISTORY_LIMIT } fro
 import { Ticker, Kline, KlineInterval } from '../types';
 
 export async function fetchTopPairsAndInitialKlines(
-  interval: KlineInterval
+  interval: KlineInterval,
+  klineLimit: number = KLINE_HISTORY_LIMIT
 ): Promise<{ symbols: string[], tickers: Map<string, Ticker>, klinesData: Map<string, Kline[]> }> {
   const tickerResponse = await fetch(`${API_BASE_URL}/ticker/24hr`);
   if (!tickerResponse.ok) {
@@ -32,7 +33,7 @@ export async function fetchTopPairsAndInitialKlines(
   const klinesData = new Map<string, Kline[]>();
   const klinePromises = symbols.map(async (symbol) => {
     try {
-      const klineResponse = await fetch(`${API_BASE_URL}/klines?symbol=${symbol}&interval=${interval}&limit=${KLINE_HISTORY_LIMIT}`);
+      const klineResponse = await fetch(`${API_BASE_URL}/klines?symbol=${symbol}&interval=${interval}&limit=${klineLimit}`);
       if (!klineResponse.ok) {
         console.warn(`Failed to fetch klines for ${symbol} (${interval}). Status: ${klineResponse.status}`);
         return; // Skip this symbol if klines fail

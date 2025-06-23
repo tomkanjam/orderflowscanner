@@ -28,7 +28,7 @@ function* createSlidingWindows(
   // Use bar count directly
   const startIndex = Math.max(0, klines.length - config.lookbackBars);
   
-  for (let i = startIndex; i < klines.length; i += config.scanInterval) {
+  for (let i = startIndex; i < klines.length; i++) {
     // Ensure we have enough data for indicators (100 bars minimum)
     const windowStart = Math.max(0, i - 100);
     const window = klines.slice(windowStart, i + 1);

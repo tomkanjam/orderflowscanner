@@ -28,6 +28,14 @@ interface MainContentProps {
   signalLog: SignalLogEntry[]; // Add signalLog prop
   onNewSignal: (symbol: string, timestamp: number) => void; // Add onNewSignal prop
   historicalSignals?: HistoricalSignal[]; // Add historicalSignals prop
+  // Historical scanner props
+  hasActiveFilter?: boolean;
+  onRunHistoricalScan?: () => void;
+  isHistoricalScanning?: boolean;
+  historicalScanProgress?: HistoricalScanProgress | null;
+  historicalScanConfig?: HistoricalScanConfig;
+  onHistoricalScanConfigChange?: (config: HistoricalScanConfig) => void;
+  onCancelHistoricalScan?: () => void;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -48,6 +56,13 @@ const MainContent: React.FC<MainContentProps> = ({
   signalLog, 
   onNewSignal,
   historicalSignals = [],
+  hasActiveFilter,
+  onRunHistoricalScan,
+  isHistoricalScanning,
+  historicalScanProgress,
+  historicalScanConfig,
+  onHistoricalScanConfigChange,
+  onCancelHistoricalScan,
 }) => {
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-y-hidden">
@@ -74,6 +89,13 @@ const MainContent: React.FC<MainContentProps> = ({
                   onRowClick={onRowClick}
                   onAiInfoClick={onAiInfoClick}
                   isLoading={initialLoading}
+                  hasActiveFilter={hasActiveFilter}
+                  onRunHistoricalScan={onRunHistoricalScan}
+                  isHistoricalScanning={isHistoricalScanning}
+                  historicalScanProgress={historicalScanProgress}
+                  historicalScanConfig={historicalScanConfig}
+                  onHistoricalScanConfigChange={onHistoricalScanConfigChange}
+                  onCancelHistoricalScan={onCancelHistoricalScan}
                 />
               </div>
               {/* Hidden CryptoTable to keep screener running */}

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Ticker, SignalLogEntry, HistoricalSignal, CombinedSignal } from '../types';
+import { Ticker, SignalLogEntry, HistoricalSignal, CombinedSignal, HistoricalScanConfig, HistoricalScanProgress } from '../types';
 import SignalTableRow from './SignalTableRow';
 
 interface SignalTableProps {
@@ -9,6 +9,14 @@ interface SignalTableProps {
   onRowClick: (symbol: string) => void;
   onAiInfoClick: (symbol: string, event: React.MouseEvent) => void;
   isLoading: boolean;
+  // Historical scanner props
+  hasActiveFilter?: boolean;
+  onRunHistoricalScan?: () => void;
+  isHistoricalScanning?: boolean;
+  historicalScanProgress?: HistoricalScanProgress | null;
+  historicalScanConfig?: HistoricalScanConfig;
+  onHistoricalScanConfigChange?: (config: HistoricalScanConfig) => void;
+  onCancelHistoricalScan?: () => void;
 }
 
 const SignalTable: React.FC<SignalTableProps> = ({
@@ -18,6 +26,13 @@ const SignalTable: React.FC<SignalTableProps> = ({
   onRowClick,
   onAiInfoClick,
   isLoading,
+  hasActiveFilter,
+  onRunHistoricalScan,
+  isHistoricalScanning,
+  historicalScanProgress,
+  historicalScanConfig,
+  onHistoricalScanConfigChange,
+  onCancelHistoricalScan,
 }) => {
   // Sort live signals by timestamp, newest first
   const sortedLiveSignals = useMemo(() => {
@@ -46,12 +61,83 @@ const SignalTable: React.FC<SignalTableProps> = ({
 
   return (
     <div className="bg-gray-800 shadow-lg rounded-lg p-3 md:p-4 relative">
-      <h2 className="text-lg md:text-xl font-semibold text-yellow-400 mb-3 md:mb-4 flex items-center justify-between">
-        <span>Signal History</span>
+      <div className="flex items-center justify-between mb-3 md:mb-4">
+        <h2 className="text-lg md:text-xl font-semibold text-yellow-400">
+          Signal History
+        </h2>
         <span className="text-sm text-gray-400">
           {signalLog.length} live {historicalSignals.length > 0 && `+ ${historicalSignals.length} historical`}
         </span>
-      </h2>
+      </div>
+      
+      {/* Historical Scanner Controls */}
+      {hasActiveFilter && historicalScanConfig && (
+        <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-4">
+              <div>
+                <label className="text-gray-400 text-xs block mb-1">
+                  Lookback Period:
+                </label>
+                <select 
+                  value={historicalScanConfig.lookbackBars} 
+                  onChange={e => onHistoricalScanConfigChange?.({
+                    ...historicalScanConfig,
+                    lookbackBars: +e.target.value
+                  })}
+                  disabled={isHistoricalScanning}
+                  className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50"
+                >
+                  <option value={20}>Last 20 bars</option>
+                  <option value={50}>Last 50 bars</option>
+                  <option value={100}>Last 100 bars</option>
+                  <option value={200}>Last 200 bars</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {!isHistoricalScanning ? (
+                <button
+                  onClick={onRunHistoricalScan}
+                  className="bg-purple-600 text-white font-medium px-4 py-1.5 rounded-lg hover:bg-purple-700 transition duration-300 text-sm whitespace-nowrap"
+                >
+                  📊 Scan Historical {historicalSignals.length > 0 ? `(${historicalSignals.length} found)` : ''}
+                </button>
+              ) : (
+                <>
+                  {historicalScanProgress && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="w-32 bg-gray-600 rounded-full h-2">
+                            <div 
+                              className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${historicalScanProgress.percentComplete}%` }}
+                            />
+                          </div>
+                          <span className="text-gray-400 text-xs">
+                            {historicalScanProgress.percentComplete}%
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {historicalScanProgress.signalsFound} signals found
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={onCancelHistoricalScan}
+                    className="bg-red-600 text-white font-medium px-4 py-1.5 rounded-lg hover:bg-red-700 transition duration-300 text-sm"
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="overflow-y-auto max-h-[500px] md:max-h-[600px]">
         <table className="w-full">
           <thead className="sticky top-0 bg-gray-700 z-10">

@@ -180,24 +180,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               </select>
             </div>
             
-            <div>
-              <label className="text-gray-300 font-medium mb-1 block text-sm">
-                Scan Interval:
-              </label>
-              <select 
-                value={historicalScanConfig.scanInterval} 
-                onChange={e => onHistoricalScanConfigChange({
-                  ...historicalScanConfig,
-                  scanInterval: +e.target.value
-                })}
-                disabled={isHistoricalScanning}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-purple-400 text-sm disabled:opacity-50"
-              >
-                <option value={1}>Every bar (Detailed)</option>
-                <option value={5}>Every 5 bars (Balanced)</option>
-                <option value={10}>Every 10 bars (Fast)</option>
-              </select>
-            </div>
             
             {!isHistoricalScanning ? (
               <button

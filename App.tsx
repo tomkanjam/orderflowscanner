@@ -72,7 +72,7 @@ const App: React.FC = () => {
   const [isHistoricalScanRunning, setIsHistoricalScanRunning] = useState<boolean>(false);
   const [historicalScanConfig, setHistoricalScanConfig] = useState<HistoricalScanConfig>({
     lookbackBars: 20,
-    scanInterval: 5,
+    scanInterval: 1, // Fixed to check every bar
     maxSignalsPerSymbol: 5,
     includeIndicatorSnapshots: false,
   });
@@ -676,6 +676,13 @@ const App: React.FC = () => {
         signalLog={signalLog} // Pass signalLog to MainContent
         onNewSignal={handleNewSignal} // Pass handleNewSignal
         historicalSignals={historicalSignals} // Pass historical signals
+        hasActiveFilter={!!currentFilterFn}
+        onRunHistoricalScan={handleRunHistoricalScan}
+        isHistoricalScanning={isHistoricalScanning}
+        historicalScanProgress={historicalScanProgress}
+        historicalScanConfig={historicalScanConfig}
+        onHistoricalScanConfigChange={setHistoricalScanConfig}
+        onCancelHistoricalScan={cancelHistoricalScan}
       />
       <Modal
         isOpen={isModalOpen}

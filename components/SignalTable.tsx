@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Ticker, SignalLogEntry, HistoricalSignal, CombinedSignal, HistoricalScanConfig, HistoricalScanProgress } from '../types';
 import SignalTableRow from './SignalTableRow';
+import StrategyGrid from './StrategyGrid';
+import { PrebuiltStrategy } from '../types/strategy';
 
 interface SignalTableProps {
   signalLog: SignalLogEntry[];
@@ -11,6 +13,7 @@ interface SignalTableProps {
   isLoading: boolean;
   // Historical scanner props
   hasActiveFilter?: boolean;
+  hasActiveScreener?: boolean;
   onRunHistoricalScan?: () => void;
   isHistoricalScanning?: boolean;
   historicalScanProgress?: HistoricalScanProgress | null;
@@ -27,6 +30,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
   onAiInfoClick,
   isLoading,
   hasActiveFilter,
+  hasActiveScreener,
   onRunHistoricalScan,
   isHistoricalScanning,
   historicalScanProgress,
@@ -34,6 +38,17 @@ const SignalTable: React.FC<SignalTableProps> = ({
   onHistoricalScanConfigChange,
   onCancelHistoricalScan,
 }) => {
+  const [loadingStrategyId, setLoadingStrategyId] = useState<string | null>(null);
+
+  const handleStrategySelect = (strategy: PrebuiltStrategy) => {
+    setLoadingStrategyId(strategy.id);
+    // TODO: This will be connected to the actual screener execution
+    console.log('Selected strategy:', strategy);
+    setTimeout(() => {
+      setLoadingStrategyId(null);
+    }, 2000);
+  };
+
   // Sort live signals by timestamp, newest first
   const sortedLiveSignals = useMemo(() => {
     return [...signalLog].sort((a, b) => b.timestamp - a.timestamp);
@@ -58,6 +73,18 @@ const SignalTable: React.FC<SignalTableProps> = ({
   const historicalSignalsWithPrices = useMemo(() => {
     return sortedHistoricalSignals.map(enhanceSignalWithCurrentPrice);
   }, [sortedHistoricalSignals, tickers]);
+
+  // Show strategy grid if no active screener
+  if (!hasActiveScreener && signalLog.length === 0 && historicalSignals.length === 0) {
+    return (
+      <div className="bg-gray-800 shadow-lg rounded-lg p-6 md:p-8">
+        <StrategyGrid 
+          onSelectStrategy={handleStrategySelect}
+          loadingStrategyId={loadingStrategyId}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-800 shadow-lg rounded-lg p-3 md:p-4 relative">

@@ -90,6 +90,7 @@ const MainContent: React.FC<MainContentProps> = ({
                   onAiInfoClick={onAiInfoClick}
                   isLoading={initialLoading}
                   hasActiveFilter={hasActiveFilter}
+                  hasActiveScreener={currentFilterFn !== null}
                   onRunHistoricalScan={onRunHistoricalScan}
                   isHistoricalScanning={isHistoricalScanning}
                   historicalScanProgress={historicalScanProgress}

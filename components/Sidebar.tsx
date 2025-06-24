@@ -185,8 +185,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
       
       
-      {/* Strategy Section */}
-      <div className="mt-6">
+      {/* Strategy Section - Hidden for now */}
+      {/* <div className="mt-6">
         <h2 className="text-xl font-bold text-yellow-400 mb-4">Strategy</h2>
         <p className="text-zinc-400 text-sm mb-4">
           Define your trading strategy for signal analysis.
@@ -202,7 +202,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             placeholder="e.g., Buy when RSI < 30 with increasing volume, sell when RSI > 70, hold for at least 4 candles"
           />
         </div>
-      </div>
+      </div> */}
       
       {/* Data Settings Section */}
       <div className="mt-6">

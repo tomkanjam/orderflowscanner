@@ -35,6 +35,8 @@ interface MainContentProps {
   historicalScanConfig?: HistoricalScanConfig;
   onHistoricalScanConfigChange?: (config: HistoricalScanConfig) => void;
   onCancelHistoricalScan?: () => void;
+  // Strategy selection
+  onSetAiPrompt?: (prompt: string) => void;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -61,6 +63,7 @@ const MainContent: React.FC<MainContentProps> = ({
   historicalScanConfig,
   onHistoricalScanConfigChange,
   onCancelHistoricalScan,
+  onSetAiPrompt,
 }) => {
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-y-hidden">
@@ -95,6 +98,7 @@ const MainContent: React.FC<MainContentProps> = ({
                   historicalScanConfig={historicalScanConfig}
                   onHistoricalScanConfigChange={onHistoricalScanConfigChange}
                   onCancelHistoricalScan={onCancelHistoricalScan}
+                  onSetAiPrompt={onSetAiPrompt}
                 />
               </div>
               {/* Hidden CryptoTable to keep screener running */}

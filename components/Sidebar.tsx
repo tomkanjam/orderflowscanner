@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { KLINE_INTERVALS, GEMINI_MODELS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL } from '../constants';
 import { KlineInterval, GeminiModelOption, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from '../types';
 
@@ -64,6 +64,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   klineHistoryConfig,
   onKlineHistoryConfigChange,
 }) => {
+  const [showPromptAnimation, setShowPromptAnimation] = useState(false);
+  
+  // Trigger animation when aiPrompt changes (but not on initial mount or empty)
+  useEffect(() => {
+    if (aiPrompt.trim()) {
+      setShowPromptAnimation(true);
+      const timer = setTimeout(() => {
+        setShowPromptAnimation(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [aiPrompt]);
+
   return (
     <aside className="w-full md:w-1/3 xl:w-1/4 bg-zinc-900 p-4 md:p-6 flex flex-col border-r border-zinc-800 h-screen overflow-y-auto">
       <h2 className="text-2xl font-bold text-yellow-400 mb-4">AI Screener</h2>
@@ -106,7 +119,11 @@ const Sidebar: React.FC<SidebarProps> = ({
           rows={4}
           value={aiPrompt}
           onChange={(e) => onAiPromptChange(e.target.value)}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+          className={`w-full bg-zinc-800 border rounded-lg p-2.5 text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm transition-all duration-300 ${
+            showPromptAnimation 
+              ? 'border-yellow-400 ring-2 ring-yellow-400 ring-opacity-50' 
+              : 'border-zinc-700'
+          }`}
           placeholder={`e.g., price crossed 20 MA up on high volume (for ${klineInterval})`}
         />
       </div>

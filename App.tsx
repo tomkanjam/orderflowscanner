@@ -678,6 +678,7 @@ const App: React.FC = () => {
         historicalScanConfig={historicalScanConfig}
         onHistoricalScanConfigChange={setHistoricalScanConfig}
         onCancelHistoricalScan={cancelHistoricalScan}
+        onSetAiPrompt={setAiPrompt}
       />
       <Modal
         isOpen={isModalOpen}

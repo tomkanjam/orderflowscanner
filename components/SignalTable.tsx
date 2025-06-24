@@ -20,6 +20,8 @@ interface SignalTableProps {
   historicalScanConfig?: HistoricalScanConfig;
   onHistoricalScanConfigChange?: (config: HistoricalScanConfig) => void;
   onCancelHistoricalScan?: () => void;
+  // Strategy selection
+  onSetAiPrompt?: (prompt: string) => void;
 }
 
 const SignalTable: React.FC<SignalTableProps> = ({
@@ -37,16 +39,22 @@ const SignalTable: React.FC<SignalTableProps> = ({
   historicalScanConfig,
   onHistoricalScanConfigChange,
   onCancelHistoricalScan,
+  onSetAiPrompt,
 }) => {
   const [loadingStrategyId, setLoadingStrategyId] = useState<string | null>(null);
 
   const handleStrategySelect = (strategy: PrebuiltStrategy) => {
-    setLoadingStrategyId(strategy.id);
-    // TODO: This will be connected to the actual screener execution
-    console.log('Selected strategy:', strategy);
-    setTimeout(() => {
-      setLoadingStrategyId(null);
-    }, 2000);
+    if (onSetAiPrompt) {
+      // Join all conditions with commas for a natural language prompt
+      const prompt = strategy.conditions.join(', ');
+      onSetAiPrompt(prompt);
+      
+      // Show loading state briefly to indicate action
+      setLoadingStrategyId(strategy.id);
+      setTimeout(() => {
+        setLoadingStrategyId(null);
+      }, 500);
+    }
   };
 
   // Sort live signals by timestamp, newest first

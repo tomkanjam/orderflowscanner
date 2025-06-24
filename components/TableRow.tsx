@@ -20,9 +20,9 @@ const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onA
       const currentPrice = parseFloat(tickerData.c);
       if (prevPrice !== null && currentPrice !== prevPrice) {
         if (currentPrice > prevPrice) {
-          setPriceFlashClass('text-green-400');
+          setPriceFlashClass('text-[var(--tm-success)]');
         } else if (currentPrice < prevPrice) {
-          setPriceFlashClass('text-red-400');
+          setPriceFlashClass('text-[var(--tm-error)]');
         }
         setFlashEndTime(Date.now() + 700);
       }
@@ -50,9 +50,9 @@ const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onA
   if (!tickerData) {
     // Render a placeholder or nothing if ticker data is not yet available for this symbol
     return (
-      <tr className="hover:bg-zinc-800/50 transition-colors duration-150" onClick={() => onRowClick(symbol)}>
-        <td className="px-4 py-3 whitespace-nowrap"><div className="font-semibold text-yellow-400">{symbol}</div></td>
-        <td colSpan={4} className="px-4 py-3 whitespace-nowrap text-right text-zinc-500">Loading data...</td>
+      <tr className="hover:bg-[var(--tm-bg-hover)]/50 transition-colors duration-150" onClick={() => onRowClick(symbol)}>
+        <td className="px-4 py-3 whitespace-nowrap"><div className="font-semibold text-[var(--tm-accent)]">{symbol}</div></td>
+        <td colSpan={4} className="px-4 py-3 whitespace-nowrap text-right text-[var(--tm-text-muted)]">Loading data...</td>
       </tr>
     );
   }
@@ -72,28 +72,28 @@ const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onA
 
   return (
     <tr
-      className="hover:bg-zinc-800/50 transition-colors duration-150 cursor-pointer"
+      className="hover:bg-[var(--tm-bg-hover)]/50 transition-colors duration-150 cursor-pointer"
       onClick={() => onRowClick(symbol)}
     >
       <td className="px-4 py-3 whitespace-nowrap">
-        <div className="font-semibold text-yellow-400">{symbol}</div>
+        <div className="font-semibold text-[var(--tm-accent)]">{symbol}</div>
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-right font-medium">
-        <span className={`transition-colors duration-700 ${priceFlashClass || 'text-white'}`}>
+        <span className={`transition-colors duration-700 ${priceFlashClass || 'text-[var(--tm-text-primary)]'}`}>
           {lastPrice.toFixed(priceFixed)}
         </span>
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-right">
-        <span className={priceChangePercent >= 0 ? 'text-green-400' : 'text-red-400'}>
+        <span className={priceChangePercent >= 0 ? 'text-[var(--tm-success)]' : 'text-[var(--tm-error)]'}>
           {priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%
         </span>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-right text-zinc-300">
+      <td className="px-4 py-3 whitespace-nowrap text-right text-[var(--tm-text-secondary)]">
         {Math.round(quoteVolume / 1_000_000)}M
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-center">
         <button
-          className="text-blue-400 hover:text-blue-300 text-2xl p-1 focus:outline-none"
+          className="text-[var(--tm-info)] hover:text-[var(--tm-info-light)] text-2xl p-1 focus:outline-none tm-focus-ring"
           data-symbol={symbol}
           onClick={(e) => onAiInfoClick(symbol, e)}
           title={`AI Analysis for ${symbol}`}

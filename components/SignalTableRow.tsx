@@ -31,9 +31,9 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
   useEffect(() => {
     if (currentPrice !== prevPrice && prevPrice !== null) {
       if (currentPrice > prevPrice) {
-        setPriceFlashClass('text-green-400');
+        setPriceFlashClass('text-[var(--tm-success)]');
       } else if (currentPrice < prevPrice) {
-        setPriceFlashClass('text-red-400');
+        setPriceFlashClass('text-[var(--tm-error)]');
       }
       setFlashEndTime(Date.now() + 700);
       setPrevPrice(currentPrice);
@@ -97,10 +97,10 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
 
   return (
     <tr
-      className="hover:bg-zinc-800/50 transition-colors duration-150 cursor-pointer"
+      className="hover:bg-[var(--tm-bg-hover)]/50 transition-colors duration-150 cursor-pointer"
       onClick={() => onRowClick(signal.symbol)}
     >
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-zinc-400">
+      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-[var(--tm-text-muted)]">
         {formatTime(signal.timestamp)}
       </td>
       {/* Count column - Hidden for now */}
@@ -113,13 +113,13 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
       </td> */}
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap">
         <div>
-          <div className="font-semibold text-yellow-400">{signal.symbol}</div>
-          <div className="text-xs text-zinc-500 truncate max-w-[150px]" title={signal.filterDesc}>
+          <div className="font-semibold text-[var(--tm-accent)]">{signal.symbol}</div>
+          <div className="text-xs text-[var(--tm-text-muted)] truncate max-w-[150px]" title={signal.filterDesc}>
             {signal.filterDesc}
           </div>
         </div>
       </td>
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right font-medium text-zinc-300">
+      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right font-medium text-[var(--tm-text-secondary)]">
         {signal.priceAtSignal.toFixed(priceFixed)}
       </td>
       {/* Current Price column - Hidden for now */}
@@ -129,11 +129,11 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
         </span>
       </td> */}
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right">
-        <span className={priceChangePercent >= 0 ? 'text-green-400' : 'text-red-400'}>
+        <span className={priceChangePercent >= 0 ? 'text-[var(--tm-success)]' : 'text-[var(--tm-error)]'}>
           {priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%
         </span>
       </td>
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right text-zinc-300 hidden sm:table-cell">
+      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right text-[var(--tm-text-secondary)] hidden sm:table-cell">
         {Math.round(signal.volumeAtSignal / 1_000_000)}M
       </td>
       {/* Analyze column - Hidden for now */}

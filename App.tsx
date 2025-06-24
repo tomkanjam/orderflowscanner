@@ -63,7 +63,7 @@ const App: React.FC = () => {
   const [tokenUsage, setTokenUsage] = useState<{prompt: number; response: number; total: number} | null>(null);
   
   const [statusText, setStatusText] = useState<string>('Connecting...');
-  const [statusLightClass, setStatusLightClass] = useState<string>('bg-zinc-600');
+  const [statusLightClass, setStatusLightClass] = useState<string>('bg-[var(--tm-text-muted)]');
   
   const [selectedSymbolForChart, setSelectedSymbolForChart] = useState<string | null>(null);
   
@@ -194,7 +194,7 @@ const App: React.FC = () => {
       setTickers(new Map());
       setHistoricalData(new Map());
       setStatusText('Error');
-      setStatusLightClass('bg-red-500');
+      setStatusLightClass('bg-[var(--tm-error)]');
     } finally {
       setInitialLoading(false);
     }
@@ -300,14 +300,14 @@ const App: React.FC = () => {
           () => { 
             if (!isCleanedUp) {
               setStatusText('Live'); 
-              setStatusLightClass('bg-green-500'); 
+              setStatusLightClass('bg-[var(--tm-success)]'); 
             }
           },
           (errorEvent) => { 
             if (!isCleanedUp) {
               console.error("WebSocket Error:", errorEvent); 
               setStatusText('WS Error'); 
-              setStatusLightClass('bg-red-500');
+              setStatusLightClass('bg-[var(--tm-error)]');
               
               // Reconnect after error
               reconnectTimeout = setTimeout(connectWebSocketWithRetry, 5000);
@@ -316,7 +316,7 @@ const App: React.FC = () => {
           () => { 
             if (!isCleanedUp) {
               setStatusText('Disconnected'); 
-              setStatusLightClass('bg-yellow-500');
+              setStatusLightClass('bg-[var(--tm-warning)]');
               
               // Reconnect after close
               reconnectTimeout = setTimeout(connectWebSocketWithRetry, 3000);
@@ -327,7 +327,7 @@ const App: React.FC = () => {
         if (!isCleanedUp) {
           console.error("Failed to connect WebSocket:", e);
           setStatusText('WS Failed');
-          setStatusLightClass('bg-red-500');
+          setStatusLightClass('bg-[var(--tm-error)]');
           
           // Retry connection
           reconnectTimeout = setTimeout(connectWebSocketWithRetry, 5000);
@@ -525,7 +525,7 @@ const App: React.FC = () => {
     if (!fullAiFilterResponse) return;
     setModalTitle('📄 Full AI Filter Response');
     const formattedResponse = (
-        <pre className="bg-black p-3 md:p-4 rounded-md block whitespace-pre-wrap text-xs md:text-sm text-yellow-300 overflow-x-auto">
+        <pre className="bg-[var(--tm-bg-primary)] p-3 md:p-4 rounded-md block whitespace-pre-wrap text-xs md:text-sm text-[var(--tm-accent)] overflow-x-auto">
           <code>
             {JSON.stringify(fullAiFilterResponse, null, 2)}
           </code>
@@ -538,7 +538,7 @@ const App: React.FC = () => {
   const handleAnalyzeMarket = useCallback(async () => {
     setIsMarketAnalysisLoading(true);
     setModalTitle('📊 AI Market Analysis');
-    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div><p className="mt-2">Generating analysis...</p></div>);
+    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--tm-accent)] mx-auto"></div><p className="mt-2">Generating analysis...</p></div>);
     setIsModalOpen(true);
 
     try {
@@ -548,7 +548,7 @@ const App: React.FC = () => {
     } catch (error) {
         console.error("Market Analysis error:", error);
         const errorMessage = error instanceof Error ? error.message : "Failed to get market analysis.";
-        setModalContent(<p className="text-red-400">{errorMessage}</p>);
+        setModalContent(<p className="text-[var(--tm-error)]">{errorMessage}</p>);
     } finally {
         setIsMarketAnalysisLoading(false);
     }
@@ -558,14 +558,14 @@ const App: React.FC = () => {
     event.stopPropagation(); 
     setIsSymbolAnalysisLoading(true); 
     setModalTitle(`✨ AI Analysis for ${symbol}`);
-    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div><p className="mt-2">Generating analysis for {symbol}...</p></div>);
+    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--tm-accent)] mx-auto"></div><p className="mt-2">Generating analysis for {symbol}...</p></div>);
     setIsModalOpen(true);
 
     const tickerData = tickers.get(symbol);
     const klineData = historicalData.get(symbol);
 
     if (!tickerData || !klineData) {
-        setModalContent(<p className="text-red-400">Data not available for {symbol}.</p>);
+        setModalContent(<p className="text-[var(--tm-error)]">Data not available for {symbol}.</p>);
         setIsSymbolAnalysisLoading(false);
         return;
     }
@@ -612,31 +612,31 @@ const App: React.FC = () => {
             
             setModalContent(
                 <div className="space-y-4 text-sm md:text-base">
-                    <div className="border-l-4 border-yellow-400 pl-4">
+                    <div className="border-l-4 border-[var(--tm-accent)] pl-4">
                         <div className="flex items-center gap-2 mb-2">
-                            <span className="text-zinc-400 font-semibold">Decision:</span>
+                            <span className="text-[var(--tm-text-muted)] font-semibold">Decision:</span>
                             <span className={`px-3 py-1 text-sm font-bold rounded ${
-                                decision === 'BUY' ? 'bg-green-500 text-white' :
-                                decision === 'SELL' ? 'bg-red-500 text-white' :
-                                decision === 'HOLD' ? 'bg-blue-500 text-white' :
-                                'bg-zinc-600 text-white'
+                                decision === 'BUY' ? 'bg-[var(--tm-success)] text-[var(--tm-text-primary)]' :
+                                decision === 'SELL' ? 'bg-[var(--tm-error)] text-[var(--tm-text-primary)]' :
+                                decision === 'HOLD' ? 'bg-[var(--tm-info)] text-[var(--tm-text-primary)]' :
+                                'bg-[var(--tm-bg-hover)] text-[var(--tm-text-primary)]'
                             }`}>
                                 {decision}
                             </span>
                         </div>
                         <div className="mb-2">
-                            <span className="text-zinc-400 font-semibold">Reasoning:</span>
-                            <p className="text-zinc-200 mt-1">{reasoning}</p>
+                            <span className="text-[var(--tm-text-muted)] font-semibold">Reasoning:</span>
+                            <p className="text-[var(--tm-text-secondary)] mt-1">{reasoning}</p>
                         </div>
                         <div>
-                            <span className="text-zinc-400 font-semibold">Trade Plan:</span>
-                            <p className="text-zinc-200 mt-1">{tradePlan}</p>
+                            <span className="text-[var(--tm-text-muted)] font-semibold">Trade Plan:</span>
+                            <p className="text-[var(--tm-text-secondary)] mt-1">{tradePlan}</p>
                         </div>
                     </div>
                     {technicalAnalysis && (
                         <div>
-                            <h4 className="text-zinc-400 font-semibold mb-2">Technical Analysis:</h4>
-                            <div className="whitespace-pre-wrap text-zinc-200">{technicalAnalysis}</div>
+                            <h4 className="text-[var(--tm-text-muted)] font-semibold mb-2">Technical Analysis:</h4>
+                            <div className="whitespace-pre-wrap text-[var(--tm-text-secondary)]">{technicalAnalysis}</div>
                         </div>
                     )}
                 </div>
@@ -647,7 +647,7 @@ const App: React.FC = () => {
     } catch (error) {
         console.error(`Symbol Analysis error for ${symbol}:`, error);
         const errorMessage = error instanceof Error ? error.message : "Failed to get analysis.";
-        setModalContent(<p className="text-red-400">{errorMessage}</p>);
+        setModalContent(<p className="text-[var(--tm-error)]">{errorMessage}</p>);
     } finally {
         setIsSymbolAnalysisLoading(false);
     }
@@ -662,7 +662,7 @@ const App: React.FC = () => {
 
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-black text-white">
+    <div className="flex flex-col md:flex-row min-h-screen">
       <Sidebar
         klineInterval={klineInterval}
         onKlineIntervalChange={setKlineInterval}

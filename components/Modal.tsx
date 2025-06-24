@@ -12,19 +12,19 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ease-in-out">
-      <div className="bg-zinc-900 rounded-lg shadow-2xl p-6 w-full max-w-2xl mx-auto transform transition-all duration-300 ease-in-out scale-100 opacity-100">
-        <div className="flex justify-between items-center border-b border-zinc-800 pb-3 mb-4">
-          <h3 className="text-2xl font-bold text-yellow-400">{title}</h3>
+    <div className="fixed inset-0 tm-modal-overlay flex items-center justify-center z-50 p-4 transition-opacity duration-300 ease-in-out">
+      <div className="tm-modal-content p-6 w-full max-w-2xl mx-auto transform transition-all duration-300 ease-in-out scale-100 opacity-100">
+        <div className="flex justify-between items-center border-b border-[var(--tm-border)] pb-3 mb-4">
+          <h3 className="text-2xl font-bold text-[var(--tm-accent)] tm-heading-lg">{title}</h3>
           <button
             onClick={onClose}
-            className="text-zinc-400 hover:text-white text-3xl font-light focus:outline-none"
+            className="text-[var(--tm-text-muted)] hover:text-[var(--tm-text-primary)] text-3xl font-light focus:outline-none tm-focus-ring"
             aria-label="Close modal"
           >
             &times;
           </button>
         </div>
-        <div className="text-zinc-300 max-h-[70vh] overflow-y-auto pr-2">
+        <div className="text-[var(--tm-text-secondary)] max-h-[70vh] overflow-y-auto pr-2">
           {children}
         </div>
       </div>

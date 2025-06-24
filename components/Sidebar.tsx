@@ -92,19 +92,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, [aiPrompt]);
 
   return (
-    <aside className="w-full md:w-1/3 xl:w-1/4 bg-zinc-900 p-4 md:p-6 flex flex-col border-r border-zinc-800 h-screen overflow-y-auto">
-      <h2 className="text-2xl font-bold text-yellow-400 mb-4">AI Screener</h2>
-      <p className="text-zinc-400 text-sm mb-6">
+    <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--tm-bg-secondary)] p-4 md:p-6 flex flex-col border-r border-[var(--tm-border)] h-screen overflow-y-auto">
+      <h2 className="text-2xl font-bold text-[var(--tm-accent)] mb-4 tm-heading-lg">AI Screener</h2>
+      <p className="text-[var(--tm-text-muted)] text-sm mb-6">
         Describe technical conditions for your selected interval. The AI will create a filter and suggest chart indicators.
       </p>
 
       <div className="mb-4">
-        <label htmlFor="kline-interval-select" className="text-zinc-300 font-medium mb-1 block text-sm">Candle Interval:</label>
+        <label htmlFor="kline-interval-select" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">Candle Interval:</label>
         <select
           id="kline-interval-select"
           value={klineInterval}
           onChange={(e) => onKlineIntervalChange(e.target.value as KlineInterval)}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+          className="w-full tm-input"
         >
           {KLINE_INTERVALS.map(interval => (
             <option key={interval.value} value={interval.value}>{interval.label}</option>
@@ -116,7 +116,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="mb-4">
         <button
           onClick={() => setIsAdvancedSettingsOpen(!isAdvancedSettingsOpen)}
-          className="w-full flex items-center justify-between bg-zinc-800 border border-zinc-700 rounded-lg p-3 text-zinc-300 hover:bg-zinc-700 transition-colors duration-200"
+          className="w-full flex items-center justify-between tm-btn tm-btn-secondary p-3"
         >
           <span className="font-medium">Advanced Settings</span>
           <svg 
@@ -134,12 +134,12 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className={`overflow-hidden transition-all duration-300 ${isAdvancedSettingsOpen ? 'max-h-[500px] mb-4' : 'max-h-0'}`}>
         <div className="space-y-4 pb-4">
           <div>
-            <label htmlFor="gemini-model-select" className="text-zinc-300 font-medium mb-1 block text-sm">AI Model:</label>
+            <label htmlFor="gemini-model-select" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">AI Model:</label>
             <select
               id="gemini-model-select"
               value={selectedGeminiModel}
               onChange={(e) => onGeminiModelChange(e.target.value as GeminiModelOption)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+              className="w-full tm-input"
             >
               {GEMINI_MODELS.map(model => (
                 <option key={model.value} value={model.value}>{model.label}</option>
@@ -148,7 +148,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <div>
-            <label htmlFor="signal-threshold" className="text-zinc-300 font-medium mb-1 block text-sm">
+            <label htmlFor="signal-threshold" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">
               Signal Deduplication Threshold:
             </label>
             <div className="flex items-center space-x-2">
@@ -164,20 +164,20 @@ const Sidebar: React.FC<SidebarProps> = ({
                     onSignalDedupeThresholdChange(value);
                   }
                 }}
-                className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+                className="w-24 tm-input"
               />
-              <span className="text-zinc-300 text-sm">bars</span>
+              <span className="text-[var(--tm-text-secondary)] text-sm">bars</span>
             </div>
-            <p className="text-zinc-400 text-xs mt-1">
+            <p className="text-[var(--tm-text-muted)] text-xs mt-1">
               Signals for the same symbol within this bar count will increment the count instead of creating a new entry.
             </p>
           </div>
 
           {/* Data Settings */}
-          <div className="border-t border-zinc-700 pt-4">
-            <h3 className="text-zinc-300 font-medium mb-3 text-sm">Data Settings</h3>
+          <div className="border-t border-[var(--tm-border-light)] pt-4">
+            <h3 className="text-[var(--tm-text-secondary)] font-medium mb-3 text-sm">Data Settings</h3>
             <div>
-              <label htmlFor="screener-limit" className="text-zinc-300 font-medium mb-1 block text-sm">
+              <label htmlFor="screener-limit" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">
                 Screener Candles:
               </label>
               <div className="flex items-center gap-2">
@@ -195,13 +195,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                       screenerLimit: Math.min(Math.max(value, 50), 1000)
                     });
                   }}
-                  className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg p-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-24 tm-input"
                 />
-                <span className="text-zinc-400 text-xs">
+                <span className="text-[var(--tm-text-muted)] text-xs">
                   (50-1000)
                 </span>
               </div>
-              <p className="text-zinc-500 text-xs mt-1">
+              <p className="text-[var(--tm-text-muted)] text-xs mt-1">
                 Number of candles for screener filters
               </p>
             </div>
@@ -210,16 +210,16 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className="mb-4">
-        <label htmlFor="ai-prompt" className="text-zinc-300 font-medium mb-1 block text-sm">Your Conditions:</label>
+        <label htmlFor="ai-prompt" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">Your Conditions:</label>
         <textarea
           id="ai-prompt"
           rows={4}
           value={aiPrompt}
           onChange={(e) => onAiPromptChange(e.target.value)}
-          className={`w-full bg-zinc-800 border rounded-lg p-2.5 text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm transition-all duration-300 ${
+          className={`w-full tm-input transition-all duration-300 ${
             showPromptAnimation 
-              ? 'border-yellow-400 ring-2 ring-yellow-400 ring-opacity-50' 
-              : 'border-zinc-700'
+              ? 'border-[var(--tm-accent)] ring-2 ring-[var(--tm-accent)] ring-opacity-50' 
+              : ''
           }`}
           placeholder={`e.g., price crossed 20 MA up on high volume (for ${klineInterval})`}
         />
@@ -229,11 +229,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         id="run-ai-btn"
         onClick={onRunAiScreener}
         disabled={isAiScreenerLoading || !aiPrompt.trim()}
-        className="w-full bg-yellow-400 text-black font-bold py-2.5 px-4 rounded-lg hover:bg-yellow-500 transition duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full tm-btn tm-btn-primary font-bold py-2.5 px-4 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isAiScreenerLoading ? (
           <>
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--tm-text-inverse)] mr-2"></div>
             <span>Generating Filter...</span>
           </>
         ) : (
@@ -245,13 +245,13 @@ const Sidebar: React.FC<SidebarProps> = ({
       {(isAiScreenerLoading || streamingProgress) && (
         <div className="mt-3 space-y-2">
           {streamingProgress && (
-            <div className="flex items-center gap-2 text-sm text-zinc-300">
-              <div className={`rounded-full h-2 w-2 ${isAiScreenerLoading ? 'animate-pulse bg-yellow-400' : 'bg-green-500'}`}></div>
+            <div className="flex items-center gap-2 text-sm text-[var(--tm-text-secondary)]">
+              <div className={`rounded-full h-2 w-2 ${isAiScreenerLoading ? 'animate-pulse bg-[var(--tm-accent)]' : 'bg-[var(--tm-success)]'}`}></div>
               <span className="font-medium">{streamingProgress}</span>
             </div>
           )}
           {streamingTokenCount > 0 && isAiScreenerLoading && (
-            <div className="text-xs text-zinc-500">
+            <div className="text-xs text-[var(--tm-text-muted)]">
               ~{streamingTokenCount.toLocaleString()} tokens
             </div>
           )}
@@ -259,15 +259,15 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       {aiScreenerError && (
-        <div className="mt-3 text-red-400 bg-red-900/50 p-3 rounded-lg text-sm">
+        <div className="mt-3 text-[var(--tm-error)] bg-[var(--tm-error)]/10 p-3 rounded-lg text-sm">
           {aiScreenerError}
         </div>
       )}
 
       {aiFilterDescription && aiFilterDescription.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold text-zinc-200 border-b border-zinc-700 pb-2 mb-3">Active Conditions:</h3>
-          <ul className="list-disc list-inside text-zinc-300 space-y-1 text-sm">
+          <h3 className="text-lg font-semibold text-[var(--tm-text-primary)] border-b border-[var(--tm-border-light)] pb-2 mb-3 tm-heading-md">Active Conditions:</h3>
+          <ul className="list-disc list-inside text-[var(--tm-text-secondary)] space-y-1 text-sm">
             {aiFilterDescription.map((desc, index) => (
               <li key={index}>{desc}</li>
             ))}
@@ -275,19 +275,19 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
             <button
               onClick={onClearFilter}
-              className="w-full bg-zinc-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-zinc-800 transition duration-300 text-sm"
+              className="w-full tm-btn tm-btn-secondary font-bold py-2 px-4 text-sm"
             >
               Clear Filter
             </button>
             <button
               onClick={onShowAiResponse} // Renamed
-              className="w-full bg-purple-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-600 transition duration-300 text-sm"
+              className="w-full tm-btn tm-btn-ghost font-bold py-2 px-4 text-sm"
             >
               📄 Show Response 
             </button>
           </div>
           {tokenUsage && (
-            <div className="mt-3 text-xs text-zinc-500 space-y-1">
+            <div className="mt-3 text-xs text-[var(--tm-text-muted)] space-y-1">
               <div className="flex justify-between">
                 <span>Prompt tokens:</span>
                 <span>{tokenUsage.prompt.toLocaleString()}</span>
@@ -296,7 +296,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <span>Response tokens:</span>
                 <span>{tokenUsage.response.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between border-t border-zinc-700 pt-1">
+              <div className="flex justify-between border-t border-[var(--tm-border-light)] pt-1">
                 <span>Total tokens:</span>
                 <span className="font-medium">{tokenUsage.total.toLocaleString()}</span>
               </div>

@@ -15,8 +15,8 @@ const Loader: React.FC<LoaderProps> = ({ text, size = 'md' }) => {
 
   return (
     <div className="text-center py-10">
-      <div className={`animate-spin rounded-full ${sizeClasses[size]} border-b-2 border-yellow-400 mx-auto`}></div>
-      {text && <p className="mt-4 text-lg text-zinc-300">{text}</p>}
+      <div className={`animate-spin rounded-full ${sizeClasses[size]} border-b-2 border-[var(--tm-accent)] mx-auto`}></div>
+      {text && <p className="mt-4 text-lg text-[var(--tm-text-secondary)]">{text}</p>}
     </div>
   );
 };

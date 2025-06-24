@@ -109,7 +109,9 @@ function detectSignal(
   index: number
 ): HistoricalSignal | null {
   try {
-    const isSignal = filterFn(ticker, window, helpers);
+    // Calculate HVN nodes for the current window
+    const hvnNodes = helpers.calculateHighVolumeNodes(window, { lookback: Math.min(window.length, 100) });
+    const isSignal = filterFn(ticker, window, helpers, hvnNodes);
     
     if (isSignal) {
       const lastKline = window[window.length - 1];
@@ -155,8 +157,9 @@ self.onmessage = (event: MessageEvent<ScanRequest>) => {
       'ticker',
       'klines',
       'helpers',
+      'hvnNodes',
       `try { ${filterCode} } catch(e) { console.error('Filter error:', e); return false; }`
-    ) as (ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType) => boolean;
+    ) as (ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: any[]) => boolean;
     
     const allSignals: HistoricalSignal[] = [];
     let processedSymbols = 0;

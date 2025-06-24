@@ -627,6 +627,7 @@ General Guidelines:
     let tokenCount = 0;
     let lastProgressMessage = '';
     let chunkCount = 0;
+    let lastSearchPosition = 0; // Track where we last searched to avoid re-scanning
     
     // Process the stream
     let updateCounter = 0;
@@ -643,28 +644,42 @@ General Guidelines:
       if (updateCounter % UPDATE_INTERVAL === 0) {
         console.log(`[Streaming] Processed ${chunkCount} chunks, ${buffer.length} chars, ~${tokenCount} tokens`);
         // Extract progress comments from screenerCode if present
-        // Skip this for now to isolate the performance issue
-        /*
-        if (buffer.includes('"screenerCode"') && buffer.includes('//')) {
+        if (buffer.includes('"screenerCode"') && lastSearchPosition < buffer.length) {
           try {
-            // Look for simple progress comments pattern
-            const lastCommentMatch = buffer.match(/\/\/\s*([A-Z][^.\n]{0,50}\.{3})/);
-            if (lastCommentMatch) {
-              const progress = lastCommentMatch[1].replace('...', '');
-              if (progress !== lastProgressMessage && progress.length > 5) {
-                lastProgressMessage = progress;
-                onUpdate?.({
-                  type: 'progress',
-                  message: progress,
-                  tokenCount
-                });
+            // Find all comment patterns in the new portion of the buffer
+            const searchText = buffer.substring(lastSearchPosition);
+            let commentIndex = searchText.indexOf('//');
+            
+            while (commentIndex !== -1) {
+              // Extract the comment line
+              const lineEnd = searchText.indexOf('\\n', commentIndex);
+              const comment = searchText.substring(commentIndex + 2, lineEnd !== -1 ? lineEnd : searchText.length).trim();
+              
+              // Check if it matches our progress pattern (starts with capital, ends with ...)
+              if (comment.match(/^[A-Z].*\.\.\.$/)) {
+                const progressText = comment.replace('...', '');
+                if (progressText !== lastProgressMessage && progressText.length > 5 && progressText.length < 100) {
+                  lastProgressMessage = progressText;
+                  console.log(`[Streaming] Progress: ${progressText}`);
+                  onUpdate?.({
+                    type: 'progress',
+                    message: progressText,
+                    tokenCount
+                  });
+                }
               }
+              
+              // Find next comment
+              const nextSearchStart = commentIndex + 2;
+              commentIndex = searchText.indexOf('//', nextSearchStart);
             }
+            
+            // Update search position to avoid re-scanning
+            lastSearchPosition = buffer.length - 100; // Keep some overlap for comments split across chunks
           } catch (error) {
             console.warn('Error extracting progress:', error);
           }
         }
-        */
         
         // Send streaming update (without the buffer to avoid memory issues)
         onUpdate?.({

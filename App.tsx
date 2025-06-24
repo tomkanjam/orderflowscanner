@@ -150,7 +150,7 @@ const App: React.FC = () => {
         signalLog.length < 10 &&
         historicalSignals.length === 0) { // Don't auto-scan if we already have historical signals
       
-      console.log(`Auto-running historical scan: ${signalLog.length} live signals found`);
+      console.log(`[${new Date().toISOString().slice(11, 23)}] Auto-running historical scan: ${signalLog.length} live signals found`);
       hasAutoScanned.current = true;
       
       // Use 200 bars when no live signals are found, otherwise use default
@@ -454,7 +454,7 @@ const App: React.FC = () => {
         (update: StreamingUpdate) => {
           switch (update.type) {
             case 'progress':
-              console.log('[App] Progress update received:', update.message);
+              console.log(`[${new Date().toISOString().slice(11, 23)}] [App] Progress update received:`, update.message);
               setStreamingProgress(update.message || '');
               if (update.tokenCount) setStreamingTokenCount(update.tokenCount);
               break;
@@ -465,7 +465,7 @@ const App: React.FC = () => {
               if (update.tokenUsage) setTokenUsage(update.tokenUsage);
               break;
             case 'error':
-              console.error('Streaming error:', update.error);
+              console.error(`[${new Date().toISOString().slice(11, 23)}] Streaming error:`, update.error);
               break;
           }
         }

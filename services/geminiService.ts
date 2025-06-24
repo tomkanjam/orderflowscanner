@@ -609,7 +609,8 @@ General Guidelines:
 - The entire response from you MUST be a single valid JSON object as shown in the example, without any surrounding text, comments, or markdown formatting outside the JSON structure itself.`;
 
   const startTime = Date.now();
-  console.log('[Streaming] Starting generation...');
+  const getTimestamp = () => new Date().toISOString().slice(11, 23); // HH:MM:SS.sss
+  console.log(`[${getTimestamp()}] [Streaming] Starting generation...`);
   
   try {
     // Create a model instance with the specified model name
@@ -642,7 +643,7 @@ General Guidelines:
       
       // Only process and update UI periodically to avoid performance issues
       if (updateCounter % UPDATE_INTERVAL === 0) {
-        console.log(`[Streaming] Processed ${chunkCount} chunks, ${buffer.length} chars, ~${tokenCount} tokens`);
+        console.log(`[${getTimestamp()}] [Streaming] Processed ${chunkCount} chunks, ${buffer.length} chars, ~${tokenCount} tokens`);
         // Extract progress comments from screenerCode if present
         if (buffer.includes('"screenerCode"') && lastSearchPosition < buffer.length) {
           try {
@@ -659,7 +660,7 @@ General Guidelines:
               
               // Debug: log all comments found
               if (comment.length > 0) {
-                console.log(`[Streaming] Found comment: "${comment}"`);
+                console.log(`[${getTimestamp()}] [Streaming] Found comment: "${comment}"`);
               }
               
               // Check if it matches our progress pattern (starts with capital, ends with ...)
@@ -667,7 +668,7 @@ General Guidelines:
                 const progressText = comment.replace('...', '');
                 if (progressText !== lastProgressMessage && progressText.length > 5 && progressText.length < 100) {
                   lastProgressMessage = progressText;
-                  console.log(`[Streaming] Progress matched: ${progressText}`);
+                  console.log(`[${getTimestamp()}] [Streaming] Progress matched: ${progressText}`);
                   onUpdate?.({
                     type: 'progress',
                     message: progressText,
@@ -684,7 +685,7 @@ General Guidelines:
             // Update search position to avoid re-scanning
             lastSearchPosition = buffer.length - 100; // Keep some overlap for comments split across chunks
           } catch (error) {
-            console.warn('Error extracting progress:', error);
+            console.warn(`[${getTimestamp()}] Error extracting progress:`, error);
           }
         }
         
@@ -702,14 +703,14 @@ General Guidelines:
       tokenCount
     });
     
-    console.log(`[Streaming] Stream complete. Total: ${chunkCount} chunks, ${buffer.length} chars, ~${tokenCount} tokens`);
-    console.log(`[Streaming] Time elapsed: ${Date.now() - startTime}ms`);
+    console.log(`[${getTimestamp()}] [Streaming] Stream complete. Total: ${chunkCount} chunks, ${buffer.length} chars, ~${tokenCount} tokens`);
+    console.log(`[${getTimestamp()}] [Streaming] Time elapsed: ${Date.now() - startTime}ms`);
     
     // Get the complete response and token usage
     const response = await result.response;
     const usage = response.usageMetadata;
     
-    console.log('[Streaming] Parsing JSON response...');
+    console.log(`[${getTimestamp()}] [Streaming] Parsing JSON response...`);
     
     // Parse the final JSON
     try {
@@ -743,7 +744,7 @@ General Guidelines:
       return parsedResponse;
       
     } catch (parseError) {
-      console.error("Error parsing streamed response:", parseError);
+      console.error(`[${getTimestamp()}] Error parsing streamed response:`, parseError);
       onUpdate?.({
         type: 'error',
         error: new Error("Failed to parse AI response")
@@ -753,12 +754,12 @@ General Guidelines:
     
   } catch (error) {
     const elapsed = Date.now() - startTime;
-    console.error(`[Streaming] Error after ${elapsed}ms:`, error);
+    console.error(`[${getTimestamp()}] [Streaming] Error after ${elapsed}ms:`, error);
     
     // Check for specific error types
     if (error instanceof Error) {
       if (error.message.includes('responseMimeType')) {
-        console.error('[Streaming] Issue with JSON response type');
+        console.error(`[${getTimestamp()}] [Streaming] Issue with JSON response type`);
       }
     }
     

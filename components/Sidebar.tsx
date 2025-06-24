@@ -75,7 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Debug streaming state
   useEffect(() => {
     if (streamingProgress) {
-      console.log('[Sidebar] streamingProgress updated:', streamingProgress);
+      console.log(`[${new Date().toISOString().slice(11, 23)}] [Sidebar] streamingProgress updated:`, streamingProgress);
     }
   }, [streamingProgress]);
   

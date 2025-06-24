@@ -114,6 +114,9 @@ const SignalTable: React.FC<SignalTableProps> = ({
               <option value={50}>50 bars</option>
               <option value={100}>100 bars</option>
               <option value={200}>200 bars</option>
+              <option value={500}>500 bars</option>
+              <option value={1000}>1000 bars</option>
+              <option value={1500}>1500 bars</option>
             </select>
             
             {!isHistoricalScanning ? (

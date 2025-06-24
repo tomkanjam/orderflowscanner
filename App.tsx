@@ -147,9 +147,15 @@ const App: React.FC = () => {
       
       console.log(`Auto-running historical scan: ${signalLog.length} live signals found`);
       hasAutoScanned.current = true;
+      
+      // Use 200 bars when no live signals are found, otherwise use default
+      const autoScanConfig = signalLog.length === 0 
+        ? { ...historicalScanConfig, lookbackBars: 200 }
+        : historicalScanConfig;
+      
       // Small delay to ensure initial signals are displayed first
       setTimeout(() => {
-        startHistoricalScan(historicalScanConfig);
+        startHistoricalScan(autoScanConfig);
       }, 1000);
     }
     

@@ -77,6 +77,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 indicators={chartConfigForDisplay}
                 interval={klineInterval}
                 signalLog={signalLog} // Pass signalLog to ChartDisplay
+                historicalSignals={historicalSignals} // Pass historicalSignals to ChartDisplay
               />
               <div className="mt-6 flex-grow">
                 <SignalTable

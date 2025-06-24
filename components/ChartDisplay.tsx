@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Chart, registerables, Filler, ChartConfiguration } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { CandlestickController, CandlestickElement, OhlcController, OhlcElement } from 'chartjs-chart-financial';
-import { Kline, CustomIndicatorConfig, CandlestickDataPoint, SignalLogEntry, KlineInterval, IndicatorDataPoint } from '../types';
+import { Kline, CustomIndicatorConfig, CandlestickDataPoint, SignalLogEntry, HistoricalSignal, KlineInterval, IndicatorDataPoint } from '../types';
 import { useIndicatorWorker } from '../hooks/useIndicatorWorker';
 
 Chart.register(...registerables, CandlestickController, CandlestickElement, OhlcController, OhlcElement, Filler);
@@ -13,24 +13,35 @@ interface ChartDisplayProps {
   indicators: CustomIndicatorConfig[] | null;
   interval: KlineInterval; 
   signalLog: SignalLogEntry[];
+  historicalSignals?: HistoricalSignal[];
 }
 
 // Signal marker plugin for highlighting signals on the chart
 const signalMarkerPlugin = {
     id: 'signalMarkers',
-    afterDatasetsDraw: (chart: Chart, args: any, options: { signalLog: SignalLogEntry[], selectedSymbol: string | null, currentInterval: KlineInterval }) => {
+    afterDatasetsDraw: (chart: Chart, args: any, options: { signalLog: SignalLogEntry[], historicalSignals: HistoricalSignal[], selectedSymbol: string | null, currentInterval: KlineInterval }) => {
         const { ctx } = chart;
-        const { signalLog, selectedSymbol, currentInterval } = options;
+        const { signalLog, historicalSignals, selectedSymbol, currentInterval } = options;
 
-        if (!selectedSymbol || !signalLog || signalLog.length === 0) {
+        if (!selectedSymbol) {
             return;
         }
 
-        const relevantSignals = signalLog.filter(
+        // Combine live and historical signals
+        const relevantLiveSignals = signalLog.filter(
             log => log.symbol === selectedSymbol && log.interval === currentInterval
         );
         
-        if(relevantSignals.length === 0) return;
+        const relevantHistoricalSignals = historicalSignals.filter(
+            signal => signal.symbol === selectedSymbol && signal.interval === currentInterval
+        );
+        
+        const allSignals = [
+            ...relevantLiveSignals.map(s => ({ timestamp: s.timestamp })),
+            ...relevantHistoricalSignals.map(s => ({ timestamp: s.klineTimestamp }))
+        ];
+        
+        if(allSignals.length === 0) return;
 
         ctx.save();
         ctx.fillStyle = 'rgba(255, 255, 0, 0.15)'; // Pale yellow highlight
@@ -42,7 +53,7 @@ const signalMarkerPlugin = {
 
         const chartArea = chart.chartArea;
 
-        relevantSignals.forEach(signal => {
+        allSignals.forEach(signal => {
             const xPixel = xAxis.getPixelForValue(signal.timestamp);
             
             const klinePoints = chart.data.datasets[0]?.data as CandlestickDataPoint[];
@@ -171,7 +182,7 @@ const crosshairPlugin = {
     }
 };
 
-const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog }) => {
+const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, historicalSignals = [] }) => {
   const priceCanvasRef = useRef<HTMLCanvasElement>(null);
   const priceChartInstanceRef = useRef<Chart | null>(null);
   
@@ -381,6 +392,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 },
                 signalMarkers: { 
                     signalLog: signalLog,
+                    historicalSignals: historicalSignals,
                     selectedSymbol: symbol,
                     currentInterval: interval
                 } as any,

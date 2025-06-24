@@ -606,7 +606,8 @@ Example HVN-based Response:
 
 General Guidelines:
 - The \`screenerCode\` string must contain ONLY the JavaScript function body. DO NOT include helper function definitions.
-- The entire response from you MUST be a single valid JSON object as shown in the example, without any surrounding text, comments, or markdown formatting outside the JSON structure itself.`;
+- The entire response from you MUST be a single valid JSON object as shown in the example, without any surrounding text, comments, or markdown formatting outside the JSON structure itself.
+- CRITICAL: Start your response with { and end with }. No text before or after the JSON.`;
 
   const startTime = Date.now();
   const getTimestamp = () => new Date().toISOString().slice(11, 23); // HH:MM:SS.sss
@@ -616,9 +617,8 @@ General Guidelines:
     // Create a model instance with the specified model name
     const model = getGenerativeModel(ai, {
       model: modelName,
-      generationConfig: {
-        responseMimeType: "application/json",
-      }
+      // Note: Removed responseMimeType to enable true streaming
+      // We'll validate JSON after streaming completes
     });
 
     // Generate streaming content
@@ -632,7 +632,7 @@ General Guidelines:
     
     // Process the stream
     let updateCounter = 0;
-    const UPDATE_INTERVAL = 10; // Only update UI every 10 chunks to reduce re-renders
+    const UPDATE_INTERVAL = 3; // Update UI every 3 chunks for better progress visibility
     
     for await (const chunk of result.stream) {
       const chunkText = chunk.text();
@@ -640,6 +640,11 @@ General Guidelines:
       tokenCount += Math.ceil(chunkText.length / 4); // Rough token estimate
       updateCounter++;
       chunkCount++;
+      
+      // Log each chunk for debugging
+      if (chunkCount <= 5 || chunkCount % 10 === 0) {
+        console.log(`[${getTimestamp()}] [Streaming] Chunk ${chunkCount}: ${chunkText.length} chars`);
+      }
       
       // Only process and update UI periodically to avoid performance issues
       if (updateCounter % UPDATE_INTERVAL === 0) {
@@ -714,7 +719,28 @@ General Guidelines:
     
     // Parse the final JSON
     try {
-      const parsedResponse = JSON.parse(buffer) as AiFilterResponse;
+      // Try to extract JSON if there's any extra text
+      let jsonStr = buffer.trim();
+      
+      // If response doesn't start with {, try to find the JSON
+      if (!jsonStr.startsWith('{')) {
+        const jsonStart = jsonStr.indexOf('{');
+        if (jsonStart !== -1) {
+          jsonStr = jsonStr.substring(jsonStart);
+          console.log(`[${getTimestamp()}] [Streaming] Trimmed ${jsonStart} chars before JSON`);
+        }
+      }
+      
+      // If response doesn't end with }, try to find the end
+      if (!jsonStr.endsWith('}')) {
+        const jsonEnd = jsonStr.lastIndexOf('}');
+        if (jsonEnd !== -1) {
+          jsonStr = jsonStr.substring(0, jsonEnd + 1);
+          console.log(`[${getTimestamp()}] [Streaming] Trimmed chars after JSON`);
+        }
+      }
+      
+      const parsedResponse = JSON.parse(jsonStr) as AiFilterResponse;
       
       // Validate response structure (same validation as before)
       if (!parsedResponse.screenerCode || typeof parsedResponse.screenerCode !== 'string') {

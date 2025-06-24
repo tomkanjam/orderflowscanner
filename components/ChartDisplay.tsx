@@ -44,7 +44,7 @@ const signalMarkerPlugin = {
         if(allSignals.length === 0) return;
 
         ctx.save();
-        ctx.fillStyle = 'rgba(255, 255, 0, 0.15)'; // Pale yellow highlight
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.3)'; // Brighter yellow highlight
 
         const xAxis = chart.scales.x;
         const yAxis = chart.scales.yPrice || chart.scales.y; 

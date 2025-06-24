@@ -651,16 +651,23 @@ General Guidelines:
             let commentIndex = searchText.indexOf('//');
             
             while (commentIndex !== -1) {
-              // Extract the comment line
-              const lineEnd = searchText.indexOf('\\n', commentIndex);
+              // Extract the comment line - look for both \n and ; as line endings
+              let lineEnd = searchText.indexOf('\\n', commentIndex);
+              if (lineEnd === -1) lineEnd = searchText.indexOf('\n', commentIndex);
+              if (lineEnd === -1) lineEnd = searchText.indexOf(';', commentIndex);
               const comment = searchText.substring(commentIndex + 2, lineEnd !== -1 ? lineEnd : searchText.length).trim();
+              
+              // Debug: log all comments found
+              if (comment.length > 0) {
+                console.log(`[Streaming] Found comment: "${comment}"`);
+              }
               
               // Check if it matches our progress pattern (starts with capital, ends with ...)
               if (comment.match(/^[A-Z].*\.\.\.$/)) {
                 const progressText = comment.replace('...', '');
                 if (progressText !== lastProgressMessage && progressText.length > 5 && progressText.length < 100) {
                   lastProgressMessage = progressText;
-                  console.log(`[Streaming] Progress: ${progressText}`);
+                  console.log(`[Streaming] Progress matched: ${progressText}`);
                   onUpdate?.({
                     type: 'progress',
                     message: progressText,

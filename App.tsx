@@ -454,6 +454,7 @@ const App: React.FC = () => {
         (update: StreamingUpdate) => {
           switch (update.type) {
             case 'progress':
+              console.log('[App] Progress update received:', update.message);
               setStreamingProgress(update.message || '');
               if (update.tokenCount) setStreamingTokenCount(update.tokenCount);
               break;

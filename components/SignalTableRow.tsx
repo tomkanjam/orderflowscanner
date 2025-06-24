@@ -134,7 +134,8 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right text-zinc-300 hidden sm:table-cell">
         {Math.round(signal.volumeAtSignal / 1_000_000)}M
       </td>
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-center">
+      {/* Analyze column - Hidden for now */}
+      {/* <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-center">
         <div className="flex items-center justify-center gap-2">
           {signal.tradeDecision && (
             <span className={`px-2 py-1 text-xs font-bold rounded ${
@@ -154,7 +155,7 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
             ✨
           </button>
         </div>
-      </td>
+      </td> */}
     </tr>
   );
 };

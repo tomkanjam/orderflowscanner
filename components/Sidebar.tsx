@@ -241,7 +241,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           </p>
         </div>
         
-        <div className="mb-4">
+        {/* Analysis Candles - Hidden for now */}
+        {/* <div className="mb-4">
           <label htmlFor="analysis-limit" className="text-zinc-300 font-medium mb-1 block text-sm">
             Analysis Candles:
           </label>
@@ -269,10 +270,11 @@ const Sidebar: React.FC<SidebarProps> = ({
           <p className="text-zinc-500 text-xs mt-1">
             Number of candles for AI analysis
           </p>
-        </div>
+        </div> */}
       </div>
       
-      <div className="mt-auto pt-6"> 
+      {/* Analyze Market Button - Hidden for now */}
+      {/* <div className="mt-auto pt-6"> 
         <button
             onClick={onAnalyzeMarket}
             disabled={isMarketAnalysisLoading}
@@ -287,7 +289,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <span>📊 Analyze Market Trends</span>
             )}
         </button>
-      </div>
+      </div> */}
     </aside>
   );
 };

@@ -114,7 +114,7 @@ const MainContent: React.FC<MainContentProps> = ({
           )}
         </main>
       </div>
-      <footer className="text-center text-gray-500 py-3 text-xs md:text-sm border-t border-gray-700">
+      <footer className="text-center text-zinc-500 py-3 text-xs md:text-sm border-t border-zinc-800">
         <p>Powered by Binance API &amp; Gemini AI. Not financial advice.</p>
       </footer>
     </div>

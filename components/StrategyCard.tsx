@@ -19,7 +19,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoadi
       case '1h':
         return 'bg-green-500/20 text-green-300 border-green-500/30';
       default:
-        return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
+        return 'bg-zinc-600/20 text-zinc-300 border-zinc-600/30';
     }
   };
 
@@ -27,8 +27,8 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoadi
     <div
       onClick={() => !isLoading && onSelect(strategy)}
       className={`
-        bg-gray-800 rounded-lg p-4 cursor-pointer transition-all duration-300
-        border border-gray-700 hover:border-purple-500/50 relative
+        bg-zinc-900 rounded-lg p-4 cursor-pointer transition-all duration-300
+        border border-zinc-800 hover:border-purple-500/50 relative
         ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:transform hover:scale-[1.02] hover:shadow-xl'}
       `}
     >
@@ -41,14 +41,14 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoadi
       </div>
 
       {/* Description */}
-      <p className="text-sm text-gray-400 mb-4">{strategy.description}</p>
+      <p className="text-sm text-zinc-400 mb-4">{strategy.description}</p>
 
       {/* Screener Conditions */}
       <div className="mb-4">
-        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Screener Conditions</h4>
+        <h4 className="text-xs font-semibold text-zinc-500 uppercase mb-2">Screener Conditions</h4>
         <ul className="space-y-1">
           {strategy.conditions.map((condition, index) => (
-            <li key={index} className="text-xs text-gray-300 flex items-start">
+            <li key={index} className="text-xs text-zinc-300 flex items-start">
               <span className="text-purple-400 mr-1">•</span>
               {condition}
             </li>
@@ -57,33 +57,33 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoadi
       </div>
 
       {/* Trade Plan */}
-      <div className="bg-gray-900/50 rounded-lg p-3">
-        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Trade Plan</h4>
+      <div className="bg-black/50 rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-zinc-500 uppercase mb-2">Trade Plan</h4>
         <div className="space-y-1 text-xs">
           <div className="flex justify-between">
-            <span className="text-gray-400">Entry:</span>
-            <span className="text-gray-300">{strategy.tradePlan.entry}</span>
+            <span className="text-zinc-400">Entry:</span>
+            <span className="text-zinc-300">{strategy.tradePlan.entry}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-400">Stop Loss:</span>
+            <span className="text-zinc-400">Stop Loss:</span>
             <span className="text-red-400">{strategy.tradePlan.stopLoss}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-400">Take Profit:</span>
+            <span className="text-zinc-400">Take Profit:</span>
             <span className="text-green-400">{strategy.tradePlan.takeProfit}</span>
           </div>
         </div>
       </div>
 
       {/* Hold Time */}
-      <div className="mt-3 pt-3 border-t border-gray-700 text-center">
-        <span className="text-xs text-gray-500">Hold Time: </span>
-        <span className="text-xs text-gray-300">{strategy.holdTime}</span>
+      <div className="mt-3 pt-3 border-t border-zinc-800 text-center">
+        <span className="text-xs text-zinc-500">Hold Time: </span>
+        <span className="text-xs text-zinc-300">{strategy.holdTime}</span>
       </div>
 
       {/* Loading State */}
       {isLoading && (
-        <div className="absolute inset-0 bg-gray-900/80 rounded-lg flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/80 rounded-lg flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-500 border-t-transparent"></div>
         </div>
       )}

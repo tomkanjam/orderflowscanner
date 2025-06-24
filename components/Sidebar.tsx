@@ -65,19 +65,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   onKlineHistoryConfigChange,
 }) => {
   return (
-    <aside className="w-full md:w-1/3 xl:w-1/4 bg-gray-800 p-4 md:p-6 flex flex-col border-r border-gray-700 h-screen overflow-y-auto">
+    <aside className="w-full md:w-1/3 xl:w-1/4 bg-zinc-900 p-4 md:p-6 flex flex-col border-r border-zinc-800 h-screen overflow-y-auto">
       <h2 className="text-2xl font-bold text-yellow-400 mb-4">AI Screener</h2>
-      <p className="text-gray-400 text-sm mb-6">
+      <p className="text-zinc-400 text-sm mb-6">
         Describe technical conditions for your selected interval. The AI will create a filter and suggest chart indicators.
       </p>
 
       <div className="mb-4">
-        <label htmlFor="gemini-model-select" className="text-gray-300 font-medium mb-1 block text-sm">AI Model:</label>
+        <label htmlFor="gemini-model-select" className="text-zinc-300 font-medium mb-1 block text-sm">AI Model:</label>
         <select
           id="gemini-model-select"
           value={selectedGeminiModel}
           onChange={(e) => onGeminiModelChange(e.target.value as GeminiModelOption)}
-          className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
         >
           {GEMINI_MODELS.map(model => (
             <option key={model.value} value={model.value}>{model.label}</option>
@@ -86,12 +86,12 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className="mb-4">
-        <label htmlFor="kline-interval-select" className="text-gray-300 font-medium mb-1 block text-sm">Candle Interval:</label>
+        <label htmlFor="kline-interval-select" className="text-zinc-300 font-medium mb-1 block text-sm">Candle Interval:</label>
         <select
           id="kline-interval-select"
           value={klineInterval}
           onChange={(e) => onKlineIntervalChange(e.target.value as KlineInterval)}
-          className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
         >
           {KLINE_INTERVALS.map(interval => (
             <option key={interval.value} value={interval.value}>{interval.label}</option>
@@ -100,19 +100,19 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className="mb-4">
-        <label htmlFor="ai-prompt" className="text-gray-300 font-medium mb-1 block text-sm">Your Conditions:</label>
+        <label htmlFor="ai-prompt" className="text-zinc-300 font-medium mb-1 block text-sm">Your Conditions:</label>
         <textarea
           id="ai-prompt"
           rows={4}
           value={aiPrompt}
           onChange={(e) => onAiPromptChange(e.target.value)}
-          className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
           placeholder={`e.g., price crossed 20 MA up on high volume (for ${klineInterval})`}
         />
       </div>
 
       <div className="mb-4">
-        <label htmlFor="signal-threshold" className="text-gray-300 font-medium mb-1 block text-sm">
+        <label htmlFor="signal-threshold" className="text-zinc-300 font-medium mb-1 block text-sm">
           Signal Deduplication Threshold:
         </label>
         <div className="flex items-center space-x-2">
@@ -128,11 +128,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onSignalDedupeThresholdChange(value);
               }
             }}
-            className="w-24 bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+            className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
           />
-          <span className="text-gray-300 text-sm">bars</span>
+          <span className="text-zinc-300 text-sm">bars</span>
         </div>
-        <p className="text-gray-400 text-xs mt-1">
+        <p className="text-zinc-400 text-xs mt-1">
           Signals for the same symbol within this bar count will increment the count instead of creating a new entry.
         </p>
       </div>
@@ -141,11 +141,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         id="run-ai-btn"
         onClick={onRunAiScreener}
         disabled={isAiScreenerLoading || !aiPrompt.trim()}
-        className="w-full bg-yellow-400 text-gray-900 font-bold py-2.5 px-4 rounded-lg hover:bg-yellow-500 transition duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-yellow-400 text-black font-bold py-2.5 px-4 rounded-lg hover:bg-yellow-500 transition duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isAiScreenerLoading ? (
           <>
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900 mr-2"></div>
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
             <span>Analyzing...</span>
           </>
         ) : (
@@ -161,8 +161,8 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {aiFilterDescription && aiFilterDescription.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold text-gray-200 border-b border-gray-600 pb-2 mb-3">Active Conditions:</h3>
-          <ul className="list-disc list-inside text-gray-300 space-y-1 text-sm">
+          <h3 className="text-lg font-semibold text-zinc-200 border-b border-zinc-700 pb-2 mb-3">Active Conditions:</h3>
+          <ul className="list-disc list-inside text-zinc-300 space-y-1 text-sm">
             {aiFilterDescription.map((desc, index) => (
               <li key={index}>{desc}</li>
             ))}
@@ -170,7 +170,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
             <button
               onClick={onClearFilter}
-              className="w-full bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-300 text-sm"
+              className="w-full bg-zinc-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-zinc-800 transition duration-300 text-sm"
             >
               Clear Filter
             </button>
@@ -188,17 +188,17 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Strategy Section */}
       <div className="mt-6">
         <h2 className="text-xl font-bold text-yellow-400 mb-4">Strategy</h2>
-        <p className="text-gray-400 text-sm mb-4">
+        <p className="text-zinc-400 text-sm mb-4">
           Define your trading strategy for signal analysis.
         </p>
         <div className="mb-4">
-          <label htmlFor="strategy-input" className="text-gray-300 font-medium mb-1 block text-sm">Your Strategy:</label>
+          <label htmlFor="strategy-input" className="text-zinc-300 font-medium mb-1 block text-sm">Your Strategy:</label>
           <textarea
             id="strategy-input"
             rows={4}
             value={strategy}
             onChange={(e) => onStrategyChange(e.target.value)}
-            className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
             placeholder="e.g., Buy when RSI < 30 with increasing volume, sell when RSI > 70, hold for at least 4 candles"
           />
         </div>
@@ -207,12 +207,12 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Data Settings Section */}
       <div className="mt-6">
         <h2 className="text-xl font-bold text-yellow-400 mb-4">Data Settings</h2>
-        <p className="text-gray-400 text-sm mb-4">
+        <p className="text-zinc-400 text-sm mb-4">
           Configure the number of candles used for screeners and analysis.
         </p>
         
         <div className="mb-4">
-          <label htmlFor="screener-limit" className="text-gray-300 font-medium mb-1 block text-sm">
+          <label htmlFor="screener-limit" className="text-zinc-300 font-medium mb-1 block text-sm">
             Screener Candles:
           </label>
           <div className="flex items-center gap-2">
@@ -230,19 +230,19 @@ const Sidebar: React.FC<SidebarProps> = ({
                   screenerLimit: Math.min(Math.max(value, 50), 1000)
                 });
               }}
-              className="w-24 bg-gray-700 border border-gray-600 rounded-lg p-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg p-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
-            <span className="text-gray-400 text-xs">
+            <span className="text-zinc-400 text-xs">
               (50-1000)
             </span>
           </div>
-          <p className="text-gray-500 text-xs mt-1">
+          <p className="text-zinc-500 text-xs mt-1">
             Number of candles for screener filters
           </p>
         </div>
         
         <div className="mb-4">
-          <label htmlFor="analysis-limit" className="text-gray-300 font-medium mb-1 block text-sm">
+          <label htmlFor="analysis-limit" className="text-zinc-300 font-medium mb-1 block text-sm">
             Analysis Candles:
           </label>
           <div className="flex items-center gap-2">
@@ -260,13 +260,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                   analysisLimit: Math.min(Math.max(value, 20), 500)
                 });
               }}
-              className="w-24 bg-gray-700 border border-gray-600 rounded-lg p-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg p-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
-            <span className="text-gray-400 text-xs">
+            <span className="text-zinc-400 text-xs">
               (20-500)
             </span>
           </div>
-          <p className="text-gray-500 text-xs mt-1">
+          <p className="text-zinc-500 text-xs mt-1">
             Number of candles for AI analysis
           </p>
         </div>

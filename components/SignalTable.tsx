@@ -77,7 +77,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
   // Show strategy grid if no active screener
   if (!hasActiveScreener && signalLog.length === 0 && historicalSignals.length === 0) {
     return (
-      <div className="bg-gray-800 shadow-lg rounded-lg p-6 md:p-8">
+      <div className="bg-zinc-900 shadow-lg rounded-lg p-6 md:p-8">
         <StrategyGrid 
           onSelectStrategy={handleStrategySelect}
           loadingStrategyId={loadingStrategyId}
@@ -87,13 +87,13 @@ const SignalTable: React.FC<SignalTableProps> = ({
   }
 
   return (
-    <div className="bg-gray-800 shadow-lg rounded-lg p-3 md:p-4 relative">
+    <div className="bg-zinc-900 shadow-lg rounded-lg p-3 md:p-4 relative">
       <div className="flex items-center justify-between mb-3 md:mb-4">
         <div className="flex items-center gap-4">
           <h2 className="text-lg md:text-xl font-semibold text-yellow-400">
             Signal History
           </h2>
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-zinc-400">
             {signalLog.length} live {historicalSignals.length > 0 && `+ ${historicalSignals.length} historical`}
           </span>
         </div>
@@ -108,7 +108,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
                 lookbackBars: +e.target.value
               })}
               disabled={isHistoricalScanning}
-              className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50"
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50"
             >
               <option value={20}>20 bars</option>
               <option value={50}>50 bars</option>
@@ -130,13 +130,13 @@ const SignalTable: React.FC<SignalTableProps> = ({
               <>
                 {historicalScanProgress && (
                   <div className="flex items-center gap-2 text-sm">
-                    <div className="w-24 bg-gray-600 rounded-full h-1.5">
+                    <div className="w-24 bg-zinc-700 rounded-full h-1.5">
                       <div 
                         className="bg-purple-600 h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${historicalScanProgress.percentComplete}%` }}
                       />
                     </div>
-                    <span className="text-gray-400 text-xs">
+                    <span className="text-zinc-400 text-xs">
                       {historicalScanProgress.percentComplete}%
                     </span>
                   </div>
@@ -154,8 +154,8 @@ const SignalTable: React.FC<SignalTableProps> = ({
       </div>
       <div className="overflow-y-auto max-h-[500px] md:max-h-[600px]">
         <table className="w-full">
-          <thead className="sticky top-0 bg-gray-700 z-10">
-            <tr className="text-left text-xs md:text-sm text-gray-400">
+          <thead className="sticky top-0 bg-zinc-800 z-10">
+            <tr className="text-left text-xs md:text-sm text-zinc-400">
               <th className="p-2 md:px-4 md:py-2">Time</th>
               <th className="p-2 md:px-4 md:py-2 text-center">Count</th>
               <th className="p-2 md:px-4 md:py-2">Pair</th>
@@ -180,7 +180,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
             
             {/* Separator row */}
             {historicalSignalsWithPrices.length > 0 && (
-              <tr className="bg-gray-700/50 border-t border-b border-gray-600">
+              <tr className="bg-zinc-800/50 border-t border-b border-zinc-700">
                 <td colSpan={8} className="text-center py-2 text-sm text-purple-400 font-medium">
                   📊 Historical Signals (Found in Past Data)
                 </td>
@@ -200,7 +200,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
             
             {signalLog.length === 0 && historicalSignals.length === 0 && !isLoading && (
               <tr>
-                <td colSpan={8} className="text-center text-gray-500 p-4">
+                <td colSpan={8} className="text-center text-zinc-500 p-4">
                   No signals generated yet. Run an AI screener to start capturing signals.
                 </td>
               </tr>

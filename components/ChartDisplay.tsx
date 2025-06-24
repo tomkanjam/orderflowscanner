@@ -364,10 +364,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 tooltip: { 
                     mode: 'index', 
                     intersect: false,
-                    backgroundColor: 'rgba(31, 41, 55, 0.9)', 
+                    backgroundColor: 'rgba(24, 24, 27, 0.9)', 
                     titleColor: '#facc15', 
                     bodyColor: '#e5e7eb', 
-                    borderColor: '#4b5563', 
+                    borderColor: '#3f3f46', 
                     borderWidth: 1,
                     callbacks: {
                         label: function(context) {
@@ -538,10 +538,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                         enabled: true, 
                         mode: 'index', 
                         intersect: false, 
-                        backgroundColor: 'rgba(31, 41, 55, 0.9)', 
+                        backgroundColor: 'rgba(24, 24, 27, 0.9)', 
                         titleColor: '#facc15', 
                         bodyColor: '#e5e7eb',
-                        borderColor: '#4b5563', 
+                        borderColor: '#3f3f46', 
                         borderWidth: 1, 
                         displayColors: false,
                         callbacks: {
@@ -673,25 +673,25 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   }
 
   return (
-    <div className={`bg-gray-800 shadow-lg rounded-lg p-3 md:p-4 mb-6 ${!symbol ? 'hidden' : ''} flex flex-col`} style={{height: '550px'}}>
+    <div className={`bg-zinc-900 shadow-lg rounded-lg p-3 md:p-4 mb-6 ${!symbol ? 'hidden' : ''} flex flex-col`} style={{height: '550px'}}>
       {symbol ? (
         <>
           <div className={`${priceChartHeight} relative`}>
             <canvas ref={priceCanvasRef}></canvas>
             {isCalculating && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
+              <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 bg-opacity-75">
                 <div className="text-yellow-400">Calculating indicators...</div>
               </div>
             )}
           </div>
           {panelIndicators.map((indicator, idx) => (
-            <div key={indicator.id} className={`${panelHeight} relative border-t border-gray-700 pt-1 mt-1`}>
+            <div key={indicator.id} className={`${panelHeight} relative border-t border-zinc-800 pt-1 mt-1`}>
               <canvas ref={el => panelCanvasRefs.current[idx] = el}></canvas>
             </div>
           ))}
         </>
       ) : (
-        <div className="flex items-center justify-center h-full text-gray-500">
+        <div className="flex items-center justify-center h-full text-zinc-500">
           <p>Select a pair from the table to view its chart.</p>
         </div>
       )}

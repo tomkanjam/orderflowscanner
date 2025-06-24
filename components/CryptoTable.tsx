@@ -150,10 +150,10 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
   }, [filterCode, runScreener, onNewSignal]); // Only stable dependencies
 
   return (
-    <div className="bg-gray-800 shadow-lg rounded-lg p-3 md:p-4 relative">
+    <div className="bg-zinc-900 shadow-lg rounded-lg p-3 md:p-4 relative">
       <h2 className="text-lg md:text-xl font-semibold text-yellow-400 mb-3 md:mb-4 flex items-center justify-between">
         <span>Live Crypto Prices</span>
-        <span className="text-sm text-gray-400">
+        <span className="text-sm text-zinc-400">
           {isFiltering && currentFilterFn ? 'Filtering...' : 
            currentFilterFn ? `${filteredSymbols.length} matches` :
            `${filteredSymbols.length} pairs`}
@@ -161,8 +161,8 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
       </h2>
       <div className="overflow-y-auto max-h-[500px] md:max-h-[600px]">
         <table className="w-full">
-          <thead className="sticky top-0 bg-gray-700 z-10">
-            <tr className="text-left text-xs md:text-sm text-gray-400">
+          <thead className="sticky top-0 bg-zinc-800 z-10">
+            <tr className="text-left text-xs md:text-sm text-zinc-400">
               <th className="p-2 md:px-4 md:py-2">Pair</th>
               <th className="p-2 md:px-4 md:py-2 text-right">Price</th>
               <th className="p-2 md:px-4 md:py-2 text-right">24h Change</th>
@@ -182,7 +182,7 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
             ))}
             {filteredSymbols.length === 0 && !isLoading && (
               <tr>
-                <td colSpan={5} className="text-center text-gray-500 p-4">
+                <td colSpan={5} className="text-center text-zinc-500 p-4">
                   {isFiltering ? 'Filtering symbols...' : 'No pairs match the filter criteria.'}
                 </td>
               </tr>

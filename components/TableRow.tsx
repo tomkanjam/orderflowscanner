@@ -50,9 +50,9 @@ const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onA
   if (!tickerData) {
     // Render a placeholder or nothing if ticker data is not yet available for this symbol
     return (
-      <tr className="hover:bg-gray-700/50 transition-colors duration-150" onClick={() => onRowClick(symbol)}>
+      <tr className="hover:bg-zinc-800/50 transition-colors duration-150" onClick={() => onRowClick(symbol)}>
         <td className="px-4 py-3 whitespace-nowrap"><div className="font-semibold text-yellow-400">{symbol}</div></td>
-        <td colSpan={4} className="px-4 py-3 whitespace-nowrap text-right text-gray-500">Loading data...</td>
+        <td colSpan={4} className="px-4 py-3 whitespace-nowrap text-right text-zinc-500">Loading data...</td>
       </tr>
     );
   }
@@ -72,7 +72,7 @@ const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onA
 
   return (
     <tr
-      className="hover:bg-gray-700/50 transition-colors duration-150 cursor-pointer"
+      className="hover:bg-zinc-800/50 transition-colors duration-150 cursor-pointer"
       onClick={() => onRowClick(symbol)}
     >
       <td className="px-4 py-3 whitespace-nowrap">
@@ -88,7 +88,7 @@ const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onA
           {priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%
         </span>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-right text-gray-300">
+      <td className="px-4 py-3 whitespace-nowrap text-right text-zinc-300">
         {Math.round(quoteVolume / 1_000_000)}M
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-center">

@@ -103,13 +103,14 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-zinc-400">
         {formatTime(signal.timestamp)}
       </td>
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-center">
+      {/* Count column - Hidden for now */}
+      {/* <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-center">
         <span className={`inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 text-xs font-semibold rounded-full ${
           signal.count > 1 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-zinc-700/50 text-zinc-400'
         }`}>
           {signal.count || 1}
         </span>
-      </td>
+      </td> */}
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap">
         <div>
           <div className="font-semibold text-yellow-400">{signal.symbol}</div>
@@ -121,11 +122,12 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right font-medium text-zinc-300">
         {signal.priceAtSignal.toFixed(priceFixed)}
       </td>
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right font-medium">
+      {/* Current Price column - Hidden for now */}
+      {/* <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right font-medium">
         <span className={`transition-colors duration-700 ${priceFlashClass || 'text-white'}`}>
           {currentPrice.toFixed(priceFixed)}
         </span>
-      </td>
+      </td> */}
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right">
         <span className={priceChangePercent >= 0 ? 'text-green-400' : 'text-red-400'}>
           {priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%

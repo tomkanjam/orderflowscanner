@@ -157,10 +157,10 @@ const SignalTable: React.FC<SignalTableProps> = ({
           <thead className="sticky top-0 bg-zinc-800 z-10">
             <tr className="text-left text-xs md:text-sm text-zinc-400">
               <th className="p-2 md:px-4 md:py-2">Time</th>
-              <th className="p-2 md:px-4 md:py-2 text-center">Count</th>
+              {/* <th className="p-2 md:px-4 md:py-2 text-center">Count</th> */}
               <th className="p-2 md:px-4 md:py-2">Pair</th>
               <th className="p-2 md:px-4 md:py-2 text-right">Signal Price</th>
-              <th className="p-2 md:px-4 md:py-2 text-right">Current Price</th>
+              {/* <th className="p-2 md:px-4 md:py-2 text-right">Current Price</th> */}
               <th className="p-2 md:px-4 md:py-2 text-right">Gain/Loss</th>
               <th className="p-2 md:px-4 md:py-2 text-right hidden sm:table-cell">Volume</th>
               {/* <th className="p-2 md:px-4 md:py-2 text-center">Analyze</th> */}
@@ -181,7 +181,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
             {/* Separator row */}
             {historicalSignalsWithPrices.length > 0 && (
               <tr className="bg-zinc-800/50 border-t border-b border-zinc-700">
-                <td colSpan={7} className="text-center py-2 text-sm text-purple-400 font-medium">
+                <td colSpan={5} className="text-center py-2 text-sm text-purple-400 font-medium">
                   📊 Historical Signals (Found in Past Data)
                 </td>
               </tr>
@@ -200,7 +200,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
             
             {signalLog.length === 0 && historicalSignals.length === 0 && !isLoading && (
               <tr>
-                <td colSpan={7} className="text-center text-zinc-500 p-4">
+                <td colSpan={5} className="text-center text-zinc-500 p-4">
                   No signals generated yet. Run an AI screener to start capturing signals.
                 </td>
               </tr>

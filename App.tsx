@@ -492,6 +492,10 @@ const App: React.FC = () => {
       setAiScreenerError(errorMessage);
     } finally {
       setIsAiScreenerLoading(false);
+      // Keep the last progress message visible for a bit
+      setTimeout(() => {
+        setStreamingProgress('');
+      }, 2000);
     }
   }, [aiPrompt, klineInterval, internalGeminiModelName, klineHistoryConfig.screenerLimit]);
 

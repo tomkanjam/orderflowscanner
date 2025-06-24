@@ -72,6 +72,13 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [showPromptAnimation, setShowPromptAnimation] = useState(false);
   
+  // Debug streaming state
+  useEffect(() => {
+    if (streamingProgress) {
+      console.log('[Sidebar] streamingProgress updated:', streamingProgress);
+    }
+  }, [streamingProgress]);
+  
   // Trigger animation when aiPrompt changes (but not on initial mount or empty)
   useEffect(() => {
     if (aiPrompt.trim()) {
@@ -177,15 +184,15 @@ const Sidebar: React.FC<SidebarProps> = ({
       </button>
 
       {/* Streaming Progress Display */}
-      {isAiScreenerLoading && (streamingProgress || streamingTokenCount > 0) && (
+      {(isAiScreenerLoading || streamingProgress) && (
         <div className="mt-3 space-y-2">
           {streamingProgress && (
-            <div className="flex items-center gap-2 text-sm text-zinc-400">
-              <div className="animate-pulse rounded-full h-2 w-2 bg-yellow-400"></div>
-              <span>{streamingProgress}</span>
+            <div className="flex items-center gap-2 text-sm text-zinc-300">
+              <div className={`rounded-full h-2 w-2 ${isAiScreenerLoading ? 'animate-pulse bg-yellow-400' : 'bg-green-500'}`}></div>
+              <span className="font-medium">{streamingProgress}</span>
             </div>
           )}
-          {streamingTokenCount > 0 && (
+          {streamingTokenCount > 0 && isAiScreenerLoading && (
             <div className="text-xs text-zinc-500">
               ~{streamingTokenCount.toLocaleString()} tokens
             </div>

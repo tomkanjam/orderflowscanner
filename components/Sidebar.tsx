@@ -71,6 +71,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   tokenUsage,
 }) => {
   const [showPromptAnimation, setShowPromptAnimation] = useState(false);
+  const [isAdvancedSettingsOpen, setIsAdvancedSettingsOpen] = useState(false);
   
   // Debug streaming state
   useEffect(() => {
@@ -97,32 +98,115 @@ const Sidebar: React.FC<SidebarProps> = ({
         Describe technical conditions for your selected interval. The AI will create a filter and suggest chart indicators.
       </p>
 
+      {/* Advanced Settings Toggle */}
       <div className="mb-4">
-        <label htmlFor="gemini-model-select" className="text-zinc-300 font-medium mb-1 block text-sm">AI Model:</label>
-        <select
-          id="gemini-model-select"
-          value={selectedGeminiModel}
-          onChange={(e) => onGeminiModelChange(e.target.value as GeminiModelOption)}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+        <button
+          onClick={() => setIsAdvancedSettingsOpen(!isAdvancedSettingsOpen)}
+          className="w-full flex items-center justify-between bg-zinc-800 border border-zinc-700 rounded-lg p-3 text-zinc-300 hover:bg-zinc-700 transition-colors duration-200"
         >
-          {GEMINI_MODELS.map(model => (
-            <option key={model.value} value={model.value}>{model.label}</option>
-          ))}
-        </select>
+          <span className="font-medium">Advanced Settings</span>
+          <svg 
+            className={`w-5 h-5 transition-transform duration-200 ${isAdvancedSettingsOpen ? 'rotate-180' : ''}`}
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
       </div>
 
-      <div className="mb-4">
-        <label htmlFor="kline-interval-select" className="text-zinc-300 font-medium mb-1 block text-sm">Candle Interval:</label>
-        <select
-          id="kline-interval-select"
-          value={klineInterval}
-          onChange={(e) => onKlineIntervalChange(e.target.value as KlineInterval)}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
-        >
-          {KLINE_INTERVALS.map(interval => (
-            <option key={interval.value} value={interval.value}>{interval.label}</option>
-          ))}
-        </select>
+      {/* Collapsible Advanced Settings */}
+      <div className={`overflow-hidden transition-all duration-300 ${isAdvancedSettingsOpen ? 'max-h-[500px] mb-4' : 'max-h-0'}`}>
+        <div className="space-y-4 pb-4">
+          <div>
+            <label htmlFor="gemini-model-select" className="text-zinc-300 font-medium mb-1 block text-sm">AI Model:</label>
+            <select
+              id="gemini-model-select"
+              value={selectedGeminiModel}
+              onChange={(e) => onGeminiModelChange(e.target.value as GeminiModelOption)}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+            >
+              {GEMINI_MODELS.map(model => (
+                <option key={model.value} value={model.value}>{model.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="kline-interval-select" className="text-zinc-300 font-medium mb-1 block text-sm">Candle Interval:</label>
+            <select
+              id="kline-interval-select"
+              value={klineInterval}
+              onChange={(e) => onKlineIntervalChange(e.target.value as KlineInterval)}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+            >
+              {KLINE_INTERVALS.map(interval => (
+                <option key={interval.value} value={interval.value}>{interval.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="signal-threshold" className="text-zinc-300 font-medium mb-1 block text-sm">
+              Signal Deduplication Threshold:
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                id="signal-threshold"
+                type="number"
+                min="1"
+                max="500"
+                value={signalDedupeThreshold}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
+                  if (!isNaN(value) && value >= 1 && value <= 500) {
+                    onSignalDedupeThresholdChange(value);
+                  }
+                }}
+                className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+              />
+              <span className="text-zinc-300 text-sm">bars</span>
+            </div>
+            <p className="text-zinc-400 text-xs mt-1">
+              Signals for the same symbol within this bar count will increment the count instead of creating a new entry.
+            </p>
+          </div>
+
+          {/* Data Settings */}
+          <div className="border-t border-zinc-700 pt-4">
+            <h3 className="text-zinc-300 font-medium mb-3 text-sm">Data Settings</h3>
+            <div>
+              <label htmlFor="screener-limit" className="text-zinc-300 font-medium mb-1 block text-sm">
+                Screener Candles:
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="screener-limit"
+                  type="number"
+                  min="50"
+                  max="1000"
+                  step="50"
+                  value={klineHistoryConfig.screenerLimit}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 250;
+                    onKlineHistoryConfigChange({
+                      ...klineHistoryConfig,
+                      screenerLimit: Math.min(Math.max(value, 50), 1000)
+                    });
+                  }}
+                  className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg p-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+                <span className="text-zinc-400 text-xs">
+                  (50-1000)
+                </span>
+              </div>
+              <p className="text-zinc-500 text-xs mt-1">
+                Number of candles for screener filters
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -139,32 +223,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           }`}
           placeholder={`e.g., price crossed 20 MA up on high volume (for ${klineInterval})`}
         />
-      </div>
-
-      <div className="mb-4">
-        <label htmlFor="signal-threshold" className="text-zinc-300 font-medium mb-1 block text-sm">
-          Signal Deduplication Threshold:
-        </label>
-        <div className="flex items-center space-x-2">
-          <input
-            id="signal-threshold"
-            type="number"
-            min="1"
-            max="500"
-            value={signalDedupeThreshold}
-            onChange={(e) => {
-              const value = parseInt(e.target.value, 10);
-              if (!isNaN(value) && value >= 1 && value <= 500) {
-                onSignalDedupeThresholdChange(value);
-              }
-            }}
-            className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
-          />
-          <span className="text-zinc-300 text-sm">bars</span>
-        </div>
-        <p className="text-zinc-400 text-xs mt-1">
-          Signals for the same symbol within this bar count will increment the count instead of creating a new entry.
-        </p>
       </div>
 
       <button
@@ -266,75 +324,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           />
         </div>
       </div> */}
-      
-      {/* Data Settings Section */}
-      <div className="mt-6">
-        <h2 className="text-xl font-bold text-yellow-400 mb-4">Data Settings</h2>
-        <p className="text-zinc-400 text-sm mb-4">
-          Configure the number of candles used for screeners and analysis.
-        </p>
-        
-        <div className="mb-4">
-          <label htmlFor="screener-limit" className="text-zinc-300 font-medium mb-1 block text-sm">
-            Screener Candles:
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              id="screener-limit"
-              type="number"
-              min="50"
-              max="1000"
-              step="50"
-              value={klineHistoryConfig.screenerLimit}
-              onChange={(e) => {
-                const value = parseInt(e.target.value) || 250;
-                onKlineHistoryConfigChange({
-                  ...klineHistoryConfig,
-                  screenerLimit: Math.min(Math.max(value, 50), 1000)
-                });
-              }}
-              className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg p-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            />
-            <span className="text-zinc-400 text-xs">
-              (50-1000)
-            </span>
-          </div>
-          <p className="text-zinc-500 text-xs mt-1">
-            Number of candles for screener filters
-          </p>
-        </div>
-        
-        {/* Analysis Candles - Hidden for now */}
-        {/* <div className="mb-4">
-          <label htmlFor="analysis-limit" className="text-zinc-300 font-medium mb-1 block text-sm">
-            Analysis Candles:
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              id="analysis-limit"
-              type="number"
-              min="20"
-              max="500"
-              step="10"
-              value={klineHistoryConfig.analysisLimit}
-              onChange={(e) => {
-                const value = parseInt(e.target.value) || 100;
-                onKlineHistoryConfigChange({
-                  ...klineHistoryConfig,
-                  analysisLimit: Math.min(Math.max(value, 20), 500)
-                });
-              }}
-              className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg p-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            />
-            <span className="text-zinc-400 text-xs">
-              (20-500)
-            </span>
-          </div>
-          <p className="text-zinc-500 text-xs mt-1">
-            Number of candles for AI analysis
-          </p>
-        </div> */}
-      </div>
       
       {/* Analyze Market Button - Hidden for now */}
       {/* <div className="mt-auto pt-6"> 

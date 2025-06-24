@@ -505,6 +505,10 @@ const App: React.FC = () => {
     setHistoricalSignals([]); // Clear historical signals
     clearHistoricalSignals();
     hasAutoScanned.current = false; // Reset auto-scan flag
+    // Clear streaming state
+    setStreamingProgress('');
+    setStreamingTokenCount(0);
+    setTokenUsage(null);
   };
 
   const handleRunHistoricalScan = () => {

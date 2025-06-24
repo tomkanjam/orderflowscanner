@@ -143,7 +143,6 @@ const App: React.FC = () => {
         !isHistoricalScanning && 
         !hasAutoScanned.current && 
         signalLog.length < 10 &&
-        signalLog.length > 0 && // At least one signal to know filter is working
         historicalSignals.length === 0) { // Don't auto-scan if we already have historical signals
       
       console.log(`Auto-running historical scan: ${signalLog.length} live signals found`);

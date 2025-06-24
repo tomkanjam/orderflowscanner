@@ -608,6 +608,9 @@ General Guidelines:
 - The \`screenerCode\` string must contain ONLY the JavaScript function body. DO NOT include helper function definitions.
 - The entire response from you MUST be a single valid JSON object as shown in the example, without any surrounding text, comments, or markdown formatting outside the JSON structure itself.`;
 
+  const startTime = Date.now();
+  console.log('[Streaming] Starting generation...');
+  
   try {
     // Create a model instance with the specified model name
     const model = getGenerativeModel(ai, {
@@ -623,46 +626,68 @@ General Guidelines:
     let buffer = '';
     let tokenCount = 0;
     let lastProgressMessage = '';
+    let chunkCount = 0;
     
     // Process the stream
+    let updateCounter = 0;
+    const UPDATE_INTERVAL = 10; // Only update UI every 10 chunks to reduce re-renders
+    
     for await (const chunk of result.stream) {
       const chunkText = chunk.text();
       buffer += chunkText;
       tokenCount += Math.ceil(chunkText.length / 4); // Rough token estimate
+      updateCounter++;
+      chunkCount++;
       
-      // Extract progress comments from screenerCode if present
-      if (buffer.includes('"screenerCode"')) {
-        const codeMatch = buffer.match(/"screenerCode"\s*:\s*"([^"]+(?:\\.[^"]+)*)"/);
-        if (codeMatch) {
-          const code = codeMatch[1];
-          // Look for progress comments
-          const progressRegex = /\/\/\s*([A-Z][^.]+\.{3})/g;
-          const matches = [...code.matchAll(progressRegex)];
-          if (matches.length > 0) {
-            const latestProgress = matches[matches.length - 1][1].replace('...', '');
-            if (latestProgress !== lastProgressMessage) {
-              lastProgressMessage = latestProgress;
-              onUpdate?.({
-                type: 'progress',
-                message: latestProgress,
-                tokenCount
-              });
+      // Only process and update UI periodically to avoid performance issues
+      if (updateCounter % UPDATE_INTERVAL === 0) {
+        console.log(`[Streaming] Processed ${chunkCount} chunks, ${buffer.length} chars, ~${tokenCount} tokens`);
+        // Extract progress comments from screenerCode if present
+        // Skip this for now to isolate the performance issue
+        /*
+        if (buffer.includes('"screenerCode"') && buffer.includes('//')) {
+          try {
+            // Look for simple progress comments pattern
+            const lastCommentMatch = buffer.match(/\/\/\s*([A-Z][^.\n]{0,50}\.{3})/);
+            if (lastCommentMatch) {
+              const progress = lastCommentMatch[1].replace('...', '');
+              if (progress !== lastProgressMessage && progress.length > 5) {
+                lastProgressMessage = progress;
+                onUpdate?.({
+                  type: 'progress',
+                  message: progress,
+                  tokenCount
+                });
+              }
             }
+          } catch (error) {
+            console.warn('Error extracting progress:', error);
           }
         }
+        */
+        
+        // Send streaming update (without the buffer to avoid memory issues)
+        onUpdate?.({
+          type: 'stream',
+          tokenCount
+        });
       }
-      
-      // Send streaming update
-      onUpdate?.({
-        type: 'stream',
-        partialJson: buffer,
-        tokenCount
-      });
     }
+    
+    // Send final update with accurate token count
+    onUpdate?.({
+      type: 'stream',
+      tokenCount
+    });
+    
+    console.log(`[Streaming] Stream complete. Total: ${chunkCount} chunks, ${buffer.length} chars, ~${tokenCount} tokens`);
+    console.log(`[Streaming] Time elapsed: ${Date.now() - startTime}ms`);
     
     // Get the complete response and token usage
     const response = await result.response;
     const usage = response.usageMetadata;
+    
+    console.log('[Streaming] Parsing JSON response...');
     
     // Parse the final JSON
     try {
@@ -705,7 +730,16 @@ General Guidelines:
     }
     
   } catch (error) {
-    console.error("Error in streaming API call:", error);
+    const elapsed = Date.now() - startTime;
+    console.error(`[Streaming] Error after ${elapsed}ms:`, error);
+    
+    // Check for specific error types
+    if (error instanceof Error) {
+      if (error.message.includes('responseMimeType')) {
+        console.error('[Streaming] Issue with JSON response type');
+      }
+    }
+    
     onUpdate?.({
       type: 'error',
       error: error instanceof Error ? error : new Error(String(error))

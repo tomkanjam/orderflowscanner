@@ -98,6 +98,20 @@ const Sidebar: React.FC<SidebarProps> = ({
         Describe technical conditions for your selected interval. The AI will create a filter and suggest chart indicators.
       </p>
 
+      <div className="mb-4">
+        <label htmlFor="kline-interval-select" className="text-zinc-300 font-medium mb-1 block text-sm">Candle Interval:</label>
+        <select
+          id="kline-interval-select"
+          value={klineInterval}
+          onChange={(e) => onKlineIntervalChange(e.target.value as KlineInterval)}
+          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+        >
+          {KLINE_INTERVALS.map(interval => (
+            <option key={interval.value} value={interval.value}>{interval.label}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Advanced Settings Toggle */}
       <div className="mb-4">
         <button
@@ -129,20 +143,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             >
               {GEMINI_MODELS.map(model => (
                 <option key={model.value} value={model.value}>{model.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="kline-interval-select" className="text-zinc-300 font-medium mb-1 block text-sm">Candle Interval:</label>
-            <select
-              id="kline-interval-select"
-              value={klineInterval}
-              onChange={(e) => onKlineIntervalChange(e.target.value as KlineInterval)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
-            >
-              {KLINE_INTERVALS.map(interval => (
-                <option key={interval.value} value={interval.value}>{interval.label}</option>
               ))}
             </select>
           </div>

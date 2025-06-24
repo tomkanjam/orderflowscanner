@@ -5,7 +5,7 @@ import MainContent from './components/MainContent';
 import Modal from './components/Modal';
 import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket } from './services/binanceService';
-import { generateFilterAndChartConfig, getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
+import { generateFilterAndChartConfig, generateFilterAndChartConfigStream, getSymbolAnalysis, getMarketAnalysis, StreamingUpdate } from './services/geminiService';
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
 import * as screenerHelpers from './screenerHelpers';
 import { useHistoricalScanner } from './hooks/useHistoricalScanner';
@@ -56,6 +56,11 @@ const App: React.FC = () => {
   const [aiScreenerError, setAiScreenerError] = useState<string | null>(null);
   const [isMarketAnalysisLoading, setIsMarketAnalysisLoading] = useState<boolean>(false);
   const [isSymbolAnalysisLoading, setIsSymbolAnalysisLoading] = useState<boolean>(false);
+  
+  // Streaming state
+  const [streamingProgress, setStreamingProgress] = useState<string>('');
+  const [streamingTokenCount, setStreamingTokenCount] = useState<number>(0);
+  const [tokenUsage, setTokenUsage] = useState<{prompt: number; response: number; total: number} | null>(null);
   
   const [statusText, setStatusText] = useState<string>('Connecting...');
   const [statusLightClass, setStatusLightClass] = useState<string>('bg-zinc-600');
@@ -436,9 +441,34 @@ const App: React.FC = () => {
     setCurrentChartConfig(null);
     setFullAiFilterResponse(null); 
     setSignalLog([]); // Clear signal log for new filter
+    setStreamingProgress('');
+    setStreamingTokenCount(0);
+    setTokenUsage(null);
 
     try {
-      const response: AiFilterResponse = await generateFilterAndChartConfig(aiPrompt, internalGeminiModelName, klineInterval, klineHistoryConfig.screenerLimit);
+      const response: AiFilterResponse = await generateFilterAndChartConfigStream(
+        aiPrompt, 
+        internalGeminiModelName, 
+        klineInterval, 
+        klineHistoryConfig.screenerLimit,
+        (update: StreamingUpdate) => {
+          switch (update.type) {
+            case 'progress':
+              setStreamingProgress(update.message || '');
+              if (update.tokenCount) setStreamingTokenCount(update.tokenCount);
+              break;
+            case 'stream':
+              if (update.tokenCount) setStreamingTokenCount(update.tokenCount);
+              break;
+            case 'complete':
+              if (update.tokenUsage) setTokenUsage(update.tokenUsage);
+              break;
+            case 'error':
+              console.error('Streaming error:', update.error);
+              break;
+          }
+        }
+      );
       
       const filterFunction = new Function(
           'ticker', 
@@ -462,7 +492,7 @@ const App: React.FC = () => {
     } finally {
       setIsAiScreenerLoading(false);
     }
-  }, [aiPrompt, klineInterval, internalGeminiModelName]);
+  }, [aiPrompt, klineInterval, internalGeminiModelName, klineHistoryConfig.screenerLimit]);
 
   const handleClearFilter = () => {
     setAiPrompt('');
@@ -653,6 +683,9 @@ const App: React.FC = () => {
         historicalSignalsCount={historicalSignals.length}
         klineHistoryConfig={klineHistoryConfig}
         onKlineHistoryConfigChange={setKlineHistoryConfig}
+        streamingProgress={streamingProgress}
+        streamingTokenCount={streamingTokenCount}
+        tokenUsage={tokenUsage}
       />
       <MainContent
         statusText={statusText}

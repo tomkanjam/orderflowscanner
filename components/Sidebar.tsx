@@ -32,6 +32,9 @@ interface SidebarProps {
   historicalSignalsCount: number;
   klineHistoryConfig: KlineHistoryConfig;
   onKlineHistoryConfigChange: (config: KlineHistoryConfig) => void;
+  streamingProgress: string;
+  streamingTokenCount: number;
+  tokenUsage: {prompt: number; response: number; total: number} | null;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -63,6 +66,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   historicalSignalsCount,
   klineHistoryConfig,
   onKlineHistoryConfigChange,
+  streamingProgress,
+  streamingTokenCount,
+  tokenUsage,
 }) => {
   const [showPromptAnimation, setShowPromptAnimation] = useState(false);
   
@@ -163,12 +169,29 @@ const Sidebar: React.FC<SidebarProps> = ({
         {isAiScreenerLoading ? (
           <>
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black mr-2"></div>
-            <span>Analyzing...</span>
+            <span>Generating Filter...</span>
           </>
         ) : (
           <span>✨ Run AI Screen</span>
         )}
       </button>
+
+      {/* Streaming Progress Display */}
+      {isAiScreenerLoading && (streamingProgress || streamingTokenCount > 0) && (
+        <div className="mt-3 space-y-2">
+          {streamingProgress && (
+            <div className="flex items-center gap-2 text-sm text-zinc-400">
+              <div className="animate-pulse rounded-full h-2 w-2 bg-yellow-400"></div>
+              <span>{streamingProgress}</span>
+            </div>
+          )}
+          {streamingTokenCount > 0 && (
+            <div className="text-xs text-zinc-500">
+              ~{streamingTokenCount.toLocaleString()} tokens
+            </div>
+          )}
+        </div>
+      )}
 
       {aiScreenerError && (
         <div className="mt-3 text-red-400 bg-red-900/50 p-3 rounded-lg text-sm">
@@ -198,6 +221,22 @@ const Sidebar: React.FC<SidebarProps> = ({
               📄 Show Response 
             </button>
           </div>
+          {tokenUsage && (
+            <div className="mt-3 text-xs text-zinc-500 space-y-1">
+              <div className="flex justify-between">
+                <span>Prompt tokens:</span>
+                <span>{tokenUsage.prompt.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Response tokens:</span>
+                <span>{tokenUsage.response.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between border-t border-zinc-700 pt-1">
+                <span>Total tokens:</span>
+                <span className="font-medium">{tokenUsage.total.toLocaleString()}</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
       

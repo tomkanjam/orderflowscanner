@@ -355,7 +355,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 legend: { 
                     display: true, 
                     labels: { 
-                        color: '#e4e4e7', 
+                        color: '#f5f5f7', 
                         boxWidth: 15, 
                         padding: 10, 
                         usePointStyle: true, 
@@ -365,7 +365,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 title: { 
                     display: true, 
                     text: `${symbol} - ${interval} Chart`, 
-                    color: '#e4e4e7', 
+                    color: '#f5f5f7', 
                     font: { size: 16 }, 
                     padding: { bottom: 10 } 
                 },
@@ -374,7 +374,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     intersect: false,
                     backgroundColor: '#131316', 
                     titleColor: '#f59e0b', 
-                    bodyColor: '#e4e4e7', 
+                    bodyColor: '#f5f5f7', 
                     borderColor: '#3f3f46', 
                     borderWidth: 1,
                     padding: 12,
@@ -417,14 +417,14 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     type: 'time', 
                     time: { unit: 'minute' },
                     grid: { color: '#3f3f46' }, 
-                    ticks: { color: '#a1a1aa', maxRotation: 0, autoSkip: true, autoSkipPadding: 15 } 
+                    ticks: { color: '#d4d4d8', maxRotation: 0, autoSkip: true, autoSkipPadding: 15 } 
                 },
                 yPrice: { 
                     type: 'linear', 
                     display: true, 
                     position: 'left', 
                     grid: { color: '#3f3f46' }, 
-                    ticks: { color: '#a1a1aa' }
+                    ticks: { color: '#d4d4d8' }
                 },
               },
             }
@@ -541,7 +541,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     title: { 
                         display: true, 
                         text: indicator.name, 
-                        color: '#e4e4e7', 
+                        color: '#f5f5f7', 
                         font: { size: 12 }, 
                         align: 'left', 
                         padding: { top: 0, bottom: 2 } 
@@ -552,7 +552,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                         intersect: false, 
                         backgroundColor: '#131316', 
                         titleColor: '#f59e0b', 
-                        bodyColor: '#e4e4e7',
+                        bodyColor: '#f5f5f7',
                         borderColor: '#3f3f46', 
                         borderWidth: 1, 
                         padding: 12,
@@ -590,7 +590,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                         position: indicator.yAxisConfig?.position || 'left', 
                         grid: { color: '#3f3f46' }, 
                         ticks: { 
-                            color: '#a1a1aa', 
+                            color: '#d4d4d8', 
                             font: { size: 10 }, 
                             maxTicksLimit: 5 
                         },

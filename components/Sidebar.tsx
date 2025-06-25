@@ -226,6 +226,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               : 'focus:border-[var(--tm-accent)] focus:ring-2 focus:ring-[var(--tm-accent)] focus:ring-opacity-30'
           }`}
           placeholder={`e.g., price crossed 20 MA up on high volume (for ${klineInterval})`}
+          autoFocus
         />
       </div>
 

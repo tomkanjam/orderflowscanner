@@ -130,7 +130,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
             {!isHistoricalScanning ? (
               <button
                 onClick={onRunHistoricalScan}
-                className="tm-btn tm-btn-ghost font-medium px-3 py-1 text-sm whitespace-nowrap"
+                className="tm-btn tm-btn-accent font-medium px-3 py-1 text-sm whitespace-nowrap"
               >
                 📊 Scan {historicalSignals.length > 0 ? `(${historicalSignals.length})` : ''}
               </button>

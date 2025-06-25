@@ -44,7 +44,7 @@ const signalMarkerPlugin = {
         if(allSignals.length === 0) return;
 
         ctx.save();
-        ctx.fillStyle = 'rgba(255, 255, 0, 0.3)'; // Brighter yellow highlight
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.3)'; // Accent yellow highlight
 
         const xAxis = chart.scales.x;
         const yAxis = chart.scales.yPrice || chart.scales.y; 
@@ -154,7 +154,7 @@ const crosshairPlugin = {
         ctx.beginPath();
         ctx.moveTo(x, chartArea.top);
         ctx.lineTo(x, chartArea.bottom);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.strokeStyle = 'rgba(113, 113, 122, 0.5)'; // tm-text-muted with opacity
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.stroke();
@@ -169,9 +169,9 @@ const crosshairPlugin = {
             // Draw price label
             const price = chart.scales.yPrice.getValueForPixel(y);
             if (price) {
-                ctx.fillStyle = 'rgba(255, 165, 0, 0.9)';
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.9)'; // tm-accent
                 ctx.fillRect(chartArea.right + 2, y - 10, 50, 20);
-                ctx.fillStyle = '#000000';
+                ctx.fillStyle = '#0a0a0b'; // tm-text-inverse
                 ctx.font = '11px monospace';
                 ctx.textAlign = 'left';
                 ctx.fillText(price.toFixed(price < 1 ? 6 : 2), chartArea.right + 4, y + 3);
@@ -271,8 +271,16 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
             label: `${symbol} Price`, 
             data: candlestickData, 
             yAxisID: 'yPrice',
-            borderColor: '#facc15', 
-            color: { up: '#10b981', down: '#ef4444', unchanged: '#9ca3af' }
+            borderColor: {
+                up: '#10b981',
+                down: '#ef4444',
+                unchanged: '#71717a'
+            },
+            color: {
+                up: '#10b981',
+                down: '#ef4444',
+                unchanged: '#71717a'
+            }
         }];
 
         // Add overlay indicators
@@ -288,7 +296,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 // Handle multi-line indicators
                 const colors = Array.isArray(indicator.style.color) 
                     ? indicator.style.color 
-                    : [indicator.style.color || '#3b82f6'];
+                    : [indicator.style.color || '#6366f1'];
                 
                 // Create dataset for each y value
                 const lineNames = ['', ' Upper', ' Lower', ' 4th'];
@@ -318,7 +326,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     data: dataPoints.map(p => ({x: p.x, y: p.y})),
                     borderColor: Array.isArray(indicator.style.color) 
                         ? indicator.style.color[0] 
-                        : (indicator.style.color || '#3b82f6'),
+                        : (indicator.style.color || '#6366f1'),
                     borderWidth: indicator.style.lineWidth || 1.5,
                     pointRadius: 0,
                     yAxisID: 'yPrice',
@@ -347,7 +355,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 legend: { 
                     display: true, 
                     labels: { 
-                        color: 'var(--tm-text-primary)', 
+                        color: '#e4e4e7', 
                         boxWidth: 15, 
                         padding: 10, 
                         usePointStyle: true, 
@@ -357,18 +365,22 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 title: { 
                     display: true, 
                     text: `${symbol} - ${interval} Chart`, 
-                    color: 'var(--tm-text-primary)', 
+                    color: '#e4e4e7', 
                     font: { size: 16 }, 
                     padding: { bottom: 10 } 
                 },
                 tooltip: { 
                     mode: 'index', 
                     intersect: false,
-                    backgroundColor: 'rgba(19, 19, 22, 0.9)', 
-                    titleColor: 'var(--tm-accent)', 
-                    bodyColor: 'var(--tm-text-primary)', 
-                    borderColor: 'var(--tm-border)', 
+                    backgroundColor: '#131316', 
+                    titleColor: '#f59e0b', 
+                    bodyColor: '#e4e4e7', 
+                    borderColor: '#3f3f46', 
                     borderWidth: 1,
+                    padding: 12,
+                    cornerRadius: 8,
+                    titleFont: { size: 14, weight: '600' },
+                    bodyFont: { size: 13 },
                     callbacks: {
                         label: function(context) {
                             const datasetLabel = context.dataset.label || '';
@@ -404,15 +416,15 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 x: { 
                     type: 'time', 
                     time: { unit: 'minute' },
-                    grid: { color: 'var(--tm-divider)' }, 
-                    ticks: { color: 'var(--tm-text-secondary)', maxRotation: 0, autoSkip: true, autoSkipPadding: 15 } 
+                    grid: { color: '#3f3f46' }, 
+                    ticks: { color: '#a1a1aa', maxRotation: 0, autoSkip: true, autoSkipPadding: 15 } 
                 },
                 yPrice: { 
                     type: 'linear', 
                     display: true, 
                     position: 'left', 
-                    grid: { color: 'var(--tm-divider)' }, 
-                    ticks: { color: 'var(--tm-text-secondary)' }
+                    grid: { color: '#3f3f46' }, 
+                    ticks: { color: '#a1a1aa' }
                 },
               },
             }
@@ -444,7 +456,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                         const val = point?.y || 0;
                         if (val > 0) return indicator.style.barColors.positive || '#10b981';
                         if (val < 0) return indicator.style.barColors.negative || '#ef4444';
-                        return indicator.style.barColors.neutral || '#9ca3af';
+                        return indicator.style.barColors.neutral || '#71717a';
                     }
                     
                     return Array.isArray(indicator.style.color) 
@@ -459,7 +471,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
             if (hasMultipleLines) {
                 const colors = Array.isArray(indicator.style.color) 
                     ? indicator.style.color 
-                    : [indicator.style.color || '#3b82f6'];
+                    : [indicator.style.color || '#6366f1'];
                 
                 const lineNames = ['', ' Signal', ' Lower', ' 4th'];
                 ['y', 'y2', 'y3', 'y4'].forEach((key, idx) => {
@@ -474,7 +486,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                                 data: dataPoints.map(p => ({x: p.x, y: p.y3})),
                                 backgroundColor: (ctx: any) => {
                                     const val = dataPoints[ctx.dataIndex]?.y3 || 0;
-                                    return val >= 0 ? '#10b98166' : '#ef444466';
+                                    return val >= 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)';
                                 }
                             });
                         } else {
@@ -500,7 +512,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     data: dataPoints.map(p => ({x: p.x, y: p.y})),
                     borderColor: Array.isArray(indicator.style.color) 
                         ? indicator.style.color[0] 
-                        : (indicator.style.color || '#3b82f6'),
+                        : (indicator.style.color || '#6366f1'),
                     borderWidth: indicator.style.lineWidth || 1.5,
                     pointRadius: 0,
                     fill: indicator.style.fillColor ? {
@@ -529,7 +541,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     title: { 
                         display: true, 
                         text: indicator.name, 
-                        color: '#FFFFFF', 
+                        color: '#e4e4e7', 
                         font: { size: 12 }, 
                         align: 'left', 
                         padding: { top: 0, bottom: 2 } 
@@ -538,11 +550,15 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                         enabled: true, 
                         mode: 'index', 
                         intersect: false, 
-                        backgroundColor: 'rgba(19, 19, 22, 0.9)', 
-                        titleColor: 'var(--tm-accent)', 
-                        bodyColor: 'var(--tm-text-primary)',
-                        borderColor: 'var(--tm-border)', 
+                        backgroundColor: '#131316', 
+                        titleColor: '#f59e0b', 
+                        bodyColor: '#e4e4e7',
+                        borderColor: '#3f3f46', 
                         borderWidth: 1, 
+                        padding: 12,
+                        cornerRadius: 8,
+                        titleFont: { size: 14, weight: '600' },
+                        bodyFont: { size: 13 },
                         displayColors: false,
                         callbacks: {
                             label: function(context) {
@@ -572,9 +588,9 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                         type: 'linear', 
                         display: true, 
                         position: indicator.yAxisConfig?.position || 'left', 
-                        grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
+                        grid: { color: '#3f3f46' }, 
                         ticks: { 
-                            color: '#9ca3af', 
+                            color: '#a1a1aa', 
                             font: { size: 10 }, 
                             maxTicksLimit: 5 
                         },

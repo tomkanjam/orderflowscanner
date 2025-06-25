@@ -143,7 +143,7 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
             <span className={`px-2 py-1 text-xs font-bold rounded ${
               signal.tradeDecision === 'BUY' ? 'bg-green-500 text-white' :
               signal.tradeDecision === 'SELL' ? 'bg-red-500 text-white' :
-              signal.tradeDecision === 'HOLD' ? 'bg-blue-500 text-white' :
+              signal.tradeDecision === 'HOLD' ? 'bg-[var(--tm-secondary)] text-white' :
               'bg-zinc-600 text-white'
             }`} title={signal.reasoning || ''}>
               {signal.tradeDecision}

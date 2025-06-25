@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import Modal from './components/Modal';
-import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, VolumeNode, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
+import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket } from './services/binanceService';
 import { generateFilterAndChartConfig, getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
@@ -18,13 +18,12 @@ const App: React.FC = () => {
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
   const [historicalData, setHistoricalData] = useState<Map<string, Kline[]>>(new Map());
-  const [hvnData, setHvnData] = useState<Map<string, VolumeNode[]>>(new Map());
   
   const [klineInterval, setKlineInterval] = useState<KlineInterval>(DEFAULT_KLINE_INTERVAL);
   const [selectedGeminiModel, setSelectedGeminiModel] = useState<GeminiModelOption>(DEFAULT_GEMINI_MODEL);
   
   const [aiPrompt, setAiPrompt] = useState<string>('');
-  const [currentFilterFn, setCurrentFilterFn] = useState<((ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: VolumeNode[]) => boolean) | null>(null);
+  const [currentFilterFn, setCurrentFilterFn] = useState<((ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: any[]) => boolean) | null>(null);
   const [aiFilterDescription, setAiFilterDescription] = useState<string[] | null>(null);
   const [fullAiFilterResponse, setFullAiFilterResponse] = useState<AiFilterResponse | null>(null);
   const [currentChartConfig, setCurrentChartConfig] = useState<CustomIndicatorConfig[] | null>(null);
@@ -104,8 +103,6 @@ const App: React.FC = () => {
   // Track kline updates for bar counting
   const klineUpdateCountRef = React.useRef<Map<string, number>>(new Map());
   
-  // Track HVN update intervals (update every 10 candles)
-  const hvnUpdateCountRef = React.useRef<Map<string, number>>(new Map());
 
   // Historical scanner hook
   const {
@@ -180,16 +177,6 @@ const App: React.FC = () => {
       setAllSymbols(symbols);
       setTickers(initialTickers);
       setHistoricalData(klinesData);
-      
-      // Calculate initial HVN data
-      const initialHvnData = new Map<string, VolumeNode[]>();
-      klinesData.forEach((klines, symbol) => {
-        const hvnNodes = screenerHelpers.calculateHighVolumeNodes(klines, {
-          cacheKey: `${symbol}_${interval}`
-        });
-        initialHvnData.set(symbol, hvnNodes);
-      });
-      setHvnData(initialHvnData);
     } catch (error) {
       console.error("Error fetching initial data:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
@@ -286,28 +273,6 @@ const App: React.FC = () => {
               }
           }
           newKlinesMap.set(symbol, symbolKlines);
-          
-          // Update HVN every 10 closed candles
-          if (isClosed) {
-            const hvnCount = hvnUpdateCountRef.current.get(symbol) || 0;
-            if (hvnCount % 10 === 0) {
-              // Clear cache on first update after app load to use new peak detection
-              if (hvnCount === 0) {
-                screenerHelpers.clearHVNCache(`${symbol}_${klineInterval}`);
-              }
-              // Calculate HVN with caching
-              const hvnNodes = screenerHelpers.calculateHighVolumeNodes(symbolKlines, {
-                cacheKey: `${symbol}_${klineInterval}`
-              });
-              
-              setHvnData(prevHvn => {
-                const newHvnMap = new Map(prevHvn);
-                newHvnMap.set(symbol, hvnNodes);
-                return newHvnMap;
-              });
-            }
-            hvnUpdateCountRef.current.set(symbol, hvnCount + 1);
-          }
           
           return newKlinesMap;
         });
@@ -479,7 +444,7 @@ const App: React.FC = () => {
           // The AI is expected to provide a valid function body that returns a boolean.
           // The try-catch here is for runtime errors within that valid body.
           `try { ${response.screenerCode} } catch(e) { console.error('Screener code runtime error for ticker:', ticker.s, e); return false; }`
-      ) as (ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: VolumeNode[]) => boolean;
+      ) as (ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: any[]) => boolean;
       
       setCurrentFilterFn(() => filterFunction); 
       setAiFilterDescription(response.description);
@@ -769,7 +734,6 @@ const App: React.FC = () => {
         allSymbols={allSymbols}
         tickers={tickers}
         historicalData={historicalData}
-        hvnData={hvnData} // Pass hvnData to MainContent
         currentFilterFn={currentFilterFn} 
         klineInterval={klineInterval}
         selectedSymbolForChart={selectedSymbolForChart}

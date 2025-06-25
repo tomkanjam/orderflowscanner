@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { Ticker, Kline, VolumeNode } from '../types';
+import { Ticker, Kline } from '../types';
 
 interface ScreenerResult {
   filteredSymbols: string[];
@@ -55,7 +55,6 @@ export function useScreenerWorker() {
       symbols: string[],
       tickers: Map<string, Ticker>,
       historicalData: Map<string, Kline[]>,
-      hvnData: Map<string, VolumeNode[]>,
       filterCode: string
     ): Promise<ScreenerResult> => {
       return new Promise((resolve, reject) => {
@@ -68,18 +67,15 @@ export function useScreenerWorker() {
         // Limit klines to last 100 to reduce memory usage
         const tickersObj: Record<string, Ticker> = {};
         const historicalDataObj: Record<string, Kline[]> = {};
-        const hvnDataObj: Record<string, VolumeNode[]> = {};
         
         symbols.forEach(symbol => {
           const ticker = tickers.get(symbol);
           const klines = historicalData.get(symbol);
-          const hvn = hvnData.get(symbol);
           if (ticker) tickersObj[symbol] = ticker;
           if (klines) {
             // Only send last 100 klines to reduce memory usage
             historicalDataObj[symbol] = klines.slice(-100);
           }
-          if (hvn) hvnDataObj[symbol] = hvn;
         });
 
         const id = `screen-${++messageIdCounter.current}`;
@@ -96,7 +92,6 @@ export function useScreenerWorker() {
               symbols,
               tickers: tickersObj,
               historicalData: historicalDataObj,
-              hvnData: hvnDataObj,
               filterCode
             }
           });

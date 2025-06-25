@@ -1,4 +1,4 @@
-import { Ticker, Kline, VolumeNode } from '../types';
+import { Ticker, Kline } from '../types';
 import * as helpers from '../screenerHelpers';
 
 // Message types for communication with main thread
@@ -9,7 +9,6 @@ export interface ScreenerWorkerMessage {
     symbols: string[];
     tickers: Record<string, Ticker>; // Convert Map to object for serialization
     historicalData: Record<string, Kline[]>; // Convert Map to object
-    hvnData: Record<string, VolumeNode[]>; // Add HVN data
     filterCode: string;
   };
 }
@@ -32,7 +31,6 @@ function runScreenerFilter(
   symbols: string[],
   tickers: Record<string, Ticker>,
   historicalData: Record<string, Kline[]>,
-  hvnData: Record<string, VolumeNode[]>,
   filterCode: string
 ): { filteredSymbols: string[], signalSymbols: string[] } {
   try {
@@ -43,7 +41,7 @@ function runScreenerFilter(
       'helpers',
       'hvnNodes',
       `try { ${filterCode} } catch(e) { console.error('Screener code runtime error for ticker:', ticker.s, e); return false; }`
-    ) as (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: VolumeNode[]) => boolean;
+    ) as (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: any[]) => boolean;
     
     const filteredSymbols: string[] = [];
     const signalSymbols: string[] = [];
@@ -53,7 +51,8 @@ function runScreenerFilter(
     for (const symbol of symbols) {
       const ticker = tickers[symbol];
       const klines = historicalData[symbol];
-      const hvnNodes = hvnData[symbol] || [];
+      // Calculate HVN nodes on demand
+      const hvnNodes = helpers.calculateHighVolumeNodes(klines, { lookback: Math.min(klines.length, 100) });
       
       if (!ticker || !klines || klines.length === 0) {
         continue;
@@ -97,7 +96,6 @@ self.addEventListener('message', (event: MessageEvent<ScreenerWorkerMessage>) =>
         data.symbols,
         data.tickers,
         data.historicalData,
-        data.hvnData,
         data.filterCode
       );
       

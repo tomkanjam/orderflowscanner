@@ -16,12 +16,11 @@ export const KLINE_INTERVALS: { value: KlineInterval; label: string }[] = [
 ];
 
 export const GEMINI_MODELS: { value: GeminiModelOption; label: string, internalModel: string }[] = [
-  { value: GeminiModelOption.FLASH_FAST, label: 'Gemini 2.5 Flash (Fast)', internalModel: 'gemini-2.5-flash' },
-  { value: GeminiModelOption.FLASH_ADVANCED, label: 'Gemini 2.5 Flash (Advanced)', internalModel: 'gemini-2.5-flash' },
+  { value: GeminiModelOption.FLASH_FAST, label: 'Gemini 2.5 Flash', internalModel: 'gemini-2.5-flash' },
   { value: GeminiModelOption.PRO, label: 'Gemini 2.5 Pro', internalModel: 'gemini-2.5-pro' },
 ];
 
 export const DEFAULT_KLINE_INTERVAL = KlineInterval.ONE_MINUTE;
-export const DEFAULT_GEMINI_MODEL = GeminiModelOption.FLASH_FAST;
+export const DEFAULT_GEMINI_MODEL = GeminiModelOption.PRO;
 
 export const DEBOUNCE_DELAY = 300; // ms for search input or other debounced actions

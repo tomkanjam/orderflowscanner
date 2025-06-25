@@ -10,7 +10,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({ title = "Error!", message }
   if (!message) return null;
 
   return (
-    <div className="bg-red-700/30 border border-red-600 text-red-300 px-4 py-3 rounded-lg text-center mb-6">
+    <div className="bg-[var(--tm-error)]/10 border border-[var(--tm-error)] text-[var(--tm-error)] px-4 py-3 rounded-lg text-center mb-6">
       <h3 className="font-bold">{title}</h3>
       <p>{message}</p>
     </div>

@@ -31,9 +31,9 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
   useEffect(() => {
     if (currentPrice !== prevPrice && prevPrice !== null) {
       if (currentPrice > prevPrice) {
-        setPriceFlashClass('text-green-400');
+        setPriceFlashClass('text-[var(--tm-success)]');
       } else if (currentPrice < prevPrice) {
-        setPriceFlashClass('text-red-400');
+        setPriceFlashClass('text-[var(--tm-error)]');
       }
       setFlashEndTime(Date.now() + 700);
       setPrevPrice(currentPrice);
@@ -97,51 +97,54 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
 
   return (
     <tr
-      className="hover:bg-gray-700/50 transition-colors duration-150 cursor-pointer"
+      className="hover:bg-[var(--tm-bg-hover)]/50 transition-colors duration-150 cursor-pointer"
       onClick={() => onRowClick(signal.symbol)}
     >
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-gray-400">
+      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-[var(--tm-text-muted)]">
         {formatTime(signal.timestamp)}
       </td>
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-center">
+      {/* Count column - Hidden for now */}
+      {/* <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-center">
         <span className={`inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 text-xs font-semibold rounded-full ${
-          signal.count > 1 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-600/50 text-gray-400'
+          signal.count > 1 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-zinc-700/50 text-zinc-400'
         }`}>
           {signal.count || 1}
         </span>
-      </td>
+      </td> */}
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap">
         <div>
-          <div className="font-semibold text-yellow-400">{signal.symbol}</div>
-          <div className="text-xs text-gray-500 truncate max-w-[150px]" title={signal.filterDesc}>
+          <div className="font-semibold text-[var(--tm-accent)]">{signal.symbol}</div>
+          <div className="text-xs text-[var(--tm-text-muted)] truncate max-w-[150px]" title={signal.filterDesc}>
             {signal.filterDesc}
           </div>
         </div>
       </td>
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right font-medium text-gray-300">
+      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right font-medium text-[var(--tm-text-secondary)]">
         {signal.priceAtSignal.toFixed(priceFixed)}
       </td>
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right font-medium">
+      {/* Current Price column - Hidden for now */}
+      {/* <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right font-medium">
         <span className={`transition-colors duration-700 ${priceFlashClass || 'text-white'}`}>
           {currentPrice.toFixed(priceFixed)}
         </span>
-      </td>
+      </td> */}
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right">
-        <span className={priceChangePercent >= 0 ? 'text-green-400' : 'text-red-400'}>
+        <span className={priceChangePercent >= 0 ? 'text-[var(--tm-success)]' : 'text-[var(--tm-error)]'}>
           {priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%
         </span>
       </td>
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right text-gray-300 hidden sm:table-cell">
+      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-right text-[var(--tm-text-secondary)] hidden sm:table-cell">
         {Math.round(signal.volumeAtSignal / 1_000_000)}M
       </td>
-      <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-center">
+      {/* Analyze column - Hidden for now */}
+      {/* <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-center">
         <div className="flex items-center justify-center gap-2">
           {signal.tradeDecision && (
             <span className={`px-2 py-1 text-xs font-bold rounded ${
               signal.tradeDecision === 'BUY' ? 'bg-green-500 text-white' :
               signal.tradeDecision === 'SELL' ? 'bg-red-500 text-white' :
               signal.tradeDecision === 'HOLD' ? 'bg-blue-500 text-white' :
-              'bg-gray-500 text-white'
+              'bg-zinc-600 text-white'
             }`} title={signal.reasoning || ''}>
               {signal.tradeDecision}
             </span>
@@ -154,7 +157,7 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
             ✨
           </button>
         </div>
-      </td>
+      </td> */}
     </tr>
   );
 };

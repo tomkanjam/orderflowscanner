@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from '../types';
-import { PrebuiltStrategy } from '../types/strategy';
 import SignalTable from './SignalTable';
 import CryptoTable from './CryptoTable';
 import ChartDisplay from './ChartDisplay';
@@ -36,7 +35,8 @@ interface MainContentProps {
   historicalScanConfig?: HistoricalScanConfig;
   onHistoricalScanConfigChange?: (config: HistoricalScanConfig) => void;
   onCancelHistoricalScan?: () => void;
-  onStrategySelect?: (strategy: PrebuiltStrategy) => void;
+  // Strategy selection
+  onSetAiPrompt?: (prompt: string) => void;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -63,7 +63,7 @@ const MainContent: React.FC<MainContentProps> = ({
   historicalScanConfig,
   onHistoricalScanConfigChange,
   onCancelHistoricalScan,
-  onStrategySelect,
+  onSetAiPrompt,
 }) => {
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-y-hidden">
@@ -98,7 +98,7 @@ const MainContent: React.FC<MainContentProps> = ({
                   historicalScanConfig={historicalScanConfig}
                   onHistoricalScanConfigChange={onHistoricalScanConfigChange}
                   onCancelHistoricalScan={onCancelHistoricalScan}
-                  onStrategySelect={onStrategySelect}
+                  onSetAiPrompt={onSetAiPrompt}
                 />
               </div>
               {/* Hidden CryptoTable to keep screener running */}
@@ -118,7 +118,7 @@ const MainContent: React.FC<MainContentProps> = ({
           )}
         </main>
       </div>
-      <footer className="text-center text-gray-500 py-3 text-xs md:text-sm border-t border-gray-700">
+      <footer className="text-center text-[var(--tm-text-muted)] py-3 text-xs md:text-sm border-t border-[var(--tm-border)]">
         <p>Powered by Binance API &amp; Gemini AI. Not financial advice.</p>
       </footer>
     </div>

@@ -347,7 +347,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 legend: { 
                     display: true, 
                     labels: { 
-                        color: '#d1d5db', 
+                        color: 'var(--tm-text-primary)', 
                         boxWidth: 15, 
                         padding: 10, 
                         usePointStyle: true, 
@@ -357,17 +357,17 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 title: { 
                     display: true, 
                     text: `${symbol} - ${interval} Chart`, 
-                    color: '#FFFFFF', 
+                    color: 'var(--tm-text-primary)', 
                     font: { size: 16 }, 
                     padding: { bottom: 10 } 
                 },
                 tooltip: { 
                     mode: 'index', 
                     intersect: false,
-                    backgroundColor: 'rgba(31, 41, 55, 0.9)', 
-                    titleColor: '#facc15', 
-                    bodyColor: '#e5e7eb', 
-                    borderColor: '#4b5563', 
+                    backgroundColor: 'rgba(19, 19, 22, 0.9)', 
+                    titleColor: 'var(--tm-accent)', 
+                    bodyColor: 'var(--tm-text-primary)', 
+                    borderColor: 'var(--tm-border)', 
                     borderWidth: 1,
                     callbacks: {
                         label: function(context) {
@@ -404,15 +404,15 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 x: { 
                     type: 'time', 
                     time: { unit: 'minute' },
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }, 
-                    ticks: { color: '#9ca3af', maxRotation: 0, autoSkip: true, autoSkipPadding: 15 } 
+                    grid: { color: 'var(--tm-divider)' }, 
+                    ticks: { color: 'var(--tm-text-secondary)', maxRotation: 0, autoSkip: true, autoSkipPadding: 15 } 
                 },
                 yPrice: { 
                     type: 'linear', 
                     display: true, 
                     position: 'left', 
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }, 
-                    ticks: { color: '#9ca3af' }
+                    grid: { color: 'var(--tm-divider)' }, 
+                    ticks: { color: 'var(--tm-text-secondary)' }
                 },
               },
             }
@@ -538,10 +538,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                         enabled: true, 
                         mode: 'index', 
                         intersect: false, 
-                        backgroundColor: 'rgba(31, 41, 55, 0.9)', 
-                        titleColor: '#facc15', 
-                        bodyColor: '#e5e7eb',
-                        borderColor: '#4b5563', 
+                        backgroundColor: 'rgba(19, 19, 22, 0.9)', 
+                        titleColor: 'var(--tm-accent)', 
+                        bodyColor: 'var(--tm-text-primary)',
+                        borderColor: 'var(--tm-border)', 
                         borderWidth: 1, 
                         displayColors: false,
                         callbacks: {
@@ -673,25 +673,25 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   }
 
   return (
-    <div className={`bg-gray-800 shadow-lg rounded-lg p-3 md:p-4 mb-6 ${!symbol ? 'hidden' : ''} flex flex-col`} style={{height: '550px'}}>
+    <div className={`tm-card shadow-lg p-3 md:p-4 mb-6 ${!symbol ? 'hidden' : ''} flex flex-col`} style={{height: '550px'}}>
       {symbol ? (
         <>
           <div className={`${priceChartHeight} relative`}>
             <canvas ref={priceCanvasRef}></canvas>
             {isCalculating && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
-                <div className="text-yellow-400">Calculating indicators...</div>
+              <div className="absolute inset-0 flex items-center justify-center bg-[var(--tm-bg-secondary)] bg-opacity-75">
+                <div className="text-[var(--tm-accent)]">Calculating indicators...</div>
               </div>
             )}
           </div>
           {panelIndicators.map((indicator, idx) => (
-            <div key={indicator.id} className={`${panelHeight} relative border-t border-gray-700 pt-1 mt-1`}>
+            <div key={indicator.id} className={`${panelHeight} relative border-t border-[var(--tm-border)] pt-1 mt-1`}>
               <canvas ref={el => panelCanvasRefs.current[idx] = el}></canvas>
             </div>
           ))}
         </>
       ) : (
-        <div className="flex items-center justify-center h-full text-gray-500">
+        <div className="flex items-center justify-center h-full text-[var(--tm-text-muted)]">
           <p>Select a pair from the table to view its chart.</p>
         </div>
       )}

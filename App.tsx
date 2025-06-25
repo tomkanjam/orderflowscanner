@@ -5,11 +5,10 @@ import MainContent from './components/MainContent';
 import Modal from './components/Modal';
 import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket } from './services/binanceService';
-import { generateFilterAndChartConfig, getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
+import { generateFilterAndChartConfig, generateFilterAndChartConfigStream, getSymbolAnalysis, getMarketAnalysis, StreamingUpdate } from './services/geminiService';
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
 import * as screenerHelpers from './screenerHelpers';
 import { useHistoricalScanner } from './hooks/useHistoricalScanner';
-import { PrebuiltStrategy } from './types/strategy';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -58,8 +57,13 @@ const App: React.FC = () => {
   const [isMarketAnalysisLoading, setIsMarketAnalysisLoading] = useState<boolean>(false);
   const [isSymbolAnalysisLoading, setIsSymbolAnalysisLoading] = useState<boolean>(false);
   
+  // Streaming state
+  const [streamingProgress, setStreamingProgress] = useState<string>('');
+  const [streamingTokenCount, setStreamingTokenCount] = useState<number>(0);
+  const [tokenUsage, setTokenUsage] = useState<{prompt: number; response: number; total: number} | null>(null);
+  
   const [statusText, setStatusText] = useState<string>('Connecting...');
-  const [statusLightClass, setStatusLightClass] = useState<string>('bg-gray-500');
+  const [statusLightClass, setStatusLightClass] = useState<string>('bg-[var(--tm-text-muted)]');
   
   const [selectedSymbolForChart, setSelectedSymbolForChart] = useState<string | null>(null);
   
@@ -144,14 +148,19 @@ const App: React.FC = () => {
         !isHistoricalScanning && 
         !hasAutoScanned.current && 
         signalLog.length < 10 &&
-        signalLog.length > 0 && // At least one signal to know filter is working
         historicalSignals.length === 0) { // Don't auto-scan if we already have historical signals
       
-      console.log(`Auto-running historical scan: ${signalLog.length} live signals found`);
+      console.log(`[${new Date().toISOString().slice(11, 23)}] Auto-running historical scan: ${signalLog.length} live signals found`);
       hasAutoScanned.current = true;
+      
+      // Use 200 bars when no live signals are found, otherwise use default
+      const autoScanConfig = signalLog.length === 0 
+        ? { ...historicalScanConfig, lookbackBars: 200 }
+        : historicalScanConfig;
+      
       // Small delay to ensure initial signals are displayed first
       setTimeout(() => {
-        startHistoricalScan(historicalScanConfig);
+        startHistoricalScan(autoScanConfig);
       }, 1000);
     }
     
@@ -185,7 +194,7 @@ const App: React.FC = () => {
       setTickers(new Map());
       setHistoricalData(new Map());
       setStatusText('Error');
-      setStatusLightClass('bg-red-500');
+      setStatusLightClass('bg-[var(--tm-error)]');
     } finally {
       setInitialLoading(false);
     }
@@ -291,14 +300,14 @@ const App: React.FC = () => {
           () => { 
             if (!isCleanedUp) {
               setStatusText('Live'); 
-              setStatusLightClass('bg-green-500'); 
+              setStatusLightClass('bg-[var(--tm-success)]'); 
             }
           },
           (errorEvent) => { 
             if (!isCleanedUp) {
               console.error("WebSocket Error:", errorEvent); 
               setStatusText('WS Error'); 
-              setStatusLightClass('bg-red-500');
+              setStatusLightClass('bg-[var(--tm-error)]');
               
               // Reconnect after error
               reconnectTimeout = setTimeout(connectWebSocketWithRetry, 5000);
@@ -307,7 +316,7 @@ const App: React.FC = () => {
           () => { 
             if (!isCleanedUp) {
               setStatusText('Disconnected'); 
-              setStatusLightClass('bg-yellow-500');
+              setStatusLightClass('bg-[var(--tm-warning)]');
               
               // Reconnect after close
               reconnectTimeout = setTimeout(connectWebSocketWithRetry, 3000);
@@ -318,7 +327,7 @@ const App: React.FC = () => {
         if (!isCleanedUp) {
           console.error("Failed to connect WebSocket:", e);
           setStatusText('WS Failed');
-          setStatusLightClass('bg-red-500');
+          setStatusLightClass('bg-[var(--tm-error)]');
           
           // Retry connection
           reconnectTimeout = setTimeout(connectWebSocketWithRetry, 5000);
@@ -432,9 +441,35 @@ const App: React.FC = () => {
     setCurrentChartConfig(null);
     setFullAiFilterResponse(null); 
     setSignalLog([]); // Clear signal log for new filter
+    setStreamingProgress('');
+    setStreamingTokenCount(0);
+    setTokenUsage(null);
 
     try {
-      const response: AiFilterResponse = await generateFilterAndChartConfig(aiPrompt, internalGeminiModelName, klineInterval, klineHistoryConfig.screenerLimit);
+      const response: AiFilterResponse = await generateFilterAndChartConfigStream(
+        aiPrompt, 
+        internalGeminiModelName, 
+        klineInterval, 
+        klineHistoryConfig.screenerLimit,
+        (update: StreamingUpdate) => {
+          switch (update.type) {
+            case 'progress':
+              console.log(`[${new Date().toISOString().slice(11, 23)}] [App] Progress update received:`, update.message);
+              setStreamingProgress(update.message || '');
+              if (update.tokenCount) setStreamingTokenCount(update.tokenCount);
+              break;
+            case 'stream':
+              if (update.tokenCount) setStreamingTokenCount(update.tokenCount);
+              break;
+            case 'complete':
+              if (update.tokenUsage) setTokenUsage(update.tokenUsage);
+              break;
+            case 'error':
+              console.error(`[${new Date().toISOString().slice(11, 23)}] Streaming error:`, update.error);
+              break;
+          }
+        }
+      );
       
       const filterFunction = new Function(
           'ticker', 
@@ -457,8 +492,12 @@ const App: React.FC = () => {
       setAiScreenerError(errorMessage);
     } finally {
       setIsAiScreenerLoading(false);
+      // Keep the last progress message visible for a bit
+      setTimeout(() => {
+        setStreamingProgress('');
+      }, 2000);
     }
-  }, [aiPrompt, klineInterval, internalGeminiModelName]);
+  }, [aiPrompt, klineInterval, internalGeminiModelName, klineHistoryConfig.screenerLimit]);
 
   const handleClearFilter = () => {
     setAiPrompt('');
@@ -471,6 +510,10 @@ const App: React.FC = () => {
     setHistoricalSignals([]); // Clear historical signals
     clearHistoricalSignals();
     hasAutoScanned.current = false; // Reset auto-scan flag
+    // Clear streaming state
+    setStreamingProgress('');
+    setStreamingTokenCount(0);
+    setTokenUsage(null);
   };
 
   const handleRunHistoricalScan = () => {
@@ -482,7 +525,7 @@ const App: React.FC = () => {
     if (!fullAiFilterResponse) return;
     setModalTitle('📄 Full AI Filter Response');
     const formattedResponse = (
-        <pre className="bg-gray-900 p-3 md:p-4 rounded-md block whitespace-pre-wrap text-xs md:text-sm text-yellow-300 overflow-x-auto">
+        <pre className="bg-[var(--tm-bg-primary)] p-3 md:p-4 rounded-md block whitespace-pre-wrap text-xs md:text-sm text-[var(--tm-accent)] overflow-x-auto">
           <code>
             {JSON.stringify(fullAiFilterResponse, null, 2)}
           </code>
@@ -495,7 +538,7 @@ const App: React.FC = () => {
   const handleAnalyzeMarket = useCallback(async () => {
     setIsMarketAnalysisLoading(true);
     setModalTitle('📊 AI Market Analysis');
-    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div><p className="mt-2">Generating analysis...</p></div>);
+    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--tm-accent)] mx-auto"></div><p className="mt-2">Generating analysis...</p></div>);
     setIsModalOpen(true);
 
     try {
@@ -505,7 +548,7 @@ const App: React.FC = () => {
     } catch (error) {
         console.error("Market Analysis error:", error);
         const errorMessage = error instanceof Error ? error.message : "Failed to get market analysis.";
-        setModalContent(<p className="text-red-400">{errorMessage}</p>);
+        setModalContent(<p className="text-[var(--tm-error)]">{errorMessage}</p>);
     } finally {
         setIsMarketAnalysisLoading(false);
     }
@@ -515,14 +558,14 @@ const App: React.FC = () => {
     event.stopPropagation(); 
     setIsSymbolAnalysisLoading(true); 
     setModalTitle(`✨ AI Analysis for ${symbol}`);
-    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div><p className="mt-2">Generating analysis for {symbol}...</p></div>);
+    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--tm-accent)] mx-auto"></div><p className="mt-2">Generating analysis for {symbol}...</p></div>);
     setIsModalOpen(true);
 
     const tickerData = tickers.get(symbol);
     const klineData = historicalData.get(symbol);
 
     if (!tickerData || !klineData) {
-        setModalContent(<p className="text-red-400">Data not available for {symbol}.</p>);
+        setModalContent(<p className="text-[var(--tm-error)]">Data not available for {symbol}.</p>);
         setIsSymbolAnalysisLoading(false);
         return;
     }
@@ -569,31 +612,31 @@ const App: React.FC = () => {
             
             setModalContent(
                 <div className="space-y-4 text-sm md:text-base">
-                    <div className="border-l-4 border-yellow-400 pl-4">
+                    <div className="border-l-4 border-[var(--tm-accent)] pl-4">
                         <div className="flex items-center gap-2 mb-2">
-                            <span className="text-gray-400 font-semibold">Decision:</span>
+                            <span className="text-[var(--tm-text-muted)] font-semibold">Decision:</span>
                             <span className={`px-3 py-1 text-sm font-bold rounded ${
-                                decision === 'BUY' ? 'bg-green-500 text-white' :
-                                decision === 'SELL' ? 'bg-red-500 text-white' :
-                                decision === 'HOLD' ? 'bg-blue-500 text-white' :
-                                'bg-gray-500 text-white'
+                                decision === 'BUY' ? 'bg-[var(--tm-success)] text-[var(--tm-text-primary)]' :
+                                decision === 'SELL' ? 'bg-[var(--tm-error)] text-[var(--tm-text-primary)]' :
+                                decision === 'HOLD' ? 'bg-[var(--tm-info)] text-[var(--tm-text-primary)]' :
+                                'bg-[var(--tm-bg-hover)] text-[var(--tm-text-primary)]'
                             }`}>
                                 {decision}
                             </span>
                         </div>
                         <div className="mb-2">
-                            <span className="text-gray-400 font-semibold">Reasoning:</span>
-                            <p className="text-gray-200 mt-1">{reasoning}</p>
+                            <span className="text-[var(--tm-text-muted)] font-semibold">Reasoning:</span>
+                            <p className="text-[var(--tm-text-secondary)] mt-1">{reasoning}</p>
                         </div>
                         <div>
-                            <span className="text-gray-400 font-semibold">Trade Plan:</span>
-                            <p className="text-gray-200 mt-1">{tradePlan}</p>
+                            <span className="text-[var(--tm-text-muted)] font-semibold">Trade Plan:</span>
+                            <p className="text-[var(--tm-text-secondary)] mt-1">{tradePlan}</p>
                         </div>
                     </div>
                     {technicalAnalysis && (
                         <div>
-                            <h4 className="text-gray-400 font-semibold mb-2">Technical Analysis:</h4>
-                            <div className="whitespace-pre-wrap text-gray-200">{technicalAnalysis}</div>
+                            <h4 className="text-[var(--tm-text-muted)] font-semibold mb-2">Technical Analysis:</h4>
+                            <div className="whitespace-pre-wrap text-[var(--tm-text-secondary)]">{technicalAnalysis}</div>
                         </div>
                     )}
                 </div>
@@ -604,7 +647,7 @@ const App: React.FC = () => {
     } catch (error) {
         console.error(`Symbol Analysis error for ${symbol}:`, error);
         const errorMessage = error instanceof Error ? error.message : "Failed to get analysis.";
-        setModalContent(<p className="text-red-400">{errorMessage}</p>);
+        setModalContent(<p className="text-[var(--tm-error)]">{errorMessage}</p>);
     } finally {
         setIsSymbolAnalysisLoading(false);
     }
@@ -615,87 +658,12 @@ const App: React.FC = () => {
     setSelectedSymbolForChart(symbol);
   };
   
-  const handleStrategySelect = useCallback(async (strategy: PrebuiltStrategy) => {
-    // Update the kline interval to match the strategy
-    if (strategy.timeframe !== klineInterval) {
-      setKlineInterval(strategy.timeframe);
-      // Wait for data to reload with new interval
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    
-    // Set the AI prompt to the strategy's natural language prompt
-    setAiPrompt(strategy.prompt);
-    
-    // Set the trading strategy
-    const tradePlanText = `Trade Plan: Entry ${strategy.tradePlan.entry}, Stop Loss ${strategy.tradePlan.stopLoss}, Take Profit ${strategy.tradePlan.takeProfit}`;
-    setStrategy(tradePlanText);
-    
-    // Create the filter function from the strategy's screener code
-    setIsAiScreenerLoading(true);
-    setAiScreenerError(null);
-    setCurrentFilterFn(null);
-    setAiFilterDescription(null);
-    setCurrentChartConfig(null);
-    setFullAiFilterResponse(null);
-    setSignalLog([]);
-    
-    try {
-      // Create a filter function from the strategy's screener code
-      const filterFunction = new Function(
-        'ticker',
-        'klines',
-        'helpers',
-        'hvnNodes',
-        `try { ${strategy.screenerCode} } catch(e) { console.error('Strategy screener error for ticker:', ticker.s, e); return false; }`
-      ) as (ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: VolumeNode[]) => boolean;
-      
-      setCurrentFilterFn(() => filterFunction);
-      setAiFilterDescription(strategy.conditions);
-      
-      // Create indicators based on the strategy
-      const indicators: CustomIndicatorConfig[] = [];
-      
-      // Add relevant indicators based on strategy type
-      if (strategy.id === 'quick-scalp' || strategy.id === '5min-momentum' || strategy.id === 'breakout-scalp') {
-        indicators.push({ type: 'VWAP', color: '#9333EA' });
-      }
-      
-      if (strategy.id === '5min-momentum' || strategy.id === 'hourly-swing') {
-        indicators.push(
-          { type: 'EMA', period: 9, color: '#10B981' },
-          { type: 'EMA', period: 21, color: '#F59E0B' }
-        );
-      }
-      
-      if (strategy.id === 'hourly-swing') {
-        indicators.push(
-          { type: 'SMA', period: 20, color: '#3B82F6' },
-          { type: 'SMA', period: 50, color: '#EF4444' }
-        );
-      }
-      
-      setCurrentChartConfig(indicators);
-      
-      // Create a mock AI response
-      setFullAiFilterResponse({
-        description: strategy.conditions,
-        screenerCode: strategy.screenerCode,
-        indicators: indicators
-      });
-      
-    } catch (error) {
-      console.error("Strategy selection error:", error);
-      setAiScreenerError("Failed to load strategy");
-    } finally {
-      setIsAiScreenerLoading(false);
-    }
-  }, [klineInterval]);
   
   const chartConfigForDisplay = selectedSymbolForChart ? currentChartConfig : null;
 
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gray-900 text-white">
+    <div className="flex flex-col md:flex-row min-h-screen">
       <Sidebar
         klineInterval={klineInterval}
         onKlineIntervalChange={setKlineInterval}
@@ -725,6 +693,9 @@ const App: React.FC = () => {
         historicalSignalsCount={historicalSignals.length}
         klineHistoryConfig={klineHistoryConfig}
         onKlineHistoryConfigChange={setKlineHistoryConfig}
+        streamingProgress={streamingProgress}
+        streamingTokenCount={streamingTokenCount}
+        tokenUsage={tokenUsage}
       />
       <MainContent
         statusText={statusText}
@@ -750,7 +721,7 @@ const App: React.FC = () => {
         historicalScanConfig={historicalScanConfig}
         onHistoricalScanConfigChange={setHistoricalScanConfig}
         onCancelHistoricalScan={cancelHistoricalScan}
-        onStrategySelect={handleStrategySelect}
+        onSetAiPrompt={setAiPrompt}
       />
       <Modal
         isOpen={isModalOpen}

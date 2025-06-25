@@ -20,7 +20,8 @@ interface SignalTableProps {
   historicalScanConfig?: HistoricalScanConfig;
   onHistoricalScanConfigChange?: (config: HistoricalScanConfig) => void;
   onCancelHistoricalScan?: () => void;
-  onStrategySelect?: (strategy: PrebuiltStrategy) => void;
+  // Strategy selection
+  onSetAiPrompt?: (prompt: string) => void;
 }
 
 const SignalTable: React.FC<SignalTableProps> = ({
@@ -38,14 +39,21 @@ const SignalTable: React.FC<SignalTableProps> = ({
   historicalScanConfig,
   onHistoricalScanConfigChange,
   onCancelHistoricalScan,
-  onStrategySelect,
+  onSetAiPrompt,
 }) => {
   const [loadingStrategyId, setLoadingStrategyId] = useState<string | null>(null);
 
   const handleStrategySelect = (strategy: PrebuiltStrategy) => {
-    setLoadingStrategyId(strategy.id);
-    if (onStrategySelect) {
-      onStrategySelect(strategy);
+    if (onSetAiPrompt) {
+      // Join all conditions with commas for a natural language prompt
+      const prompt = strategy.conditions.join(', ');
+      onSetAiPrompt(prompt);
+      
+      // Show loading state briefly to indicate action
+      setLoadingStrategyId(strategy.id);
+      setTimeout(() => {
+        setLoadingStrategyId(null);
+      }, 500);
     }
   };
 
@@ -77,7 +85,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
   // Show strategy grid if no active screener
   if (!hasActiveScreener && signalLog.length === 0 && historicalSignals.length === 0) {
     return (
-      <div className="bg-gray-800 shadow-lg rounded-lg p-6 md:p-8">
+      <div className="tm-card shadow-lg p-6 md:p-8">
         <StrategyGrid 
           onSelectStrategy={handleStrategySelect}
           loadingStrategyId={loadingStrategyId}
@@ -87,13 +95,13 @@ const SignalTable: React.FC<SignalTableProps> = ({
   }
 
   return (
-    <div className="bg-gray-800 shadow-lg rounded-lg p-3 md:p-4 relative">
+    <div className="tm-card shadow-lg p-3 md:p-4 relative">
       <div className="flex items-center justify-between mb-3 md:mb-4">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg md:text-xl font-semibold text-yellow-400">
+          <h2 className="text-lg md:text-xl font-semibold text-[var(--tm-accent)] tm-heading-md">
             Signal History
           </h2>
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-[var(--tm-text-muted)]">
             {signalLog.length} live {historicalSignals.length > 0 && `+ ${historicalSignals.length} historical`}
           </span>
         </div>
@@ -108,18 +116,21 @@ const SignalTable: React.FC<SignalTableProps> = ({
                 lookbackBars: +e.target.value
               })}
               disabled={isHistoricalScanning}
-              className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50"
+              className="tm-input px-2 py-1 text-sm disabled:opacity-50"
             >
               <option value={20}>20 bars</option>
               <option value={50}>50 bars</option>
               <option value={100}>100 bars</option>
               <option value={200}>200 bars</option>
+              <option value={500}>500 bars</option>
+              <option value={1000}>1000 bars</option>
+              <option value={1500}>1500 bars</option>
             </select>
             
             {!isHistoricalScanning ? (
               <button
                 onClick={onRunHistoricalScan}
-                className="bg-purple-600 text-white font-medium px-3 py-1 rounded-lg hover:bg-purple-700 transition duration-300 text-sm whitespace-nowrap"
+                className="tm-btn tm-btn-ghost font-medium px-3 py-1 text-sm whitespace-nowrap"
               >
                 📊 Scan {historicalSignals.length > 0 ? `(${historicalSignals.length})` : ''}
               </button>
@@ -127,20 +138,20 @@ const SignalTable: React.FC<SignalTableProps> = ({
               <>
                 {historicalScanProgress && (
                   <div className="flex items-center gap-2 text-sm">
-                    <div className="w-24 bg-gray-600 rounded-full h-1.5">
+                    <div className="w-24 bg-[var(--tm-bg-hover)] rounded-full h-1.5">
                       <div 
-                        className="bg-purple-600 h-1.5 rounded-full transition-all duration-300"
+                        className="bg-[var(--tm-accent)] h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${historicalScanProgress.percentComplete}%` }}
                       />
                     </div>
-                    <span className="text-gray-400 text-xs">
+                    <span className="text-[var(--tm-text-muted)] text-xs">
                       {historicalScanProgress.percentComplete}%
                     </span>
                   </div>
                 )}
                 <button
                   onClick={onCancelHistoricalScan}
-                  className="bg-red-600 text-white font-medium px-3 py-1 rounded-lg hover:bg-red-700 transition duration-300 text-sm"
+                  className="tm-btn font-medium px-3 py-1 text-sm bg-[var(--tm-error)] hover:bg-[var(--tm-error-dark)] text-[var(--tm-text-primary)]"
                 >
                   Cancel
                 </button>
@@ -150,17 +161,17 @@ const SignalTable: React.FC<SignalTableProps> = ({
         )}
       </div>
       <div className="overflow-y-auto max-h-[500px] md:max-h-[600px]">
-        <table className="w-full">
-          <thead className="sticky top-0 bg-gray-700 z-10">
-            <tr className="text-left text-xs md:text-sm text-gray-400">
+        <table className="w-full tm-table">
+          <thead className="sticky top-0 bg-[var(--tm-bg-tertiary)] z-10">
+            <tr className="text-left text-xs md:text-sm text-[var(--tm-text-muted)]">
               <th className="p-2 md:px-4 md:py-2">Time</th>
-              <th className="p-2 md:px-4 md:py-2 text-center">Count</th>
+              {/* <th className="p-2 md:px-4 md:py-2 text-center">Count</th> */}
               <th className="p-2 md:px-4 md:py-2">Pair</th>
               <th className="p-2 md:px-4 md:py-2 text-right">Signal Price</th>
-              <th className="p-2 md:px-4 md:py-2 text-right">Current Price</th>
+              {/* <th className="p-2 md:px-4 md:py-2 text-right">Current Price</th> */}
               <th className="p-2 md:px-4 md:py-2 text-right">Gain/Loss</th>
               <th className="p-2 md:px-4 md:py-2 text-right hidden sm:table-cell">Volume</th>
-              <th className="p-2 md:px-4 md:py-2 text-center">Analyze</th>
+              {/* <th className="p-2 md:px-4 md:py-2 text-center">Analyze</th> */}
             </tr>
           </thead>
           <tbody>
@@ -177,8 +188,8 @@ const SignalTable: React.FC<SignalTableProps> = ({
             
             {/* Separator row */}
             {historicalSignalsWithPrices.length > 0 && (
-              <tr className="bg-gray-700/50 border-t border-b border-gray-600">
-                <td colSpan={8} className="text-center py-2 text-sm text-purple-400 font-medium">
+              <tr className="bg-[var(--tm-bg-tertiary)]/50 border-t border-b border-[var(--tm-border-light)]">
+                <td colSpan={5} className="text-center py-2 text-sm text-[var(--tm-accent)] font-medium">
                   📊 Historical Signals (Found in Past Data)
                 </td>
               </tr>
@@ -197,7 +208,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
             
             {signalLog.length === 0 && historicalSignals.length === 0 && !isLoading && (
               <tr>
-                <td colSpan={8} className="text-center text-gray-500 p-4">
+                <td colSpan={5} className="text-center text-[var(--tm-text-muted)] p-4">
                   No signals generated yet. Run an AI screener to start capturing signals.
                 </td>
               </tr>

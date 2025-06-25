@@ -119,7 +119,7 @@ const MainContent: React.FC<MainContentProps> = ({
         </main>
       </div>
       <footer className="text-center text-[var(--tm-text-muted)] py-3 text-xs md:text-sm border-t border-[var(--tm-border)]">
-        <p>Powered by Binance API &amp; Gemini AI. Not financial advice.</p>
+        <p>Powered by <span className="text-[var(--tm-secondary)]">Binance API</span> &amp; <span className="text-[var(--tm-accent)]">Gemini AI</span>. Not financial advice.</p>
       </footer>
     </div>
   );

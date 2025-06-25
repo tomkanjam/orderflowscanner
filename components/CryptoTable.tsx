@@ -155,7 +155,7 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
         <span>Live Crypto Prices</span>
         <span className="text-sm text-[var(--tm-text-muted)]">
           {isFiltering && currentFilterFn ? 'Filtering...' : 
-           currentFilterFn ? `${filteredSymbols.length} matches` :
+           currentFilterFn ? <><span className="text-[var(--tm-accent)] font-semibold">{filteredSymbols.length}</span> matches</> :
            `${filteredSymbols.length} pairs`}
         </span>
       </h2>
@@ -167,7 +167,7 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
               <th className="p-2 md:px-4 md:py-2 text-right">Price</th>
               <th className="p-2 md:px-4 md:py-2 text-right">24h Change</th>
               <th className="p-2 md:px-4 md:py-2 text-right hidden sm:table-cell">Volume</th>
-              <th className="p-2 md:px-4 md:py-2 text-center">AI Info</th>
+              <th className="p-2 md:px-4 md:py-2 text-center text-[var(--tm-accent)]">AI Info</th>
             </tr>
           </thead>
           <tbody>

@@ -15,16 +15,16 @@
   --tm-text-inverse: #0a0a0b;
   
   /* Primary Accent Colors */
-  --tm-accent: #f59e0b;
-  --tm-accent-hover: #d97706;
-  --tm-accent-light: #fbbf24;
-  --tm-accent-dark: #b45309;
+  --tm-accent: #22f5af;
+  --tm-accent-hover: #1dd99a;
+  --tm-accent-light: #4effc4;
+  --tm-accent-dark: #18b884;
   
   /* Secondary Accent Colors */
-  --tm-secondary: #6366f1;
-  --tm-secondary-hover: #4f46e5;
-  --tm-secondary-light: #818cf8;
-  --tm-secondary-dark: #4c1d95;
+  --tm-secondary: #f55685;
+  --tm-secondary-hover: #e63c6f;
+  --tm-secondary-light: #ff7aa3;
+  --tm-secondary-dark: #d1365f;
   
   /* Semantic Colors */
   --tm-success: #10b981;
@@ -199,7 +199,7 @@ body {
 .tm-input:focus {
   outline: none;
   border-color: var(--tm-accent);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+  box-shadow: 0 0 0 3px rgba(34, 245, 175, 0.1);
 }
 
 .tm-input::placeholder {
@@ -274,7 +274,7 @@ body {
 }
 
 .tm-badge-accent {
-  background-color: rgba(99, 102, 241, 0.1);
+  background-color: rgba(245, 86, 133, 0.1);
   color: var(--tm-secondary);
 }
 
@@ -293,7 +293,7 @@ body {
 }
 
 .tm-bg-accent-subtle {
-  background-color: rgba(99, 102, 241, 0.1);
+  background-color: rgba(245, 86, 133, 0.1);
 }
 
 /* Border Utilities */
@@ -376,7 +376,7 @@ body {
 /* Focus Styles */
 .tm-focus-ring:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 0 3px rgba(34, 245, 175, 0.2);
 }
 
 /* Utility Classes */
@@ -393,7 +393,7 @@ body {
 }
 
 .tm-glow {
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 20px rgba(34, 245, 175, 0.3);
 }
 
 /* Responsive Utilities */

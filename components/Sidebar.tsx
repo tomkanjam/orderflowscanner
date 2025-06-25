@@ -92,8 +92,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, [aiPrompt]);
 
   return (
-    <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--tm-bg-secondary)] p-4 md:p-6 flex flex-col border-r border-[var(--tm-border)] h-screen overflow-y-auto">
-      <h2 className="text-2xl font-bold text-[var(--tm-accent)] mb-4 tm-heading-lg">AI Screener</h2>
+    <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--tm-bg-secondary)] p-4 md:p-6 flex flex-col border-r border-[var(--tm-border)] h-screen overflow-y-auto relative">
+      {/* Top accent bar */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--tm-accent)] to-[var(--tm-accent-dark)]"></div>
+      <h2 className="text-2xl font-bold mb-4 tm-heading-lg">
+        <span className="text-[var(--tm-accent)]">AI</span> <span className="text-[var(--tm-text-primary)]">Screener</span>
+      </h2>
       <p className="text-[var(--tm-text-muted)] text-sm mb-6">
         Describe technical conditions for your selected interval. The AI will create a filter and suggest chart indicators.
       </p>
@@ -219,7 +223,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           className={`w-full tm-input transition-all duration-300 ${
             showPromptAnimation 
               ? 'border-[var(--tm-accent)] ring-2 ring-[var(--tm-accent)] ring-opacity-50' 
-              : ''
+              : 'focus:border-[var(--tm-accent)] focus:ring-2 focus:ring-[var(--tm-accent)] focus:ring-opacity-30'
           }`}
           placeholder={`e.g., price crossed 20 MA up on high volume (for ${klineInterval})`}
         />
@@ -246,7 +250,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="mt-3 space-y-2">
           {streamingProgress && (
             <div className="flex items-center gap-2 text-sm text-[var(--tm-text-secondary)]">
-              <div className={`rounded-full h-2 w-2 ${isAiScreenerLoading ? 'animate-pulse bg-[var(--tm-secondary)]' : 'bg-[var(--tm-success)]'}`}></div>
+              <div className={`rounded-full h-2 w-2 ${isAiScreenerLoading ? 'animate-pulse bg-[var(--tm-accent)]' : 'bg-[var(--tm-success)]'}`}></div>
               <span className="font-medium">{streamingProgress}</span>
             </div>
           )}
@@ -287,7 +291,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
           {tokenUsage && (
-            <div className="mt-3 p-3 bg-[var(--tm-secondary)]/10 border border-[var(--tm-secondary)]/20 rounded-md text-xs text-[var(--tm-text-muted)] space-y-1">
+            <div className="mt-3 p-3 bg-[var(--tm-accent)]/10 border border-[var(--tm-accent)]/20 rounded-md text-xs text-[var(--tm-text-muted)] space-y-1">
               <div className="flex justify-between">
                 <span>Prompt tokens:</span>
                 <span className="text-[var(--tm-text-secondary)]">{tokenUsage.prompt.toLocaleString()}</span>
@@ -296,9 +300,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <span>Response tokens:</span>
                 <span className="text-[var(--tm-text-secondary)]">{tokenUsage.response.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between border-t border-[var(--tm-secondary)]/20 pt-1">
+              <div className="flex justify-between border-t border-[var(--tm-accent)]/20 pt-1">
                 <span>Total tokens:</span>
-                <span className="font-medium text-[var(--tm-secondary-light)]">{tokenUsage.total.toLocaleString()}</span>
+                <span className="font-medium text-[var(--tm-accent-light)]">{tokenUsage.total.toLocaleString()}</span>
               </div>
             </div>
           )}

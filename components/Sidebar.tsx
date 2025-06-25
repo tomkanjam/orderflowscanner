@@ -120,7 +120,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="mb-4">
         <button
           onClick={() => setIsAdvancedSettingsOpen(!isAdvancedSettingsOpen)}
-          className="w-full flex items-center justify-between tm-btn tm-btn-accent-outline p-3"
+          className="w-full flex items-center justify-between tm-btn tm-btn-secondary p-3"
         >
           <span className="font-medium">Advanced Settings</span>
           <svg 

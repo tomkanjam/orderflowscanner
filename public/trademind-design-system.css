@@ -15,10 +15,10 @@
   --tm-text-inverse: #0a0a0b;
   
   /* Primary Accent Colors */
-  --tm-accent: #22f5af;
-  --tm-accent-hover: #1dd99a;
-  --tm-accent-light: #4effc4;
-  --tm-accent-dark: #18b884;
+  --tm-accent: #8efbba;
+  --tm-accent-hover: #7ae8a5;
+  --tm-accent-light: #a6fccf;
+  --tm-accent-dark: #6dd794;
   
   /* Secondary Accent Colors */
   --tm-secondary: #f55685;
@@ -199,7 +199,7 @@ body {
 .tm-input:focus {
   outline: none;
   border-color: var(--tm-accent);
-  box-shadow: 0 0 0 3px rgba(34, 245, 175, 0.1);
+  box-shadow: 0 0 0 3px rgba(142, 251, 186, 0.1);
 }
 
 .tm-input::placeholder {
@@ -376,7 +376,7 @@ body {
 /* Focus Styles */
 .tm-focus-ring:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(34, 245, 175, 0.2);
+  box-shadow: 0 0 0 3px rgba(142, 251, 186, 0.2);
 }
 
 /* Utility Classes */
@@ -393,7 +393,7 @@ body {
 }
 
 .tm-glow {
-  box-shadow: 0 0 20px rgba(34, 245, 175, 0.3);
+  box-shadow: 0 0 20px rgba(142, 251, 186, 0.3);
 }
 
 /* Responsive Utilities */

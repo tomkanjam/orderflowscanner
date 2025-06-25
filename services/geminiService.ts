@@ -152,7 +152,7 @@ indicators: An array of custom indicator configurations for charting. Each indic
       "style": {                          // Styling configuration
         "color": "#hex" or ["#hex1", "#hex2", ...],  // Single color or array for multi-line
         "lineWidth": 1.5,                // Line thickness (for line charts)
-        "fillColor": "#hexWithAlpha"     // Optional area fill (e.g., "#22f5af33")
+        "fillColor": "#hexWithAlpha"     // Optional area fill (e.g., "#8efbba33")
       },
       "yAxisConfig": {                    // Optional Y-axis configuration
         "min": 0,                        // Minimum value
@@ -177,7 +177,7 @@ indicators: An array of custom indicator configurations for charting. Each indic
     - Custom combinations or proprietary calculations
 
     Color Guidelines:
-    - Blue shades (#22f5af, #818cf8): Primary indicators, bullish signals
+    - Blue shades (#8efbba, #818cf8): Primary indicators, bullish signals
     - Red shades (#ef4444, #f87171): Bearish signals, resistance
     - Green (#10b981, #34d399): Positive/bullish confirmation
     - Yellow/Orange (#f59e0b, #fbbf24): Neutral, warning signals
@@ -193,7 +193,7 @@ Example Indicators:
   "panel": false,
   "calculateFunction": "const ma = helpers.calculateMASeries(klines, 20); return ma.map((val, i) => ({x: klines[i][0], y: val}));",
   "chartType": "line",
-  "style": { "color": "#22f5af", "lineWidth": 1.5 }
+  "style": { "color": "#8efbba", "lineWidth": 1.5 }
 }
 
 // RSI with overbought/oversold lines (separate panel)
@@ -234,7 +234,7 @@ Example Indicators:
   "panel": true,
   "calculateFunction": "const macd = helpers.calculateMACDValues(klines, 12, 26, 9); return klines.map((k, i) => ({x: k[0], y: macd.macdLine[i], y2: macd.signalLine[i], y3: macd.histogram[i], color: macd.histogram[i] >= 0 ? '#10b98166' : '#ef444466'}));",
   "chartType": "line",
-  "style": { "color": ["#22f5af", "#f59e0b", "transparent"] }
+  "style": { "color": ["#8efbba", "#f59e0b", "transparent"] }
 }
 
 // HVN Support/Resistance Levels (overlay on price, horizontal lines)
@@ -485,7 +485,7 @@ indicators: An array of custom indicator configurations for charting. Each indic
       "style": {                          // Styling configuration
         "color": "#hex" or ["#hex1", "#hex2", ...],  // Single color or array for multi-line
         "lineWidth": 1.5,                // Line thickness (for line charts)
-        "fillColor": "#hexWithAlpha"     // Optional area fill (e.g., "#22f5af33")
+        "fillColor": "#hexWithAlpha"     // Optional area fill (e.g., "#8efbba33")
       },
       "yAxisConfig": {                    // Optional Y-axis configuration
         "min": 0,                        // Minimum value
@@ -510,7 +510,7 @@ indicators: An array of custom indicator configurations for charting. Each indic
     - Custom combinations or proprietary calculations
 
     Color Guidelines:
-    - Blue shades (#22f5af, #818cf8): Primary indicators, bullish signals
+    - Blue shades (#8efbba, #818cf8): Primary indicators, bullish signals
     - Red shades (#ef4444, #f87171): Bearish signals, resistance
     - Green (#10b981, #34d399): Positive/bullish confirmation
     - Yellow/Orange (#f59e0b, #fbbf24): Neutral, warning signals
@@ -526,7 +526,7 @@ Example Indicators:
   "panel": false,
   "calculateFunction": "const ma = helpers.calculateMASeries(klines, 20); return ma.map((val, i) => ({x: klines[i][0], y: val}));",
   "chartType": "line",
-  "style": { "color": "#22f5af", "lineWidth": 1.5 }
+  "style": { "color": "#8efbba", "lineWidth": 1.5 }
 }
 
 // RSI with overbought/oversold lines (separate panel)
@@ -567,7 +567,7 @@ Example Indicators:
   "panel": true,
   "calculateFunction": "const macd = helpers.calculateMACDValues(klines, 12, 26, 9); return klines.map((k, i) => ({x: k[0], y: macd.macdLine[i], y2: macd.signalLine[i], y3: macd.histogram[i], color: macd.histogram[i] >= 0 ? '#10b98166' : '#ef444466'}));",
   "chartType": "line",
-  "style": { "color": ["#22f5af", "#f59e0b", "transparent"] }
+  "style": { "color": ["#8efbba", "#f59e0b", "transparent"] }
 }
 
 // HVN Support/Resistance Levels (overlay on price, horizontal lines)

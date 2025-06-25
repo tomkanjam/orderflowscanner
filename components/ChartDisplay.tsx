@@ -296,7 +296,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 // Handle multi-line indicators
                 const colors = Array.isArray(indicator.style.color) 
                     ? indicator.style.color 
-                    : [indicator.style.color || '#22f5af'];
+                    : [indicator.style.color || '#8efbba'];
                 
                 // Create dataset for each y value
                 const lineNames = ['', ' Upper', ' Lower', ' 4th'];
@@ -326,7 +326,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     data: dataPoints.map(p => ({x: p.x, y: p.y})),
                     borderColor: Array.isArray(indicator.style.color) 
                         ? indicator.style.color[0] 
-                        : (indicator.style.color || '#22f5af'),
+                        : (indicator.style.color || '#8efbba'),
                     borderWidth: indicator.style.lineWidth || 1.5,
                     pointRadius: 0,
                     yAxisID: 'yPrice',
@@ -471,7 +471,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
             if (hasMultipleLines) {
                 const colors = Array.isArray(indicator.style.color) 
                     ? indicator.style.color 
-                    : [indicator.style.color || '#22f5af'];
+                    : [indicator.style.color || '#8efbba'];
                 
                 const lineNames = ['', ' Signal', ' Lower', ' 4th'];
                 ['y', 'y2', 'y3', 'y4'].forEach((key, idx) => {
@@ -512,7 +512,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     data: dataPoints.map(p => ({x: p.x, y: p.y})),
                     borderColor: Array.isArray(indicator.style.color) 
                         ? indicator.style.color[0] 
-                        : (indicator.style.color || '#22f5af'),
+                        : (indicator.style.color || '#8efbba'),
                     borderWidth: indicator.style.lineWidth || 1.5,
                     pointRadius: 0,
                     fill: indicator.style.fillColor ? {

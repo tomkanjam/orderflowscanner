@@ -116,7 +116,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="mb-4">
         <button
           onClick={() => setIsAdvancedSettingsOpen(!isAdvancedSettingsOpen)}
-          className="w-full flex items-center justify-between tm-btn tm-btn-secondary p-3"
+          className="w-full flex items-center justify-between tm-btn tm-btn-accent-outline p-3"
         >
           <span className="font-medium">Advanced Settings</span>
           <svg 
@@ -246,7 +246,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="mt-3 space-y-2">
           {streamingProgress && (
             <div className="flex items-center gap-2 text-sm text-[var(--tm-text-secondary)]">
-              <div className={`rounded-full h-2 w-2 ${isAiScreenerLoading ? 'animate-pulse bg-[var(--tm-accent)]' : 'bg-[var(--tm-success)]'}`}></div>
+              <div className={`rounded-full h-2 w-2 ${isAiScreenerLoading ? 'animate-pulse bg-[var(--tm-secondary)]' : 'bg-[var(--tm-success)]'}`}></div>
               <span className="font-medium">{streamingProgress}</span>
             </div>
           )}
@@ -281,24 +281,24 @@ const Sidebar: React.FC<SidebarProps> = ({
             </button>
             <button
               onClick={onShowAiResponse} // Renamed
-              className="w-full tm-btn tm-btn-ghost font-bold py-2 px-4 text-sm"
+              className="w-full tm-btn tm-btn-accent-outline font-bold py-2 px-4 text-sm"
             >
               📄 Show Response 
             </button>
           </div>
           {tokenUsage && (
-            <div className="mt-3 text-xs text-[var(--tm-text-muted)] space-y-1">
+            <div className="mt-3 p-3 bg-[var(--tm-secondary)]/10 border border-[var(--tm-secondary)]/20 rounded-md text-xs text-[var(--tm-text-muted)] space-y-1">
               <div className="flex justify-between">
                 <span>Prompt tokens:</span>
-                <span>{tokenUsage.prompt.toLocaleString()}</span>
+                <span className="text-[var(--tm-text-secondary)]">{tokenUsage.prompt.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span>Response tokens:</span>
-                <span>{tokenUsage.response.toLocaleString()}</span>
+                <span className="text-[var(--tm-text-secondary)]">{tokenUsage.response.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between border-t border-[var(--tm-border-light)] pt-1">
+              <div className="flex justify-between border-t border-[var(--tm-secondary)]/20 pt-1">
                 <span>Total tokens:</span>
-                <span className="font-medium">{tokenUsage.total.toLocaleString()}</span>
+                <span className="font-medium text-[var(--tm-secondary-light)]">{tokenUsage.total.toLocaleString()}</span>
               </div>
             </div>
           )}

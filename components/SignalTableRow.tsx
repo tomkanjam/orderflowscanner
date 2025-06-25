@@ -106,7 +106,7 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
       {/* Count column - Hidden for now */}
       {/* <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-center">
         <span className={`inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 text-xs font-semibold rounded-full ${
-          signal.count > 1 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-zinc-700/50 text-zinc-400'
+          signal.count > 1 ? 'bg-[var(--tm-secondary)]/20 text-[var(--tm-secondary-light)]' : 'bg-zinc-700/50 text-zinc-400'
         }`}>
           {signal.count || 1}
         </span>
@@ -143,7 +143,7 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
             <span className={`px-2 py-1 text-xs font-bold rounded ${
               signal.tradeDecision === 'BUY' ? 'bg-green-500 text-white' :
               signal.tradeDecision === 'SELL' ? 'bg-red-500 text-white' :
-              signal.tradeDecision === 'HOLD' ? 'bg-blue-500 text-white' :
+              signal.tradeDecision === 'HOLD' ? 'bg-[var(--tm-secondary)] text-white' :
               'bg-zinc-600 text-white'
             }`} title={signal.reasoning || ''}>
               {signal.tradeDecision}

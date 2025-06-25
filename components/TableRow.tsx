@@ -93,7 +93,7 @@ const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onA
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-center">
         <button
-          className="text-[var(--tm-info)] hover:text-[var(--tm-info-light)] text-2xl p-1 focus:outline-none tm-focus-ring"
+          className="text-[var(--tm-secondary)] hover:text-[var(--tm-secondary-light)] text-2xl p-1 focus:outline-none tm-focus-ring"
           data-symbol={symbol}
           onClick={(e) => onAiInfoClick(symbol, e)}
           title={`AI Analysis for ${symbol}`}

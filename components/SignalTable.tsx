@@ -130,7 +130,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
             {!isHistoricalScanning ? (
               <button
                 onClick={onRunHistoricalScan}
-                className="tm-btn tm-btn-ghost font-medium px-3 py-1 text-sm whitespace-nowrap"
+                className="tm-btn tm-btn-accent font-medium px-3 py-1 text-sm whitespace-nowrap"
               >
                 📊 Scan {historicalSignals.length > 0 ? `(${historicalSignals.length})` : ''}
               </button>
@@ -140,7 +140,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
                   <div className="flex items-center gap-2 text-sm">
                     <div className="w-24 bg-[var(--tm-bg-hover)] rounded-full h-1.5">
                       <div 
-                        className="bg-[var(--tm-accent)] h-1.5 rounded-full transition-all duration-300"
+                        className="bg-[var(--tm-secondary)] h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${historicalScanProgress.percentComplete}%` }}
                       />
                     </div>
@@ -189,7 +189,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
             {/* Separator row */}
             {historicalSignalsWithPrices.length > 0 && (
               <tr className="bg-[var(--tm-bg-tertiary)]/50 border-t border-b border-[var(--tm-border-light)]">
-                <td colSpan={5} className="text-center py-2 text-sm text-[var(--tm-accent)] font-medium">
+                <td colSpan={5} className="text-center py-2 text-sm text-[var(--tm-secondary)] font-medium">
                   📊 Historical Signals (Found in Past Data)
                 </td>
               </tr>

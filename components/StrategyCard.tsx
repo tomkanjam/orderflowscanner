@@ -15,7 +15,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoadi
       case '5m':
         return 'bg-[var(--tm-warning)]/20 text-[var(--tm-warning-light)] border-[var(--tm-warning)]/30';
       case '15m':
-        return 'bg-[var(--tm-info)]/20 text-[var(--tm-info-light)] border-[var(--tm-info)]/30';
+        return 'bg-[var(--tm-secondary)]/20 text-[var(--tm-secondary-light)] border-[var(--tm-secondary)]/30';
       case '1h':
         return 'bg-[var(--tm-success)]/20 text-[var(--tm-success-light)] border-[var(--tm-success)]/30';
       default:

@@ -152,7 +152,7 @@ indicators: An array of custom indicator configurations for charting. Each indic
     - Trend indicators (MACD, ADX, Aroon, etc.)
     - Volatility indicators (Bollinger Bands, ATR, Keltner Channels, etc.)
     - Volume indicators (OBV, Volume Profile, MFI, etc.)
-    - VWAP: For daily reset, calculate candles since day start. See VWAP example.
+    - VWAP: Use basic VWAP by default. Only include bands when user specifically mentions "VWAP bands", "VWAP with standard deviation", or similar. For daily reset, calculate candles since day start.
     - Custom combinations or proprietary calculations
 
     Color Guidelines:
@@ -226,14 +226,25 @@ Example Indicators:
   "style": { "color": ["#f59e0b", "#f59e0b99", "#f59e0b66", "#f59e0b33"], "lineWidth": [2, 1.5, 1, 1] }
 }
 
-// VWAP with bands (overlay on price)
+// VWAP (overlay on price)
 // IMPORTANT: Daily VWAP resets at 00:00 UTC (Binance server time)
 // For other reset times, user should specify in their prompt
+// Basic VWAP without bands (default):
 {
   "id": "vwap_daily",
   "name": "VWAP (Daily)",
   "panel": false,
-  "calculateFunction": "// Calculate candles since UTC midnight for daily reset\nconst lastKlineTime = klines[klines.length-1][0];\nconst lastDate = new Date(lastKlineTime);\n// Get UTC midnight of the current day\nconst utcMidnight = Date.UTC(lastDate.getUTCFullYear(), lastDate.getUTCMonth(), lastDate.getUTCDate(), 0, 0, 0, 0);\nlet candlesSinceMidnight = 0;\n// Count candles since UTC midnight\nfor (let i = klines.length - 1; i >= 0; i--) {\n  if (klines[i][0] < utcMidnight) break;\n  candlesSinceMidnight++;\n}\n// Use all klines if no candles found since midnight (for safety)\nconst anchorPeriod = candlesSinceMidnight > 0 ? candlesSinceMidnight : undefined;\nconst bands = helpers.calculateVWAPBands(klines, anchorPeriod, 1);\nreturn klines.map((k, i) => ({x: k[0], y: bands.vwap[i], y2: bands.upperBand[i], y3: bands.lowerBand[i]}));",
+  "calculateFunction": "// Calculate candles since UTC midnight for daily reset\nconst lastKlineTime = klines[klines.length-1][0];\nconst lastDate = new Date(lastKlineTime);\n// Get UTC midnight of the current day\nconst utcMidnight = Date.UTC(lastDate.getUTCFullYear(), lastDate.getUTCMonth(), lastDate.getUTCDate(), 0, 0, 0, 0);\nlet candlesSinceMidnight = 0;\n// Count candles since UTC midnight\nfor (let i = klines.length - 1; i >= 0; i--) {\n  if (klines[i][0] < utcMidnight) break;\n  candlesSinceMidnight++;\n}\n// Use all klines if no candles found since midnight (for safety)\nconst anchorPeriod = candlesSinceMidnight > 0 ? candlesSinceMidnight : undefined;\nconst vwapSeries = helpers.calculateVWAPSeries(klines, anchorPeriod);\nreturn klines.map((k, i) => ({x: k[0], y: vwapSeries[i]}));",
+  "chartType": "line",
+  "style": { "color": "#9333ea", "lineWidth": 2 }
+}
+
+// VWAP with standard deviation bands (only when user mentions "VWAP bands", "VWAP with bands", "VWAP standard deviation", etc.):
+{
+  "id": "vwap_daily_bands",
+  "name": "VWAP with Bands",
+  "panel": false,
+  "calculateFunction": "// Calculate candles since UTC midnight for daily reset\nconst lastKlineTime = klines[klines.length-1][0];\nconst lastDate = new Date(lastKlineTime);\n// Get UTC midnight of the current day\nconst utcMidnight = Date.UTC(lastDate.getUTCFullYear(), lastDate.getUTCMonth(), lastDate.getUTCDate(), 0, 0, 0, 0);\nlet candlesSinceMidnight = 0;\n// Count candles since UTC midnight\nfor (let i = klines.length - 1; i >= 0; i--) {\n  if (klines[i][0] < utcMidnight) break;\n  candlesSinceMidnight++;\n}\n// Use all klines if no candles found since midnight (for safety)\nconst anchorPeriod = candlesSinceMidnight > 0 ? candlesSinceMidnight : undefined;\nconst bands = helpers.calculateVWAPBands(klines, anchorPeriod, 2);\nreturn klines.map((k, i) => ({x: k[0], y: bands.vwap[i], y2: bands.upperBand[i], y3: bands.lowerBand[i]}));",
   "chartType": "line",
   "style": { "color": ["#9333ea", "#a855f7", "#a855f7"], "lineWidth": [2, 1, 1] }
 }
@@ -265,6 +276,7 @@ Example HVN-based Response:
 General Guidelines:
 - The \`screenerCode\` string must contain ONLY the JavaScript function body. DO NOT include helper function definitions.
 - The entire response from you MUST be a single valid JSON object as shown in the example, without any surrounding text, comments, or markdown formatting outside the JSON structure itself.
+- For VWAP: Use the basic "vwap_daily" indicator by default. Only use "vwap_daily_bands" when the user explicitly asks for VWAP bands, standard deviation bands, or VWAP with bands.
 `;
   
   let retryAttempted = false;

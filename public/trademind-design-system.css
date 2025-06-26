@@ -424,18 +424,12 @@ select.tm-input option {
 @keyframes tm-signal-appear {
   0% {
     background-color: rgba(142, 251, 186, 0.3);
-    transform: translateX(-10px);
-    opacity: 0.7;
   }
   20% {
     background-color: rgba(142, 251, 186, 0.2);
-    transform: translateX(0);
-    opacity: 1;
   }
   100% {
     background-color: transparent;
-    transform: translateX(0);
-    opacity: 1;
   }
 }
 

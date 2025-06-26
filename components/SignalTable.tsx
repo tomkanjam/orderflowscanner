@@ -43,6 +43,9 @@ const SignalTable: React.FC<SignalTableProps> = ({
 }) => {
   const [loadingStrategyId, setLoadingStrategyId] = useState<string | null>(null);
   const [newSignalTimestamps, setNewSignalTimestamps] = useState<Set<number>>(new Set());
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    return localStorage.getItem('signalSoundEnabled') === 'true';
+  });
 
   const handleStrategySelect = (strategy: PrebuiltStrategy) => {
     if (onSetAiPrompt) {
@@ -58,7 +61,13 @@ const SignalTable: React.FC<SignalTableProps> = ({
     }
   };
 
-  // Track new signals
+  const toggleSound = () => {
+    const newValue = !soundEnabled;
+    setSoundEnabled(newValue);
+    localStorage.setItem('signalSoundEnabled', newValue.toString());
+  };
+
+  // Track new signals and play sound
   useEffect(() => {
     const currentTime = Date.now();
     const twoSecondsAgo = currentTime - 2000;
@@ -75,6 +84,23 @@ const SignalTable: React.FC<SignalTableProps> = ({
         return next;
       });
       
+      // Play sound if enabled
+      if (soundEnabled) {
+        // Create a simple beep sound using Web Audio API
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800; // Frequency in Hz
+        gainNode.gain.value = 0.3; // Volume
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1); // 100ms beep
+      }
+      
       // Clean up old timestamps after animation completes
       setTimeout(() => {
         setNewSignalTimestamps(prev => {
@@ -84,7 +110,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
         });
       }, 2000);
     }
-  }, [signalLog]);
+  }, [signalLog, soundEnabled]);
 
   // Sort live signals by timestamp, newest first
   const sortedLiveSignals = useMemo(() => {
@@ -135,9 +161,20 @@ const SignalTable: React.FC<SignalTableProps> = ({
           </span>
         </div>
         
-        {/* Historical Scanner Controls */}
-        {hasActiveFilter && historicalScanConfig && (
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
+          {/* Sound toggle */}
+          <button
+            onClick={toggleSound}
+            className="flex items-center gap-2 px-3 py-1 text-sm rounded-md bg-[var(--tm-bg-hover)] hover:bg-[var(--tm-bg-active)] transition-colors"
+            title={soundEnabled ? "Disable sound notifications" : "Enable sound notifications"}
+          >
+            <span>{soundEnabled ? '🔔' : '🔕'}</span>
+            <span className="hidden sm:inline">Sound</span>
+          </button>
+          
+          {/* Historical Scanner Controls */}
+          {hasActiveFilter && historicalScanConfig && (
+            <>
             <select 
               value={historicalScanConfig.lookbackBars} 
               onChange={e => onHistoricalScanConfigChange?.({
@@ -186,8 +223,9 @@ const SignalTable: React.FC<SignalTableProps> = ({
                 </button>
               </>
             )}
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
       <div className="overflow-y-auto max-h-[500px] md:max-h-[600px]">
         <table className="w-full tm-table">

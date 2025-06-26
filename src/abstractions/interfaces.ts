@@ -86,6 +86,56 @@ export interface FilterResult {
   matchedConditions: string[];
 }
 
+// Unified Signal Lifecycle Types
+export type SignalStatus = 
+  | 'new'           // Just matched filter
+  | 'analyzing'     // AI analysis in progress
+  | 'rejected'      // AI said bad_setup
+  | 'monitoring'    // AI said good_setup, watching for entry
+  | 'ready'         // AI said enter_trade but not executed
+  | 'in_position'   // Trade is active
+  | 'closed'        // Trade closed
+  | 'expired';      // Signal expired without action
+
+export interface SignalLifecycle {
+  id: string;
+  symbol: string;
+  strategyId: string;
+  
+  // Signal creation
+  createdAt: Date;
+  matchedConditions: string[];
+  initialPrice: number;
+  
+  // Current state
+  status: SignalStatus;
+  currentPrice: number;
+  priceChange: number; // % from initial
+  
+  // Analysis results
+  analysis?: AnalysisResult;
+  analyzedAt?: Date;
+  
+  // Monitoring data
+  monitoringStarted?: Date;
+  monitoringUpdates?: MonitoringUpdate[];
+  
+  // Trade data
+  trade?: Trade;
+  
+  // Performance
+  unrealizedPnl?: number;
+  realizedPnl?: number;
+}
+
+export interface MonitoringUpdate {
+  timestamp: Date;
+  price: number;
+  action: 'continue' | 'enter' | 'cancel';
+  reason: string;
+  confidence?: number;
+}
+
 export interface MarketData {
   symbol: string;
   price: number;
@@ -141,8 +191,9 @@ export interface IAnalysisEngine {
 export interface IMonitoringEngine {
   startMonitoring(userId: string): Promise<void>;
   stopMonitoring(userId: string): Promise<void>;
-  monitorSymbol(watchlistItem: WatchlistItem, strategy: Strategy): Promise<void>;
-  getMonitoringStatus(userId: string): { isActive: boolean; symbolsMonitored: number };
+  monitorSignal(signal: SignalLifecycle, strategy: Strategy): Promise<MonitoringUpdate>;
+  getMonitoringStatus(userId: string): { isActive: boolean; signalsMonitored: number };
+  subscribeToUpdates(callback: (signalId: string, update: MonitoringUpdate) => void): () => void;
 }
 
 export interface TradeDecision {

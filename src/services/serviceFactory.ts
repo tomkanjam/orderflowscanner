@@ -7,9 +7,9 @@ import {
 } from '../abstractions/interfaces';
 import { BrowserScreenerEngine } from '../implementations/browser/browserScreenerEngine';
 import { BrowserAnalysisEngine } from '../implementations/browser/browserAnalysisEngine';
+import { BrowserMonitoringEngine } from '../implementations/browser/browserMonitoringEngine';
 // Import other browser implementations as we create them
 // import { BrowserPersistenceService } from '../implementations/browser/browserPersistenceService';
-// import { BrowserMonitoringEngine } from '../implementations/browser/browserMonitoringEngine';
 
 // Future cloud implementations
 // import { CloudScreenerEngine } from '../implementations/cloud/cloudScreenerEngine';
@@ -91,8 +91,7 @@ export class ServiceFactory {
       console.log('Cloud monitoring would be used for premium tier');
     }
     
-    // return new BrowserMonitoringEngine();
-    throw new Error('MonitoringEngine not implemented yet');
+    return new BrowserMonitoringEngine();
   }
 
   // Helper method to check feature availability

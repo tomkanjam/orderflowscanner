@@ -6,9 +6,9 @@ import {
   ServiceConfig 
 } from '../abstractions/interfaces';
 import { BrowserScreenerEngine } from '../implementations/browser/browserScreenerEngine';
+import { BrowserAnalysisEngine } from '../implementations/browser/browserAnalysisEngine';
 // Import other browser implementations as we create them
 // import { BrowserPersistenceService } from '../implementations/browser/browserPersistenceService';
-// import { BrowserAnalysisEngine } from '../implementations/browser/browserAnalysisEngine';
 // import { BrowserMonitoringEngine } from '../implementations/browser/browserMonitoringEngine';
 
 // Future cloud implementations
@@ -80,8 +80,7 @@ export class ServiceFactory {
   }
 
   static getAnalysis(): IAnalysisEngine {
-    // return new BrowserAnalysisEngine();
-    throw new Error('AnalysisEngine not implemented yet');
+    return new BrowserAnalysisEngine();
   }
 
   static getMonitoring(): IMonitoringEngine {

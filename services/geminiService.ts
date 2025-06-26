@@ -927,6 +927,104 @@ Consider overall market sentiment if inferable from this limited data.
 }
 
 
+export async function generateStructuredAnalysis(
+    symbol: string,
+    marketData: { price: number; volume: number; klines: Kline[] },
+    strategy: string,
+    modelName: string = 'gemini-1.5-flash-latest'
+): Promise<string> {
+    const technicalIndicators = {
+        currentPrice: marketData.price,
+        sma20: helpers.calculateMA(marketData.klines, 20),
+        rsi: helpers.getLatestRSI(marketData.klines, 14),
+        macd: helpers.getLatestMACD(marketData.klines),
+        volume: marketData.volume,
+    };
+    
+    const prompt = `
+You are an expert trading analyst. Analyze this ${symbol} setup and provide a structured JSON response.
+
+Strategy: ${strategy}
+
+Current Market Data:
+- Price: $${marketData.price}
+- 24h Volume: ${marketData.volume}
+
+Technical Indicators:
+${JSON.stringify(technicalIndicators, null, 2)}
+
+Return ONLY a valid JSON object with this exact structure:
+{
+  "decision": "bad_setup" | "good_setup" | "enter_trade",
+  "direction": "long" | "short" (only if decision is "enter_trade"),
+  "confidence": 0.0-1.0,
+  "reasoning": "Detailed explanation based on the strategy",
+  "keyLevels": {
+    "entry": number,
+    "stopLoss": number,
+    "takeProfit": [number, number, number],
+    "support": [number],
+    "resistance": [number]
+  },
+  "chartAnalysis": "Technical analysis of the current setup"
+}
+
+Focus on:
+1. How well the current setup matches the strategy criteria
+2. Risk/reward ratio
+3. Market structure and trend
+4. Key support/resistance levels
+5. Entry timing
+
+Be decisive and specific. Only suggest "enter_trade" if the setup strongly matches the strategy with good risk/reward.
+`;
+
+    const startTime = Date.now();
+    
+    try {
+        const model = getGenerativeModel(ai, { 
+            model: modelName,
+            generationConfig: {
+                responseMimeType: "application/json",
+            }
+        });
+        
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        const text = response.text();
+        
+        // Track successful analysis
+        await observability.trackAnalysis(
+            'structured',
+            modelName,
+            prompt,
+            text,
+            response.usageMetadata,
+            Date.now() - startTime,
+            symbol
+        );
+        
+        return text;
+    } catch (error) {
+        console.error(`Error generating structured analysis for ${symbol}:`, error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        // Track error
+        await observability.trackAnalysis(
+            'structured',
+            modelName,
+            prompt,
+            null,
+            null,
+            Date.now() - startTime,
+            symbol,
+            errorMessage
+        );
+        
+        throw new Error(`Structured analysis failed for ${symbol}: ${errorMessage}`);
+    }
+}
+
 export async function getSymbolAnalysis(
     symbol: string,
     ticker: Ticker,

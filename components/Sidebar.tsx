@@ -266,19 +266,28 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       {aiFilterDescription && aiFilterDescription.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold text-[var(--tm-text-primary)] border-b border-[var(--tm-border-light)] pb-2 mb-3 tm-heading-md">Active Conditions:</h3>
-          <ul className="list-disc list-inside text-[var(--tm-text-secondary)] space-y-1 text-sm">
+        <div className="mt-6 bg-[var(--tm-bg-tertiary)] rounded-lg p-4 border border-[var(--tm-border-light)]">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-[var(--tm-accent)] animate-pulse"></div>
+            <h3 className="text-base font-semibold text-[var(--tm-text-primary)] tm-heading-md">Active Filter</h3>
+          </div>
+          <div className="space-y-2">
             {aiFilterDescription.map((desc, index) => (
-              <li key={index}>{desc}</li>
+              <div key={index} className="flex items-start gap-2">
+                <span className="text-[var(--tm-accent)] mt-0.5 text-xs">▸</span>
+                <p className="text-[var(--tm-text-secondary)] text-sm leading-relaxed flex-1">{desc}</p>
+              </div>
             ))}
-          </ul>
-          <div className="mt-4">
+          </div>
+          <div className="mt-4 pt-3 border-t border-[var(--tm-border-light)]">
             <button
-              onClick={onShowAiResponse} // Renamed
-              className="w-full tm-btn tm-btn-accent-outline font-bold py-2 px-4 text-sm"
+              onClick={onShowAiResponse}
+              className="w-full tm-btn tm-btn-secondary py-2 px-3 text-xs font-medium flex items-center justify-center gap-2"
             >
-              📄 Show Response 
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              View Full Response
             </button>
           </div>
         </div>

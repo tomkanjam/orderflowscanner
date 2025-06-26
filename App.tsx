@@ -442,7 +442,6 @@ const App: React.FC = () => {
     setSignalLog([]); // Clear signal log for new filter
     setStreamingProgress('');
     setStreamingTokenCount(0);
-    setTokenUsage(null);
 
     try {
       const response: AiFilterResponse = await generateFilterAndChartConfigStream(

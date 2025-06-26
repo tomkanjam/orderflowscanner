@@ -86,19 +86,36 @@ const SignalTable: React.FC<SignalTableProps> = ({
       
       // Play sound if enabled
       if (soundEnabled) {
-        // Create a simple beep sound using Web Audio API
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 800; // Frequency in Hz
-        gainNode.gain.value = 0.3; // Volume
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.1); // 100ms beep
+        try {
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const now = audioContext.currentTime;
+          
+          // Create a pleasant two-tone notification sound
+          const createTone = (frequency: number, startTime: number, duration: number) => {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.value = frequency;
+            
+            // Envelope shaping for smoother sound
+            gainNode.gain.setValueAtTime(0, startTime);
+            gainNode.gain.linearRampToValueAtTime(0.2, startTime + 0.01); // Quick fade in
+            gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration - 0.01); // Fade out
+            
+            oscillator.start(startTime);
+            oscillator.stop(startTime + duration);
+          };
+          
+          // Play two ascending tones for a pleasant notification
+          createTone(523.25, now, 0.12);          // C5
+          createTone(659.25, now + 0.1, 0.15);   // E5
+        } catch (err) {
+          console.log('Could not play notification sound:', err);
+        }
       }
       
       // Clean up old timestamps after animation completes

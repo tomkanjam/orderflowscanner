@@ -221,6 +221,69 @@ const AppContent: React.FC = () => {
     localStorage.setItem('signalHistory', JSON.stringify(historyObj));
   }, [signalHistory]);
 
+  // Create stable handlers using useCallback
+  const handleTickerUpdateStable = useCallback((tickerUpdate: Ticker) => {
+    setTickers(prevTickers => {
+      const newTickers = new Map(prevTickers);
+      newTickers.set(tickerUpdate.s, tickerUpdate);
+      return newTickers;
+    });
+  }, []);
+
+  const handleKlineUpdateStable = useCallback((symbol: string, kline: Kline, isClosed: boolean) => {
+    // Track bar counts for signal deduplication
+    if (isClosed) {
+      const currentCount = klineUpdateCountRef.current.get(symbol) || 0;
+      klineUpdateCountRef.current.set(symbol, currentCount + 1);
+      
+      // Increment bar counts in signal history
+      setSignalHistory(prev => {
+        const newHistory = new Map(prev);
+        const entry = newHistory.get(symbol);
+        if (entry) {
+          newHistory.set(symbol, {
+            ...entry,
+            barCount: entry.barCount + 1
+          });
+        }
+        return newHistory;
+      });
+    }
+    
+    setHistoricalData(prevKlines => {
+      const newKlinesMap = new Map(prevKlines);
+      const symbolKlines = newKlinesMap.get(symbol) ? [...newKlinesMap.get(symbol)!] : [];
+      
+      if (symbolKlines.length === 0) { 
+          symbolKlines.push(kline);
+      } else {
+          if (isClosed) {
+              if(kline[0] > symbolKlines[symbolKlines.length - 1][0]) {
+                  symbolKlines.push(kline);
+                  if (symbolKlines.length > KLINE_HISTORY_LIMIT) {
+                      symbolKlines.shift();
+                  }
+              } else if (kline[0] === symbolKlines[symbolKlines.length - 1][0]) {
+                  symbolKlines[symbolKlines.length - 1] = kline;
+              }
+
+          } else { 
+              if (symbolKlines.length > 0 && symbolKlines[symbolKlines.length - 1][0] === kline[0]) {
+                  symbolKlines[symbolKlines.length - 1] = kline;
+              } else {
+                  symbolKlines.push(kline);
+                   if (symbolKlines.length > KLINE_HISTORY_LIMIT) {
+                      symbolKlines.shift();
+                  }
+              }
+          }
+      }
+      newKlinesMap.set(symbol, symbolKlines);
+      
+      return newKlinesMap;
+    });
+  }, []);
+
   // Separate WebSocket connection effect with stable dependencies
   useEffect(() => {
     // Only proceed if we have symbols and no error
@@ -234,63 +297,13 @@ const AppContent: React.FC = () => {
 
     const handleTickerUpdate = (tickerUpdate: Ticker) => {
       if (!isCleanedUp) {
-        setTickers(prevTickers => new Map(prevTickers).set(tickerUpdate.s, tickerUpdate));
+        handleTickerUpdateStable(tickerUpdate);
       }
     };
 
     const handleKlineUpdate = (symbol: string, kline: Kline, isClosed: boolean) => {
       if (!isCleanedUp) {
-        // Track bar counts for signal deduplication
-        if (isClosed) {
-          const currentCount = klineUpdateCountRef.current.get(symbol) || 0;
-          klineUpdateCountRef.current.set(symbol, currentCount + 1);
-          
-          // Increment bar counts in signal history
-          setSignalHistory(prev => {
-            const newHistory = new Map(prev);
-            const entry = newHistory.get(symbol);
-            if (entry) {
-              newHistory.set(symbol, {
-                ...entry,
-                barCount: entry.barCount + 1
-              });
-            }
-            return newHistory;
-          });
-        }
-        
-        setHistoricalData(prevKlines => {
-          const newKlinesMap = new Map(prevKlines);
-          const symbolKlines = newKlinesMap.get(symbol) ? [...newKlinesMap.get(symbol)!] : [];
-          
-          if (symbolKlines.length === 0) { 
-              symbolKlines.push(kline);
-          } else {
-              if (isClosed) {
-                  if(kline[0] > symbolKlines[symbolKlines.length - 1][0]) {
-                      symbolKlines.push(kline);
-                      if (symbolKlines.length > KLINE_HISTORY_LIMIT) {
-                          symbolKlines.shift();
-                      }
-                  } else if (kline[0] === symbolKlines[symbolKlines.length - 1][0]) {
-                      symbolKlines[symbolKlines.length - 1] = kline;
-                  }
-
-              } else { 
-                  if (symbolKlines.length > 0 && symbolKlines[symbolKlines.length - 1][0] === kline[0]) {
-                      symbolKlines[symbolKlines.length - 1] = kline;
-                  } else {
-                      symbolKlines.push(kline);
-                       if (symbolKlines.length > KLINE_HISTORY_LIMIT) {
-                          symbolKlines.shift();
-                      }
-                  }
-              }
-          }
-          newKlinesMap.set(symbol, symbolKlines);
-          
-          return newKlinesMap;
-        });
+        handleKlineUpdateStable(symbol, kline, isClosed);
       }
     };
     
@@ -367,8 +380,8 @@ const AppContent: React.FC = () => {
         }
       }
     };
-  // Only re-run when symbols or interval changes
-  }, [allSymbols, klineInterval]); 
+  // Only re-run when symbols or interval changes, plus stable handlers
+  }, [allSymbols, klineInterval, handleTickerUpdateStable, handleKlineUpdateStable]); 
 
   const handleNewSignal = useCallback((symbol: string, timestamp: number) => {
     const tickerData = tickers.get(symbol);

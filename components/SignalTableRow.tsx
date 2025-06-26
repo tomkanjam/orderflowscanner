@@ -35,7 +35,7 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
       } else if (currentPrice < prevPrice) {
         setPriceFlashClass('text-[var(--tm-error)]');
       }
-      setFlashEndTime(Date.now() + 700);
+      setFlashEndTime(Date.now()); // Just use current time as a trigger
       setPrevPrice(currentPrice);
     }
   }, [currentPrice, prevPrice]);
@@ -43,17 +43,12 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
   // Handle returning to white after flash duration
   useEffect(() => {
     if (flashEndTime > 0) {
-      const timeUntilEnd = flashEndTime - Date.now();
-      if (timeUntilEnd <= 0) {
+      const timer = setTimeout(() => {
         setPriceFlashClass('');
         setFlashEndTime(0);
-      } else {
-        const timer = setTimeout(() => {
-          setPriceFlashClass('');
-          setFlashEndTime(0);
-        }, timeUntilEnd);
-        return () => clearTimeout(timer);
-      }
+      }, 700); // Fixed duration of 700ms
+      
+      return () => clearTimeout(timer);
     }
   }, [flashEndTime]);
 

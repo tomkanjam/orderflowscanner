@@ -305,24 +305,26 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
       
       
-      {/* Strategy Section - Hidden for now */}
-      {/* <div className="mt-6">
-        <h2 className="text-xl font-bold text-yellow-400 mb-4">Strategy</h2>
-        <p className="text-zinc-400 text-sm mb-4">
-          Define your trading strategy for signal analysis.
+      {/* Strategy Section */}
+      <div className="mt-6 border-t border-[var(--tm-border)] pt-6">
+        <h2 className="text-lg font-bold mb-2 tm-heading-md">
+          <span className="text-[var(--tm-secondary)]">Trading</span> <span className="text-[var(--tm-text-primary)]">Strategy</span>
+        </h2>
+        <p className="text-[var(--tm-text-muted)] text-sm mb-4">
+          Define your trading strategy for signal analysis and backtesting.
         </p>
         <div className="mb-4">
-          <label htmlFor="strategy-input" className="text-zinc-300 font-medium mb-1 block text-sm">Your Strategy:</label>
+          <label htmlFor="strategy-input" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">Your Strategy:</label>
           <textarea
             id="strategy-input"
             rows={4}
             value={strategy}
             onChange={(e) => onStrategyChange(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-2.5 text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-sm"
+            className="w-full tm-input resize-none"
             placeholder="e.g., Buy when RSI < 30 with increasing volume, sell when RSI > 70, hold for at least 4 candles"
           />
         </div>
-      </div> */}
+      </div>
       
       {/* Analyze Market Button - Hidden for now */}
       {/* <div className="mt-auto pt-6">

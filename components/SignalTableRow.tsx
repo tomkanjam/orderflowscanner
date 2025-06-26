@@ -6,6 +6,7 @@ interface SignalTableRowProps {
   currentPrice: number;
   onRowClick: (symbol: string) => void;
   onAiInfoClick: (symbol: string, event: React.MouseEvent) => void;
+  isNew?: boolean;
 }
 
 // Type guard to check if signal is historical
@@ -17,7 +18,8 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
   signal, 
   currentPrice, 
   onRowClick, 
-  onAiInfoClick 
+  onAiInfoClick,
+  isNew = false
 }) => {
   const [priceFlashClass, setPriceFlashClass] = useState('');
   const [prevPrice, setPrevPrice] = useState<number>(currentPrice);
@@ -92,7 +94,7 @@ const SignalTableRow: React.FC<SignalTableRowProps> = ({
 
   return (
     <tr
-      className="hover:bg-[var(--tm-bg-hover)]/50 transition-colors duration-150 cursor-pointer"
+      className={`hover:bg-[var(--tm-bg-hover)]/50 transition-colors duration-150 cursor-pointer ${isNew ? 'tm-new-signal' : ''}`}
       onClick={() => onRowClick(signal.symbol)}
     >
       <td className="p-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-[var(--tm-text-muted)]">

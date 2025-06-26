@@ -416,6 +416,29 @@ select.tm-input option {
   box-shadow: 0 0 20px rgba(142, 251, 186, 0.3);
 }
 
+/* New Signal Animation */
+.tm-new-signal {
+  animation: tm-signal-appear 2s ease-out;
+}
+
+@keyframes tm-signal-appear {
+  0% {
+    background-color: rgba(142, 251, 186, 0.3);
+    transform: translateX(-10px);
+    opacity: 0.7;
+  }
+  20% {
+    background-color: rgba(142, 251, 186, 0.2);
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    background-color: transparent;
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 /* Responsive Utilities */
 @media (max-width: 768px) {
   .tm-hide-mobile {

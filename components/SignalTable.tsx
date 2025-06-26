@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Ticker, SignalLogEntry, HistoricalSignal, CombinedSignal, HistoricalScanConfig, HistoricalScanProgress } from '../types';
 import SignalTableRow from './SignalTableRow';
 import StrategyGrid from './StrategyGrid';
@@ -42,6 +42,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
   onSetAiPrompt,
 }) => {
   const [loadingStrategyId, setLoadingStrategyId] = useState<string | null>(null);
+  const [newSignalTimestamps, setNewSignalTimestamps] = useState<Set<number>>(new Set());
 
   const handleStrategySelect = (strategy: PrebuiltStrategy) => {
     if (onSetAiPrompt) {
@@ -56,6 +57,34 @@ const SignalTable: React.FC<SignalTableProps> = ({
       }, 500);
     }
   };
+
+  // Track new signals
+  useEffect(() => {
+    const currentTime = Date.now();
+    const twoSecondsAgo = currentTime - 2000;
+    
+    // Find signals that are new (within last 2 seconds)
+    const newSignals = signalLog.filter(signal => 
+      signal.timestamp > twoSecondsAgo && !newSignalTimestamps.has(signal.timestamp)
+    );
+    
+    if (newSignals.length > 0) {
+      setNewSignalTimestamps(prev => {
+        const next = new Set(prev);
+        newSignals.forEach(signal => next.add(signal.timestamp));
+        return next;
+      });
+      
+      // Clean up old timestamps after animation completes
+      setTimeout(() => {
+        setNewSignalTimestamps(prev => {
+          const next = new Set(prev);
+          newSignals.forEach(signal => next.delete(signal.timestamp));
+          return next;
+        });
+      }, 2000);
+    }
+  }, [signalLog]);
 
   // Sort live signals by timestamp, newest first
   const sortedLiveSignals = useMemo(() => {
@@ -183,6 +212,7 @@ const SignalTable: React.FC<SignalTableProps> = ({
                 currentPrice={signal.currentPrice}
                 onRowClick={onRowClick}
                 onAiInfoClick={onAiInfoClick}
+                isNew={newSignalTimestamps.has(signal.timestamp)}
               />
             ))}
             

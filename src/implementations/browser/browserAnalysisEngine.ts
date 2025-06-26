@@ -15,7 +15,8 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
     symbol: string, 
     strategy: Strategy, 
     marketData: MarketData, 
-    chartImage?: Blob
+    chartImage?: Blob,
+    modelName: string = 'gemini-2.0-flash-exp' // Default to Gemini 2.0 Flash
   ): Promise<AnalysisResult> {
     try {
       // Calculate technical indicators
@@ -32,7 +33,7 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
         symbol,
         marketData,
         strategy.description,
-        'gemini-1.5-flash-latest' // Default model
+        modelName // Use the model passed in or default
       );
       
       // Parse the structured response from the analysis text

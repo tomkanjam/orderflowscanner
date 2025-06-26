@@ -15,6 +15,7 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash-exp');
 
   const runAnalysis = async () => {
     if (!activeStrategy) {
@@ -30,7 +31,9 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
       const result = await analysisEngine.analyzeSetup(
         symbol,
         activeStrategy,
-        marketData
+        marketData,
+        undefined, // No chart image for now
+        selectedModel
       );
 
       setAnalysis(result);
@@ -78,13 +81,23 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
     <div className="bg-[#0d1421] border border-[#1a2332] rounded-lg p-4">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-[#8efbba]">AI Analysis - {symbol}</h3>
-        <button
-          onClick={runAnalysis}
-          disabled={isAnalyzing || !activeStrategy}
-          className="px-4 py-2 bg-[#8efbba] text-[#0d1421] rounded hover:bg-[#7ce3a8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {isAnalyzing ? 'Analyzing...' : 'Analyze'}
-        </button>
+        <div className="flex items-center gap-3">
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="px-3 py-2 bg-[#1a2332] border border-[#2a3441] rounded text-[#e2e8f0] text-sm"
+          >
+            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Fast)</option>
+            <option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (Advanced)</option>
+          </select>
+          <button
+            onClick={runAnalysis}
+            disabled={isAnalyzing || !activeStrategy}
+            className="px-4 py-2 bg-[#8efbba] text-[#0d1421] rounded hover:bg-[#7ce3a8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+          </button>
+        </div>
       </div>
 
       {!activeStrategy && (
@@ -102,6 +115,11 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
 
       {analysis && (
         <div className="space-y-4">
+          {/* Model indicator */}
+          <div className="text-xs text-[#64748b] text-right">
+            Model: {selectedModel === 'gemini-2.0-flash-exp' ? 'Gemini 2.0 Flash' : 'Gemini 1.5 Pro'}
+          </div>
+          
           {/* Decision */}
           <div className="flex items-center gap-3">
             {getDecisionIcon()}

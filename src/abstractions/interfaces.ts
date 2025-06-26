@@ -133,7 +133,7 @@ export interface IScreenerEngine {
 }
 
 export interface IAnalysisEngine {
-  analyzeSetup(symbol: string, strategy: Strategy, marketData: MarketData, chartImage?: Blob): Promise<AnalysisResult>;
+  analyzeSetup(symbol: string, strategy: Strategy, marketData: MarketData, chartImage?: Blob, modelName?: string): Promise<AnalysisResult>;
   generateTradeDecision(analysis: AnalysisResult): TradeDecision;
   validateAnalysis(analysis: AnalysisResult): boolean;
 }

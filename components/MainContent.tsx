@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from '../types';
-import SignalTable from './SignalTable';
+import { EnhancedSignalsTable } from '../src/components/EnhancedSignalsTable';
 import CryptoTable from './CryptoTable';
 import ChartDisplay from './ChartDisplay';
 import Loader from './Loader';
@@ -83,23 +83,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 historicalSignals={historicalSignals} // Pass historicalSignals to ChartDisplay
               />
               <div className="mt-6 flex-grow">
-                <SignalTable
-                  signalLog={signalLog}
-                  historicalSignals={historicalSignals}
-                  tickers={tickers}
-                  onRowClick={onRowClick}
-                  onAiInfoClick={onAiInfoClick}
-                  isLoading={initialLoading}
-                  hasActiveFilter={hasActiveFilter}
-                  hasActiveScreener={currentFilterFn !== null}
-                  onRunHistoricalScan={onRunHistoricalScan}
-                  isHistoricalScanning={isHistoricalScanning}
-                  historicalScanProgress={historicalScanProgress}
-                  historicalScanConfig={historicalScanConfig}
-                  onHistoricalScanConfigChange={onHistoricalScanConfigChange}
-                  onCancelHistoricalScan={onCancelHistoricalScan}
-                  onSetAiPrompt={onSetAiPrompt}
-                />
+                <EnhancedSignalsTable />
               </div>
               {/* Hidden CryptoTable to keep screener running */}
               <div className="hidden">

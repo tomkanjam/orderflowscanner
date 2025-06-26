@@ -13,6 +13,11 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { useAuth } from './src/hooks/useAuth';
 import { EmailAuthModal } from './src/components/auth/EmailAuthModal';
 import { observability } from './services/observabilityService';
+import { StrategyProvider } from './src/contexts/StrategyContext';
+import { useSignalLifecycle } from './src/hooks/useSignalLifecycle';
+import { useStrategy } from './src/contexts/StrategyContext';
+import { signalManager } from './src/services/signalManager';
+import { tradeManager } from './src/services/tradeManager';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -21,6 +26,7 @@ type ScreenerHelpersType = typeof screenerHelpers;
 observability.setupUnloadHandler();
 
 const AppContent: React.FC = () => {
+  const { activeStrategy } = useStrategy();
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
   const [historicalData, setHistoricalData] = useState<Map<string, Kline[]>>(new Map());
@@ -117,6 +123,20 @@ const AppContent: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState('');
+  
+  // Signal lifecycle hook
+  const { 
+    signals: enhancedSignals,
+    createSignalFromFilter,
+    analyzeSignal,
+    startMonitoring,
+    stopMonitoring,
+    isMonitoring 
+  } = useSignalLifecycle({
+    activeStrategy,
+    autoAnalyze: true,
+    autoMonitor: true,
+  });
 
   // Historical scanner hook
   const {
@@ -253,6 +273,11 @@ const AppContent: React.FC = () => {
         return newHistory;
       });
     }
+    
+    // Update signal and trade managers with current price
+    const currentPrice = parseFloat(kline[4]); // Close price
+    signalManager.updatePrice(symbol, currentPrice);
+    tradeManager.updatePrice(symbol, currentPrice);
     
     setHistoricalData(prevKlines => {
       const newKlinesMap = new Map(prevKlines);
@@ -394,6 +419,19 @@ const AppContent: React.FC = () => {
     // Check signal history for deduplication
     const historyEntry = signalHistory.get(symbol);
     const shouldCreateNewSignal = !historyEntry || historyEntry.barCount >= signalDedupeThreshold;
+    
+    // Create signal through the new signal lifecycle system
+    if (shouldCreateNewSignal && activeStrategy) {
+      const filterResult = {
+        symbol,
+        price: parseFloat(tickerData.c),
+        change24h: parseFloat(tickerData.P),
+        volume24h: parseFloat(tickerData.q),
+        matchedConditions: aiFilterDescription || ['Filter matched'],
+      };
+      
+      createSignalFromFilter(filterResult);
+    }
     
     setSignalLog(prevLog => {
       const shortDesc = aiFilterDescription && aiFilterDescription.length > 0 ? aiFilterDescription[0] : "AI Filter Active";
@@ -804,7 +842,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <StrategyProvider>
+        <AppContent />
+      </StrategyProvider>
     </AuthProvider>
   );
 };

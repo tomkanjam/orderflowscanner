@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { KLINE_INTERVALS, GEMINI_MODELS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL } from '../constants';
 import { KlineInterval, GeminiModelOption, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from '../types';
+import { StrategyManager } from '../src/components/StrategyManager';
+import { PortfolioMetrics } from '../src/components/PortfolioMetrics';
 
 interface SidebarProps {
   klineInterval: KlineInterval;
@@ -324,6 +326,16 @@ const Sidebar: React.FC<SidebarProps> = ({
             placeholder="e.g., Buy when RSI < 30 with increasing volume, sell when RSI > 70, hold for at least 4 candles"
           />
         </div>
+      </div>
+      
+      {/* Strategy Manager */}
+      <div className="mt-6">
+        <StrategyManager />
+      </div>
+      
+      {/* Portfolio Metrics */}
+      <div className="mt-6">
+        <PortfolioMetrics />
       </div>
       
       {/* Analyze Market Button - Hidden for now */}

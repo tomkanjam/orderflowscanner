@@ -1,6 +1,5 @@
 import { IScreenerEngine, MarketData, FilterResult, UpdateCallback } from '../../abstractions/interfaces';
-import { binanceService } from '../../services/binanceService';
-import * as helpers from '../../utils/screenerHelpers';
+import * as helpers from '../../../screenerHelpers';
 
 export class BrowserScreenerEngine implements IScreenerEngine {
   private updateCallbacks: Set<UpdateCallback> = new Set();

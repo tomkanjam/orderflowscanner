@@ -8,7 +8,7 @@ import {
 } from '../../abstractions/interfaces';
 // Import from the correct location
 import { generateStructuredAnalysis } from '../../../services/geminiService';
-import * as helpers from '../../utils/screenerHelpers';
+import * as helpers from '../../../screenerHelpers';
 
 export class BrowserAnalysisEngine implements IAnalysisEngine {
   async analyzeSetup(

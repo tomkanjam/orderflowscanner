@@ -12,9 +12,13 @@ import { useHistoricalScanner } from './hooks/useHistoricalScanner';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { useAuth } from './src/hooks/useAuth';
 import { EmailAuthModal } from './src/components/auth/EmailAuthModal';
+import { observability } from './services/observabilityService';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
+
+// Initialize observability
+observability.setupUnloadHandler();
 
 const AppContent: React.FC = () => {
   const [allSymbols, setAllSymbols] = useState<string[]>([]);

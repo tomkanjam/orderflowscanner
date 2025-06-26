@@ -4,6 +4,7 @@ import { ai } from '../config/firebase';
 import { AiFilterResponse, Kline, Ticker, CustomIndicatorConfig, IndicatorDataPoint } from '../types';
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS } from "../constants";
 import * as helpers from '../screenerHelpers'; // Import all helpers
+import { observability } from './observabilityService';
 
 // Simple indicator executor for analysis (full version is in worker)
 function executeIndicatorFunction(
@@ -304,6 +305,7 @@ General Guidelines:
 
   async function makeApiCall(promptText: string, isRetry: boolean): Promise<AiFilterResponse> {
     const currentSystemInstruction = isRetry ? "" : systemInstruction + "\n\nUser Request: ";
+    const startTime = Date.now();
     
     let rawTextFromGemini: string = "";
     try {
@@ -376,6 +378,19 @@ General Guidelines:
       }
       // ---- End: Validation of parsedResponse structure ----
 
+      // Track successful generation (only for non-retry calls to avoid duplicates)
+      if (!isRetry) {
+        await observability.trackGeneration(
+          userPrompt,
+          modelName,
+          klineInterval,
+          klineLimit,
+          parsedResponse,
+          response.usageMetadata,
+          Date.now() - startTime
+        );
+      }
+
       return parsedResponse;
 
     } catch (error) {
@@ -397,6 +412,20 @@ General Guidelines:
            errorMessage = "AI filter generation failed due to safety settings. Please try a different prompt.";
       } else if (error instanceof SyntaxError) {
           errorMessage = `AI returned an invalid JSON response ${retryAttempted ? "(even after an auto-fix attempt)" : ""}. It might be incomplete or malformed. Raw text: ${rawTextFromGemini.substring(0,1000) || "unavailable"}`;
+      }
+      
+      // Track error (only for non-retry calls to avoid duplicates)
+      if (!isRetry) {
+        await observability.trackGeneration(
+          userPrompt,
+          modelName,
+          klineInterval,
+          klineLimit,
+          null,
+          null,
+          Date.now() - startTime,
+          errorMessage
+        );
       }
       
       throw new Error(`Gemini API request failed: ${errorMessage}`);
@@ -625,6 +654,13 @@ General Guidelines:
   const getTimestamp = () => new Date().toISOString().slice(11, 23); // HH:MM:SS.sss
   console.log(`[${getTimestamp()}] [Streaming] Starting generation...`);
   
+  // Generate trace ID for this streaming session
+  const traceId = observability.generateTraceId();
+  const progressUpdates: string[] = [];
+  
+  // Track stream start
+  await observability.trackStreamStart(traceId, userPrompt, modelName, klineInterval);
+  
   try {
     // Create a model instance with the specified model name
     const model = getGenerativeModel(ai, {
@@ -686,6 +722,7 @@ General Guidelines:
                 if (progressText !== lastProgressMessage && progressText.length > 5 && progressText.length < 100) {
                   lastProgressMessage = progressText;
                   console.log(`[${getTimestamp()}] [Streaming] Progress matched: ${progressText}`);
+                  progressUpdates.push(progressText);
                   onUpdate?.({
                     type: 'progress',
                     message: progressText,
@@ -779,6 +816,17 @@ General Guidelines:
         }
       });
       
+      // Track successful stream completion
+      await observability.trackStreamComplete(
+        traceId,
+        modelName,
+        klineInterval,
+        parsedResponse,
+        usage,
+        Date.now() - startTime,
+        progressUpdates
+      );
+      
       return parsedResponse;
       
     } catch (parseError) {
@@ -805,6 +853,19 @@ General Guidelines:
       type: 'error',
       error: error instanceof Error ? error : new Error(String(error))
     });
+    
+    // Track stream error
+    await observability.trackStreamComplete(
+      traceId,
+      modelName,
+      klineInterval,
+      null,
+      null,
+      Date.now() - startTime,
+      progressUpdates,
+      error instanceof Error ? error.message : String(error)
+    );
+    
     throw error;
   }
 }
@@ -823,6 +884,8 @@ Top Tickers (Symbol, 24h Change %, Last Price):
 ${topTickers.slice(0,10).map(t => `${t.s}: ${t.P}%, ${parseFloat(t.c).toFixed(4)}`).join('\n')}
 Consider overall market sentiment if inferable from this limited data.
 `;
+    const startTime = Date.now();
+    
     try {
         // Create a model instance
         const model = getGenerativeModel(ai, { model: modelName });
@@ -830,10 +893,35 @@ Consider overall market sentiment if inferable from this limited data.
         // Generate content using Firebase AI Logic
         const result = await model.generateContent(prompt);
         const response = result.response;
-        return response.text();
+        const text = response.text();
+        
+        // Track successful market analysis
+        await observability.trackAnalysis(
+            'market',
+            modelName,
+            prompt,
+            text,
+            response.usageMetadata,
+            Date.now() - startTime
+        );
+        
+        return text;
     } catch (error) {
         console.error("Error calling Gemini API for market analysis:", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        // Track error
+        await observability.trackAnalysis(
+            'market',
+            modelName,
+            prompt,
+            null,
+            null,
+            Date.now() - startTime,
+            undefined,
+            errorMessage
+        );
+        
         throw new Error(`Market analysis API request failed: ${errorMessage}`);
     }
 }
@@ -915,6 +1003,8 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
         prompt += "\nFocus on price action, potential support/resistance levels, and volume analysis based on the provided data. Do not give financial advice. Keep the analysis concise and data-driven.";
     }
 
+    const startTime = Date.now();
+    
     try {
         // Create a model instance
         const model = getGenerativeModel(ai, { model: modelName });
@@ -922,10 +1012,36 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
         // Generate content using Firebase AI Logic
         const result = await model.generateContent(prompt);
         const response = result.response;
-        return response.text();
+        const text = response.text();
+        
+        // Track successful symbol analysis
+        await observability.trackAnalysis(
+            'symbol',
+            modelName,
+            prompt,
+            text,
+            response.usageMetadata,
+            Date.now() - startTime,
+            symbol
+        );
+        
+        return text;
     } catch (error) {
         console.error(`Error calling Gemini API for ${symbol} analysis:`, error);
         const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        // Track error
+        await observability.trackAnalysis(
+            'symbol',
+            modelName,
+            prompt,
+            null,
+            null,
+            Date.now() - startTime,
+            symbol,
+            errorMessage
+        );
+        
         throw new Error(`Symbol analysis API request for ${symbol} failed: ${errorMessage}`);
     }
 }

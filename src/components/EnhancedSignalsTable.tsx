@@ -11,9 +11,10 @@ interface EnhancedSignalsTableProps {
   strategyId?: string;
   onAnalyzeSignal?: (signal: SignalLifecycle) => void;
   onExecuteTrade?: (signal: SignalLifecycle) => void;
+  onRowClick?: (symbol: string) => void;
 }
 
-export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTrade }: EnhancedSignalsTableProps) {
+export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTrade, onRowClick }: EnhancedSignalsTableProps) {
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<SignalStatus | 'all'>('all');
@@ -197,7 +198,14 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
               <React.Fragment key={signal.id}>
                 <tr 
                   className="border-b border-[#1a2332] hover:bg-[#1a2332] transition-colors cursor-pointer"
-                  onClick={() => toggleRowExpanded(signal.id)}
+                  onClick={(e) => {
+                    // If clicking on action buttons, don't toggle expansion or select chart
+                    if ((e.target as HTMLElement).closest('button')) {
+                      return;
+                    }
+                    toggleRowExpanded(signal.id);
+                    onRowClick?.(signal.symbol);
+                  }}
                 >
                   <td className="p-3">
                     {expandedRows.has(signal.id) ? 

@@ -83,7 +83,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 historicalSignals={historicalSignals} // Pass historicalSignals to ChartDisplay
               />
               <div className="mt-6 flex-grow">
-                <EnhancedSignalsTable />
+                <EnhancedSignalsTable onRowClick={onRowClick} />
               </div>
               {/* Hidden CryptoTable to keep screener running */}
               <div className="hidden">

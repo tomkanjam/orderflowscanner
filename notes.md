@@ -20,6 +20,8 @@
 - Quick Start strategy templates
 - performance enhancement - review how we're handling large amounts of signals in the signals table
 
+The Advanced Settings collapsible component looks good but it           │
+│   shouldn't look the same as the collapsible   
 
 Done:
 1. Create bollinger band helper

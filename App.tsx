@@ -9,11 +9,14 @@ import { generateFilterAndChartConfig, generateFilterAndChartConfigStream, getSy
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
 import * as screenerHelpers from './screenerHelpers';
 import { useHistoricalScanner } from './hooks/useHistoricalScanner';
+import { AuthProvider } from './src/contexts/AuthContext';
+import { useAuth } from './src/hooks/useAuth';
+import { EmailAuthModal } from './src/components/auth/EmailAuthModal';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
   const [historicalData, setHistoricalData] = useState<Map<string, Kline[]>>(new Map());
@@ -106,6 +109,10 @@ const App: React.FC = () => {
   // Track kline updates for bar counting
   const klineUpdateCountRef = React.useRef<Map<string, number>>(new Map());
   
+  // Auth state
+  const { user, loading: authLoading } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [pendingPrompt, setPendingPrompt] = useState('');
 
   // Historical scanner hook
   const {
@@ -433,6 +440,18 @@ const App: React.FC = () => {
       setAiScreenerError("Please enter conditions for the AI screener.");
       return;
     }
+    
+    // Check authentication
+    if (authLoading) {
+      return;
+    }
+    
+    if (!user) {
+      setPendingPrompt(aiPrompt);
+      setShowAuthModal(true);
+      return;
+    }
+    
     setIsAiScreenerLoading(true);
     setAiScreenerError(null);
     setCurrentFilterFn(null);
@@ -494,8 +513,51 @@ const App: React.FC = () => {
         setStreamingProgress('');
       }, 2000);
     }
-  }, [aiPrompt, klineInterval, internalGeminiModelName, klineHistoryConfig.screenerLimit]);
+  }, [aiPrompt, klineInterval, internalGeminiModelName, klineHistoryConfig.screenerLimit, authLoading, user]);
 
+  // Monitor user auth state changes and handle pending screener
+  useEffect(() => {
+    // If user just authenticated and we have a pending prompt
+    if (user && !authLoading && pendingPrompt) {
+      setAiPrompt(pendingPrompt);
+      setPendingPrompt('');
+      // Small delay to ensure state is updated
+      setTimeout(() => {
+        handleRunAiScreener();
+      }, 100);
+    }
+  }, [user, authLoading, pendingPrompt, handleRunAiScreener]);
+
+  // Handle auth callback from magic link
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      
+      if (accessToken) {
+        // Get stored prompt
+        const pendingPrompt = localStorage.getItem('pendingScreenerPrompt');
+        
+        if (pendingPrompt) {
+          // Set the prompt and remove from storage
+          setAiPrompt(pendingPrompt);
+          localStorage.removeItem('pendingScreenerPrompt');
+          
+          // Small delay to ensure auth state is updated
+          setTimeout(() => {
+            if (user) {
+              handleRunAiScreener();
+            }
+          }, 100);
+        }
+        
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+    
+    handleAuthCallback();
+  }, [user, handleRunAiScreener]);
 
   const handleRunHistoricalScan = () => {
     if (!currentFilterFn) return;
@@ -709,7 +771,24 @@ const App: React.FC = () => {
       >
         {modalContent}
       </Modal>
+      <EmailAuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={() => {
+          setShowAuthModal(false);
+          // Auth success will trigger the callback handler
+        }}
+        pendingPrompt={pendingPrompt}
+      />
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 

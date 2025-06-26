@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { SignalLifecycle, SignalStatus } from '../abstractions/interfaces';
+import { SignalLifecycle, SignalStatus, Trade } from '../abstractions/interfaces';
 import { signalManager } from '../services/signalManager';
+import { tradeManager } from '../services/tradeManager';
+import { TradeExecutionModal } from './TradeExecutionModal';
+import { PositionManager } from './PositionManager';
 import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, AlertCircle, DollarSign } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -14,6 +17,7 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<SignalStatus | 'all'>('all');
+  const [executingSignal, setExecutingSignal] = useState<SignalLifecycle | null>(null);
   
   useEffect(() => {
     // Subscribe to signal updates
@@ -246,7 +250,7 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onExecuteTrade?.(signal);
+                            setExecutingSignal(signal);
                           }}
                           className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
                         >
@@ -276,6 +280,23 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
           </div>
         )}
       </div>
+      
+      {/* Trade Execution Modal */}
+      {executingSignal && (
+        <TradeExecutionModal
+          signal={executingSignal}
+          onClose={() => setExecutingSignal(null)}
+          onExecute={async (tradeData) => {
+            try {
+              await tradeManager.executeTrade(executingSignal.id, tradeData);
+              setExecutingSignal(null);
+            } catch (error) {
+              console.error('Trade execution failed:', error);
+              alert('Trade execution failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -348,33 +369,52 @@ function SignalDetails({ signal }: { signal: SignalLifecycle }) {
       )}
       
       {/* Trade Details */}
-      {signal.trade && (
+      {signal.trade && signal.status === 'in_position' && (
+        <PositionManager
+          signal={signal}
+          onClose={async (reason, finalPrice) => {
+            if (signal.trade?.id) {
+              await tradeManager.closeTrade(signal.trade.id, reason, finalPrice);
+            }
+          }}
+          onModify={async (updates) => {
+            if (signal.trade?.id) {
+              await tradeManager.modifyTrade(signal.trade.id, updates);
+            }
+          }}
+        />
+      )}
+      
+      {/* Closed Trade Details */}
+      {signal.trade && signal.status === 'closed' && (
         <div>
-          <h4 className="text-sm font-medium text-[#8efbba] mb-2">Trade Details</h4>
+          <h4 className="text-sm font-medium text-[#8efbba] mb-2">Trade Details (Closed)</h4>
           <div className="bg-[#0d1421] rounded p-3 grid grid-cols-2 gap-3">
             <div>
               <span className="text-sm text-[#64748b]">Entry:</span>
               <p className="text-sm font-mono text-[#e2e8f0]">${signal.trade.entryPrice?.toFixed(4) || '-'}</p>
             </div>
             <div>
-              <span className="text-sm text-[#64748b]">Stop Loss:</span>
-              <p className="text-sm font-mono text-red-400">${signal.trade.stopLoss?.toFixed(4) || '-'}</p>
+              <span className="text-sm text-[#64748b]">Exit:</span>
+              <p className="text-sm font-mono text-[#e2e8f0]">${signal.trade.currentPrice?.toFixed(4) || '-'}</p>
             </div>
             <div>
-              <span className="text-sm text-[#64748b]">Status:</span>
-              <p className="text-sm text-[#e2e8f0]">{signal.trade.status}</p>
+              <span className="text-sm text-[#64748b]">Result:</span>
+              <p className="text-sm">
+                {formatPnL(signal.trade.pnlPercentage)}
+              </p>
             </div>
             <div>
               <span className="text-sm text-[#64748b]">P&L:</span>
-              <p className="text-sm">
-                {signal.trade.status === 'closed' ? formatPnL(signal.trade.pnlPercentage) : formatPnL(signal.unrealizedPnl)}
+              <p className={`text-sm ${signal.trade.pnl && signal.trade.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                ${signal.trade.pnl?.toFixed(2) || '-'}
               </p>
             </div>
           </div>
-          {signal.trade.tradePlan && (
+          {signal.trade.closeReason && (
             <div className="mt-2 p-3 bg-[#0d1421] rounded">
-              <p className="text-sm text-[#64748b] mb-1">Trade Plan:</p>
-              <p className="text-sm text-[#e2e8f0]">{signal.trade.tradePlan}</p>
+              <p className="text-sm text-[#64748b] mb-1">Close Reason:</p>
+              <p className="text-sm text-[#e2e8f0]">{signal.trade.closeReason}</p>
             </div>
           )}
         </div>

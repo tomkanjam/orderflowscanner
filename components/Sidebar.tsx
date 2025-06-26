@@ -13,7 +13,6 @@ interface SidebarProps {
   onRunAiScreener: () => void;
   isAiScreenerLoading: boolean;
   aiFilterDescription: string[] | null;
-  onClearFilter: () => void;
   onAnalyzeMarket: () => void;
   isMarketAnalysisLoading: boolean;
   onShowAiResponse: () => void; // Renamed from onShowGeneratedCode
@@ -34,7 +33,6 @@ interface SidebarProps {
   onKlineHistoryConfigChange: (config: KlineHistoryConfig) => void;
   streamingProgress: string;
   streamingTokenCount: number;
-  tokenUsage: {prompt: number; response: number; total: number} | null;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -47,7 +45,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   onRunAiScreener,
   isAiScreenerLoading,
   aiFilterDescription,
-  onClearFilter,
   onAnalyzeMarket,
   isMarketAnalysisLoading,
   onShowAiResponse, // Renamed
@@ -68,7 +65,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   onKlineHistoryConfigChange,
   streamingProgress,
   streamingTokenCount,
-  tokenUsage,
 }) => {
   const [showPromptAnimation, setShowPromptAnimation] = useState(false);
   const [isAdvancedSettingsOpen, setIsAdvancedSettingsOpen] = useState(false);
@@ -277,13 +273,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <li key={index}>{desc}</li>
             ))}
           </ul>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-            <button
-              onClick={onClearFilter}
-              className="w-full tm-btn tm-btn-secondary font-bold py-2 px-4 text-sm"
-            >
-              Clear Filter
-            </button>
+          <div className="mt-4">
             <button
               onClick={onShowAiResponse} // Renamed
               className="w-full tm-btn tm-btn-accent-outline font-bold py-2 px-4 text-sm"
@@ -291,22 +281,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               📄 Show Response 
             </button>
           </div>
-          {tokenUsage && (
-            <div className="mt-3 p-3 bg-[var(--tm-accent)]/10 border border-[var(--tm-accent)]/20 rounded-md text-xs text-[var(--tm-text-muted)] space-y-1">
-              <div className="flex justify-between">
-                <span>Prompt tokens:</span>
-                <span className="text-[var(--tm-text-secondary)]">{tokenUsage.prompt.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Response tokens:</span>
-                <span className="text-[var(--tm-text-secondary)]">{tokenUsage.response.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between border-t border-[var(--tm-accent)]/20 pt-1">
-                <span>Total tokens:</span>
-                <span className="font-medium text-[var(--tm-accent-light)]">{tokenUsage.total.toLocaleString()}</span>
-              </div>
-            </div>
-          )}
         </div>
       )}
       

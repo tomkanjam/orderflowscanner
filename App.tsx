@@ -60,7 +60,6 @@ const App: React.FC = () => {
   // Streaming state
   const [streamingProgress, setStreamingProgress] = useState<string>('');
   const [streamingTokenCount, setStreamingTokenCount] = useState<number>(0);
-  const [tokenUsage, setTokenUsage] = useState<{prompt: number; response: number; total: number} | null>(null);
   
   const [statusText, setStatusText] = useState<string>('Connecting...');
   const [statusLightClass, setStatusLightClass] = useState<string>('bg-[var(--tm-text-muted)]');
@@ -462,7 +461,6 @@ const App: React.FC = () => {
               if (update.tokenCount) setStreamingTokenCount(update.tokenCount);
               break;
             case 'complete':
-              if (update.tokenUsage) setTokenUsage(update.tokenUsage);
               break;
             case 'error':
               console.error(`[${new Date().toISOString().slice(11, 23)}] Streaming error:`, update.error);
@@ -499,22 +497,6 @@ const App: React.FC = () => {
     }
   }, [aiPrompt, klineInterval, internalGeminiModelName, klineHistoryConfig.screenerLimit]);
 
-  const handleClearFilter = () => {
-    setAiPrompt('');
-    setCurrentFilterFn(null);
-    setAiFilterDescription(null);
-    setCurrentChartConfig(null);
-    setFullAiFilterResponse(null);
-    setAiScreenerError(null);
-    setSignalLog([]); // Clear signal log when filter is cleared
-    setHistoricalSignals([]); // Clear historical signals
-    clearHistoricalSignals();
-    hasAutoScanned.current = false; // Reset auto-scan flag
-    // Clear streaming state
-    setStreamingProgress('');
-    setStreamingTokenCount(0);
-    setTokenUsage(null);
-  };
 
   const handleRunHistoricalScan = () => {
     if (!currentFilterFn) return;
@@ -674,7 +656,6 @@ const App: React.FC = () => {
         onRunAiScreener={handleRunAiScreener}
         isAiScreenerLoading={isAiScreenerLoading}
         aiFilterDescription={aiFilterDescription}
-        onClearFilter={handleClearFilter}
         onAnalyzeMarket={handleAnalyzeMarket}
         isMarketAnalysisLoading={isMarketAnalysisLoading}
         onShowAiResponse={handleShowAiResponse}
@@ -695,7 +676,6 @@ const App: React.FC = () => {
         onKlineHistoryConfigChange={setKlineHistoryConfig}
         streamingProgress={streamingProgress}
         streamingTokenCount={streamingTokenCount}
-        tokenUsage={tokenUsage}
       />
       <MainContent
         statusText={statusText}

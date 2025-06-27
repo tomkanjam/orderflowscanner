@@ -151,6 +151,7 @@ export function TraderSignalsTable({
       ...signal,
       currentMarketPrice: ticker ? parseFloat(ticker.c) : signal.currentPrice,
       currentMarketChange: ticker ? parseFloat(ticker.P) : 0,
+      volume24h: ticker ? parseFloat(ticker.q) : 0, // Add volume from ticker
     };
   };
 
@@ -364,7 +365,7 @@ export function TraderSignalsTable({
                     {formatPriceChange(signal.initialPrice, signal.currentMarketPrice)}
                   </td>
                   <td className="p-2 md:px-4 md:py-2 text-right text-sm hidden sm:table-cell">
-                    {signal.volume24h.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {signal.volume24h ? signal.volume24h.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'}
                   </td>
                 </tr>
                 

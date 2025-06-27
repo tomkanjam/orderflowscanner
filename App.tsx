@@ -171,12 +171,6 @@ const AppContent: React.FC = () => {
     }
   }, [historicalScanResults]);
 
-  // Update historical signals from multi-trader scan
-  useEffect(() => {
-    if (multiTraderHistoricalSignals.length > 0) {
-      setHistoricalSignals(multiTraderHistoricalSignals);
-    }
-  }, [multiTraderHistoricalSignals]);
 
   // Subscribe to traders
   useEffect(() => {
@@ -219,6 +213,13 @@ const AppContent: React.FC = () => {
     klineInterval,
     signalDedupeThreshold,
   });
+
+  // Update historical signals from multi-trader scan
+  useEffect(() => {
+    if (multiTraderHistoricalSignals.length > 0) {
+      setHistoricalSignals(multiTraderHistoricalSignals);
+    }
+  }, [multiTraderHistoricalSignals]);
 
   // Multi-trader screener will be initialized after handleNewSignal is defined
 

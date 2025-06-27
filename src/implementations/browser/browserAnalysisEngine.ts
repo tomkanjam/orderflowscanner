@@ -130,8 +130,7 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
       rsi: helpers.calculateRSI(closes, 14),
       macd: helpers.calculateMACD(closes),
       bollingerBands: helpers.calculateBollingerBands(closes, 20, 2),
-      vwap: helpers.calculateVWAP(highs, lows, closes, volumes),
-      atr: helpers.calculateATR(highs, lows, closes, 14),
+      vwap: helpers.calculateVWAP(marketData.klines),
       volumeProfile: this.calculateVolumeProfile(marketData.klines),
     };
   }
@@ -194,7 +193,9 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
     const lows = marketData.klines.map(k => parseFloat(k[3]));
     
     const currentPrice = marketData.price;
-    const atr = helpers.calculateATR(highs, lows, closes, 14);
+    
+    // Calculate ATR manually for stop loss calculation
+    const atr = this.calculateSimpleATR(highs, lows, closes, 14);
     
     // Calculate support/resistance using recent highs/lows
     const recentHighs = highs.slice(-20).sort((a, b) => b - a);
@@ -245,5 +246,21 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
+  }
+
+  private calculateSimpleATR(highs: number[], lows: number[], closes: number[], period: number): number {
+    if (highs.length < period + 1) return 0;
+    
+    const trueRanges: number[] = [];
+    for (let i = 1; i < highs.length; i++) {
+      const highLow = highs[i] - lows[i];
+      const highPrevClose = Math.abs(highs[i] - closes[i - 1]);
+      const lowPrevClose = Math.abs(lows[i] - closes[i - 1]);
+      trueRanges.push(Math.max(highLow, highPrevClose, lowPrevClose));
+    }
+    
+    // Simple moving average of true ranges
+    const recentTR = trueRanges.slice(-period);
+    return recentTR.reduce((sum, tr) => sum + tr, 0) / period;
   }
 }

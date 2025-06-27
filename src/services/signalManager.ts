@@ -113,6 +113,7 @@ export class SignalManager {
   // Get signals for display
   getSignals(filters?: {
     strategyId?: string;
+    traderId?: string; // NEW: Filter by trader
     status?: SignalStatus[];
     symbol?: string;
   }): SignalLifecycle[] {
@@ -120,6 +121,10 @@ export class SignalManager {
     
     if (filters?.strategyId) {
       signals = signals.filter(s => s.strategyId === filters.strategyId);
+    }
+    
+    if (filters?.traderId) {
+      signals = signals.filter(s => s.traderId === filters.traderId);
     }
     
     if (filters?.status) {

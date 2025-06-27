@@ -1,0 +1,186 @@
+import { CustomIndicatorConfig } from '../../types';
+
+// Core Trader interfaces
+export interface Trader {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  
+  // Trading configuration
+  mode: 'demo' | 'live';
+  exchangeConfig?: ExchangeConfig;
+  
+  // Core configuration
+  filter: TraderFilter;
+  strategy: TraderStrategy;
+  
+  // Performance metrics
+  metrics: TraderMetrics;
+  
+  // Metadata
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TraderFilter {
+  code: string;
+  description: string[];
+  indicators?: CustomIndicatorConfig[];
+}
+
+export interface TraderStrategy {
+  instructions: string;
+  riskManagement: RiskManagement;
+}
+
+export interface RiskManagement {
+  stopLoss?: number;
+  takeProfit?: number;
+  maxPositions?: number;
+  positionSizePercent?: number;
+  maxDrawdown?: number;
+}
+
+export interface ExchangeConfig {
+  exchange: SupportedExchange;
+  apiKey?: string; // Encrypted
+  apiSecret?: string; // Encrypted
+  testnet?: boolean;
+}
+
+export type SupportedExchange = 'binance' | 'binance-us' | 'coinbase' | 'kraken' | 'kucoin';
+
+export interface TraderMetrics {
+  totalSignals: number;
+  activePositions: number;
+  closedPositions: number;
+  totalPnL: number;
+  totalPnLPercent: number;
+  winRate: number;
+  avgWin: number;
+  avgLoss: number;
+  lastSignalAt?: Date;
+  // Separate demo vs live metrics
+  demoMetrics?: PerformanceMetrics;
+  liveMetrics?: PerformanceMetrics;
+}
+
+export interface PerformanceMetrics {
+  trades: number;
+  wins: number;
+  losses: number;
+  pnl: number;
+  pnlPercent: number;
+  avgWin: number;
+  avgLoss: number;
+  maxDrawdown: number;
+  sharpeRatio?: number;
+}
+
+// Service interfaces
+export interface ITraderManager {
+  // CRUD operations
+  createTrader(trader: Omit<Trader, 'id' | 'metrics' | 'createdAt' | 'updatedAt'>): Promise<Trader>;
+  getTrader(id: string): Promise<Trader | null>;
+  getTraders(filter?: { enabled?: boolean; mode?: 'demo' | 'live' }): Promise<Trader[]>;
+  updateTrader(id: string, updates: Partial<Trader>): Promise<Trader>;
+  deleteTrader(id: string): Promise<void>;
+  
+  // Control operations
+  enableTrader(id: string): Promise<void>;
+  disableTrader(id: string): Promise<void>;
+  
+  // Metrics operations
+  updateMetrics(id: string, metrics: Partial<TraderMetrics>): Promise<void>;
+  resetMetrics(id: string, mode?: 'demo' | 'live' | 'all'): Promise<void>;
+  
+  // Subscription
+  subscribe(callback: (traders: Trader[]) => void): () => void;
+}
+
+// Trade execution interfaces
+export interface ITradeExecutor {
+  executeTrade(trade: TradeRequest): Promise<TradeResult>;
+  cancelOrder(orderId: string): Promise<void>;
+  modifyOrder(orderId: string, updates: OrderUpdate): Promise<TradeResult>;
+  getPosition(symbol: string): Promise<Position | null>;
+  getOpenOrders(symbol?: string): Promise<Order[]>;
+  getBalance(): Promise<Balance>;
+}
+
+export interface TradeRequest {
+  symbol: string;
+  side: 'buy' | 'sell';
+  type: 'market' | 'limit' | 'stop' | 'stop_limit';
+  quantity: number;
+  price?: number;
+  stopPrice?: number;
+  timeInForce?: 'GTC' | 'IOC' | 'FOK';
+  traderId: string;
+  signalId: string;
+}
+
+export interface TradeResult {
+  orderId: string;
+  status: 'filled' | 'partial' | 'pending' | 'cancelled' | 'rejected';
+  executedQty: number;
+  executedPrice: number;
+  commission?: number;
+  commissionAsset?: string;
+  transactTime: Date;
+  mode: 'demo' | 'live';
+}
+
+export interface OrderUpdate {
+  quantity?: number;
+  price?: number;
+  stopPrice?: number;
+}
+
+export interface Position {
+  symbol: string;
+  quantity: number;
+  entryPrice: number;
+  currentPrice: number;
+  pnl: number;
+  pnlPercent: number;
+  openTime: Date;
+}
+
+export interface Order {
+  orderId: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  type: string;
+  quantity: number;
+  price?: number;
+  status: string;
+  createdAt: Date;
+}
+
+export interface Balance {
+  asset: string;
+  free: number;
+  locked: number;
+  total: number;
+}
+
+// AI Generation interfaces
+export interface TraderGeneration {
+  suggestedName: string;
+  description: string;
+  filterCode: string;
+  filterDescription: string[];
+  strategyInstructions: string;
+  indicators: CustomIndicatorConfig[];
+  riskParameters: RiskManagement;
+}
+
+// Events
+export interface TraderEvent {
+  type: 'created' | 'updated' | 'deleted' | 'enabled' | 'disabled' | 'signal' | 'trade';
+  traderId: string;
+  timestamp: Date;
+  data?: any;
+}

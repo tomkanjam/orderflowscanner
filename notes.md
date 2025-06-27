@@ -4,7 +4,7 @@
 4. Volume profile improvement - HVN levels should also have a lower volume level above and below so that we catch the peaks.
 5. Implement langfuse.
 - vwap has to use a 1440 lookback or lookback from the last start of day(smart lookback?)
-
+-sometimes the json respnse from gemini is not correct, especially from the smaller 2.5 flash model, and I get an error. We should catch 100% of errors in the flow and do one retry with the 2.5 model.
 7. feature flags
 8. posthog implementation
 9. Default volume

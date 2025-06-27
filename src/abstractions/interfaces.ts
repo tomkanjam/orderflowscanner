@@ -101,6 +101,7 @@ export interface SignalLifecycle {
   id: string;
   symbol: string;
   strategyId: string;
+  traderId?: string; // NEW: Reference to the trader that created this signal
   
   // Signal creation
   createdAt: Date;

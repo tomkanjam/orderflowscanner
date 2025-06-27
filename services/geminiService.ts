@@ -1148,7 +1148,7 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
 // Generate a complete trader configuration from natural language
 export async function generateTrader(
     userPrompt: string,
-    modelName: string = 'gemini-2.0-flash-exp',
+    modelName: string = 'gemini-2.5-pro',
     klineInterval: string = '1h'
 ): Promise<TraderGeneration> {
     const systemInstruction = `You are an AI assistant that creates complete cryptocurrency trading systems. The user provides a trading strategy description, and you create a unified "Trader" that includes both market scanning filters and trading execution strategy.

@@ -181,46 +181,7 @@ const AppContent: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // Multi-trader screener hook
-  const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
-    results.forEach(result => {
-      result.signalSymbols.forEach(symbol => {
-        const ticker = tickers.get(symbol);
-        if (ticker) {
-          // Create signal with trader attribution
-          const filterResult = {
-            symbol,
-            price: parseFloat(ticker.c),
-            change24h: parseFloat(ticker.P),
-            volume24h: parseFloat(ticker.q),
-            matchedConditions: [`Trader: ${traders.find(t => t.id === result.traderId)?.name || 'Unknown'}`]
-          };
-          
-          const signal = signalManager.createSignal(
-            filterResult, 
-            activeStrategy?.id || 'default',
-            result.traderId
-          );
-          
-          // Handle new signal
-          handleNewSignal(symbol, Date.now());
-          
-          // Update trader metrics
-          traderManager.incrementSignalCount(result.traderId);
-        }
-      });
-    });
-  }, [traders, tickers, activeStrategy, handleNewSignal]);
-
-  const { isRunning: isMultiTraderRunning } = useMultiTraderScreener({
-    traders,
-    symbols: allSymbols,
-    tickers,
-    historicalData,
-    onResults: handleMultiTraderResults,
-    enabled: multiTraderEnabled && traders.some(t => t.enabled),
-    interval: 5000 // Run every 5 seconds
-  });
+  // Multi-trader screener will be initialized after handleNewSignal is defined
 
   // Save kline history config to localStorage
   useEffect(() => {
@@ -547,6 +508,47 @@ const AppContent: React.FC = () => {
       }
     });
   }, [aiFilterDescription, klineInterval, tickers, signalHistory, signalDedupeThreshold]);
+
+  // Multi-trader screener hook
+  const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
+    results.forEach(result => {
+      result.signalSymbols.forEach(symbol => {
+        const ticker = tickers.get(symbol);
+        if (ticker) {
+          // Create signal with trader attribution
+          const filterResult = {
+            symbol,
+            price: parseFloat(ticker.c),
+            change24h: parseFloat(ticker.P),
+            volume24h: parseFloat(ticker.q),
+            matchedConditions: [`Trader: ${traders.find(t => t.id === result.traderId)?.name || 'Unknown'}`]
+          };
+          
+          const signal = signalManager.createSignal(
+            filterResult, 
+            activeStrategy?.id || 'default',
+            result.traderId
+          );
+          
+          // Handle new signal
+          handleNewSignal(symbol, Date.now());
+          
+          // Update trader metrics
+          traderManager.incrementSignalCount(result.traderId);
+        }
+      });
+    });
+  }, [traders, tickers, activeStrategy, handleNewSignal]);
+
+  const { isRunning: isMultiTraderRunning } = useMultiTraderScreener({
+    traders,
+    symbols: allSymbols,
+    tickers,
+    historicalData,
+    onResults: handleMultiTraderResults,
+    enabled: multiTraderEnabled && traders.some(t => t.enabled),
+    interval: 5000 // Run every 5 seconds
+  });
 
   const handleRunAiScreener = useCallback(async () => {
     if (!aiPrompt.trim()) {

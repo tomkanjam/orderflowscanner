@@ -25,6 +25,7 @@ export function CreateTraderModal({
   const [manualDescription, setManualDescription] = useState(editingTrader?.description || '');
   const [manualFilterCode, setManualFilterCode] = useState(editingTrader?.filter.code || '');
   const [manualStrategy, setManualStrategy] = useState(editingTrader?.strategy.instructions || '');
+  const [filterConditions, setFilterConditions] = useState<string[]>(editingTrader?.filter?.description || []);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [generatedTrader, setGeneratedTrader] = useState<TraderGeneration | null>(null);
@@ -38,6 +39,7 @@ export function CreateTraderModal({
       setManualDescription(editingTrader.description || '');
       setManualFilterCode(editingTrader.filter?.code || '');
       setManualStrategy(editingTrader.strategy?.instructions || '');
+      setFilterConditions(editingTrader.filter?.description || []);
     }
   }, [editingTrader]);
 
@@ -48,6 +50,7 @@ export function CreateTraderModal({
     setManualDescription('');
     setManualFilterCode('');
     setManualStrategy('');
+    setFilterConditions([]);
     setGenerating(false);
     setError('');
     setGeneratedTrader(null);
@@ -77,6 +80,7 @@ export function CreateTraderModal({
       setManualDescription(generated.description);
       setManualFilterCode(generated.filterCode);
       setManualStrategy(generated.strategyInstructions);
+      setFilterConditions(generated.filterDescription || []);
     } catch (error) {
       console.error('Failed to generate trader:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate trader');
@@ -102,6 +106,13 @@ export function CreateTraderModal({
       return;
     }
 
+    // Validate filter conditions
+    const validConditions = filterConditions.filter(c => c.trim().length > 0);
+    if (validConditions.length === 0) {
+      setError('At least one filter condition is required');
+      return;
+    }
+
     try {
       setError('');
       
@@ -112,7 +123,7 @@ export function CreateTraderModal({
           description: manualDescription || manualName,
           filter: {
             code: manualFilterCode,
-            description: generatedTrader?.filterDescription || editingTrader.filter.description,
+            description: validConditions,
             indicators: generatedTrader?.indicators || editingTrader.filter.indicators
           },
           strategy: {
@@ -131,7 +142,7 @@ export function CreateTraderModal({
           mode: 'demo', // Always start in demo mode
           filter: {
             code: manualFilterCode,
-            description: generatedTrader?.filterDescription || [],
+            description: validConditions,
             indicators: generatedTrader?.indicators
           },
           strategy: {
@@ -284,22 +295,48 @@ export function CreateTraderModal({
                 />
               </div>
 
-              {/* Filter Conditions Display */}
-              {generatedTrader?.filterDescription && generatedTrader.filterDescription.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
-                    Filter Conditions
-                  </label>
-                  <div className="bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg p-3">
-                    {generatedTrader.filterDescription.map((desc, index) => (
-                      <div key={index} className="flex items-start gap-2 mb-2 last:mb-0">
-                        <span className="text-[var(--tm-accent)] mt-0.5 text-xs">▸</span>
-                        <p className="text-sm text-[var(--tm-text-secondary)]">{desc}</p>
-                      </div>
-                    ))}
-                  </div>
+              {/* Filter Conditions - Editable */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                  Filter Conditions
+                </label>
+                <div className="space-y-2">
+                  {filterConditions.map((condition, index) => (
+                    <div key={index} className="flex items-start gap-2">
+                      <span className="text-[var(--tm-accent)] mt-2 text-xs">▸</span>
+                      <input
+                        type="text"
+                        value={condition}
+                        onChange={(e) => {
+                          const newConditions = [...filterConditions];
+                          newConditions[index] = e.target.value;
+                          setFilterConditions(newConditions);
+                        }}
+                        placeholder={`Condition ${index + 1}`}
+                        className="flex-1 p-2 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg text-[var(--tm-text-primary)] placeholder-[var(--tm-text-muted)] focus:border-[var(--tm-accent)] focus:outline-none text-sm"
+                      />
+                      <button
+                        onClick={() => {
+                          const newConditions = filterConditions.filter((_, i) => i !== index);
+                          setFilterConditions(newConditions);
+                        }}
+                        className="p-2 text-[var(--tm-text-muted)] hover:text-red-500 transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setFilterConditions([...filterConditions, ''])}
+                    className="w-full p-2 border border-dashed border-[var(--tm-border)] rounded-lg text-[var(--tm-text-muted)] hover:border-[var(--tm-accent)] hover:text-[var(--tm-accent)] transition-all text-sm"
+                  >
+                    + Add Condition
+                  </button>
                 </div>
-              )}
+                <p className="text-xs text-[var(--tm-text-muted)] mt-2">
+                  Describe what market conditions this trader looks for in plain language
+                </p>
+              </div>
 
               {/* Indicators Display */}
               {generatedTrader?.indicators && generatedTrader.indicators.length > 0 && (
@@ -392,7 +429,7 @@ export function CreateTraderModal({
           {(mode === 'manual' || editingTrader) && (
             <button
               onClick={handleCreateTrader}
-              disabled={!manualName.trim() || !manualFilterCode.trim() || !manualStrategy.trim()}
+              disabled={!manualName.trim() || !manualFilterCode.trim() || !manualStrategy.trim() || filterConditions.filter(c => c.trim()).length === 0}
               className="px-4 py-2 bg-[var(--tm-accent)] text-[var(--tm-bg-primary)] rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
             >
               {editingTrader ? 'Update Trader' : 'Create Trader'}

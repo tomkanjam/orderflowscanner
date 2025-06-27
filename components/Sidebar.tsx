@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { KLINE_INTERVALS, GEMINI_MODELS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL } from '../constants';
 import { KlineInterval, GeminiModelOption, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from '../types';
-import { StrategyManager } from '../src/components/StrategyManager';
+import { TraderList } from '../src/components/TraderList';
+import { CreateTraderModal } from '../src/components/CreateTraderModal';
 import { PortfolioMetrics } from '../src/components/PortfolioMetrics';
 
 interface SidebarProps {
@@ -70,6 +71,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [showPromptAnimation, setShowPromptAnimation] = useState(false);
   const [isAdvancedSettingsOpen, setIsAdvancedSettingsOpen] = useState(false);
+  const [showCreateTraderModal, setShowCreateTraderModal] = useState(false);
+  const [editingTrader, setEditingTrader] = useState<any>(null);
+  const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
   
   // Debug streaming state
   useEffect(() => {
@@ -307,30 +311,17 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
       
       
-      {/* Strategy Section */}
+      {/* Traders Section */}
       <div className="mt-6 border-t border-[var(--tm-border)] pt-6">
-        <h2 className="text-lg font-bold mb-2 tm-heading-md">
-          <span className="text-[var(--tm-secondary)]">Trading</span> <span className="text-[var(--tm-text-primary)]">Strategy</span>
-        </h2>
-        <p className="text-[var(--tm-text-muted)] text-sm mb-4">
-          Define your trading strategy for signal analysis and backtesting.
-        </p>
-        <div className="mb-4">
-          <label htmlFor="strategy-input" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">Your Strategy:</label>
-          <textarea
-            id="strategy-input"
-            rows={4}
-            value={strategy}
-            onChange={(e) => onStrategyChange(e.target.value)}
-            className="w-full tm-input resize-none"
-            placeholder="e.g., Buy when RSI < 30 with increasing volume, sell when RSI > 70, hold for at least 4 candles"
-          />
-        </div>
-      </div>
-      
-      {/* Strategy Manager */}
-      <div className="mt-6">
-        <StrategyManager />
+        <TraderList 
+          onCreateTrader={() => setShowCreateTraderModal(true)}
+          onEditTrader={(trader) => {
+            setEditingTrader(trader);
+            setShowCreateTraderModal(true);
+          }}
+          onSelectTrader={setSelectedTraderId}
+          selectedTraderId={selectedTraderId}
+        />
       </div>
       
       {/* Portfolio Metrics */}
@@ -355,6 +346,19 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}
         </button>
       </div> */}
+      
+      {/* Create Trader Modal */}
+      <CreateTraderModal
+        isOpen={showCreateTraderModal}
+        onClose={() => {
+          setShowCreateTraderModal(false);
+          setEditingTrader(null);
+        }}
+        editingTrader={editingTrader}
+        onTraderCreated={(trader) => {
+          setSelectedTraderId(trader.id);
+        }}
+      />
     </aside>
   );
 };

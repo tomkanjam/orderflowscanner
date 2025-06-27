@@ -18,6 +18,9 @@ import { useSignalLifecycle } from './src/hooks/useSignalLifecycle';
 import { useStrategy } from './src/contexts/StrategyContext';
 import { signalManager } from './src/services/signalManager';
 import { tradeManager } from './src/services/tradeManager';
+import { traderManager } from './src/services/traderManager';
+import { useMultiTraderScreener } from './hooks/useMultiTraderScreener';
+import { TraderResult } from './workers/multiTraderScreenerWorker';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -30,6 +33,7 @@ const AppContent: React.FC = () => {
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
   const [historicalData, setHistoricalData] = useState<Map<string, Kline[]>>(new Map());
+  const [traders, setTraders] = useState<any[]>([]);
   
   const [klineInterval, setKlineInterval] = useState<KlineInterval>(DEFAULT_KLINE_INTERVAL);
   const [selectedGeminiModel, setSelectedGeminiModel] = useState<GeminiModelOption>(DEFAULT_GEMINI_MODEL);
@@ -66,6 +70,7 @@ const AppContent: React.FC = () => {
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [initialError, setInitialError] = useState<string | null>(null);
   const [isAiScreenerLoading, setIsAiScreenerLoading] = useState<boolean>(false);
+  const [multiTraderEnabled, setMultiTraderEnabled] = useState<boolean>(true);
   const [aiScreenerError, setAiScreenerError] = useState<string | null>(null);
   const [isMarketAnalysisLoading, setIsMarketAnalysisLoading] = useState<boolean>(false);
   const [isSymbolAnalysisLoading, setIsSymbolAnalysisLoading] = useState<boolean>(false);
@@ -163,6 +168,59 @@ const AppContent: React.FC = () => {
       setHistoricalSignals(historicalScanResults);
     }
   }, [historicalScanResults]);
+
+  // Subscribe to traders
+  useEffect(() => {
+    const unsubscribe = traderManager.subscribe((updatedTraders) => {
+      setTraders(updatedTraders);
+    });
+    
+    // Initial load
+    traderManager.getTraders().then(setTraders);
+    
+    return unsubscribe;
+  }, []);
+
+  // Multi-trader screener hook
+  const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
+    results.forEach(result => {
+      result.signalSymbols.forEach(symbol => {
+        const ticker = tickers.get(symbol);
+        if (ticker) {
+          // Create signal with trader attribution
+          const filterResult = {
+            symbol,
+            price: parseFloat(ticker.c),
+            change24h: parseFloat(ticker.P),
+            volume24h: parseFloat(ticker.q),
+            matchedConditions: [`Trader: ${traders.find(t => t.id === result.traderId)?.name || 'Unknown'}`]
+          };
+          
+          const signal = signalManager.createSignal(
+            filterResult, 
+            activeStrategy?.id || 'default',
+            result.traderId
+          );
+          
+          // Handle new signal
+          handleNewSignal(symbol, Date.now());
+          
+          // Update trader metrics
+          traderManager.incrementSignalCount(result.traderId);
+        }
+      });
+    });
+  }, [traders, tickers, activeStrategy, handleNewSignal]);
+
+  const { isRunning: isMultiTraderRunning } = useMultiTraderScreener({
+    traders,
+    symbols: allSymbols,
+    tickers,
+    historicalData,
+    onResults: handleMultiTraderResults,
+    enabled: multiTraderEnabled && traders.some(t => t.enabled),
+    interval: 5000 // Run every 5 seconds
+  });
 
   // Save kline history config to localStorage
   useEffect(() => {
@@ -801,7 +859,7 @@ const AppContent: React.FC = () => {
         allSymbols={allSymbols}
         tickers={tickers}
         historicalData={historicalData}
-        currentFilterFn={currentFilterFn} 
+        currentFilterFn={multiTraderEnabled && traders.some(t => t.enabled) ? null : currentFilterFn} 
         klineInterval={klineInterval}
         selectedSymbolForChart={selectedSymbolForChart}
         chartConfigForDisplay={chartConfigForDisplay}

@@ -1161,11 +1161,13 @@ ${conditionsList}
 Generate ONLY the JavaScript function body for (ticker, klines, helpers, hvnNodes) => boolean
 
 IMPORTANT:
-- Return ONLY the function body code, no JSON wrapper
+- Return ONLY the raw JavaScript code - no markdown formatting, no code blocks, no backticks
+- Just the function body code, no JSON wrapper
 - Use only the 4 provided parameters: ticker, klines, helpers, hvnNodes
 - Do NOT reference undefined variables like 'inputs', 'data', etc.
 - The code must return true when ALL conditions are met, false otherwise
 - Use helper functions like calculateMA, calculateRSI, etc.
+- Do NOT wrap the response in \`\`\`javascript\`\`\` or any other formatting
 
 Available helpers include:
 - calculateMA(klines, period)
@@ -1196,13 +1198,35 @@ Kline interval: ${klineInterval}`;
 
         const result = await model.generateContent(systemInstruction);
         const response = result.response;
-        const filterCode = response.text().trim();
+        let filterCode = response.text().trim();
+        
+        // Remove markdown code blocks if present
+        if (filterCode.startsWith('```')) {
+            // Remove opening code block
+            filterCode = filterCode.replace(/^```[a-zA-Z]*\n?/, '');
+            // Remove closing code block
+            filterCode = filterCode.replace(/\n?```$/, '');
+            filterCode = filterCode.trim();
+        }
+        
+        // Remove any remaining backticks
+        filterCode = filterCode.replace(/^`+|`+$/g, '');
         
         // Basic validation
         if (!filterCode.includes('return')) {
             throw new Error('Generated filter code is missing a return statement');
         }
         
+        // Try to validate the syntax by creating a function
+        try {
+            new Function('ticker', 'klines', 'helpers', 'hvnNodes', filterCode);
+        } catch (syntaxError) {
+            console.error('Generated filter code has syntax error:', syntaxError);
+            console.error('Filter code:', filterCode);
+            throw new Error(`Generated filter code has invalid syntax: ${syntaxError.message}`);
+        }
+        
+        console.log('Successfully regenerated filter code from conditions');
         return { filterCode };
     } catch (error) {
         console.error('Failed to regenerate filter code:', error);

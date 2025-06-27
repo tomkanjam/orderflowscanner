@@ -34,6 +34,7 @@ const AppContent: React.FC = () => {
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
   const [historicalData, setHistoricalData] = useState<Map<string, Kline[]>>(new Map());
   const [traders, setTraders] = useState<any[]>([]);
+  const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
   
   const [klineInterval, setKlineInterval] = useState<KlineInterval>(DEFAULT_KLINE_INTERVAL);
   const [selectedGeminiModel, setSelectedGeminiModel] = useState<GeminiModelOption>(DEFAULT_GEMINI_MODEL);
@@ -817,7 +818,21 @@ const AppContent: React.FC = () => {
   };
   
   
-  const chartConfigForDisplay = selectedSymbolForChart ? currentChartConfig : null;
+  // Use selected trader's indicators if available, otherwise use AI screener indicators
+  const chartConfigForDisplay = useMemo(() => {
+    if (!selectedSymbolForChart) return null;
+    
+    // If a trader is selected, use its indicators
+    if (selectedTraderId) {
+      const selectedTrader = traders.find(t => t.id === selectedTraderId);
+      if (selectedTrader?.filter?.indicators) {
+        return selectedTrader.filter.indicators;
+      }
+    }
+    
+    // Otherwise use the AI screener's indicators
+    return currentChartConfig;
+  }, [selectedSymbolForChart, selectedTraderId, traders, currentChartConfig]);
 
 
   return (
@@ -852,6 +867,7 @@ const AppContent: React.FC = () => {
         onKlineHistoryConfigChange={setKlineHistoryConfig}
         streamingProgress={streamingProgress}
         streamingTokenCount={streamingTokenCount}
+        onSelectedTraderChange={setSelectedTraderId}
       />
       <MainContent
         statusText={statusText}

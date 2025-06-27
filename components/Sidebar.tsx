@@ -36,6 +36,7 @@ interface SidebarProps {
   onKlineHistoryConfigChange: (config: KlineHistoryConfig) => void;
   streamingProgress: string;
   streamingTokenCount: number;
+  onSelectedTraderChange?: (traderId: string | null) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -68,6 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onKlineHistoryConfigChange,
   streamingProgress,
   streamingTokenCount,
+  onSelectedTraderChange,
 }) => {
   const [showPromptAnimation, setShowPromptAnimation] = useState(false);
   const [isAdvancedSettingsOpen, setIsAdvancedSettingsOpen] = useState(false);
@@ -319,7 +321,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             setEditingTrader(trader);
             setShowCreateTraderModal(true);
           }}
-          onSelectTrader={setSelectedTraderId}
+          onSelectTrader={(traderId) => {
+            setSelectedTraderId(traderId);
+            onSelectedTraderChange?.(traderId);
+          }}
           selectedTraderId={selectedTraderId}
         />
       </div>

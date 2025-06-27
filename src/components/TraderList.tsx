@@ -170,6 +170,23 @@ export function TraderList({
                   {trader.description}
                 </p>
 
+                {/* Filter Conditions */}
+                {trader.filter?.description && trader.filter.description.length > 0 && (
+                  <div className="text-xs text-[var(--tm-text-muted)] mb-2">
+                    {trader.filter.description.slice(0, 2).map((desc, i) => (
+                      <div key={i} className="flex items-start gap-1">
+                        <span className="text-[var(--tm-accent)] mt-0.5">•</span>
+                        <span>{desc}</span>
+                      </div>
+                    ))}
+                    {trader.filter.description.length > 2 && (
+                      <div className="text-[var(--tm-text-muted)] ml-3">
+                        +{trader.filter.description.length - 2} more conditions
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Metrics */}
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div className="text-center">

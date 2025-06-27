@@ -28,6 +28,7 @@ export function CreateTraderModal({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [generatedTrader, setGeneratedTrader] = useState<TraderGeneration | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Update form fields when editingTrader changes
   React.useEffect(() => {
@@ -283,21 +284,74 @@ export function CreateTraderModal({
                 />
               </div>
 
+              {/* Filter Conditions Display */}
+              {generatedTrader?.filterDescription && generatedTrader.filterDescription.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                    Filter Conditions
+                  </label>
+                  <div className="bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg p-3">
+                    {generatedTrader.filterDescription.map((desc, index) => (
+                      <div key={index} className="flex items-start gap-2 mb-2 last:mb-0">
+                        <span className="text-[var(--tm-accent)] mt-0.5 text-xs">▸</span>
+                        <p className="text-sm text-[var(--tm-text-secondary)]">{desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Indicators Display */}
+              {generatedTrader?.indicators && generatedTrader.indicators.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                    Chart Indicators
+                  </label>
+                  <div className="bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg p-3">
+                    <div className="flex flex-wrap gap-2">
+                      {generatedTrader.indicators.map((indicator) => (
+                        <span 
+                          key={indicator.id} 
+                          className="px-2 py-1 bg-[var(--tm-bg-primary)] rounded text-xs text-[var(--tm-text-secondary)]"
+                        >
+                          {indicator.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Advanced Settings Toggle */}
               <div>
-                <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
-                  Filter Code
-                </label>
-                <textarea
-                  value={manualFilterCode}
-                  onChange={(e) => setManualFilterCode(e.target.value)}
-                  placeholder="// JavaScript function body that returns boolean
-const ma20 = helpers.calculateMA(klines, 20);
-const rsi = helpers.getLatestRSI(klines, 14);
-return rsi < 30 && ticker.c > ma20;"
-                  className="w-full p-3 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg text-[var(--tm-text-primary)] placeholder-[var(--tm-text-muted)] focus:border-[var(--tm-accent)] focus:outline-none resize-none font-mono text-sm"
-                  rows={6}
-                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="text-sm text-[var(--tm-text-muted)] hover:text-[var(--tm-text-primary)] transition-colors flex items-center gap-1"
+                >
+                  <span>{showAdvanced ? '▼' : '▶'}</span>
+                  Advanced Settings
+                </button>
               </div>
+
+              {/* Filter Code (Hidden by default) */}
+              {showAdvanced && (
+                <div>
+                  <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                    Filter Code (Advanced)
+                  </label>
+                  <textarea
+                    value={manualFilterCode}
+                    onChange={(e) => setManualFilterCode(e.target.value)}
+                    placeholder="// JavaScript function body that returns boolean"
+                    className="w-full p-3 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg text-[var(--tm-text-primary)] placeholder-[var(--tm-text-muted)] focus:border-[var(--tm-accent)] focus:outline-none resize-none font-mono text-sm"
+                    rows={6}
+                  />
+                  <p className="text-xs text-[var(--tm-text-muted)] mt-1">
+                    ⚠️ Editing the code directly may break the trader. Only modify if you understand JavaScript.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">

@@ -1160,7 +1160,20 @@ Generate a JSON response with the following structure:
   "filterDescription": ["Array of 3-4 human-readable conditions this trader looks for"],
   "filterCode": "JavaScript function body for (ticker, klines, helpers, hvnNodes) => boolean",
   "strategyInstructions": "Detailed instructions for AI analysis including entry criteria, exit criteria, and risk management",
-  "indicators": [/* Array of indicator configurations for charting */],
+  "indicators": [
+    /* Array of indicator configurations for charting
+    Each indicator should follow this structure:
+    {
+      "id": "unique_id",
+      "name": "Display Name",
+      "panel": true/false (true = separate panel, false = overlay on price),
+      "calculateFunction": "JavaScript function body returning data points",
+      "chartType": "line" or "bar",
+      "style": { "color": ["#color1", "#color2"], "lineWidth": 1.5 },
+      "yAxisConfig": { "min": 0, "max": 100, "label": "RSI" } // optional
+    }
+    */
+  ],
   "riskParameters": {
     "stopLoss": /* percentage as decimal, e.g., 0.02 for 2% */,
     "takeProfit": /* percentage as decimal, e.g., 0.05 for 5% */,
@@ -1189,12 +1202,19 @@ Available helper functions for filterCode:
 - detectRSIDivergence(klines)
 - And many more...
 
+Example indicator objects:
+- Moving Average: {"id": "ma_20", "name": "MA(20)", "panel": false, "calculateFunction": "const ma = helpers.calculateMASeries(klines, 20); return klines.map((k, i) => ({x: k[0], y: ma[i]}));", "chartType": "line", "style": {"color": "#facc15"}}
+- RSI: {"id": "rsi_14", "name": "RSI(14)", "panel": true, "calculateFunction": "const rsi = helpers.calculateRSI(klines, 14) || []; return rsi.map((val, i) => ({x: klines[i][0], y: val}));", "chartType": "line", "style": {"color": "#8b5cf6"}, "yAxisConfig": {"min": 0, "max": 100}}
+- Volume: {"id": "volume", "name": "Volume", "panel": true, "calculateFunction": "return klines.map(k => ({x: k[0], y: parseFloat(k[5]), color: parseFloat(k[4]) > parseFloat(k[1]) ? '#10b981' : '#ef4444'}));", "chartType": "bar"}
+
+IMPORTANT: The filterDescription should be human-readable explanations of what the filter is looking for, NOT code. Users should understand the conditions without seeing JavaScript.
+
 Example user prompt: "Create a mean reversion trader that buys oversold conditions"
 Example response would include:
-- Filter that finds RSI < 30 near support levels
-- Strategy instructions for entering on bounce confirmation
-- Conservative risk parameters (2% stop loss, 5% take profit)
-- RSI and support level indicators`;
+- filterDescription: ["RSI is below 30 (oversold)", "Price is near a support level", "Volume is above average"]
+- filterCode: The actual JavaScript implementation
+- indicators: RSI indicator, support/resistance levels, volume indicator
+- Conservative risk parameters (2% stop loss, 5% take profit)`;
 
     const prompt = `Create a complete trader based on this strategy: "${userPrompt}"
 

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from '../types';
-import { EnhancedSignalsTable } from '../src/components/EnhancedSignalsTable';
+import { TraderSignalsTable } from '../src/components/TraderSignalsTable';
 import CryptoTable from './CryptoTable';
 import ChartDisplay from './ChartDisplay';
 import Loader from './Loader';
@@ -37,6 +37,9 @@ interface MainContentProps {
   onCancelHistoricalScan?: () => void;
   // Strategy selection
   onSetAiPrompt?: (prompt: string) => void;
+  // Signal deduplication
+  signalDedupeThreshold?: number;
+  onSignalDedupeThresholdChange?: (threshold: number) => void;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -64,6 +67,8 @@ const MainContent: React.FC<MainContentProps> = ({
   onHistoricalScanConfigChange,
   onCancelHistoricalScan,
   onSetAiPrompt,
+  signalDedupeThreshold,
+  onSignalDedupeThresholdChange,
 }) => {
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-y-hidden">
@@ -83,7 +88,20 @@ const MainContent: React.FC<MainContentProps> = ({
                 historicalSignals={historicalSignals} // Pass historicalSignals to ChartDisplay
               />
               <div className="mt-6 flex-grow">
-                <EnhancedSignalsTable onRowClick={onRowClick} />
+                <TraderSignalsTable 
+                  tickers={tickers}
+                  onRowClick={onRowClick}
+                  hasActiveFilter={hasActiveFilter}
+                  onRunHistoricalScan={onRunHistoricalScan}
+                  isHistoricalScanning={isHistoricalScanning}
+                  historicalScanProgress={historicalScanProgress}
+                  historicalScanConfig={historicalScanConfig}
+                  onHistoricalScanConfigChange={onHistoricalScanConfigChange}
+                  onCancelHistoricalScan={onCancelHistoricalScan}
+                  historicalSignals={historicalSignals}
+                  signalDedupeThreshold={signalDedupeThreshold}
+                  onSignalDedupeThresholdChange={onSignalDedupeThresholdChange}
+                />
               </div>
               {/* Hidden CryptoTable to keep screener running */}
               <div className="hidden">

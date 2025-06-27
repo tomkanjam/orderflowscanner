@@ -9,6 +9,7 @@ import { generateFilterAndChartConfig, generateFilterAndChartConfigStream, getSy
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
 import * as screenerHelpers from './screenerHelpers';
 import { useHistoricalScanner } from './hooks/useHistoricalScanner';
+import { useMultiTraderHistoricalScanner } from './hooks/useMultiTraderHistoricalScanner';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { useAuth } from './src/hooks/useAuth';
 import { EmailAuthModal } from './src/components/auth/EmailAuthModal';
@@ -170,17 +171,54 @@ const AppContent: React.FC = () => {
     }
   }, [historicalScanResults]);
 
+  // Update historical signals from multi-trader scan
+  useEffect(() => {
+    if (multiTraderHistoricalSignals.length > 0) {
+      setHistoricalSignals(multiTraderHistoricalSignals);
+    }
+  }, [multiTraderHistoricalSignals]);
+
   // Subscribe to traders
   useEffect(() => {
     const unsubscribe = traderManager.subscribe((updatedTraders) => {
+      console.log('Traders updated:', updatedTraders.map(t => ({
+        name: t.name,
+        hasIndicators: !!t.filter?.indicators,
+        indicatorCount: t.filter?.indicators?.length || 0
+      })));
       setTraders(updatedTraders);
     });
     
     // Initial load
-    traderManager.getTraders().then(setTraders);
+    traderManager.getTraders().then((traders) => {
+      console.log('Initial traders load:', traders.map(t => ({
+        name: t.name,
+        hasIndicators: !!t.filter?.indicators,
+        indicatorCount: t.filter?.indicators?.length || 0
+      })));
+      setTraders(traders);
+    });
     
     return unsubscribe;
   }, []);
+
+  // Multi-trader historical scanner
+  const {
+    isScanning: isMultiTraderHistoricalScanning,
+    progress: multiTraderHistoricalProgress,
+    signals: multiTraderHistoricalSignals,
+    error: multiTraderHistoricalError,
+    startScan: startMultiTraderHistoricalScan,
+    cancelScan: cancelMultiTraderHistoricalScan,
+    clearSignals: clearMultiTraderHistoricalSignals,
+  } = useMultiTraderHistoricalScanner({
+    traders,
+    symbols: allSymbols,
+    historicalData,
+    tickers,
+    klineInterval,
+    signalDedupeThreshold,
+  });
 
   // Multi-trader screener will be initialized after handleNewSignal is defined
 
@@ -676,8 +714,12 @@ const AppContent: React.FC = () => {
   }, [user, handleRunAiScreener]);
 
   const handleRunHistoricalScan = () => {
-    if (!currentFilterFn) return;
-    startHistoricalScan(historicalScanConfig);
+    // Use multi-trader scanner if traders are enabled, otherwise use single filter scanner
+    if (multiTraderEnabled && traders.some(t => t.enabled)) {
+      startMultiTraderHistoricalScan(historicalScanConfig);
+    } else if (currentFilterFn) {
+      startHistoricalScan(historicalScanConfig);
+    }
   };
 
   const handleShowAiResponse = () => {
@@ -825,6 +867,7 @@ const AppContent: React.FC = () => {
     // If a trader is selected, use its indicators
     if (selectedTraderId) {
       const selectedTrader = traders.find(t => t.id === selectedTraderId);
+      console.log('Selected trader:', selectedTrader?.name, 'Indicators:', selectedTrader?.filter?.indicators);
       if (selectedTrader?.filter?.indicators) {
         return selectedTrader.filter.indicators;
       }
@@ -886,14 +929,16 @@ const AppContent: React.FC = () => {
         signalLog={signalLog} // Pass signalLog to MainContent
         onNewSignal={handleNewSignal} // Pass handleNewSignal
         historicalSignals={historicalSignals} // Pass historical signals
-        hasActiveFilter={!!currentFilterFn}
+        hasActiveFilter={!!currentFilterFn || (multiTraderEnabled && traders.some(t => t.enabled))}
         onRunHistoricalScan={handleRunHistoricalScan}
-        isHistoricalScanning={isHistoricalScanning}
-        historicalScanProgress={historicalScanProgress}
+        isHistoricalScanning={multiTraderEnabled && traders.some(t => t.enabled) ? isMultiTraderHistoricalScanning : isHistoricalScanning}
+        historicalScanProgress={multiTraderEnabled && traders.some(t => t.enabled) ? multiTraderHistoricalProgress : historicalScanProgress}
         historicalScanConfig={historicalScanConfig}
         onHistoricalScanConfigChange={setHistoricalScanConfig}
-        onCancelHistoricalScan={cancelHistoricalScan}
+        onCancelHistoricalScan={multiTraderEnabled && traders.some(t => t.enabled) ? cancelMultiTraderHistoricalScan : cancelHistoricalScan}
         onSetAiPrompt={setAiPrompt}
+        signalDedupeThreshold={signalDedupeThreshold}
+        onSignalDedupeThresholdChange={setSignalDedupeThreshold}
       />
       <Modal
         isOpen={isModalOpen}

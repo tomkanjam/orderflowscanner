@@ -289,6 +289,152 @@ export function detectRSIDivergence(
 }
 
 /**
+ * Calculates Stochastic RSI (StochRSI) values.
+ * StochRSI applies the Stochastic oscillator formula to RSI values.
+ * @param klines - Array of kline data.
+ * @param rsiPeriod - Period for RSI calculation (default 14).
+ * @param stochPeriod - Period for Stochastic calculation (default 14).
+ * @param kPeriod - Smoothing period for %K (default 3).
+ * @param dPeriod - Smoothing period for %D (default 3).
+ * @returns Array of objects with k and d values, or null if calculation fails.
+ */
+export function calculateStochRSI(
+    klines: Kline[],
+    rsiPeriod: number = 14,
+    stochPeriod: number = 14,
+    kPeriod: number = 3,
+    dPeriod: number = 3
+): { k: number; d: number }[] | null {
+    
+    // Calculate RSI values first
+    const rsiValues = calculateRSI(klines, rsiPeriod);
+    if (!rsiValues || rsiValues.length < stochPeriod + kPeriod - 1) return null;
+    
+    // Filter out null values and get valid RSI values
+    const validRSIIndices: number[] = [];
+    const validRSIValues: number[] = [];
+    
+    for (let i = 0; i < rsiValues.length; i++) {
+        if (rsiValues[i] !== null) {
+            validRSIIndices.push(i);
+            validRSIValues.push(rsiValues[i]!);
+        }
+    }
+    
+    if (validRSIValues.length < stochPeriod) return null;
+    
+    // Initialize result array with nulls
+    const stochRSIValues: { k: number; d: number }[] = new Array(klines.length).fill({ k: 0, d: 0 });
+    
+    // Calculate raw StochRSI values
+    const rawStochRSI: (number | null)[] = new Array(klines.length).fill(null);
+    
+    for (let i = 0; i < validRSIIndices.length; i++) {
+        const currentIndex = validRSIIndices[i];
+        
+        // Need at least stochPeriod values before current position
+        if (i < stochPeriod - 1) continue;
+        
+        // Get RSI values for the stoch period
+        const periodRSIValues: number[] = [];
+        for (let j = i - stochPeriod + 1; j <= i; j++) {
+            periodRSIValues.push(validRSIValues[j]);
+        }
+        
+        const maxRSI = Math.max(...periodRSIValues);
+        const minRSI = Math.min(...periodRSIValues);
+        const currentRSI = validRSIValues[i];
+        
+        if (maxRSI === minRSI) {
+            rawStochRSI[currentIndex] = 50; // Middle value when range is 0
+        } else {
+            rawStochRSI[currentIndex] = ((currentRSI - minRSI) / (maxRSI - minRSI)) * 100;
+        }
+    }
+    
+    // Smooth %K values using SMA
+    const kValues: (number | null)[] = new Array(klines.length).fill(null);
+    
+    for (let i = 0; i < rawStochRSI.length; i++) {
+        if (i < kPeriod - 1) continue;
+        
+        let sum = 0;
+        let count = 0;
+        
+        for (let j = 0; j < kPeriod; j++) {
+            if (rawStochRSI[i - j] !== null) {
+                sum += rawStochRSI[i - j]!;
+                count++;
+            }
+        }
+        
+        if (count === kPeriod) {
+            kValues[i] = sum / count;
+        }
+    }
+    
+    // Calculate %D values (SMA of %K)
+    const result: { k: number; d: number }[] = [];
+    
+    for (let i = 0; i < klines.length; i++) {
+        if (i < dPeriod - 1 || kValues[i] === null) {
+            result.push({ k: 0, d: 0 });
+            continue;
+        }
+        
+        let dSum = 0;
+        let dCount = 0;
+        
+        for (let j = 0; j < dPeriod; j++) {
+            if (kValues[i - j] !== null) {
+                dSum += kValues[i - j]!;
+                dCount++;
+            }
+        }
+        
+        if (dCount === dPeriod && kValues[i] !== null) {
+            result.push({
+                k: kValues[i]!,
+                d: dSum / dCount
+            });
+        } else {
+            result.push({ k: 0, d: 0 });
+        }
+    }
+    
+    return result;
+}
+
+/**
+ * Gets the latest Stochastic RSI values.
+ * @param klines - Array of kline data.
+ * @param rsiPeriod - Period for RSI calculation (default 14).
+ * @param stochPeriod - Period for Stochastic calculation (default 14).
+ * @param kPeriod - Smoothing period for %K (default 3).
+ * @param dPeriod - Smoothing period for %D (default 3).
+ * @returns Object with latest k and d values, or null if not calculable.
+ */
+export function getLatestStochRSI(
+    klines: Kline[],
+    rsiPeriod: number = 14,
+    stochPeriod: number = 14,
+    kPeriod: number = 3,
+    dPeriod: number = 3
+): { k: number; d: number } | null {
+    const stochRSIValues = calculateStochRSI(klines, rsiPeriod, stochPeriod, kPeriod, dPeriod);
+    if (!stochRSIValues || stochRSIValues.length === 0) return null;
+    
+    // Find the last non-zero value
+    for (let i = stochRSIValues.length - 1; i >= 0; i--) {
+        if (stochRSIValues[i].k !== 0 || stochRSIValues[i].d !== 0) {
+            return stochRSIValues[i];
+        }
+    }
+    
+    return null;
+}
+
+/**
  * Internal helper to calculate EMA series from an array of values.
  * @param values - Array of numbers or nulls.
  * @param period - The period for the EMA.

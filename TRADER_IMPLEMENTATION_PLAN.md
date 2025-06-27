@@ -4,6 +4,11 @@
 
 Transform the current filter + strategy system into a unified "Trader" concept where each trader is an autonomous agent that encapsulates the complete trading workflow: Filter → Analyze → Monitor → Trade.
 
+**Implementation Approach**:
+1. **Phase 1-6**: Build complete system with demo trading (paper trading)
+2. **Phase 7**: Add real exchange integration via CCXT
+3. Use abstraction pattern (consistent with existing IAnalysisEngine, ISignalManager) to allow seamless transition from demo to live trading
+
 ## Core Concept
 
 A **Trader** is a self-contained trading system that:
@@ -26,6 +31,15 @@ interface Trader {
   description: string;
   enabled: boolean;
   
+  // Trading configuration
+  mode: 'demo' | 'live';
+  exchangeConfig?: {
+    exchange: 'binance' | 'binance-us' | 'coinbase' | etc;
+    apiKey?: string; // Encrypted
+    apiSecret?: string; // Encrypted
+    testnet?: boolean;
+  };
+  
   // Core configuration
   filter: {
     code: string;
@@ -40,6 +54,7 @@ interface Trader {
       takeProfit?: number;
       maxPositions?: number;
       positionSizePercent?: number;
+      maxDrawdown?: number;
     };
   };
   
@@ -54,6 +69,9 @@ interface Trader {
     avgWin: number;
     avgLoss: number;
     lastSignalAt?: Date;
+    // Separate demo vs live metrics
+    demoMetrics?: PerformanceMetrics;
+    liveMetrics?: PerformanceMetrics;
   };
   
   // Metadata
@@ -67,14 +85,20 @@ interface Trader {
   - [ ] CRUD operations for traders
   - [ ] Enable/disable traders
   - [ ] Performance tracking
+  - [ ] Demo/live mode management
 - [ ] Extend `SignalManager` to track trader ownership
 - [ ] Update `ScreenerEngine` to run multiple filters
+- [ ] Create `ITradeExecutor` interface
+  - [ ] `DemoTradeExecutor` for paper trading
+  - [ ] `CCXTTradeExecutor` placeholder for future
 
 #### 1.3 Database Schema
 - [ ] Create Supabase tables:
-  - [ ] `traders` table
+  - [ ] `traders` table (includes mode, exchange_config)
   - [ ] Update `signals` table to include `trader_id`
-  - [ ] Update `trades` table to include `trader_id`
+  - [ ] Update `trades` table to include `trader_id`, `mode`
+  - [ ] `exchange_credentials` table (encrypted storage)
+  - [ ] `trade_audit_log` table for compliance
 
 ### Phase 2: Unified AI Generation
 **Goal**: Single prompt generates complete trader configuration
@@ -161,6 +185,34 @@ interface Trader {
 - [ ] Smart caching for trader metrics
 - [ ] Real-time performance updates
 
+### Phase 7: Exchange Integration (CCXT)
+**Goal**: Enable real trading with crypto exchanges
+
+#### 7.1 Trade Execution Abstraction
+- [ ] Create `ITradeExecutor` interface
+  - [ ] `DemoTradeExecutor` for paper trading
+  - [ ] `CCXTTradeExecutor` for live trading
+- [ ] Add exchange credential management (encrypted)
+- [ ] Implement order types (market, limit, stop)
+
+#### 7.2 Exchange Data Sync
+- [ ] Sync positions from exchange
+- [ ] Reconcile local vs exchange P&L
+- [ ] Handle partial fills and slippage
+- [ ] Real-time balance updates
+
+#### 7.3 Risk Management
+- [ ] Pre-trade validation (balance, margin)
+- [ ] Position size calculations
+- [ ] Emergency stop functionality
+- [ ] Rate limit management
+
+#### 7.4 Transition Features
+- [ ] Demo → Live migration tools
+- [ ] Side-by-side demo/live comparison
+- [ ] Exchange-specific error handling
+- [ ] Audit trail for all trades
+
 ## UI/UX Principles
 
 1. **Simplicity First**: Don't overwhelm with options
@@ -175,16 +227,26 @@ interface Trader {
 - Extend existing React Context for trader state
 - Real-time updates via subscription pattern
 - Efficient re-renders with proper memoization
+- Separate state management for demo vs live trades
 
 ### Performance
 - Web Workers for parallel filter execution
 - Debounced metric calculations
 - Lazy loading for historical data
+- Exchange WebSocket management
 
 ### Persistence
 - Traders stored in Supabase
+- Trade history separated by mode (demo/live)
+- Encrypted storage for exchange credentials
 - Local caching for performance
 - Sync state across tabs
+
+### Security
+- Exchange credentials encrypted at rest
+- API key permissions validation
+- IP whitelist support where available
+- Audit logging for all live trades
 
 ## Migration Strategy
 
@@ -211,8 +273,10 @@ interface Trader {
 
 1. Review and refine this plan
 2. Create detailed technical design for Phase 1
-3. Set up database schema
+3. Set up database schema (with demo/live support)
 4. Begin implementation with TraderManager service
+5. Implement DemoTradeExecutor first
+6. Plan CCXT integration architecture for Phase 7
 
 ---
 
@@ -223,6 +287,7 @@ interface Trader {
 - [ ] Create TraderManager service
 - [ ] Set up Supabase tables
 - [ ] Basic CRUD operations
+- [ ] Add demo/live mode support
 
 ### Phase 2: AI Generation ⏳
 - [ ] Enhance Gemini service
@@ -249,3 +314,10 @@ interface Trader {
 - [ ] Migration tools
 - [ ] Performance tuning
 - [ ] Documentation
+
+### Phase 7: Exchange Integration ⏳
+- [ ] CCXT integration
+- [ ] Trade executor abstraction
+- [ ] Exchange credential management
+- [ ] Demo to live transition
+- [ ] P&L reconciliation

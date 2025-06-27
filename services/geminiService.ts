@@ -5,6 +5,7 @@ import { AiFilterResponse, Kline, Ticker, CustomIndicatorConfig, IndicatorDataPo
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS } from "../constants";
 import * as helpers from '../screenerHelpers'; // Import all helpers
 import { observability } from './observabilityService';
+import { TraderGeneration } from '../src/abstractions/trader.interfaces';
 
 // Simple indicator executor for analysis (full version is in worker)
 function executeIndicatorFunction(
@@ -1141,5 +1142,165 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
         );
         
         throw new Error(`Symbol analysis API request for ${symbol} failed: ${errorMessage}`);
+    }
+}
+
+// Generate a complete trader configuration from natural language
+export async function generateTrader(
+    userPrompt: string,
+    modelName: string = 'gemini-2.0-flash-exp',
+    klineInterval: string = '1h'
+): Promise<TraderGeneration> {
+    const systemInstruction = `You are an AI assistant that creates complete cryptocurrency trading systems. The user provides a trading strategy description, and you create a unified "Trader" that includes both market scanning filters and trading execution strategy.
+
+Generate a JSON response with the following structure:
+{
+  "suggestedName": "A short, descriptive name for this trader (e.g., 'RSI Bounce Trader', 'Momentum Breakout Bot')",
+  "description": "A 1-2 sentence description of what this trader does",
+  "filterDescription": ["Array of 3-4 human-readable conditions this trader looks for"],
+  "filterCode": "JavaScript function body for (ticker, klines, helpers, hvnNodes) => boolean",
+  "strategyInstructions": "Detailed instructions for AI analysis including entry criteria, exit criteria, and risk management",
+  "indicators": [/* Array of indicator configurations for charting */],
+  "riskParameters": {
+    "stopLoss": /* percentage as decimal, e.g., 0.02 for 2% */,
+    "takeProfit": /* percentage as decimal, e.g., 0.05 for 5% */,
+    "maxPositions": /* number */,
+    "positionSizePercent": /* percentage of portfolio as decimal */,
+    "maxDrawdown": /* maximum acceptable drawdown as decimal */
+  }
+}
+
+IMPORTANT GUIDELINES:
+1. The filter and strategy must work together cohesively - the filter finds opportunities that match the strategy
+2. The filterCode must use the helper functions available (calculateMA, calculateRSI, etc.)
+3. Risk parameters should be conservative by default unless the user specifies otherwise
+4. Include relevant technical indicators that support the strategy
+5. The strategyInstructions should be clear enough for the AI analyzer to make consistent decisions
+
+Available helper functions for filterCode:
+- calculateMA(klines, period)
+- calculateRSI(klines, period) / getLatestRSI(klines, period)
+- calculateEMA(values, period) / getLatestEMA(klines, period)
+- calculateMACD(closes) / getLatestMACD(klines)
+- calculateBollingerBands(closes, period, stdDev)
+- calculateVWAP(klines)
+- calculateHighVolumeNodes(klines, options)
+- isNearHVN(price, hvnNodes, tolerance)
+- detectRSIDivergence(klines)
+- And many more...
+
+Example user prompt: "Create a mean reversion trader that buys oversold conditions"
+Example response would include:
+- Filter that finds RSI < 30 near support levels
+- Strategy instructions for entering on bounce confirmation
+- Conservative risk parameters (2% stop loss, 5% take profit)
+- RSI and support level indicators`;
+
+    const prompt = `Create a complete trader based on this strategy: "${userPrompt}"
+
+Remember to:
+1. Make the filter and strategy work together
+2. Include appropriate risk management
+3. Suggest relevant indicators
+4. Keep the name short and descriptive`;
+
+    const startTime = Date.now();
+
+    try {
+        const model = getGenerativeModel(ai, { model: modelName });
+        const result = await model.generateContent({
+            systemInstruction,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        });
+        
+        const response = result.response;
+        const text = response.text();
+        
+        // Track the generation
+        await observability.trackAnalysis(
+            'trader_generation',
+            modelName,
+            prompt,
+            text,
+            response.usageMetadata,
+            Date.now() - startTime
+        );
+        
+        // Parse and validate the response
+        const parsed = parseAndValidateTraderGeneration(text);
+        return parsed;
+    } catch (error) {
+        console.error('Error generating trader:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        await observability.trackAnalysis(
+            'trader_generation',
+            modelName,
+            prompt,
+            null,
+            null,
+            Date.now() - startTime,
+            undefined,
+            errorMessage
+        );
+        
+        throw new Error(`Trader generation failed: ${errorMessage}`);
+    }
+}
+
+// Helper to parse and validate trader generation response
+function parseAndValidateTraderGeneration(responseText: string): TraderGeneration {
+    try {
+        // Extract JSON from the response
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            throw new Error('No JSON found in response');
+        }
+        
+        const parsed = JSON.parse(jsonMatch[0]);
+        
+        // Validate required fields
+        if (!parsed.suggestedName || typeof parsed.suggestedName !== 'string') {
+            throw new Error('Invalid or missing suggestedName');
+        }
+        
+        if (!parsed.filterCode || typeof parsed.filterCode !== 'string') {
+            throw new Error('Invalid or missing filterCode');
+        }
+        
+        if (!parsed.strategyInstructions || typeof parsed.strategyInstructions !== 'string') {
+            throw new Error('Invalid or missing strategyInstructions');
+        }
+        
+        // Ensure arrays
+        parsed.filterDescription = Array.isArray(parsed.filterDescription) ? parsed.filterDescription : [];
+        parsed.indicators = Array.isArray(parsed.indicators) ? parsed.indicators : [];
+        
+        // Validate risk parameters with defaults
+        const defaultRisk = {
+            stopLoss: 0.02,
+            takeProfit: 0.05,
+            maxPositions: 3,
+            positionSizePercent: 0.1,
+            maxDrawdown: 0.1
+        };
+        
+        parsed.riskParameters = {
+            ...defaultRisk,
+            ...(parsed.riskParameters || {})
+        };
+        
+        return {
+            suggestedName: parsed.suggestedName,
+            description: parsed.description || parsed.suggestedName,
+            filterCode: parsed.filterCode,
+            filterDescription: parsed.filterDescription,
+            strategyInstructions: parsed.strategyInstructions,
+            indicators: parsed.indicators,
+            riskParameters: parsed.riskParameters
+        };
+    } catch (error) {
+        console.error('Failed to parse trader generation:', error);
+        throw new Error(`Invalid trader generation response: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }

@@ -1,0 +1,340 @@
+import React, { useState } from 'react';
+import { X, Wand2, Code, AlertCircle, Loader2 } from 'lucide-react';
+import { generateTrader } from '../../services/geminiService';
+import { traderManager } from '../services/traderManager';
+import { Trader, TraderGeneration } from '../abstractions/trader.interfaces';
+
+interface CreateTraderModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onTraderCreated?: (trader: Trader) => void;
+  editingTrader?: Trader;
+}
+
+type CreationMode = 'ai' | 'manual';
+
+export function CreateTraderModal({ 
+  isOpen, 
+  onClose, 
+  onTraderCreated,
+  editingTrader 
+}: CreateTraderModalProps) {
+  const [mode, setMode] = useState<CreationMode>('ai');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [manualName, setManualName] = useState(editingTrader?.name || '');
+  const [manualDescription, setManualDescription] = useState(editingTrader?.description || '');
+  const [manualFilterCode, setManualFilterCode] = useState(editingTrader?.filter.code || '');
+  const [manualStrategy, setManualStrategy] = useState(editingTrader?.strategy.instructions || '');
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [generatedTrader, setGeneratedTrader] = useState<TraderGeneration | null>(null);
+
+  const resetForm = () => {
+    setMode('ai');
+    setAiPrompt('');
+    setManualName('');
+    setManualDescription('');
+    setManualFilterCode('');
+    setManualStrategy('');
+    setGenerating(false);
+    setError('');
+    setGeneratedTrader(null);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handleGenerateTrader = async () => {
+    if (!aiPrompt.trim()) {
+      setError('Please enter a strategy description');
+      return;
+    }
+
+    setGenerating(true);
+    setError('');
+
+    try {
+      const generated = await generateTrader(aiPrompt);
+      setGeneratedTrader(generated);
+      
+      // Switch to manual mode and populate fields
+      setMode('manual');
+      setManualName(generated.suggestedName);
+      setManualDescription(generated.description);
+      setManualFilterCode(generated.filterCode);
+      setManualStrategy(generated.strategyInstructions);
+    } catch (error) {
+      console.error('Failed to generate trader:', error);
+      setError(error instanceof Error ? error.message : 'Failed to generate trader');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleCreateTrader = async () => {
+    // Validate fields
+    if (!manualName.trim()) {
+      setError('Trader name is required');
+      return;
+    }
+
+    if (!manualFilterCode.trim()) {
+      setError('Filter code is required');
+      return;
+    }
+
+    if (!manualStrategy.trim()) {
+      setError('Strategy instructions are required');
+      return;
+    }
+
+    try {
+      setError('');
+      
+      if (editingTrader) {
+        // Update existing trader
+        const updated = await traderManager.updateTrader(editingTrader.id, {
+          name: manualName,
+          description: manualDescription || manualName,
+          filter: {
+            code: manualFilterCode,
+            description: generatedTrader?.filterDescription || editingTrader.filter.description,
+            indicators: generatedTrader?.indicators || editingTrader.filter.indicators
+          },
+          strategy: {
+            instructions: manualStrategy,
+            riskManagement: generatedTrader?.riskParameters || editingTrader.strategy.riskManagement
+          }
+        });
+        
+        onTraderCreated?.(updated);
+      } else {
+        // Create new trader
+        const trader = await traderManager.createTrader({
+          name: manualName,
+          description: manualDescription || manualName,
+          enabled: true,
+          mode: 'demo', // Always start in demo mode
+          filter: {
+            code: manualFilterCode,
+            description: generatedTrader?.filterDescription || [],
+            indicators: generatedTrader?.indicators
+          },
+          strategy: {
+            instructions: manualStrategy,
+            riskManagement: generatedTrader?.riskParameters || {
+              stopLoss: 0.02,
+              takeProfit: 0.05,
+              maxPositions: 3,
+              positionSizePercent: 0.1
+            }
+          }
+        });
+        
+        onTraderCreated?.(trader);
+      }
+      
+      handleClose();
+    } catch (error) {
+      console.error('Failed to save trader:', error);
+      setError(error instanceof Error ? error.message : 'Failed to save trader');
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-[var(--tm-bg-primary)] rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-[var(--tm-border)]">
+          <h2 className="text-xl font-semibold text-[var(--tm-text-primary)]">
+            {editingTrader ? 'Edit Trader' : 'Create New Trader'}
+          </h2>
+          <button
+            onClick={handleClose}
+            className="p-1 text-[var(--tm-text-muted)] hover:text-[var(--tm-text-primary)] transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+          {/* Mode Selection (only for new traders) */}
+          {!editingTrader && (
+            <div className="mb-6">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMode('ai')}
+                  className={`flex-1 p-3 rounded-lg border transition-all ${
+                    mode === 'ai'
+                      ? 'bg-[var(--tm-accent)]/10 border-[var(--tm-accent)] text-[var(--tm-accent)]'
+                      : 'border-[var(--tm-border)] text-[var(--tm-text-muted)] hover:border-[var(--tm-border-light)]'
+                  }`}
+                >
+                  <Wand2 className="h-5 w-5 mx-auto mb-1" />
+                  <div className="text-sm font-medium">AI Generate</div>
+                  <div className="text-xs mt-1">Describe your strategy in natural language</div>
+                </button>
+                <button
+                  onClick={() => setMode('manual')}
+                  className={`flex-1 p-3 rounded-lg border transition-all ${
+                    mode === 'manual'
+                      ? 'bg-[var(--tm-accent)]/10 border-[var(--tm-accent)] text-[var(--tm-accent)]'
+                      : 'border-[var(--tm-border)] text-[var(--tm-text-muted)] hover:border-[var(--tm-border-light)]'
+                  }`}
+                >
+                  <Code className="h-5 w-5 mx-auto mb-1" />
+                  <div className="text-sm font-medium">Manual Entry</div>
+                  <div className="text-xs mt-1">Write filter code and strategy directly</div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Error Display */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500 rounded-lg flex items-start gap-2 text-sm text-red-400">
+              <AlertCircle className="h-4 w-4 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* AI Generation Form */}
+          {mode === 'ai' && !editingTrader && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-2">
+                  Describe Your Trading Strategy
+                </label>
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="Example: Create a momentum trader that buys strong uptrends with increasing volume"
+                  className="w-full p-3 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg text-[var(--tm-text-primary)] placeholder-[var(--tm-text-muted)] focus:border-[var(--tm-accent)] focus:outline-none resize-none"
+                  rows={4}
+                />
+              </div>
+
+              <button
+                onClick={handleGenerateTrader}
+                disabled={generating || !aiPrompt.trim()}
+                className="w-full py-2 bg-[var(--tm-accent)] text-[var(--tm-bg-primary)] rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4" />
+                    Generate Trader
+                  </>
+                )}
+              </button>
+
+              <div className="text-xs text-[var(--tm-text-muted)]">
+                The AI will create a complete trader including filter conditions, strategy instructions, and risk parameters based on your description.
+              </div>
+            </div>
+          )}
+
+          {/* Manual Entry Form */}
+          {(mode === 'manual' || editingTrader) && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                  Trader Name
+                </label>
+                <input
+                  type="text"
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  placeholder="e.g., RSI Bounce Trader"
+                  className="w-full p-2 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg text-[var(--tm-text-primary)] placeholder-[var(--tm-text-muted)] focus:border-[var(--tm-accent)] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={manualDescription}
+                  onChange={(e) => setManualDescription(e.target.value)}
+                  placeholder="Brief description of what this trader does"
+                  className="w-full p-2 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg text-[var(--tm-text-primary)] placeholder-[var(--tm-text-muted)] focus:border-[var(--tm-accent)] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                  Filter Code
+                </label>
+                <textarea
+                  value={manualFilterCode}
+                  onChange={(e) => setManualFilterCode(e.target.value)}
+                  placeholder="// JavaScript function body that returns boolean
+const ma20 = helpers.calculateMA(klines, 20);
+const rsi = helpers.getLatestRSI(klines, 14);
+return rsi < 30 && ticker.c > ma20;"
+                  className="w-full p-3 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg text-[var(--tm-text-primary)] placeholder-[var(--tm-text-muted)] focus:border-[var(--tm-accent)] focus:outline-none resize-none font-mono text-sm"
+                  rows={6}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                  Strategy Instructions
+                </label>
+                <textarea
+                  value={manualStrategy}
+                  onChange={(e) => setManualStrategy(e.target.value)}
+                  placeholder="Detailed instructions for the AI analyzer. Include entry criteria, exit criteria, and risk management rules."
+                  className="w-full p-3 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg text-[var(--tm-text-primary)] placeholder-[var(--tm-text-muted)] focus:border-[var(--tm-accent)] focus:outline-none resize-none"
+                  rows={4}
+                />
+              </div>
+
+              {generatedTrader && (
+                <div className="p-3 bg-[var(--tm-accent)]/10 border border-[var(--tm-accent)] rounded-lg text-sm">
+                  <div className="flex items-center gap-2 text-[var(--tm-accent)] mb-2">
+                    <Wand2 className="h-4 w-4" />
+                    <span className="font-medium">AI Generated</span>
+                  </div>
+                  <div className="text-[var(--tm-text-muted)]">
+                    This trader was generated from: "{aiPrompt}"
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-[var(--tm-border)] flex justify-end gap-2">
+          <button
+            onClick={handleClose}
+            className="px-4 py-2 text-[var(--tm-text-muted)] hover:text-[var(--tm-text-primary)] transition-colors"
+          >
+            Cancel
+          </button>
+          {(mode === 'manual' || editingTrader) && (
+            <button
+              onClick={handleCreateTrader}
+              disabled={!manualName.trim() || !manualFilterCode.trim() || !manualStrategy.trim()}
+              className="px-4 py-2 bg-[var(--tm-accent)] text-[var(--tm-bg-primary)] rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+            >
+              {editingTrader ? 'Update Trader' : 'Create Trader'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

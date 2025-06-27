@@ -1146,6 +1146,70 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
 }
 
 // Generate a complete trader configuration from natural language
+export async function regenerateFilterCode(
+    conditions: string[],
+    modelName: string = 'gemini-2.5-pro',
+    klineInterval: string = '1h'
+): Promise<{ filterCode: string }> {
+    const conditionsList = conditions.map((c, i) => `${i + 1}. ${c}`).join('\n');
+    
+    const systemInstruction = `You are an AI assistant that converts human-readable trading conditions into JavaScript filter code.
+
+Given these conditions:
+${conditionsList}
+
+Generate ONLY the JavaScript function body for (ticker, klines, helpers, hvnNodes) => boolean
+
+IMPORTANT:
+- Return ONLY the function body code, no JSON wrapper
+- Use only the 4 provided parameters: ticker, klines, helpers, hvnNodes
+- Do NOT reference undefined variables like 'inputs', 'data', etc.
+- The code must return true when ALL conditions are met, false otherwise
+- Use helper functions like calculateMA, calculateRSI, etc.
+
+Available helpers include:
+- calculateMA(klines, period)
+- calculateRSI(klines, period) / getLatestRSI(klines, period)
+- calculateEMA(values, period) / getLatestEMA(klines, period)
+- calculateMACD(klines, fastPeriod=12, slowPeriod=26, signalPeriod=9)
+- calculateBollingerBands(klines, period=20, multiplier=2)
+- calculateStochastic(klines, kPeriod=14, dPeriod=3)
+- calculateOBV(klines)
+- calculateVWAP(klines, anchorPeriod)
+- detectRSIDivergence(klines, period=14, lookback=50)
+- calculateHighVolumeNodes(klines, options)
+- isNearHVN(price, hvnNodes, threshold=1)
+- And many more...
+
+The klines array format: each kline is [timestamp, open, high, low, close, volume, ...other]
+The ticker object has properties like: ticker.c (lastPrice), ticker.P (priceChangePercent), ticker.q (quoteVolume)
+
+Kline interval: ${klineInterval}`;
+
+    try {
+        const model = getGenerativeModel(ai, {
+            model: modelName,
+            generationConfig: {
+                responseMimeType: "text/plain",
+            }
+        });
+
+        const result = await model.generateContent(systemInstruction);
+        const response = result.response;
+        const filterCode = response.text().trim();
+        
+        // Basic validation
+        if (!filterCode.includes('return')) {
+            throw new Error('Generated filter code is missing a return statement');
+        }
+        
+        return { filterCode };
+    } catch (error) {
+        console.error('Failed to regenerate filter code:', error);
+        throw error;
+    }
+}
+
 export async function generateTrader(
     userPrompt: string,
     modelName: string = 'gemini-2.5-pro',

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { X, Wand2, Code, AlertCircle, Loader2 } from 'lucide-react';
-import { generateTrader } from '../../services/geminiService';
+import React, { useState, useRef } from 'react';
+import { X, Wand2, Code, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { generateTrader, regenerateFilterCode } from '../../services/geminiService';
 import { traderManager } from '../services/traderManager';
 import { Trader, TraderGeneration } from '../abstractions/trader.interfaces';
 
@@ -27,9 +27,14 @@ export function CreateTraderModal({
   const [manualStrategy, setManualStrategy] = useState(editingTrader?.strategy.instructions || '');
   const [filterConditions, setFilterConditions] = useState<string[]>(editingTrader?.filter?.description || []);
   const [generating, setGenerating] = useState(false);
+  const [regeneratingCode, setRegeneratingCode] = useState(false);
   const [error, setError] = useState('');
   const [generatedTrader, setGeneratedTrader] = useState<TraderGeneration | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  // Track the original conditions to detect changes
+  const originalConditionsRef = useRef<string[]>(editingTrader?.filter?.description || []);
+  const [conditionsModified, setConditionsModified] = useState(false);
 
   // Update form fields when editingTrader changes
   React.useEffect(() => {
@@ -40,8 +45,16 @@ export function CreateTraderModal({
       setManualFilterCode(editingTrader.filter?.code || '');
       setManualStrategy(editingTrader.strategy?.instructions || '');
       setFilterConditions(editingTrader.filter?.description || []);
+      originalConditionsRef.current = editingTrader.filter?.description || [];
+      setConditionsModified(false);
     }
   }, [editingTrader]);
+  
+  // Check if conditions have been modified
+  React.useEffect(() => {
+    const hasChanged = JSON.stringify(filterConditions) !== JSON.stringify(originalConditionsRef.current);
+    setConditionsModified(hasChanged);
+  }, [filterConditions]);
 
   const resetForm = () => {
     setMode('ai');
@@ -52,8 +65,11 @@ export function CreateTraderModal({
     setManualStrategy('');
     setFilterConditions([]);
     setGenerating(false);
+    setRegeneratingCode(false);
     setError('');
     setGeneratedTrader(null);
+    originalConditionsRef.current = [];
+    setConditionsModified(false);
   };
 
   const handleClose = () => {
@@ -81,6 +97,8 @@ export function CreateTraderModal({
       setManualFilterCode(generated.filterCode);
       setManualStrategy(generated.strategyInstructions);
       setFilterConditions(generated.filterDescription || []);
+      originalConditionsRef.current = generated.filterDescription || [];
+      setConditionsModified(false);
     } catch (error) {
       console.error('Failed to generate trader:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate trader');
@@ -88,16 +106,34 @@ export function CreateTraderModal({
       setGenerating(false);
     }
   };
+  
+  const handleRegenerateFilterCode = async () => {
+    const validConditions = filterConditions.filter(c => c.trim().length > 0);
+    if (validConditions.length === 0) {
+      setError('Please add at least one filter condition');
+      return;
+    }
+    
+    setRegeneratingCode(true);
+    setError('');
+    
+    try {
+      const { filterCode } = await regenerateFilterCode(validConditions);
+      setManualFilterCode(filterCode);
+      originalConditionsRef.current = [...filterConditions];
+      setConditionsModified(false);
+    } catch (error) {
+      console.error('Failed to regenerate filter code:', error);
+      setError(error instanceof Error ? error.message : 'Failed to regenerate filter code');
+    } finally {
+      setRegeneratingCode(false);
+    }
+  };
 
   const handleCreateTrader = async () => {
     // Validate fields
     if (!manualName.trim()) {
       setError('Trader name is required');
-      return;
-    }
-
-    if (!manualFilterCode.trim()) {
-      setError('Filter code is required');
       return;
     }
 
@@ -110,6 +146,29 @@ export function CreateTraderModal({
     const validConditions = filterConditions.filter(c => c.trim().length > 0);
     if (validConditions.length === 0) {
       setError('At least one filter condition is required');
+      return;
+    }
+    
+    // Check if we need to regenerate filter code due to condition changes
+    if (conditionsModified) {
+      setError('Filter conditions have been modified. Regenerating filter code...');
+      try {
+        setRegeneratingCode(true);
+        const { filterCode } = await regenerateFilterCode(validConditions);
+        setManualFilterCode(filterCode);
+        originalConditionsRef.current = [...filterConditions];
+        setConditionsModified(false);
+      } catch (error) {
+        console.error('Failed to regenerate filter code:', error);
+        setError('Failed to regenerate filter code. Please try manually or revert changes.');
+        return;
+      } finally {
+        setRegeneratingCode(false);
+      }
+    }
+
+    if (!manualFilterCode.trim()) {
+      setError('Filter code is required');
       return;
     }
 
@@ -297,9 +356,30 @@ export function CreateTraderModal({
 
               {/* Filter Conditions - Editable */}
               <div>
-                <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
-                  Filter Conditions
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-[var(--tm-text-primary)]">
+                    Filter Conditions
+                  </label>
+                  {conditionsModified && (
+                    <button
+                      onClick={handleRegenerateFilterCode}
+                      disabled={regeneratingCode}
+                      className="flex items-center gap-1 px-2 py-1 bg-[var(--tm-accent)]/10 border border-[var(--tm-accent)] rounded text-xs text-[var(--tm-accent)] hover:bg-[var(--tm-accent)]/20 transition-all"
+                    >
+                      {regeneratingCode ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Regenerating...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-3 w-3" />
+                          Regenerate Code
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-2">
                   {filterConditions.map((condition, index) => (
                     <div key={index} className="flex items-start gap-2">
@@ -333,9 +413,16 @@ export function CreateTraderModal({
                     + Add Condition
                   </button>
                 </div>
-                <p className="text-xs text-[var(--tm-text-muted)] mt-2">
-                  Describe what market conditions this trader looks for in plain language
-                </p>
+                <div className="flex items-start justify-between mt-2">
+                  <p className="text-xs text-[var(--tm-text-muted)]">
+                    Describe what market conditions this trader looks for in plain language
+                  </p>
+                  {conditionsModified && (
+                    <p className="text-xs text-[var(--tm-accent)]">
+                      ⚠️ Code needs regeneration
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Indicators Display */}
@@ -429,10 +516,19 @@ export function CreateTraderModal({
           {(mode === 'manual' || editingTrader) && (
             <button
               onClick={handleCreateTrader}
-              disabled={!manualName.trim() || !manualFilterCode.trim() || !manualStrategy.trim() || filterConditions.filter(c => c.trim()).length === 0}
-              className="px-4 py-2 bg-[var(--tm-accent)] text-[var(--tm-bg-primary)] rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+              disabled={!manualName.trim() || !manualFilterCode.trim() || !manualStrategy.trim() || filterConditions.filter(c => c.trim()).length === 0 || regeneratingCode}
+              className="px-4 py-2 bg-[var(--tm-accent)] text-[var(--tm-bg-primary)] rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center gap-2"
             >
-              {editingTrader ? 'Update Trader' : 'Create Trader'}
+              {regeneratingCode ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Regenerating...
+                </>
+              ) : conditionsModified ? (
+                <>⚠️ {editingTrader ? 'Update Trader' : 'Create Trader'} (will regenerate code)</>
+              ) : (
+                editingTrader ? 'Update Trader' : 'Create Trader'
+              )}
             </button>
           )}
         </div>

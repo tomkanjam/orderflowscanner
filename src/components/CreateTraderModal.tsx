@@ -29,6 +29,17 @@ export function CreateTraderModal({
   const [error, setError] = useState('');
   const [generatedTrader, setGeneratedTrader] = useState<TraderGeneration | null>(null);
 
+  // Update form fields when editingTrader changes
+  React.useEffect(() => {
+    if (editingTrader) {
+      setMode('manual'); // Switch to manual mode when editing
+      setManualName(editingTrader.name || '');
+      setManualDescription(editingTrader.description || '');
+      setManualFilterCode(editingTrader.filter?.code || '');
+      setManualStrategy(editingTrader.strategy?.instructions || '');
+    }
+  }, [editingTrader]);
+
   const resetForm = () => {
     setMode('ai');
     setAiPrompt('');

@@ -60,7 +60,7 @@ function runTraderFilter(
           ${filterCode} 
         } catch(e) { 
           console.error('Trader ${traderId} filter error for ticker:', ticker.s, e); 
-          console.error('Filter code:', \`${filterCode.substring(0, 200)}...\`);
+          console.error('Filter code (first 500 chars):', \`${filterCode.substring(0, 500)}...\`);
           return false; 
         }`
       ) as (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: any[]) => boolean;

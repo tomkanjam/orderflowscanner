@@ -1197,13 +1197,20 @@ Available helper functions for filterCode:
 - calculateMA(klines, period)
 - calculateRSI(klines, period) / getLatestRSI(klines, period)
 - calculateEMA(values, period) / getLatestEMA(klines, period)
-- calculateMACD(closes) / getLatestMACD(klines)
-- calculateBollingerBands(closes, period, stdDev)
+- calculateMACD(klines) / getLatestMACD(klines)
+- calculateBollingerBands(klines, period, stdDev) - Returns {upper: [], middle: [], lower: []}
+- getLatestBollingerBands(klines, period, stdDev) - Returns {upper: number, middle: number, lower: number}
 - calculateVWAP(klines)
 - calculateHighVolumeNodes(klines, options)
 - isNearHVN(price, hvnNodes, tolerance)
 - detectRSIDivergence(klines)
 - And many more...
+
+IMPORTANT: Always check if helper function results exist before accessing properties:
+Example: 
+  const bb = helpers.getLatestBollingerBands(klines, 20, 2);
+  if (!bb || bb.lower === null) return false;
+  // Now safe to use bb.lower
 
 Example indicator objects:
 - Moving Average: {"id": "ma_20", "name": "MA(20)", "panel": false, "calculateFunction": "const ma = helpers.calculateMASeries(klines, 20); return klines.map((k, i) => ({x: k[0], y: ma[i]}));", "chartType": "line", "style": {"color": "#facc15"}}

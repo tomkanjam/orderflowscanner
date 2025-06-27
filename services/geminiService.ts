@@ -126,6 +126,17 @@ screenerCode: A string containing the body of a JavaScript function \`(ticker, k
         22. \`helpers.getLatestVWAP(klines, anchorPeriod?)\`: Returns Latest VWAP (number) or \`null\`.
         23. \`helpers.calculateVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)\`: Returns \`{ vwap: (number | null)[], upperBand: (number | null)[], lowerBand: (number | null)[] }\`.
         24. \`helpers.getLatestVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)\`: Returns \`{ vwap: number | null, upperBand: number | null, lowerBand: number | null }\`.
+        25. \`helpers.calculateBollingerBands(klines, period = 20, stdDev = 2)\`: Returns \`{ upper: (number | null)[], middle: (number | null)[], lower: (number | null)[] }\`.
+        26. \`helpers.getLatestBollingerBands(klines, period = 20, stdDev = 2)\`: Returns \`{ upper: number | null, middle: number | null, lower: number | null }\`.
+        27. \`helpers.calculateStochRSI(klines, rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3)\`: Returns array of \`{ k: number, d: number }\` or \`null\`.
+        28. \`helpers.getLatestStochRSI(klines, rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3)\`: Returns \`{ k: number, d: number }\` or \`null\`.
+        29. \`helpers.calculateStochastic(klines, kPeriod = 14, dPeriod = 3, smooth = 3)\`: Returns \`{ k: number, d: number }\`.
+        30. \`helpers.calculateEMA(values, period)\`: Returns EMA (number) for an array of values.
+        31. \`helpers.calculateSMA(values, period)\`: Returns SMA (number) for an array of values.
+        32. \`helpers.calculateMACD(closes, shortPeriod = 12, longPeriod = 26, signalPeriod = 9)\`: Returns \`{ MACD: number, signal: number, histogram: number }\`.
+        33. \`helpers.calculateADX(klines, period = 14)\`: Returns ADX value (number).
+        34. \`helpers.calculateVWAP(klines)\`: Returns VWAP value (number).
+        35. \`helpers.clearHVNCache(cacheKey?)\`: Clears HVN cache for performance.
 
     Structure and Logic in \`screenerCode\`:
         - CRUCIAL: Always check \`klines.length\` before accessing elements or performing calculations. If insufficient, return \`false\`.
@@ -487,6 +498,17 @@ screenerCode: A string containing the body of a JavaScript function \`(ticker, k
         22. \`helpers.getLatestVWAP(klines, anchorPeriod?)\`: Returns Latest VWAP (number) or \`null\`.
         23. \`helpers.calculateVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)\`: Returns \`{ vwap: (number | null)[], upperBand: (number | null)[], lowerBand: (number | null)[] }\`.
         24. \`helpers.getLatestVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)\`: Returns \`{ vwap: number | null, upperBand: number | null, lowerBand: number | null }\`.
+        25. \`helpers.calculateBollingerBands(klines, period = 20, stdDev = 2)\`: Returns \`{ upper: (number | null)[], middle: (number | null)[], lower: (number | null)[] }\`.
+        26. \`helpers.getLatestBollingerBands(klines, period = 20, stdDev = 2)\`: Returns \`{ upper: number | null, middle: number | null, lower: number | null }\`.
+        27. \`helpers.calculateStochRSI(klines, rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3)\`: Returns array of \`{ k: number, d: number }\` or \`null\`.
+        28. \`helpers.getLatestStochRSI(klines, rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3)\`: Returns \`{ k: number, d: number }\` or \`null\`.
+        29. \`helpers.calculateStochastic(klines, kPeriod = 14, dPeriod = 3, smooth = 3)\`: Returns \`{ k: number, d: number }\`.
+        30. \`helpers.calculateEMA(values, period)\`: Returns EMA (number) for an array of values.
+        31. \`helpers.calculateSMA(values, period)\`: Returns SMA (number) for an array of values.
+        32. \`helpers.calculateMACD(closes, shortPeriod = 12, longPeriod = 26, signalPeriod = 9)\`: Returns \`{ MACD: number, signal: number, histogram: number }\`.
+        33. \`helpers.calculateADX(klines, period = 14)\`: Returns ADX value (number).
+        34. \`helpers.calculateVWAP(klines)\`: Returns VWAP value (number).
+        35. \`helpers.clearHVNCache(cacheKey?)\`: Clears HVN cache for performance.
 
     Structure and Logic in \`screenerCode\`:
         - CRUCIAL: Always check \`klines.length\` before accessing elements or performing calculations. If insufficient, return \`false\`.
@@ -1170,18 +1192,24 @@ IMPORTANT:
 - Do NOT wrap the response in \`\`\`javascript\`\`\` or any other formatting
 
 Available helpers include:
-- calculateMA(klines, period)
+- calculateMA(klines, period) / calculateMASeries(klines, period) / calculateSMA(values, period)
 - calculateRSI(klines, period) / getLatestRSI(klines, period)
-- calculateEMA(values, period) / getLatestEMA(klines, period)
-- calculateMACD(klines, fastPeriod=12, slowPeriod=26, signalPeriod=9)
-- calculateBollingerBands(klines, period=20, multiplier=2)
-- calculateStochastic(klines, kPeriod=14, dPeriod=3)
-- calculateOBV(klines)
-- calculateVWAP(klines, anchorPeriod)
-- detectRSIDivergence(klines, period=14, lookback=50)
-- calculateHighVolumeNodes(klines, options)
-- isNearHVN(price, hvnNodes, threshold=1)
-- And many more...
+- calculateEMA(values, period) / calculateEMASeries(klines, period) / getLatestEMA(klines, period)
+- calculateMACD(closes, short=12, long=26, signal=9) / calculateMACDValues(klines) / getLatestMACD(klines)
+- calculateBollingerBands(klines, period=20, stdDev=2) / getLatestBollingerBands(klines, period, stdDev)
+- calculateStochRSI(klines, rsiPeriod=14, stochPeriod=14, kPeriod=3, dPeriod=3) / getLatestStochRSI(klines)
+- calculateStochastic(klines, kPeriod=14, dPeriod=3, smooth=3)
+- calculateADX(klines, period=14)
+- calculateAvgVolume(klines, period)
+- calculateVWAP(klines) / calculateVWAPSeries(klines, anchorPeriod) / getLatestVWAP(klines)
+- calculateVWAPBands(klines, anchorPeriod, stdDevMultiplier) / getLatestVWAPBands(klines)
+- calculatePVISeries(klines, initialPVI=1000) / getLatestPVI(klines)
+- detectRSIDivergence(klines, rsiPeriod=14, lookback=30) / detectGenericDivergence(series1, series2)
+- detectEngulfingPattern(klines)
+- calculateHighVolumeNodes(klines, options) / isNearHVN(price, hvnNodes, tolerance)
+- getClosestHVN(price, hvnNodes, direction) / countHVNInRange(priceLow, priceHigh, hvnNodes)
+- getHighestHigh(klines, period) / getLowestLow(klines, period)
+- clearHVNCache(cacheKey)
 
 The klines array format: each kline is [timestamp, open, high, low, close, volume, ...other]
 The ticker object has properties like: ticker.c (lastPrice), ticker.P (priceChangePercent), ticker.q (quoteVolume)
@@ -1282,17 +1310,25 @@ IMPORTANT GUIDELINES:
    - All data must come from these 4 parameters only
 
 Available helper functions for filterCode:
-- calculateMA(klines, period)
+- calculateMA(klines, period) / calculateMASeries(klines, period) / calculateSMA(values, period)
 - calculateRSI(klines, period) / getLatestRSI(klines, period)
-- calculateEMA(values, period) / getLatestEMA(klines, period)
-- calculateMACD(klines) / getLatestMACD(klines)
-- calculateBollingerBands(klines, period, stdDev) - Returns {upper: [], middle: [], lower: []}
-- getLatestBollingerBands(klines, period, stdDev) - Returns {upper: number, middle: number, lower: number}
-- calculateVWAP(klines)
-- calculateHighVolumeNodes(klines, options)
-- isNearHVN(price, hvnNodes, tolerance)
-- detectRSIDivergence(klines)
-- And many more...
+- calculateEMA(values, period) / calculateEMASeries(klines, period) / getLatestEMA(klines, period)
+- calculateMACD(closes, short=12, long=26, signal=9) / calculateMACDValues(klines) / getLatestMACD(klines)
+- calculateBollingerBands(klines, period=20, stdDev=2) - Returns {upper: [], middle: [], lower: []}
+- getLatestBollingerBands(klines, period=20, stdDev=2) - Returns {upper: number, middle: number, lower: number}
+- calculateStochRSI(klines, rsiPeriod=14, stochPeriod=14, kPeriod=3, dPeriod=3) / getLatestStochRSI(klines)
+- calculateStochastic(klines, kPeriod=14, dPeriod=3, smooth=3)
+- calculateADX(klines, period=14)
+- calculateAvgVolume(klines, period)
+- calculateVWAP(klines) / calculateVWAPSeries(klines, anchorPeriod) / getLatestVWAP(klines)
+- calculateVWAPBands(klines, anchorPeriod, stdDevMultiplier) / getLatestVWAPBands(klines)
+- calculatePVISeries(klines, initialPVI=1000) / getLatestPVI(klines)
+- detectRSIDivergence(klines, rsiPeriod=14, lookback=30) / detectGenericDivergence(series1, series2)
+- detectEngulfingPattern(klines)
+- calculateHighVolumeNodes(klines, options) / isNearHVN(price, hvnNodes, tolerance)
+- getClosestHVN(price, hvnNodes, direction) / countHVNInRange(priceLow, priceHigh, hvnNodes)
+- getHighestHigh(klines, period) / getLowestLow(klines, period)
+- clearHVNCache(cacheKey)
 
 IMPORTANT: Always check if helper function results exist before accessing properties:
 Example: 

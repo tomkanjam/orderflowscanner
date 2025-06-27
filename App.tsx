@@ -248,11 +248,11 @@ const AppContent: React.FC = () => {
     } finally {
       setInitialLoading(false);
     }
-  }, []);
+  }, []); // Empty dependency array since we're only using setters
 
   useEffect(() => {
     loadInitialData(klineInterval, klineHistoryConfig.screenerLimit);
-  }, [klineInterval, klineHistoryConfig.screenerLimit, loadInitialData]);
+  }, [klineInterval, klineHistoryConfig.screenerLimit]); // Remove loadInitialData from deps since it's stable
   
   // Persist signal deduplication threshold to localStorage
   useEffect(() => {

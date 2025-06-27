@@ -48,13 +48,27 @@ function runTraderFilter(
 ): TraderResult {
   try {
     // Create the filter function with HVN data
-    const filterFunction = new Function(
-      'ticker', 
-      'klines', 
-      'helpers',
-      'hvnNodes',
-      `try { ${filterCode} } catch(e) { console.error('Trader ${traderId} filter error for ticker:', ticker.s, e); return false; }`
-    ) as (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: any[]) => boolean;
+    let filterFunction: (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: any[]) => boolean;
+    
+    try {
+      filterFunction = new Function(
+        'ticker', 
+        'klines', 
+        'helpers',
+        'hvnNodes',
+        `try { 
+          ${filterCode} 
+        } catch(e) { 
+          console.error('Trader ${traderId} filter error for ticker:', ticker.s, e); 
+          console.error('Filter code:', \`${filterCode.substring(0, 200)}...\`);
+          return false; 
+        }`
+      ) as (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: any[]) => boolean;
+    } catch (syntaxError) {
+      console.error(`Trader ${traderId} has invalid filter code syntax:`, syntaxError);
+      console.error('Filter code:', filterCode.substring(0, 200) + '...');
+      return { traderId, filteredSymbols: [], signalSymbols: [] };
+    }
     
     const filteredSymbols: string[] = [];
     const signalSymbols: string[] = [];

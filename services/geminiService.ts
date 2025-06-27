@@ -1158,7 +1158,7 @@ Generate a JSON response with the following structure:
   "suggestedName": "A short, descriptive name for this trader (e.g., 'RSI Bounce Trader', 'Momentum Breakout Bot')",
   "description": "A 1-2 sentence description of what this trader does",
   "filterDescription": ["Array of 3-4 human-readable conditions this trader looks for"],
-  "filterCode": "JavaScript function body for (ticker, klines, helpers, hvnNodes) => boolean",
+  "filterCode": "JavaScript function body for (ticker, klines, helpers, hvnNodes) => boolean. IMPORTANT: Only use the provided parameters - do not reference undefined variables like 'inputs' or 'data'",
   "strategyInstructions": "Detailed instructions for AI analysis including entry criteria, exit criteria, and risk management",
   "indicators": [
     /* Array of indicator configurations for charting
@@ -1189,6 +1189,9 @@ IMPORTANT GUIDELINES:
 3. Risk parameters should be conservative by default unless the user specifies otherwise
 4. Include relevant technical indicators that support the strategy
 5. The strategyInstructions should be clear enough for the AI analyzer to make consistent decisions
+6. The filterCode function receives exactly 4 parameters: ticker, klines, helpers, hvnNodes
+   - Do NOT reference any other variables like 'inputs', 'data', 'config', etc.
+   - All data must come from these 4 parameters only
 
 Available helper functions for filterCode:
 - calculateMA(klines, period)

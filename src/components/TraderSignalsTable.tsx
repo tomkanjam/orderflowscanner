@@ -220,7 +220,7 @@ export function TraderSignalsTable({
             </div>
           )}
           <span className="text-sm text-[var(--tm-text-muted)]">
-            {sortedSignals.length} active {historicalSignals.length > 0 && `+ ${historicalSignals.length} historical`}
+            {sortedSignals.length} active {selectedTraderId && sortedHistoricalSignals.length > 0 && `+ ${sortedHistoricalSignals.length} historical`}
           </span>
         </div>
         
@@ -433,8 +433,8 @@ export function TraderSignalsTable({
               </React.Fragment>
             ))}
             
-            {/* Separator row */}
-            {sortedHistoricalSignals.length > 0 && (
+            {/* Separator row - only show when trader selected */}
+            {selectedTraderId && sortedHistoricalSignals.length > 0 && (
               <tr className="bg-[var(--tm-bg-tertiary)]/50 border-t border-b border-[var(--tm-border-light)]">
                 <td colSpan={9} className="text-center py-2 text-sm text-[var(--tm-accent)] font-medium">
                   📊 Historical Signals (Found in Past Data)
@@ -442,8 +442,8 @@ export function TraderSignalsTable({
               </tr>
             )}
             
-            {/* Historical signals */}
-            {sortedHistoricalSignals.map((signal, index) => {
+            {/* Historical signals - only show when trader selected */}
+            {selectedTraderId && sortedHistoricalSignals.map((signal, index) => {
               const ticker = tickers.get(signal.symbol);
               const currentPrice = ticker ? parseFloat(ticker.c) : signal.priceAtSignal;
               

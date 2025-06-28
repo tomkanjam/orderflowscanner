@@ -297,6 +297,16 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('signalDedupeThreshold', signalDedupeThreshold.toString());
   }, [signalDedupeThreshold]);
+
+  // Clear historical signals when selected trader changes
+  useEffect(() => {
+    if (clearMultiTraderHistoricalSignals) {
+      clearMultiTraderHistoricalSignals();
+    }
+    if (clearHistoricalSignals) {
+      clearHistoricalSignals();
+    }
+  }, [selectedTraderId, clearMultiTraderHistoricalSignals, clearHistoricalSignals]);
   
   // Persist signal history to localStorage
   useEffect(() => {
@@ -797,11 +807,12 @@ const AppContent: React.FC = () => {
   }, [user, handleRunAiScreener]);
 
   const handleRunHistoricalScan = () => {
-    // Use multi-trader scanner if traders are enabled, otherwise use single filter scanner
-    if (multiTraderEnabled && traders.some(t => t.enabled)) {
-      startMultiTraderHistoricalScan(historicalScanConfig);
-    } else if (currentFilterFn) {
-      startHistoricalScan(historicalScanConfig);
+    // Only run historical scan when a trader is selected
+    if (selectedTraderId) {
+      // Use multi-trader scanner with only the selected trader
+      if (multiTraderEnabled && traders.some(t => t.id === selectedTraderId && t.enabled)) {
+        startMultiTraderHistoricalScan(historicalScanConfig);
+      }
     }
   };
 

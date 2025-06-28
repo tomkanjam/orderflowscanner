@@ -290,7 +290,7 @@ Example Complete Response:
     "RSI is oversold (below 30)",
     "Bollinger Bands are tightening (volatility squeeze)"
   ],
-  "screenerCode": "const ma20 = helpers.calculateMA(klines, 20); const rsi = helpers.getLatestRSI(klines, 14); if (!ma20 || !rsi) return false; const lastClose = parseFloat(klines[klines.length - 1][4]); const bbWidth = /* calculate BB width */; return lastClose > ma20 && rsi < 30 && bbWidth < threshold;",
+  "screenerCode": "const ma20 = helpers.calculateMA(klines, 20); const rsi = helpers.getLatestRSI(klines, 14); if (!ma20 || !rsi) return false; const lastClose = parseFloat(klines[klines.length - 1][4]); const bbWidth = helpers.calculateBollingerBandWidth(klines, 20, 2); return lastClose > ma20 && rsi < 30 && bbWidth < 0.05;",
 
 Example HVN-based Response:
 {
@@ -301,15 +301,38 @@ Example HVN-based Response:
   ],
   "screenerCode": "const divergence = helpers.detectRSIDivergence(klines); const lastClose = parseFloat(klines[klines.length - 1][4]); const hvnNodes = helpers.calculateHighVolumeNodes(klines, {lookback: 100}); const isNearSupport = helpers.isNearHVN(lastClose, hvnNodes, 0.5); const avgVol = helpers.calculateAvgVolume(klines, 20); const currentVol = parseFloat(klines[klines.length - 1][5]); return divergence === 'bullish_regular' && isNearSupport && currentVol > avgVol * 1.5;",
   "indicators": [
-    /* Moving Average indicator object */,
-    /* RSI indicator object */,
-    /* Bollinger Bands indicator object */
+    {
+      "id": "sma_20",
+      "name": "SMA(20)",
+      "panel": false,
+      "calculateFunction": "const ma = helpers.calculateMASeries(klines, 20); return ma.map((val, i) => ({x: klines[i][0], y: val}));",
+      "chartType": "line",
+      "style": { "color": "#8efbba", "lineWidth": 1.5 }
+    },
+    {
+      "id": "rsi_14",
+      "name": "RSI(14)",
+      "panel": true,
+      "calculateFunction": "const rsi = helpers.calculateRSI(klines, 14) || []; return rsi.map((val, i) => ({x: klines[i][0], y: val, y2: 70, y3: 30}));",
+      "chartType": "line",
+      "style": { "color": ["#8b5cf6", "#ef444433", "#10b98133"], "lineWidth": 1.5 },
+      "yAxisConfig": { "min": 0, "max": 100, "label": "RSI" }
+    },
+    {
+      "id": "bb_20_2",
+      "name": "BB(20,2)",
+      "panel": false,
+      "calculateFunction": "const period = 20, stdDev = 2; const ma = helpers.calculateMASeries(klines, period); return klines.map((k, i) => { if (!ma[i]) return {x: k[0], y: null}; let sum = 0, count = 0; for (let j = Math.max(0, i - period + 1); j <= i; j++) { const close = parseFloat(klines[j][4]); sum += Math.pow(close - ma[i], 2); count++; } const std = Math.sqrt(sum / count); return {x: k[0], y: ma[i], y2: ma[i] + std * stdDev, y3: ma[i] - std * stdDev}; });",
+      "chartType": "line",
+      "style": { "color": ["#facc15", "#ef4444", "#10b981"] }
+    }
   ]
 }
 
 General Guidelines:
 - The \`screenerCode\` string must contain ONLY the JavaScript function body. DO NOT include helper function definitions.
 - The entire response from you MUST be a single valid JSON object as shown in the example, without any surrounding text, comments, or markdown formatting outside the JSON structure itself.
+- IMPORTANT: You MUST include the "indicators" array with actual indicator objects based on the indicators mentioned in the user's prompt. Include indicators that help visualize the conditions being screened for.
 - For VWAP: Use the basic "vwap_daily" indicator by default. Only use "vwap_daily_bands" when the user explicitly asks for VWAP bands, standard deviation bands, or VWAP with bands.
 `;
   
@@ -651,7 +674,7 @@ Example Complete Response:
     "RSI is oversold (below 30)",
     "Bollinger Bands are tightening (volatility squeeze)"
   ],
-  "screenerCode": "const ma20 = helpers.calculateMA(klines, 20); const rsi = helpers.getLatestRSI(klines, 14); if (!ma20 || !rsi) return false; const lastClose = parseFloat(klines[klines.length - 1][4]); const bbWidth = /* calculate BB width */; return lastClose > ma20 && rsi < 30 && bbWidth < threshold;",
+  "screenerCode": "const ma20 = helpers.calculateMA(klines, 20); const rsi = helpers.getLatestRSI(klines, 14); if (!ma20 || !rsi) return false; const lastClose = parseFloat(klines[klines.length - 1][4]); const bbWidth = helpers.calculateBollingerBandWidth(klines, 20, 2); return lastClose > ma20 && rsi < 30 && bbWidth < 0.05;",
 
 Example HVN-based Response:
 {
@@ -662,15 +685,38 @@ Example HVN-based Response:
   ],
   "screenerCode": "const divergence = helpers.detectRSIDivergence(klines); const lastClose = parseFloat(klines[klines.length - 1][4]); const hvnNodes = helpers.calculateHighVolumeNodes(klines, {lookback: 100}); const isNearSupport = helpers.isNearHVN(lastClose, hvnNodes, 0.5); const avgVol = helpers.calculateAvgVolume(klines, 20); const currentVol = parseFloat(klines[klines.length - 1][5]); return divergence === 'bullish_regular' && isNearSupport && currentVol > avgVol * 1.5;",
   "indicators": [
-    /* Moving Average indicator object */,
-    /* RSI indicator object */,
-    /* Bollinger Bands indicator object */
+    {
+      "id": "sma_20",
+      "name": "SMA(20)",
+      "panel": false,
+      "calculateFunction": "const ma = helpers.calculateMASeries(klines, 20); return ma.map((val, i) => ({x: klines[i][0], y: val}));",
+      "chartType": "line",
+      "style": { "color": "#8efbba", "lineWidth": 1.5 }
+    },
+    {
+      "id": "rsi_14",
+      "name": "RSI(14)",
+      "panel": true,
+      "calculateFunction": "const rsi = helpers.calculateRSI(klines, 14) || []; return rsi.map((val, i) => ({x: klines[i][0], y: val, y2: 70, y3: 30}));",
+      "chartType": "line",
+      "style": { "color": ["#8b5cf6", "#ef444433", "#10b98133"], "lineWidth": 1.5 },
+      "yAxisConfig": { "min": 0, "max": 100, "label": "RSI" }
+    },
+    {
+      "id": "bb_20_2",
+      "name": "BB(20,2)",
+      "panel": false,
+      "calculateFunction": "const period = 20, stdDev = 2; const ma = helpers.calculateMASeries(klines, period); return klines.map((k, i) => { if (!ma[i]) return {x: k[0], y: null}; let sum = 0, count = 0; for (let j = Math.max(0, i - period + 1); j <= i; j++) { const close = parseFloat(klines[j][4]); sum += Math.pow(close - ma[i], 2); count++; } const std = Math.sqrt(sum / count); return {x: k[0], y: ma[i], y2: ma[i] + std * stdDev, y3: ma[i] - std * stdDev}; });",
+      "chartType": "line",
+      "style": { "color": ["#facc15", "#ef4444", "#10b981"] }
+    }
   ]
 }
 
 General Guidelines:
 - The \`screenerCode\` string must contain ONLY the JavaScript function body. DO NOT include helper function definitions.
 - The entire response from you MUST be a single valid JSON object as shown in the example, without any surrounding text, comments, or markdown formatting outside the JSON structure itself.
+- IMPORTANT: You MUST include the "indicators" array with actual indicator objects based on the indicators mentioned in the user's prompt. Include indicators that help visualize the conditions being screened for.
 - CRITICAL: Start your response with { and end with }. No text before or after the JSON.`;
 
   const startTime = Date.now();

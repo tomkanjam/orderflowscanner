@@ -649,6 +649,10 @@ const AppContent: React.FC = () => {
       setAiFilterDescription(response.description);
       setCurrentChartConfig(response.indicators);
       setFullAiFilterResponse(response);
+      
+      // Debug logging
+      console.log('[DEBUG] AI Response indicators:', response.indicators);
+      console.log('[DEBUG] Setting currentChartConfig to:', response.indicators);
 
     } catch (error) {
       console.error("AI Screener error:", error);
@@ -868,6 +872,7 @@ const AppContent: React.FC = () => {
     }
     
     // Otherwise use the AI screener's indicators
+    console.log('[DEBUG] chartConfigForDisplay using currentChartConfig:', currentChartConfig);
     return currentChartConfig;
   }, [selectedSymbolForChart, selectedTraderId, traders, currentChartConfig]);
 

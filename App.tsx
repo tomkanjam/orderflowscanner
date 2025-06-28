@@ -936,6 +936,7 @@ const AppContent: React.FC = () => {
         allSymbols={allSymbols}
         tickers={tickers}
         historicalData={historicalData}
+        traders={traders} // Pass traders to MainContent
         currentFilterFn={multiTraderEnabled && traders.some(t => t.enabled) ? null : currentFilterFn} 
         klineInterval={klineInterval}
         selectedSymbolForChart={selectedSymbolForChart}

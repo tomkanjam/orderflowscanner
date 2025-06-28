@@ -18,6 +18,7 @@ interface MainContentProps {
   allSymbols: string[];
   tickers: Map<string, Ticker>;
   historicalData: Map<string, Kline[]>;
+  traders?: any[]; // Add traders prop
   currentFilterFn: ((ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: any[]) => boolean) | null;
   klineInterval: KlineInterval;
   selectedSymbolForChart: string | null;
@@ -50,6 +51,7 @@ const MainContent: React.FC<MainContentProps> = ({
   allSymbols,
   tickers,
   historicalData,
+  traders,
   currentFilterFn,
   klineInterval,
   selectedSymbolForChart,
@@ -90,6 +92,7 @@ const MainContent: React.FC<MainContentProps> = ({
               <div className="mt-6 flex-grow">
                 <TraderSignalsTable 
                   tickers={tickers}
+                  traders={traders}
                   onRowClick={onRowClick}
                   hasActiveFilter={hasActiveFilter}
                   onRunHistoricalScan={onRunHistoricalScan}

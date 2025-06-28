@@ -42,13 +42,13 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   }, []);
   
   // Create signal from filter result
-  const createSignalFromFilter = useCallback((filterResult: FilterResult) => {
+  const createSignalFromFilter = useCallback((filterResult: FilterResult, traderId?: string) => {
     if (!activeStrategy) {
       console.warn('No active strategy to create signal');
       return;
     }
     
-    const signal = signalManager.createSignal(filterResult, activeStrategy.id);
+    const signal = signalManager.createSignal(filterResult, activeStrategy.id, traderId);
     
     if (autoAnalyze) {
       analysisQueue.current.push(signal.id);

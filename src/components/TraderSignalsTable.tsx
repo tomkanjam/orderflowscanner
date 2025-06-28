@@ -7,6 +7,7 @@ import { Bell, BellOff, ChevronDown, ChevronRight, TrendingUp, TrendingDown, Ale
 
 interface TraderSignalsTableProps {
   tickers: Map<string, Ticker>;
+  traders?: any[]; // Add traders list to look up names
   onRowClick?: (symbol: string) => void;
   // Historical scanner props
   hasActiveFilter?: boolean;
@@ -24,6 +25,7 @@ interface TraderSignalsTableProps {
 
 export function TraderSignalsTable({
   tickers,
+  traders = [],
   onRowClick,
   hasActiveFilter,
   onRunHistoricalScan,
@@ -348,7 +350,9 @@ export function TraderSignalsTable({
                     {signal.symbol}
                   </td>
                   <td className="p-2 md:px-4 md:py-2 text-xs text-[var(--tm-text-secondary)]">
-                    {signal.traderId || 'AI Screener'}
+                    {signal.traderId 
+                      ? traders.find(t => t.id === signal.traderId)?.name || signal.traderId
+                      : 'AI Screener'}
                   </td>
                   <td className="p-2 md:px-4 md:py-2">
                     <span className={`text-xs ${getStatusColor(signal.status)}`}>

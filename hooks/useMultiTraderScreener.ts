@@ -32,8 +32,17 @@ export function useMultiTraderScreener({
   const [isRunning, setIsRunning] = useState(false);
   const [lastExecutionTime, setLastExecutionTime] = useState<number | null>(null);
 
-  // Initialize worker
+  // Store onResults in a ref to avoid recreating worker
+  const onResultsRef = useRef(onResults);
   useEffect(() => {
+    onResultsRef.current = onResults;
+  }, [onResults]);
+
+  // Initialize worker only once
+  useEffect(() => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [useMultiTraderScreener] Creating new worker`);
+    
     workerRef.current = new Worker(
       new URL('../workers/multiTraderScreenerWorker.ts', import.meta.url),
       { type: 'module' }
@@ -45,7 +54,8 @@ export function useMultiTraderScreener({
       if (type === 'MULTI_SCREENER_RESULT' && data) {
         setIsRunning(false);
         setLastExecutionTime(data.executionTime);
-        onResults(data.results);
+        // Use the ref to call the latest onResults
+        onResultsRef.current(data.results);
       } else if (type === 'MULTI_SCREENER_ERROR') {
         setIsRunning(false);
         console.error('Multi-trader screener error:', error);
@@ -53,12 +63,14 @@ export function useMultiTraderScreener({
     });
 
     return () => {
+      const cleanupTimestamp = new Date().toISOString();
+      console.log(`[${cleanupTimestamp}] [useMultiTraderScreener] Terminating worker`);
       workerRef.current?.terminate();
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [onResults]);
+  }, []); // Empty dependency array - only create worker once
 
   // Run screener function
   const runScreener = useCallback(() => {
@@ -111,6 +123,11 @@ export function useMultiTraderScreener({
   // Set up interval
   useEffect(() => {
     if (enabled && interval > 0) {
+      // Clear any existing interval first
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      
       // Run immediately
       runScreener();
 
@@ -120,8 +137,15 @@ export function useMultiTraderScreener({
       return () => {
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
+          intervalRef.current = null;
         }
       };
+    } else {
+      // Clear interval if disabled
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     }
   }, [runScreener, interval, enabled]);
 

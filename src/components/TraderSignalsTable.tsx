@@ -3,11 +3,13 @@ import { SignalLifecycle, SignalStatus } from '../abstractions/interfaces';
 import { signalManager } from '../services/signalManager';
 import { Ticker, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
-import { Bell, BellOff, ChevronDown, ChevronRight, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
+import { Bell, BellOff, ChevronDown, ChevronRight, TrendingUp, TrendingDown, AlertCircle, X } from 'lucide-react';
 
 interface TraderSignalsTableProps {
   tickers: Map<string, Ticker>;
   traders?: any[]; // Add traders list to look up names
+  selectedTraderId?: string | null; // Currently selected trader
+  onSelectTrader?: (traderId: string | null) => void; // Callback to change selection
   onRowClick?: (symbol: string) => void;
   // Historical scanner props
   hasActiveFilter?: boolean;
@@ -26,6 +28,8 @@ interface TraderSignalsTableProps {
 export function TraderSignalsTable({
   tickers,
   traders = [],
+  selectedTraderId,
+  onSelectTrader,
   onRowClick,
   hasActiveFilter,
   onRunHistoricalScan,
@@ -136,15 +140,21 @@ export function TraderSignalsTable({
     setExpandedRows(newExpanded);
   };
 
-  // Sort signals by timestamp, newest first
+  // Filter and sort signals by timestamp, newest first
   const sortedSignals = useMemo(() => {
-    return [...signals].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }, [signals]);
+    const filteredSignals = selectedTraderId 
+      ? signals.filter(s => s.traderId === selectedTraderId)
+      : signals;
+    return [...filteredSignals].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }, [signals, selectedTraderId]);
 
-  // Sort historical signals by klineTimestamp
+  // Filter and sort historical signals by klineTimestamp
   const sortedHistoricalSignals = useMemo(() => {
-    return [...historicalSignals].sort((a, b) => b.klineTimestamp - a.klineTimestamp);
-  }, [historicalSignals]);
+    const filteredHistoricalSignals = selectedTraderId 
+      ? historicalSignals.filter(s => s.traderId === selectedTraderId)
+      : historicalSignals;
+    return [...filteredHistoricalSignals].sort((a, b) => b.klineTimestamp - a.klineTimestamp);
+  }, [historicalSignals, selectedTraderId]);
 
   // Get current prices for signals
   const enhanceSignalWithCurrentPrice = (signal: SignalLifecycle) => {
@@ -160,6 +170,12 @@ export function TraderSignalsTable({
   const enhancedSignals = useMemo(() => {
     return sortedSignals.map(enhanceSignalWithCurrentPrice);
   }, [sortedSignals, tickers]);
+
+  // Get selected trader name
+  const selectedTrader = useMemo(() => {
+    if (!selectedTraderId || !traders) return null;
+    return traders.find(t => t.id === selectedTraderId);
+  }, [selectedTraderId, traders]);
 
   const getStatusColor = (status: SignalStatus) => {
     switch (status) {
@@ -191,33 +207,49 @@ export function TraderSignalsTable({
           <h2 className="text-lg md:text-xl font-semibold text-[var(--tm-accent)] tm-heading-md">
             Trader Signals
           </h2>
+          {selectedTrader && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-[var(--tm-accent)]/10 border border-[var(--tm-accent)] rounded-md">
+              <span className="text-sm font-medium text-[var(--tm-accent)]">{selectedTrader.name}</span>
+              <button
+                onClick={() => onSelectTrader?.(null)}
+                className="text-[var(--tm-accent)] hover:text-[var(--tm-accent-dark)] transition-colors"
+                title="Clear trader filter"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
           <span className="text-sm text-[var(--tm-text-muted)]">
-            {signals.length} active {historicalSignals.length > 0 && `+ ${historicalSignals.length} historical`}
+            {sortedSignals.length} active {historicalSignals.length > 0 && `+ ${historicalSignals.length} historical`}
           </span>
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Sound toggle */}
-          <button
-            onClick={toggleSound}
-            className="flex items-center gap-2 px-3 py-1 text-sm rounded-md bg-[var(--tm-bg-hover)] hover:bg-[var(--tm-bg-active)] transition-colors"
-            title={soundEnabled ? "Disable sound notifications" : "Enable sound notifications"}
-          >
-            {soundEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-            <span className="hidden sm:inline">Sound</span>
-          </button>
+          {/* Sound toggle - only show when no trader selected */}
+          {!selectedTraderId && (
+            <button
+              onClick={toggleSound}
+              className="flex items-center gap-2 px-3 py-1 text-sm rounded-md bg-[var(--tm-bg-hover)] hover:bg-[var(--tm-bg-active)] transition-colors"
+              title={soundEnabled ? "Disable sound notifications" : "Enable sound notifications"}
+            >
+              {soundEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+              <span className="hidden sm:inline">Sound</span>
+            </button>
+          )}
           
-          {/* Signal Deduplication Settings */}
-          <button
-            onClick={() => setShowDedupeSettings(!showDedupeSettings)}
-            className="flex items-center gap-2 px-3 py-1 text-sm rounded-md bg-[var(--tm-bg-hover)] hover:bg-[var(--tm-bg-active)] transition-colors"
-          >
-            <span className="hidden sm:inline">Dedupe: {signalDedupeThreshold} bars</span>
-            <span className="sm:hidden">{signalDedupeThreshold}</span>
-          </button>
+          {/* Signal Deduplication Settings - only show when trader selected */}
+          {selectedTraderId && (
+            <button
+              onClick={() => setShowDedupeSettings(!showDedupeSettings)}
+              className="flex items-center gap-2 px-3 py-1 text-sm rounded-md bg-[var(--tm-bg-hover)] hover:bg-[var(--tm-bg-active)] transition-colors"
+            >
+              <span className="hidden sm:inline">Dedupe: {signalDedupeThreshold} bars</span>
+              <span className="sm:hidden">{signalDedupeThreshold}</span>
+            </button>
+          )}
           
-          {/* Historical Scanner Controls */}
-          {hasActiveFilter && historicalScanConfig && (
+          {/* Historical Scanner Controls - only show when trader selected */}
+          {selectedTraderId && hasActiveFilter && historicalScanConfig && (
             <>
               <select 
                 value={historicalScanConfig.lookbackBars} 

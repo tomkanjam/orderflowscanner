@@ -115,7 +115,7 @@ export function TraderList({
                     ? 'bg-[var(--tm-bg-hover)] border-[var(--tm-accent)]' 
                     : 'bg-[var(--tm-bg-secondary)] border-[var(--tm-border)] hover:border-[var(--tm-border-light)]'
                 }`}
-                onClick={() => onSelectTrader?.(trader.id)}
+                onClick={() => onSelectTrader?.(isSelected ? null : trader.id)}
               >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-2">

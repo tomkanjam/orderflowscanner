@@ -72,34 +72,50 @@ export function useMultiTraderScreener({
     };
   }, []); // Empty dependency array - only create worker once
 
-  // Run screener function
+  // Store dependencies in refs to avoid recreating runScreener
+  const tradersRef = useRef(traders);
+  const symbolsRef = useRef(symbols);
+  const tickersRef = useRef(tickers);
+  const historicalDataRef = useRef(historicalData);
+  const enabledRef = useRef(enabled);
+  
+  // Update refs when props change
+  useEffect(() => {
+    tradersRef.current = traders;
+    symbolsRef.current = symbols;
+    tickersRef.current = tickers;
+    historicalDataRef.current = historicalData;
+    enabledRef.current = enabled;
+  }, [traders, symbols, tickers, historicalData, enabled]);
+
+  // Run screener function - stable reference
   const runScreener = useCallback(() => {
     const timestamp = new Date().toISOString();
     
-    if (!workerRef.current || !enabled || traders.length === 0 || symbols.length === 0) {
-      console.log(`[${timestamp}] [useMultiTraderScreener] Skipping run - worker: ${!!workerRef.current}, enabled: ${enabled}, traders: ${traders.length}, symbols: ${symbols.length}`);
+    if (!workerRef.current || !enabledRef.current || tradersRef.current.length === 0 || symbolsRef.current.length === 0) {
+      console.log(`[${timestamp}] [useMultiTraderScreener] Skipping run - worker: ${!!workerRef.current}, enabled: ${enabledRef.current}, traders: ${tradersRef.current.length}, symbols: ${symbolsRef.current.length}`);
       return;
     }
 
     // Filter only enabled traders
-    const enabledTraders = traders.filter(t => t.enabled);
+    const enabledTraders = tradersRef.current.filter(t => t.enabled);
     if (enabledTraders.length === 0) {
       console.log(`[${timestamp}] [useMultiTraderScreener] Skipping run - no enabled traders`);
       return;
     }
 
-    console.log(`[${timestamp}] [useMultiTraderScreener] Starting screener run with ${enabledTraders.length} traders for ${symbols.length} symbols`);
+    console.log(`[${timestamp}] [useMultiTraderScreener] Starting screener run with ${enabledTraders.length} traders for ${symbolsRef.current.length} symbols`);
     setIsRunning(true);
     requestIdRef.current += 1;
 
     // Convert Maps to objects for serialization
     const tickersObj: Record<string, Ticker> = {};
-    tickers.forEach((value, key) => {
+    tickersRef.current.forEach((value, key) => {
       tickersObj[key] = value;
     });
 
     const historicalDataObj: Record<string, Kline[]> = {};
-    historicalData.forEach((value, key) => {
+    historicalDataRef.current.forEach((value, key) => {
       historicalDataObj[key] = value;
     });
 
@@ -107,7 +123,7 @@ export function useMultiTraderScreener({
       id: requestIdRef.current.toString(),
       type: 'RUN_MULTI_SCREENER',
       data: {
-        symbols,
+        symbols: symbolsRef.current,
         tickers: tickersObj,
         historicalData: historicalDataObj,
         traders: enabledTraders.map(t => ({
@@ -118,7 +134,7 @@ export function useMultiTraderScreener({
     };
 
     workerRef.current.postMessage(message);
-  }, [traders, symbols, tickers, historicalData, enabled]);
+  }, []); // Empty dependency array - stable function
 
   // Set up interval
   useEffect(() => {

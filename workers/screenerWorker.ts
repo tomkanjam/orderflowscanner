@@ -33,6 +33,10 @@ function runScreenerFilter(
   historicalData: Record<string, Kline[]>,
   filterCode: string
 ): { filteredSymbols: string[], signalSymbols: string[] } {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [ScreenerWorker] Starting filter run for ${symbols.length} symbols`);
+  console.log(`[${timestamp}] [ScreenerWorker] Previous matches: ${previousMatches.size} symbols`, Array.from(previousMatches));
+  
   try {
     // Create the filter function with HVN data
     const filterFunction = new Function(
@@ -68,12 +72,16 @@ function runScreenerFilter(
           // Check if this is a new signal (wasn't matching before)
           if (!previousMatches.has(symbol)) {
             signalSymbols.push(symbol);
+            console.log(`[${timestamp}] [ScreenerWorker] NEW SIGNAL: ${symbol} (wasn't in previousMatches)`);
           }
         }
       } catch (error) {
         console.error(`Filter error for ${symbol}:`, error);
       }
     }
+    
+    console.log(`[${timestamp}] [ScreenerWorker] Filter complete - Matched: ${filteredSymbols.length}, New signals: ${signalSymbols.length}`);
+    console.log(`[${timestamp}] [ScreenerWorker] Current matches:`, Array.from(currentMatches));
     
     // Update the cache for next run
     previousMatches = currentMatches;
@@ -121,6 +129,8 @@ self.addEventListener('message', (event: MessageEvent<ScreenerWorkerMessage>) =>
 // Reset cache when filter changes
 self.addEventListener('message', (event: MessageEvent<{ type: 'RESET_CACHE' }>) => {
   if (event.data.type === 'RESET_CACHE') {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [ScreenerWorker] RESET_CACHE received - clearing ${previousMatches.size} previous matches`);
     previousMatches.clear();
   }
 });

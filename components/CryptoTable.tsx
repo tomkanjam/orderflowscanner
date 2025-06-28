@@ -117,7 +117,10 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
           setFilteredSymbols(result.filteredSymbols);
           
           // Handle new signals - let App.tsx handle deduplication
+          const timestamp = new Date().toISOString();
+          console.log(`[${timestamp}] [CryptoTable] Received ${result.signalSymbols.length} new signals from worker:`, result.signalSymbols);
           result.signalSymbols.forEach(symbol => {
+            console.log(`[${timestamp}] [CryptoTable] Calling onNewSignal for ${symbol}`);
             onNewSignal(symbol, Date.now());
           });
         }

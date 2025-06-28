@@ -46,6 +46,11 @@ function runTraderFilter(
   tickers: Record<string, Ticker>,
   historicalData: Record<string, Kline[]>
 ): TraderResult {
+  const timestamp = new Date().toISOString();
+  const previousMatches = previousMatchesByTrader.get(traderId) || new Set<string>();
+  console.log(`[${timestamp}] [MultiTraderWorker] Running filter for trader ${traderId}`);
+  console.log(`[${timestamp}] [MultiTraderWorker] Previous matches for ${traderId}: ${previousMatches.size} symbols`, Array.from(previousMatches));
+  
   try {
     // Create the filter function with HVN data
     let filterFunction: (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: any[]) => boolean;
@@ -74,9 +79,6 @@ function runTraderFilter(
     const signalSymbols: string[] = [];
     const currentMatches = new Set<string>();
     
-    // Get previous matches for this trader
-    const previousMatches = previousMatchesByTrader.get(traderId) || new Set<string>();
-    
     // Run filter on each symbol
     for (const symbol of symbols) {
       const ticker = tickers[symbol];
@@ -99,12 +101,15 @@ function runTraderFilter(
           // Check if this is a new signal (wasn't matching before)
           if (!previousMatches.has(symbol)) {
             signalSymbols.push(symbol);
+            console.log(`[${timestamp}] [MultiTraderWorker] NEW SIGNAL for ${traderId}: ${symbol}`);
           }
         }
       } catch (error) {
         console.error(`Filter error for ${traderId} on ${symbol}:`, error);
       }
     }
+    
+    console.log(`[${timestamp}] [MultiTraderWorker] Trader ${traderId} complete - Matched: ${filteredSymbols.length}, New signals: ${signalSymbols.length}`);
     
     // Update the cache for next run
     previousMatchesByTrader.set(traderId, currentMatches);
@@ -182,9 +187,19 @@ self.addEventListener('message', (event: MessageEvent<MultiTraderScreenerMessage
       self.postMessage(response);
     }
   } else if (type === 'RESET_CACHE') {
+    const timestamp = new Date().toISOString();
+    const previousSize = previousMatchesByTrader.size;
+    const traderIds = Array.from(previousMatchesByTrader.keys());
+    console.log(`[${timestamp}] [MultiTraderWorker] RESET_CACHE received - clearing cache for ${previousSize} traders:`, traderIds);
+    
+    // Log each trader's previous matches before clearing
+    previousMatchesByTrader.forEach((matches, traderId) => {
+      console.log(`[${timestamp}] [MultiTraderWorker] Trader ${traderId} had ${matches.size} previous matches:`, Array.from(matches));
+    });
+    
     // Clear all trader caches
     previousMatchesByTrader.clear();
-    console.log('Multi-trader screener cache cleared');
+    console.log(`[${timestamp}] [MultiTraderWorker] Cache cleared successfully`);
   }
 });
 

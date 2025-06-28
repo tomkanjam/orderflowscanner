@@ -62,16 +62,21 @@ export function useMultiTraderScreener({
 
   // Run screener function
   const runScreener = useCallback(() => {
+    const timestamp = new Date().toISOString();
+    
     if (!workerRef.current || !enabled || traders.length === 0 || symbols.length === 0) {
+      console.log(`[${timestamp}] [useMultiTraderScreener] Skipping run - worker: ${!!workerRef.current}, enabled: ${enabled}, traders: ${traders.length}, symbols: ${symbols.length}`);
       return;
     }
 
     // Filter only enabled traders
     const enabledTraders = traders.filter(t => t.enabled);
     if (enabledTraders.length === 0) {
+      console.log(`[${timestamp}] [useMultiTraderScreener] Skipping run - no enabled traders`);
       return;
     }
 
+    console.log(`[${timestamp}] [useMultiTraderScreener] Starting screener run with ${enabledTraders.length} traders for ${symbols.length} symbols`);
     setIsRunning(true);
     requestIdRef.current += 1;
 
@@ -122,6 +127,8 @@ export function useMultiTraderScreener({
 
   // Reset cache when traders change
   const resetCache = useCallback(() => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [useMultiTraderScreener] Resetting cache`);
     if (workerRef.current) {
       workerRef.current.postMessage({ type: 'RESET_CACHE' });
     }

@@ -561,10 +561,49 @@ const AppContent: React.FC = () => {
 
   // Multi-trader screener hook
   const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [App] handleMultiTraderResults called with ${results.length} trader results`);
+    
     results.forEach(result => {
+      console.log(`[${timestamp}] [App] Trader ${result.traderId} has ${result.signalSymbols.length} new signals:`, result.signalSymbols);
+      
       result.signalSymbols.forEach(symbol => {
         const ticker = tickers.get(symbol);
-        if (ticker) {
+        if (!ticker) {
+          console.log(`[${timestamp}] [App] No ticker data for ${symbol}, skipping signal creation`);
+          return;
+        }
+        
+        const currentTimestamp = Date.now();
+        
+        // Check signal history for deduplication BEFORE creating any signal
+        const historyEntry = signalHistory.get(symbol);
+        
+        // Calculate time-based deduplication threshold
+        const klineIntervalMinutes = {
+          '1m': 1,
+          '5m': 5,
+          '15m': 15,
+          '1h': 60,
+          '4h': 240,
+          '1d': 1440,
+        }[klineInterval] || 5;
+        
+        const minTimeBetweenSignals = klineIntervalMinutes * signalDedupeThreshold * 60 * 1000;
+        const timeSinceLastSignal = historyEntry ? currentTimestamp - historyEntry.timestamp : Infinity;
+        
+        // Use both bar count and time-based deduplication
+        const shouldCreateNewSignal = !historyEntry || 
+                                     historyEntry.barCount >= signalDedupeThreshold || 
+                                     timeSinceLastSignal >= minTimeBetweenSignals;
+        
+        console.log(`[${timestamp}] [App] Dedup check for ${symbol} from trader ${result.traderId}:`);
+        console.log(`  - Previous signal: ${historyEntry ? new Date(historyEntry.timestamp).toISOString() : 'none'}`);
+        console.log(`  - Bar count: ${historyEntry?.barCount || 0}/${signalDedupeThreshold}`);
+        console.log(`  - Time since last: ${Math.floor(timeSinceLastSignal/1000)}s (min: ${Math.floor(minTimeBetweenSignals/1000)}s)`);
+        console.log(`  - Should create: ${shouldCreateNewSignal}`);
+        
+        if (shouldCreateNewSignal) {
           // Create signal with trader attribution
           const filterResult = {
             symbol,
@@ -574,21 +613,50 @@ const AppContent: React.FC = () => {
             matchedConditions: [`Trader: ${traders.find(t => t.id === result.traderId)?.name || 'Unknown'}`]
           };
           
+          console.log(`[${timestamp}] [App] Creating signal for ${symbol} from trader ${result.traderId}`);
+          
           const signal = signalManager.createSignal(
             filterResult, 
             activeStrategy?.id || 'default',
             result.traderId
           );
           
-          // Handle new signal
-          handleNewSignal(symbol, Date.now());
+          // Update signal history - reset bar count for new signal
+          setSignalHistory(prev => {
+            const newHistory = new Map(prev);
+            newHistory.set(symbol, {
+              timestamp: currentTimestamp,
+              barCount: 0,
+            });
+            return newHistory;
+          });
+          
+          // Update signal log
+          setSignalLog(prevLog => {
+            const traderName = traders.find(t => t.id === result.traderId)?.name || 'Unknown';
+            const newEntry: SignalLogEntry = {
+              timestamp: currentTimestamp,
+              symbol,
+              interval: klineInterval,
+              filterDesc: `Trader: ${traderName}`,
+              priceAtSignal: parseFloat(ticker.c),
+              changePercentAtSignal: parseFloat(ticker.P),
+              volumeAtSignal: parseFloat(ticker.q),
+              count: 1,
+            };
+            
+            // Keep max 500 log entries
+            return [newEntry, ...prevLog.slice(0, 499)];
+          });
           
           // Update trader metrics
           traderManager.incrementSignalCount(result.traderId);
+        } else {
+          console.log(`[${timestamp}] [App] Skipping duplicate signal for ${symbol} from trader ${result.traderId}`);
         }
       });
     });
-  }, [traders, tickers, activeStrategy, handleNewSignal]);
+  }, [traders, tickers, activeStrategy, klineInterval, signalHistory, signalDedupeThreshold]);
 
   const { isRunning: isMultiTraderRunning } = useMultiTraderScreener({
     traders,

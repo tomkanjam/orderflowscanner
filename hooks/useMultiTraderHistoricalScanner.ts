@@ -140,7 +140,7 @@ export function useMultiTraderHistoricalScanner({
               
               // Apply deduplication logic per trader
               const deduplicatedSignals: HistoricalSignal[] = [];
-              const traderSymbolLastSignal = new Map<string, { signal: HistoricalSignal, klineTimestamp: number }>();
+              const traderSymbolLastSignal = new Map<string, { signalIndex: number, klineTimestamp: number }>();
               
               // Calculate milliseconds per bar based on interval
               const msPerBar = getMillisecondsPerBar(klineInterval);
@@ -162,13 +162,16 @@ export function useMultiTraderHistoricalScanner({
                   const enhancedSignal: HistoricalSignal = {
                     ...signal,
                     filterDesc: `${signal.traderName}: ${signal.filterDesc}`,
+                    count: 1,
                   };
-                  deduplicatedSignals.push(enhancedSignal);
-                  traderSymbolLastSignal.set(key, { signal: enhancedSignal, klineTimestamp: signal.klineTimestamp });
+                  const newIndex = deduplicatedSignals.push(enhancedSignal) - 1;
+                  traderSymbolLastSignal.set(key, { signalIndex: newIndex, klineTimestamp: signal.klineTimestamp });
                 } else {
-                  // Increment count on existing signal
-                  const existingSignal = lastSignalInfo.signal;
-                  existingSignal.count = (existingSignal.count || 1) + 1;
+                  // Increment count on existing signal in the array
+                  const existingSignalIndex = lastSignalInfo.signalIndex;
+                  if (existingSignalIndex < deduplicatedSignals.length) {
+                    deduplicatedSignals[existingSignalIndex].count = (deduplicatedSignals[existingSignalIndex].count || 1) + 1;
+                  }
                 }
               }
               

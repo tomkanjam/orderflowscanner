@@ -118,7 +118,7 @@ export function useHistoricalScanner({
               
               // Apply deduplication logic
               const deduplicatedSignals: HistoricalSignal[] = [];
-              const symbolLastSignal = new Map<string, { signal: HistoricalSignal, klineTimestamp: number }>();
+              const symbolLastSignal = new Map<string, { signalIndex: number, klineTimestamp: number }>();
               
               // Calculate milliseconds per bar based on interval
               const msPerBar = getMillisecondsPerBar(klineInterval);
@@ -139,13 +139,16 @@ export function useHistoricalScanner({
                   const enhancedSignal = {
                     ...signal,
                     filterDesc: filterDescription.length > 0 ? filterDescription[0] : 'AI Filter Active',
+                    count: 1,
                   };
-                  deduplicatedSignals.push(enhancedSignal);
-                  symbolLastSignal.set(signal.symbol, { signal: enhancedSignal, klineTimestamp: signal.klineTimestamp });
+                  const newIndex = deduplicatedSignals.push(enhancedSignal) - 1;
+                  symbolLastSignal.set(signal.symbol, { signalIndex: newIndex, klineTimestamp: signal.klineTimestamp });
                 } else {
-                  // Increment count on existing signal
-                  const existingSignal = lastSignalInfo.signal;
-                  existingSignal.count = (existingSignal.count || 1) + 1;
+                  // Increment count on existing signal in the array
+                  const existingSignalIndex = lastSignalInfo.signalIndex;
+                  if (existingSignalIndex < deduplicatedSignals.length) {
+                    deduplicatedSignals[existingSignalIndex].count = (deduplicatedSignals[existingSignalIndex].count || 1) + 1;
+                  }
                 }
               }
               

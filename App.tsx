@@ -477,9 +477,26 @@ const AppContent: React.FC = () => {
     
     // Check signal history for deduplication
     const historyEntry = signalHistory.get(symbol);
-    const shouldCreateNewSignal = !historyEntry || historyEntry.barCount >= signalDedupeThreshold;
     
-    console.log(`[${new Date(timestamp).toISOString()}] Signal for ${symbol}: barCount=${historyEntry?.barCount || 0}, threshold=${signalDedupeThreshold}, newSignal=${shouldCreateNewSignal}`);
+    // Calculate time-based deduplication threshold based on kline interval and bar threshold
+    const klineIntervalMinutes = {
+      '1m': 1,
+      '5m': 5,
+      '15m': 15,
+      '1h': 60,
+      '4h': 240,
+      '1d': 1440,
+    }[klineInterval] || 5;
+    
+    const minTimeBetweenSignals = klineIntervalMinutes * signalDedupeThreshold * 60 * 1000; // Convert to milliseconds
+    const timeSinceLastSignal = historyEntry ? timestamp - historyEntry.timestamp : Infinity;
+    
+    // Use both bar count and time-based deduplication
+    const shouldCreateNewSignal = !historyEntry || 
+                                 historyEntry.barCount >= signalDedupeThreshold || 
+                                 timeSinceLastSignal >= minTimeBetweenSignals;
+    
+    console.log(`[${new Date(timestamp).toISOString()}] Signal for ${symbol}: barCount=${historyEntry?.barCount || 0}, threshold=${signalDedupeThreshold}, timeSince=${Math.floor(timeSinceLastSignal/1000)}s, minTime=${Math.floor(minTimeBetweenSignals/1000)}s, newSignal=${shouldCreateNewSignal}`);
     
     // Create signal through the new signal lifecycle system
     if (shouldCreateNewSignal && activeStrategy) {

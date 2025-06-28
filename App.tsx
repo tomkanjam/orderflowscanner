@@ -479,6 +479,8 @@ const AppContent: React.FC = () => {
     const historyEntry = signalHistory.get(symbol);
     const shouldCreateNewSignal = !historyEntry || historyEntry.barCount >= signalDedupeThreshold;
     
+    console.log(`[${new Date(timestamp).toISOString()}] Signal for ${symbol}: barCount=${historyEntry?.barCount || 0}, threshold=${signalDedupeThreshold}, newSignal=${shouldCreateNewSignal}`);
+    
     // Create signal through the new signal lifecycle system
     if (shouldCreateNewSignal && activeStrategy) {
       const filterResult = {
@@ -508,13 +510,12 @@ const AppContent: React.FC = () => {
           count: 1, // Initial count
         };
         
-        // Update signal history
+        // Update signal history - reset bar count for new signal
         setSignalHistory(prev => {
           const newHistory = new Map(prev);
           newHistory.set(symbol, {
             timestamp,
             barCount: 0,
-            signalIndex: 0, // Will be the first item in the array
           });
           return newHistory;
         });
@@ -522,32 +523,24 @@ const AppContent: React.FC = () => {
         // Keep max 500 log entries for performance, prepending new ones
         return [newEntry, ...prevLog.slice(0, 499)];
       } else {
-        // Increment count on existing signal
-        const updatedLog = [...prevLog];
-        const existingIndex = historyEntry.signalIndex;
-        
-        // Find the existing signal (it should be at the stored index)
-        if (existingIndex !== undefined && existingIndex < updatedLog.length && 
-            updatedLog[existingIndex].symbol === symbol) {
-          updatedLog[existingIndex] = {
-            ...updatedLog[existingIndex],
-            count: (updatedLog[existingIndex].count || 1) + 1,
-          };
-        } else {
-          // Fallback: search for the signal
-          const foundIndex = updatedLog.findIndex(entry => entry.symbol === symbol);
-          if (foundIndex !== -1) {
-            updatedLog[foundIndex] = {
-              ...updatedLog[foundIndex],
-              count: (updatedLog[foundIndex].count || 1) + 1,
-            };
+        // Increment count on existing signal by finding it in the array
+        return prevLog.map(entry => {
+          if (entry.symbol === symbol) {
+            // Find the most recent signal for this symbol
+            const sameSymbolSignals = prevLog.filter(e => e.symbol === symbol);
+            if (sameSymbolSignals[0] === entry) {
+              // This is the most recent signal for this symbol
+              return {
+                ...entry,
+                count: (entry.count || 1) + 1,
+              };
+            }
           }
-        }
-        
-        return updatedLog;
+          return entry;
+        });
       }
     });
-  }, [aiFilterDescription, klineInterval, tickers, signalHistory, signalDedupeThreshold]);
+  }, [aiFilterDescription, klineInterval, tickers, signalHistory, signalDedupeThreshold, activeStrategy, createSignalFromFilter]);
 
   // Multi-trader screener hook
   const handleMultiTraderResults = useCallback((results: TraderResult[]) => {

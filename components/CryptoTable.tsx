@@ -33,7 +33,6 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
   const [filteredSymbols, setFilteredSymbols] = useState<string[]>([]);
   const [isFiltering, setIsFiltering] = useState(false);
   const lastFilterTimeRef = useRef(0);
-  const loggedSymbolsThisSessionRef = useRef<Set<string>>(new Set());
   const filterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Store data in refs to avoid re-renders
@@ -66,9 +65,8 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
     return match ? match[1] : null;
   }, [currentFilterFn]);
 
-  // Clear logged symbols and reset cache when filter changes
+  // Reset cache when filter changes
   useEffect(() => {
-    loggedSymbolsThisSessionRef.current.clear();
     resetCache();
   }, [currentFilterFn, resetCache]);
 
@@ -118,12 +116,9 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
           
           setFilteredSymbols(result.filteredSymbols);
           
-          // Handle new signals
+          // Handle new signals - let App.tsx handle deduplication
           result.signalSymbols.forEach(symbol => {
-            if (!loggedSymbolsThisSessionRef.current.has(symbol)) {
-              onNewSignal(symbol, Date.now());
-              loggedSymbolsThisSessionRef.current.add(symbol);
-            }
+            onNewSignal(symbol, Date.now());
           });
         }
       } catch (error) {

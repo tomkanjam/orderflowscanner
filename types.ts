@@ -110,7 +110,6 @@ export interface SignalLogEntry {
 export interface SignalHistoryEntry {
   timestamp: number;
   barCount: number;
-  signalIndex?: number; // Index in the signal log array for quick lookup
 }
 
 // Volume Node structure for High Volume Nodes (HVN)

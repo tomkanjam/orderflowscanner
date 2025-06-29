@@ -191,8 +191,8 @@ export function TraderSignalsTable({
   };
 
   return (
-    <div className="tm-card shadow-lg p-3 md:p-4 relative">
-      <div className="flex items-center justify-between mb-3 md:mb-4">
+    <div className="tm-card shadow-lg p-2 md:p-3 relative">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-4">
           <h2 className="text-lg md:text-xl font-semibold text-[var(--tm-accent)] tm-heading-md">
             Trader Signals
@@ -296,7 +296,7 @@ export function TraderSignalsTable({
 
       {/* Deduplication Settings Dropdown */}
       {showDedupeSettings && (
-        <div className="mb-4 p-3 bg-[var(--tm-bg-hover)] rounded-lg">
+        <div className="mb-3 p-2 bg-[var(--tm-bg-hover)] rounded-lg">
           <label className="text-sm text-[var(--tm-text-secondary)] mb-2 block">
             Signal Deduplication Threshold
           </label>

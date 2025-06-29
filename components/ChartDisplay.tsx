@@ -350,7 +350,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                   mode: 'x',
                   intersect: false
               },
-              layout: { padding: { top: 15, bottom: 0, left: 60, right: 35 } }, 
+              layout: { padding: { top: 5, bottom: 0, left: 60, right: 35 } }, 
               plugins: {
                 legend: { 
                     display: true, 
@@ -366,8 +366,8 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     display: true, 
                     text: `${symbol} - ${interval} Chart`, 
                     color: '#f5f5f7', 
-                    font: { size: 16 }, 
-                    padding: { bottom: 10 } 
+                    font: { size: 14 }, 
+                    padding: { bottom: 5 } 
                 },
                 tooltip: { 
                     mode: 'index', 
@@ -535,16 +535,16 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     mode: 'x',
                     intersect: false
                 },
-                layout: { padding: { top: 2, bottom: 0, left: 60, right: 35 } },
+                layout: { padding: { top: 0, bottom: 0, left: 60, right: 35 } },
                 plugins: {
                     legend: { display: false },
                     title: { 
                         display: true, 
                         text: indicator.name, 
                         color: '#f5f5f7', 
-                        font: { size: 12 }, 
+                        font: { size: 11 }, 
                         align: 'left', 
-                        padding: { top: 0, bottom: 2 } 
+                        padding: { top: 0, bottom: 0 } 
                     },
                     tooltip: { 
                         enabled: true, 
@@ -689,7 +689,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   }
 
   return (
-    <div className="tm-card shadow-lg p-3 md:p-4 mb-6 flex flex-col" style={{height: '550px'}}>
+    <div className="tm-card shadow-lg p-2 mb-2 flex flex-col" style={{height: '480px'}}>
       {symbol ? (
         <>
           <div className={`${priceChartHeight} relative`}>
@@ -701,7 +701,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
             )}
           </div>
           {panelIndicators.map((indicator, idx) => (
-            <div key={indicator.id} className={`${panelHeight} relative border-t border-[var(--tm-border)] pt-1 mt-1`}>
+            <div key={indicator.id} className={`${panelHeight} relative border-t border-[var(--tm-border)]`}>
               <canvas ref={el => panelCanvasRefs.current[idx] = el}></canvas>
             </div>
           ))}

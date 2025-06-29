@@ -78,7 +78,7 @@ const MainContent: React.FC<MainContentProps> = ({
 }) => {
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-y-hidden">
-      <div className="container mx-auto px-4 py-6 md:px-6 md:py-8 flex-grow flex flex-col overflow-y-auto">
+      <div className="container mx-auto px-4 py-2 md:px-6 md:py-3 flex-grow flex flex-col overflow-y-auto">
         <main className="flex-grow flex flex-col">
           {initialLoading && <Loader text="Fetching initial market data..." />}
           <ErrorMessage message={initialError} />
@@ -93,7 +93,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 signalLog={signalLog} // Pass signalLog to ChartDisplay
                 historicalSignals={historicalSignals} // Pass historicalSignals to ChartDisplay
               />
-              <div className="mt-6 flex-grow">
+              <div className="mt-2 flex-grow">
                 <TraderSignalsTable 
                   tickers={tickers}
                   traders={traders}

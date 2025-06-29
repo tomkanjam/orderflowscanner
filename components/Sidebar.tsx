@@ -1,369 +1,72 @@
 
-import React, { useState, useEffect } from 'react';
-import { KLINE_INTERVALS, GEMINI_MODELS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL } from '../constants';
-import { KlineInterval, GeminiModelOption, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from '../types';
+import React, { useState } from 'react';
 import { TraderList } from '../src/components/TraderList';
-import { CreateTraderModal } from '../src/components/CreateTraderModal';
+import { TraderForm } from '../src/components/TraderForm';
 import { PortfolioMetrics } from '../src/components/PortfolioMetrics';
+import { Trader } from '../src/abstractions/trader.interfaces';
 
 interface SidebarProps {
-  klineInterval: KlineInterval;
-  onKlineIntervalChange: (interval: KlineInterval) => void;
-  selectedGeminiModel: GeminiModelOption;
-  onGeminiModelChange: (model: GeminiModelOption) => void;
-  aiPrompt: string;
-  onAiPromptChange: (prompt: string) => void;
-  onRunAiScreener: () => void;
-  isAiScreenerLoading: boolean;
-  aiFilterDescription: string[] | null;
-  onAnalyzeMarket: () => void;
-  isMarketAnalysisLoading: boolean;
-  onShowAiResponse: () => void; // Renamed from onShowGeneratedCode
-  aiScreenerError: string | null;
-  strategy: string;
-  onStrategyChange: (strategy: string) => void;
-  signalDedupeThreshold: number;
-  onSignalDedupeThresholdChange: (threshold: number) => void;
-  hasActiveFilter: boolean;
-  onRunHistoricalScan: () => void;
-  isHistoricalScanning: boolean;
-  historicalScanProgress: HistoricalScanProgress | null;
-  historicalScanConfig: HistoricalScanConfig;
-  onHistoricalScanConfigChange: (config: HistoricalScanConfig) => void;
-  onCancelHistoricalScan: () => void;
-  historicalSignalsCount: number;
-  klineHistoryConfig: KlineHistoryConfig;
-  onKlineHistoryConfigChange: (config: KlineHistoryConfig) => void;
-  streamingProgress: string;
-  streamingTokenCount: number;
   onSelectedTraderChange?: (traderId: string | null) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
-  klineInterval,
-  onKlineIntervalChange,
-  selectedGeminiModel,
-  onGeminiModelChange,
-  aiPrompt,
-  onAiPromptChange,
-  onRunAiScreener,
-  isAiScreenerLoading,
-  aiFilterDescription,
-  onAnalyzeMarket,
-  isMarketAnalysisLoading,
-  onShowAiResponse, // Renamed
-  aiScreenerError,
-  strategy,
-  onStrategyChange,
-  signalDedupeThreshold,
-  onSignalDedupeThresholdChange,
-  hasActiveFilter,
-  onRunHistoricalScan,
-  isHistoricalScanning,
-  historicalScanProgress,
-  historicalScanConfig,
-  onHistoricalScanConfigChange,
-  onCancelHistoricalScan,
-  historicalSignalsCount,
-  klineHistoryConfig,
-  onKlineHistoryConfigChange,
-  streamingProgress,
-  streamingTokenCount,
   onSelectedTraderChange,
 }) => {
-  const [showPromptAnimation, setShowPromptAnimation] = useState(false);
-  const [isAdvancedSettingsOpen, setIsAdvancedSettingsOpen] = useState(false);
-  const [showCreateTraderModal, setShowCreateTraderModal] = useState(false);
-  const [editingTrader, setEditingTrader] = useState<any>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingTrader, setEditingTrader] = useState<Trader | null>(null);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
-  
-  // Debug streaming state
-  useEffect(() => {
-    if (streamingProgress) {
-      console.log(`[${new Date().toISOString().slice(11, 23)}] [Sidebar] streamingProgress updated:`, streamingProgress);
-    }
-  }, [streamingProgress]);
-  
-  // Trigger animation when aiPrompt changes (but not on initial mount or empty)
-  useEffect(() => {
-    if (aiPrompt.trim()) {
-      setShowPromptAnimation(true);
-      const timer = setTimeout(() => {
-        setShowPromptAnimation(false);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [aiPrompt]);
+
+  const handleTraderCreated = (trader: Trader) => {
+    setSelectedTraderId(trader.id);
+    onSelectedTraderChange?.(trader.id);
+    setShowCreateForm(false);
+    setEditingTrader(null);
+  };
 
   return (
     <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--tm-bg-secondary)] p-4 md:p-6 flex flex-col border-r border-[var(--tm-border)] h-screen overflow-y-auto relative">
       {/* Top accent bar */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--tm-accent)] to-[var(--tm-accent-dark)]"></div>
       <h2 className="text-2xl font-bold mb-4 tm-heading-lg">
-        <span className="text-[var(--tm-accent)]">AI</span> <span className="text-[var(--tm-text-primary)]">Screener</span>
+        <span className="text-[var(--tm-accent)]">Trading</span> <span className="text-[var(--tm-text-primary)]">Dashboard</span>
       </h2>
-      <p className="text-[var(--tm-text-muted)] text-sm mb-6">
-        Describe technical conditions for your selected interval. The AI will create a filter and suggest chart indicators.
-      </p>
-
-      <div className="mb-4">
-        <label htmlFor="kline-interval-select" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">Candle Interval:</label>
-        <select
-          id="kline-interval-select"
-          value={klineInterval}
-          onChange={(e) => onKlineIntervalChange(e.target.value as KlineInterval)}
-          className="w-full tm-input"
-        >
-          {KLINE_INTERVALS.map(interval => (
-            <option key={interval.value} value={interval.value}>{interval.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Advanced Settings Toggle */}
-      <div className="mb-4">
-        <button
-          onClick={() => setIsAdvancedSettingsOpen(!isAdvancedSettingsOpen)}
-          className="w-full flex items-center justify-between p-3 bg-transparent border border-[var(--tm-border)] rounded-lg hover:border-[var(--tm-border-light)] transition-all duration-200 group"
-        >
-          <div className="flex items-center gap-2">
-            <svg 
-              className="w-4 h-4 text-[var(--tm-text-muted)] group-hover:text-[var(--tm-text-secondary)] transition-colors" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span className="text-sm font-medium text-[var(--tm-text-secondary)] group-hover:text-[var(--tm-text-primary)] transition-colors">Advanced Settings</span>
-          </div>
-          <svg 
-            className={`w-4 h-4 text-[var(--tm-text-muted)] group-hover:text-[var(--tm-text-secondary)] transition-all duration-200 ${isAdvancedSettingsOpen ? 'rotate-180' : ''}`}
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Collapsible Advanced Settings */}
-      <div className={`overflow-hidden transition-all duration-300 ${isAdvancedSettingsOpen ? 'max-h-[500px] mb-4' : 'max-h-0'}`}>
-        <div className="space-y-4 pb-4 pt-2 px-1">
-          <div>
-            <label htmlFor="gemini-model-select" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">AI Model:</label>
-            <select
-              id="gemini-model-select"
-              value={selectedGeminiModel}
-              onChange={(e) => onGeminiModelChange(e.target.value as GeminiModelOption)}
-              className="w-full tm-input"
-            >
-              {GEMINI_MODELS.map(model => (
-                <option key={model.value} value={model.value}>{model.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="signal-threshold" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">
-              Signal Deduplication Threshold:
-            </label>
-            <div className="flex items-center space-x-2">
-              <input
-                id="signal-threshold"
-                type="number"
-                min="1"
-                max="500"
-                value={signalDedupeThreshold}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value, 10);
-                  if (!isNaN(value) && value >= 1 && value <= 500) {
-                    onSignalDedupeThresholdChange(value);
-                  }
-                }}
-                className="w-24 tm-input"
-              />
-              <span className="text-[var(--tm-text-secondary)] text-sm">bars</span>
-            </div>
-            <p className="text-[var(--tm-text-muted)] text-xs mt-1">
-              Signals for the same symbol within this bar count will increment the count instead of creating a new entry.
-            </p>
-          </div>
-
-          {/* Data Settings */}
-          <div className="border-t border-[var(--tm-border-light)] pt-4">
-            <h3 className="text-[var(--tm-text-secondary)] font-medium mb-3 text-sm">Data Settings</h3>
-            <div>
-              <label htmlFor="screener-limit" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">
-                Screener Candles:
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  id="screener-limit"
-                  type="number"
-                  min="50"
-                  max="1000"
-                  step="50"
-                  value={klineHistoryConfig.screenerLimit}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value) || 250;
-                    onKlineHistoryConfigChange({
-                      ...klineHistoryConfig,
-                      screenerLimit: Math.min(Math.max(value, 50), 1000)
-                    });
-                  }}
-                  className="w-24 tm-input"
-                />
-                <span className="text-[var(--tm-text-muted)] text-xs">
-                  (50-1000)
-                </span>
-              </div>
-              <p className="text-[var(--tm-text-muted)] text-xs mt-1">
-                Number of candles for screener filters
-              </p>
-            </div>
-          </div>
+      
+      {/* Show form or list based on state */}
+      {showCreateForm || editingTrader ? (
+        <div className="flex-1">
+          <TraderForm
+            editingTrader={editingTrader}
+            onTraderCreated={handleTraderCreated}
+            onCancel={() => {
+              setShowCreateForm(false);
+              setEditingTrader(null);
+            }}
+          />
         </div>
-      </div>
-
-      <div className="mb-4">
-        <label htmlFor="ai-prompt" className="text-[var(--tm-text-secondary)] font-medium mb-1 block text-sm">Your Conditions:</label>
-        <textarea
-          id="ai-prompt"
-          rows={4}
-          value={aiPrompt}
-          onChange={(e) => onAiPromptChange(e.target.value)}
-          className={`w-full tm-input transition-all duration-300 ${
-            showPromptAnimation 
-              ? 'border-[var(--tm-accent)] ring-2 ring-[var(--tm-accent)] ring-opacity-50' 
-              : 'focus:border-[var(--tm-accent)] focus:ring-2 focus:ring-[var(--tm-accent)] focus:ring-opacity-30'
-          }`}
-          placeholder={`e.g., price crossed 20 MA up on high volume (for ${klineInterval})`}
-          autoFocus
-        />
-      </div>
-
-      <button
-        id="run-ai-btn"
-        onClick={onRunAiScreener}
-        disabled={isAiScreenerLoading || !aiPrompt.trim()}
-        className="w-full tm-btn tm-btn-primary font-bold py-2.5 px-4 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isAiScreenerLoading ? (
-          <>
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--tm-text-inverse)] mr-2"></div>
-            <span>Generating Filter...</span>
-          </>
-        ) : (
-          <span>✨ Run AI Screen</span>
-        )}
-      </button>
-
-      {/* Streaming Progress Display */}
-      {(isAiScreenerLoading || streamingProgress) && (
-        <div className="mt-3 space-y-2">
-          {streamingProgress && (
-            <div className="flex items-center gap-2 text-sm text-[var(--tm-text-secondary)]">
-              <div className={`rounded-full h-2 w-2 ${isAiScreenerLoading ? 'animate-pulse bg-[var(--tm-accent)]' : 'bg-[var(--tm-success)]'}`}></div>
-              <span className="font-medium">{streamingProgress}</span>
-            </div>
-          )}
-          {streamingTokenCount > 0 && isAiScreenerLoading && (
-            <div className="text-xs text-[var(--tm-text-muted)]">
-              ~{streamingTokenCount.toLocaleString()} tokens
-            </div>
-          )}
-        </div>
+      ) : (
+        <>
+          {/* Traders Section */}
+          <div className="flex-1">
+            <TraderList 
+              onCreateTrader={() => setShowCreateForm(true)}
+              onEditTrader={(trader) => {
+                setEditingTrader(trader);
+                setShowCreateForm(true);
+              }}
+              onSelectTrader={(traderId) => {
+                setSelectedTraderId(traderId);
+                onSelectedTraderChange?.(traderId);
+              }}
+              selectedTraderId={selectedTraderId}
+            />
+          </div>
+          
+          {/* Portfolio Metrics */}
+          <div className="mt-6">
+            <PortfolioMetrics />
+          </div>
+        </>
       )}
-
-      {aiScreenerError && (
-        <div className="mt-3 text-[var(--tm-error)] bg-[var(--tm-error)]/10 p-3 rounded-lg text-sm">
-          {aiScreenerError}
-        </div>
-      )}
-
-      {aiFilterDescription && aiFilterDescription.length > 0 && (
-        <div className="mt-6 bg-[var(--tm-bg-tertiary)] rounded-lg p-4 border border-[var(--tm-border-light)]">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-[var(--tm-accent)] animate-pulse"></div>
-            <h3 className="text-base font-semibold text-[var(--tm-text-primary)] tm-heading-md">Active Filter</h3>
-          </div>
-          <div className="space-y-2">
-            {aiFilterDescription.map((desc, index) => (
-              <div key={index} className="flex items-start gap-2">
-                <span className="text-[var(--tm-accent)] mt-0.5 text-xs">▸</span>
-                <p className="text-[var(--tm-text-secondary)] text-sm leading-relaxed flex-1">{desc}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 pt-3 border-t border-[var(--tm-border-light)]">
-            <button
-              onClick={onShowAiResponse}
-              className="w-full tm-btn tm-btn-secondary py-2 px-3 text-xs font-medium flex items-center justify-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              View Full Response
-            </button>
-          </div>
-        </div>
-      )}
-      
-      
-      {/* Traders Section */}
-      <div className="mt-6 border-t border-[var(--tm-border)] pt-6">
-        <TraderList 
-          onCreateTrader={() => setShowCreateTraderModal(true)}
-          onEditTrader={(trader) => {
-            setEditingTrader(trader);
-            setShowCreateTraderModal(true);
-          }}
-          onSelectTrader={(traderId) => {
-            setSelectedTraderId(traderId);
-            onSelectedTraderChange?.(traderId);
-          }}
-          selectedTraderId={selectedTraderId}
-        />
-      </div>
-      
-      {/* Portfolio Metrics */}
-      <div className="mt-6">
-        <PortfolioMetrics />
-      </div>
-      
-      {/* Analyze Market Button - Hidden for now */}
-      {/* <div className="mt-auto pt-6">
-        <button
-            onClick={onAnalyzeMarket}
-            disabled={isMarketAnalysisLoading}
-            className="w-full bg-blue-500 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-blue-600 transition duration-300 flex items-center justify-center disabled:opacity-50"
-        >
-            {isMarketAnalysisLoading ? (
-            <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                <span>Analyzing Market...</span>
-            </>
-            ) : (
-            <span>📊 Analyze Market Trends</span>
-            )}
-        </button>
-      </div> */}
-      
-      {/* Create Trader Modal */}
-      <CreateTraderModal
-        isOpen={showCreateTraderModal}
-        onClose={() => {
-          setShowCreateTraderModal(false);
-          setEditingTrader(null);
-        }}
-        editingTrader={editingTrader}
-        onTraderCreated={(trader) => {
-          setSelectedTraderId(trader.id);
-        }}
-      />
     </aside>
   );
 };

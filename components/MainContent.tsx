@@ -21,7 +21,7 @@ interface MainContentProps {
   traders?: any[]; // Add traders prop
   selectedTraderId?: string | null; // Selected trader for filtering
   onSelectTrader?: (traderId: string | null) => void; // Trader selection callback
-  currentFilterFn: ((ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: any[]) => boolean) | null;
+  currentFilterFn: null;
   klineInterval: KlineInterval;
   selectedSymbolForChart: string | null;
   chartConfigForDisplay: CustomIndicatorConfig[] | null;

@@ -3,16 +3,15 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import Modal from './components/Modal';
-import { Ticker, Kline, AiFilterResponse, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
+import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket } from './services/binanceService';
-import { generateFilterAndChartConfig, generateFilterAndChartConfigStream, getSymbolAnalysis, getMarketAnalysis, StreamingUpdate } from './services/geminiService';
+import { getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
 import * as screenerHelpers from './screenerHelpers';
 import { useHistoricalScanner } from './hooks/useHistoricalScanner';
 import { useMultiTraderHistoricalScanner } from './hooks/useMultiTraderHistoricalScanner';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { useAuth } from './src/hooks/useAuth';
-import { EmailAuthModal } from './src/components/auth/EmailAuthModal';
 import { observability } from './services/observabilityService';
 import { StrategyProvider } from './src/contexts/StrategyContext';
 import { useSignalLifecycle } from './src/hooks/useSignalLifecycle';
@@ -40,11 +39,6 @@ const AppContent: React.FC = () => {
   const [klineInterval, setKlineInterval] = useState<KlineInterval>(DEFAULT_KLINE_INTERVAL);
   const [selectedGeminiModel, setSelectedGeminiModel] = useState<GeminiModelOption>(DEFAULT_GEMINI_MODEL);
   
-  const [aiPrompt, setAiPrompt] = useState<string>('');
-  const [currentFilterFn, setCurrentFilterFn] = useState<((ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: any[]) => boolean) | null>(null);
-  const [aiFilterDescription, setAiFilterDescription] = useState<string[] | null>(null);
-  const [fullAiFilterResponse, setFullAiFilterResponse] = useState<AiFilterResponse | null>(null);
-  const [currentChartConfig, setCurrentChartConfig] = useState<CustomIndicatorConfig[] | null>(null);
 
   const [signalLog, setSignalLog] = useState<SignalLogEntry[]>([]); // New state for signal log
   const [strategy, setStrategy] = useState<string>(''); // User's trading strategy
@@ -71,15 +65,10 @@ const AppContent: React.FC = () => {
 
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [initialError, setInitialError] = useState<string | null>(null);
-  const [isAiScreenerLoading, setIsAiScreenerLoading] = useState<boolean>(false);
   const [multiTraderEnabled, setMultiTraderEnabled] = useState<boolean>(true);
-  const [aiScreenerError, setAiScreenerError] = useState<string | null>(null);
   const [isMarketAnalysisLoading, setIsMarketAnalysisLoading] = useState<boolean>(false);
   const [isSymbolAnalysisLoading, setIsSymbolAnalysisLoading] = useState<boolean>(false);
   
-  // Streaming state
-  const [streamingProgress, setStreamingProgress] = useState<string>('');
-  const [streamingTokenCount, setStreamingTokenCount] = useState<number>(0);
   
   const [statusText, setStatusText] = useState<string>('Connecting...');
   const [statusLightClass, setStatusLightClass] = useState<string>('bg-[var(--tm-text-muted)]');
@@ -129,8 +118,6 @@ const AppContent: React.FC = () => {
   
   // Auth state
   const { user, loading: authLoading } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [pendingPrompt, setPendingPrompt] = useState('');
   
   // Signal lifecycle hook
   const { 
@@ -159,8 +146,8 @@ const AppContent: React.FC = () => {
     symbols: allSymbols,
     historicalData,
     tickers,
-    filterCode: fullAiFilterResponse?.screenerCode || '',
-    filterDescription: aiFilterDescription || [],
+    filterCode: '',
+    filterDescription: [],
     klineInterval,
     signalDedupeThreshold,
   });
@@ -229,46 +216,12 @@ const AppContent: React.FC = () => {
     localStorage.setItem('klineHistoryConfig', JSON.stringify(klineHistoryConfig));
   }, [klineHistoryConfig]);
   
-  // Auto-run historical scan when we have fewer than 10 live signals
-  const hasAutoScanned = useRef(false);
-  useEffect(() => {
-    // Only auto-scan once per filter, when we have an active filter, 
-    // not already scanning, and fewer than 10 live signals
-    if (currentFilterFn && 
-        !isHistoricalScanning && 
-        !hasAutoScanned.current && 
-        signalLog.length < 10 &&
-        historicalSignals.length === 0) { // Don't auto-scan if we already have historical signals
-      
-      console.log(`[${new Date().toISOString().slice(11, 23)}] Auto-running historical scan: ${signalLog.length} live signals found`);
-      hasAutoScanned.current = true;
-      
-      // Use 200 bars when no live signals are found, otherwise use default
-      const autoScanConfig = signalLog.length === 0 
-        ? { ...historicalScanConfig, lookbackBars: 200 }
-        : historicalScanConfig;
-      
-      // Small delay to ensure initial signals are displayed first
-      setTimeout(() => {
-        startHistoricalScan(autoScanConfig);
-      }, 1000);
-    }
-    
-    // Reset auto-scan flag when filter changes
-    if (!currentFilterFn) {
-      hasAutoScanned.current = false;
-    }
-  }, [currentFilterFn, signalLog.length, isHistoricalScanning, startHistoricalScan, historicalScanConfig, historicalSignals.length]);
   
   const loadInitialData = useCallback(async (interval: KlineInterval, klineLimit: number) => {
     setInitialLoading(true);
     setInitialError(null);
     setStatusText('Fetching initial data...');
     setSelectedSymbolForChart(null);
-    setCurrentFilterFn(null); 
-    setAiFilterDescription(null);
-    setCurrentChartConfig(null);
-    setFullAiFilterResponse(null);
     setSignalLog([]); // Clear signal log on new data load
 
     try {
@@ -516,14 +469,14 @@ const AppContent: React.FC = () => {
         price: parseFloat(tickerData.c),
         change24h: parseFloat(tickerData.P),
         volume24h: parseFloat(tickerData.q),
-        matchedConditions: aiFilterDescription || ['Filter matched'],
+        matchedConditions: ['Filter matched'],
       };
       
       createSignalFromFilter(filterResult);
     }
     
     setSignalLog(prevLog => {
-      const shortDesc = aiFilterDescription && aiFilterDescription.length > 0 ? aiFilterDescription[0] : "AI Filter Active";
+      const shortDesc = "AI Filter Active";
       
       if (shouldCreateNewSignal) {
         // Create new signal
@@ -568,7 +521,7 @@ const AppContent: React.FC = () => {
         });
       }
     });
-  }, [aiFilterDescription, klineInterval, tickers, signalHistory, signalDedupeThreshold, activeStrategy, createSignalFromFilter]);
+  }, [klineInterval, tickers, signalHistory, signalDedupeThreshold, activeStrategy, createSignalFromFilter]);
 
   // Multi-trader screener hook
   const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
@@ -679,133 +632,6 @@ const AppContent: React.FC = () => {
     interval: 5000 // Run every 5 seconds
   });
 
-  const handleRunAiScreener = useCallback(async () => {
-    if (!aiPrompt.trim()) {
-      setAiScreenerError("Please enter conditions for the AI screener.");
-      return;
-    }
-    
-    // Check authentication
-    if (authLoading) {
-      return;
-    }
-    
-    if (!user) {
-      setPendingPrompt(aiPrompt);
-      setShowAuthModal(true);
-      return;
-    }
-    
-    setIsAiScreenerLoading(true);
-    setAiScreenerError(null);
-    setCurrentFilterFn(null);
-    setAiFilterDescription(null);
-    setCurrentChartConfig(null);
-    setFullAiFilterResponse(null); 
-    setSignalLog([]); // Clear signal log for new filter
-    setStreamingProgress('');
-    setStreamingTokenCount(0);
-
-    try {
-      const response: AiFilterResponse = await generateFilterAndChartConfigStream(
-        aiPrompt, 
-        internalGeminiModelName, 
-        klineInterval, 
-        klineHistoryConfig.screenerLimit,
-        (update: StreamingUpdate) => {
-          switch (update.type) {
-            case 'progress':
-              console.log(`[${new Date().toISOString().slice(11, 23)}] [App] Progress update received:`, update.message);
-              setStreamingProgress(update.message || '');
-              if (update.tokenCount) setStreamingTokenCount(update.tokenCount);
-              break;
-            case 'stream':
-              if (update.tokenCount) setStreamingTokenCount(update.tokenCount);
-              break;
-            case 'complete':
-              break;
-            case 'error':
-              console.error(`[${new Date().toISOString().slice(11, 23)}] Streaming error:`, update.error);
-              break;
-          }
-        }
-      );
-      
-      const filterFunction = new Function(
-          'ticker', 
-          'klines', 
-          'helpers',
-          'hvnNodes',
-          // The AI is expected to provide a valid function body that returns a boolean.
-          // The try-catch here is for runtime errors within that valid body.
-          `try { ${response.screenerCode} } catch(e) { console.error('Screener code runtime error for ticker:', ticker.s, e); return false; }`
-      ) as (ticker: Ticker, klines: Kline[], helpers: ScreenerHelpersType, hvnNodes: any[]) => boolean;
-      
-      setCurrentFilterFn(() => filterFunction); 
-      setAiFilterDescription(response.description);
-      setCurrentChartConfig(response.indicators);
-      setFullAiFilterResponse(response);
-      
-      // Debug logging
-      console.log('[DEBUG] AI Response indicators:', response.indicators);
-      console.log('[DEBUG] Setting currentChartConfig to:', response.indicators);
-
-    } catch (error) {
-      console.error("AI Screener error:", error);
-      const errorMessage = error instanceof Error ? error.message : "AI processing failed.";
-      setAiScreenerError(errorMessage);
-    } finally {
-      setIsAiScreenerLoading(false);
-      // Keep the last progress message visible for a bit
-      setTimeout(() => {
-        setStreamingProgress('');
-      }, 2000);
-    }
-  }, [aiPrompt, klineInterval, internalGeminiModelName, klineHistoryConfig.screenerLimit, authLoading, user]);
-
-  // Monitor user auth state changes and handle pending screener
-  useEffect(() => {
-    // If user just authenticated and we have a pending prompt
-    if (user && !authLoading && pendingPrompt) {
-      setAiPrompt(pendingPrompt);
-      setPendingPrompt('');
-      // Small delay to ensure state is updated
-      setTimeout(() => {
-        handleRunAiScreener();
-      }, 100);
-    }
-  }, [user, authLoading, pendingPrompt, handleRunAiScreener]);
-
-  // Handle auth callback from magic link
-  useEffect(() => {
-    const handleAuthCallback = async () => {
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      
-      if (accessToken) {
-        // Get stored prompt
-        const pendingPrompt = localStorage.getItem('pendingScreenerPrompt');
-        
-        if (pendingPrompt) {
-          // Set the prompt and remove from storage
-          setAiPrompt(pendingPrompt);
-          localStorage.removeItem('pendingScreenerPrompt');
-          
-          // Small delay to ensure auth state is updated
-          setTimeout(() => {
-            if (user) {
-              handleRunAiScreener();
-            }
-          }, 100);
-        }
-        
-        // Clean up URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    };
-    
-    handleAuthCallback();
-  }, [user, handleRunAiScreener]);
 
   const handleRunHistoricalScan = () => {
     // Only run historical scan when a trader is selected
@@ -817,19 +643,6 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleShowAiResponse = () => {
-    if (!fullAiFilterResponse) return;
-    setModalTitle('📄 Full AI Filter Response');
-    const formattedResponse = (
-        <pre className="bg-[var(--tm-bg-primary)] p-3 md:p-4 rounded-md block whitespace-pre-wrap text-xs md:text-sm text-[var(--tm-accent)] overflow-x-auto">
-          <code>
-            {JSON.stringify(fullAiFilterResponse, null, 2)}
-          </code>
-        </pre>
-      );
-    setModalContent(formattedResponse);
-    setIsModalOpen(true);
-  };
   
   const handleAnalyzeMarket = useCallback(async () => {
     setIsMarketAnalysisLoading(true);
@@ -867,7 +680,7 @@ const AppContent: React.FC = () => {
     }
 
     try {
-        const analysisText = await getSymbolAnalysis(symbol, tickerData, klineData, currentChartConfig, internalGeminiModelName, klineInterval, klineHistoryConfig.analysisLimit, strategy);
+        const analysisText = await getSymbolAnalysis(symbol, tickerData, klineData, null, internalGeminiModelName, klineInterval, klineHistoryConfig.analysisLimit, strategy);
         
         // Parse the analysis if strategy is provided
         let decisionMatch = null;
@@ -947,7 +760,7 @@ const AppContent: React.FC = () => {
     } finally {
         setIsSymbolAnalysisLoading(false);
     }
-  }, [tickers, historicalData, currentChartConfig, internalGeminiModelName, klineInterval, strategy]);
+  }, [tickers, historicalData, internalGeminiModelName, klineInterval, strategy]);
 
 
   const handleRowClick = (symbol: string, traderId?: string) => {
@@ -978,44 +791,14 @@ const AppContent: React.FC = () => {
       }
     }
     
-    // Otherwise use the AI screener's indicators
-    console.log('[DEBUG] chartConfigForDisplay using currentChartConfig:', currentChartConfig);
-    return currentChartConfig;
-  }, [selectedSymbolForChart, selectedSignalTraderId, selectedTraderId, traders, currentChartConfig]);
+    // No indicators configured
+    return null;
+  }, [selectedSymbolForChart, selectedSignalTraderId, selectedTraderId, traders]);
 
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
       <Sidebar
-        klineInterval={klineInterval}
-        onKlineIntervalChange={setKlineInterval}
-        selectedGeminiModel={selectedGeminiModel}
-        onGeminiModelChange={setSelectedGeminiModel}
-        aiPrompt={aiPrompt}
-        onAiPromptChange={setAiPrompt}
-        onRunAiScreener={handleRunAiScreener}
-        isAiScreenerLoading={isAiScreenerLoading}
-        aiFilterDescription={aiFilterDescription}
-        onAnalyzeMarket={handleAnalyzeMarket}
-        isMarketAnalysisLoading={isMarketAnalysisLoading}
-        onShowAiResponse={handleShowAiResponse}
-        aiScreenerError={aiScreenerError}
-        strategy={strategy}
-        onStrategyChange={setStrategy}
-        signalDedupeThreshold={signalDedupeThreshold}
-        onSignalDedupeThresholdChange={setSignalDedupeThreshold}
-        hasActiveFilter={!!currentFilterFn}
-        onRunHistoricalScan={handleRunHistoricalScan}
-        isHistoricalScanning={isHistoricalScanning}
-        historicalScanProgress={historicalScanProgress}
-        historicalScanConfig={historicalScanConfig}
-        onHistoricalScanConfigChange={setHistoricalScanConfig}
-        onCancelHistoricalScan={cancelHistoricalScan}
-        historicalSignalsCount={historicalSignals.length}
-        klineHistoryConfig={klineHistoryConfig}
-        onKlineHistoryConfigChange={setKlineHistoryConfig}
-        streamingProgress={streamingProgress}
-        streamingTokenCount={streamingTokenCount}
         onSelectedTraderChange={setSelectedTraderId}
       />
       <MainContent
@@ -1029,7 +812,7 @@ const AppContent: React.FC = () => {
         traders={traders} // Pass traders to MainContent
         selectedTraderId={selectedTraderId} // Pass selected trader
         onSelectTrader={setSelectedTraderId} // Pass selection callback
-        currentFilterFn={multiTraderEnabled && traders.some(t => t.enabled) ? null : currentFilterFn} 
+        currentFilterFn={null} 
         klineInterval={klineInterval}
         selectedSymbolForChart={selectedSymbolForChart}
         chartConfigForDisplay={chartConfigForDisplay}
@@ -1038,7 +821,7 @@ const AppContent: React.FC = () => {
         signalLog={signalLog} // Pass signalLog to MainContent
         onNewSignal={handleNewSignal} // Pass handleNewSignal
         historicalSignals={historicalSignals} // Pass historical signals
-        hasActiveFilter={!!currentFilterFn || (multiTraderEnabled && traders.some(t => t.enabled))}
+        hasActiveFilter={multiTraderEnabled && traders.some(t => t.enabled)}
         onRunHistoricalScan={handleRunHistoricalScan}
         isHistoricalScanning={multiTraderEnabled && traders.some(t => t.enabled) ? isMultiTraderHistoricalScanning : isHistoricalScanning}
         historicalScanProgress={multiTraderEnabled && traders.some(t => t.enabled) ? multiTraderHistoricalProgress : historicalScanProgress}
@@ -1056,15 +839,6 @@ const AppContent: React.FC = () => {
       >
         {modalContent}
       </Modal>
-      <EmailAuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onAuthSuccess={() => {
-          setShowAuthModal(false);
-          // Auth success will trigger the callback handler
-        }}
-        pendingPrompt={pendingPrompt}
-      />
     </div>
   );
 };

@@ -25,7 +25,7 @@ interface MainContentProps {
   klineInterval: KlineInterval;
   selectedSymbolForChart: string | null;
   chartConfigForDisplay: CustomIndicatorConfig[] | null;
-  onRowClick: (symbol: string) => void;
+  onRowClick: (symbol: string, traderId?: string) => void;
   onAiInfoClick: (symbol: string, event: React.MouseEvent) => void;
   signalLog: SignalLogEntry[]; // Add signalLog prop
   onNewSignal: (symbol: string, timestamp: number) => void; // Add onNewSignal prop

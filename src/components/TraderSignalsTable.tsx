@@ -10,7 +10,7 @@ interface TraderSignalsTableProps {
   traders?: any[]; // Add traders list to look up names
   selectedTraderId?: string | null; // Currently selected trader
   onSelectTrader?: (traderId: string | null) => void; // Callback to change selection
-  onRowClick?: (symbol: string) => void;
+  onRowClick?: (symbol: string, traderId?: string) => void;
   // Historical scanner props
   hasActiveFilter?: boolean;
   onRunHistoricalScan?: () => void;
@@ -366,7 +366,7 @@ export function TraderSignalsTable({
                   }`}
                   onClick={() => {
                     toggleRowExpanded(signal.id);
-                    onRowClick?.(signal.symbol);
+                    onRowClick?.(signal.symbol, signal.traderId);
                   }}
                 >
                   <td className="p-2 md:px-4 md:py-2">
@@ -451,7 +451,7 @@ export function TraderSignalsTable({
                 <tr 
                   key={`historical-${signal.symbol}-${signal.timestamp}-${index}`}
                   className="border-b border-[var(--tm-border)] hover:bg-[var(--tm-bg-hover)] transition-colors cursor-pointer opacity-75"
-                  onClick={() => onRowClick?.(signal.symbol)}
+                  onClick={() => onRowClick?.(signal.symbol, signal.traderId)}
                 >
                   <td className="p-2 md:px-4 md:py-2"></td>
                   <td className="p-2 md:px-4 md:py-2 text-xs md:text-sm text-[var(--tm-text-muted)]">

@@ -85,6 +85,7 @@ const AppContent: React.FC = () => {
   const [statusLightClass, setStatusLightClass] = useState<string>('bg-[var(--tm-text-muted)]');
   
   const [selectedSymbolForChart, setSelectedSymbolForChart] = useState<string | null>(null);
+  const [selectedSignalTraderId, setSelectedSignalTraderId] = useState<string | null>(null);
   
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalTitle, setModalTitle] = useState<string>('');
@@ -949,8 +950,9 @@ const AppContent: React.FC = () => {
   }, [tickers, historicalData, currentChartConfig, internalGeminiModelName, klineInterval, strategy]);
 
 
-  const handleRowClick = (symbol: string) => {
+  const handleRowClick = (symbol: string, traderId?: string) => {
     setSelectedSymbolForChart(symbol);
+    setSelectedSignalTraderId(traderId || null);
   };
   
   
@@ -958,7 +960,16 @@ const AppContent: React.FC = () => {
   const chartConfigForDisplay = useMemo(() => {
     if (!selectedSymbolForChart) return null;
     
-    // If a trader is selected, use its indicators
+    // First check if a specific signal's trader was clicked
+    if (selectedSignalTraderId) {
+      const signalTrader = traders.find(t => t.id === selectedSignalTraderId);
+      console.log('Signal trader:', signalTrader?.name, 'Indicators:', signalTrader?.filter?.indicators);
+      if (signalTrader?.filter?.indicators) {
+        return signalTrader.filter.indicators;
+      }
+    }
+    
+    // Then check if a trader filter is selected
     if (selectedTraderId) {
       const selectedTrader = traders.find(t => t.id === selectedTraderId);
       console.log('Selected trader:', selectedTrader?.name, 'Indicators:', selectedTrader?.filter?.indicators);
@@ -970,7 +981,7 @@ const AppContent: React.FC = () => {
     // Otherwise use the AI screener's indicators
     console.log('[DEBUG] chartConfigForDisplay using currentChartConfig:', currentChartConfig);
     return currentChartConfig;
-  }, [selectedSymbolForChart, selectedTraderId, traders, currentChartConfig]);
+  }, [selectedSymbolForChart, selectedSignalTraderId, selectedTraderId, traders, currentChartConfig]);
 
 
   return (

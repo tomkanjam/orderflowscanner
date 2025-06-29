@@ -280,6 +280,15 @@ const AppContent: React.FC = () => {
   // Create stable handlers using useCallback
   const handleTickerUpdateStable = useCallback((tickerUpdate: Ticker) => {
     setTickers(prevTickers => {
+      // Only create new Map if the value actually changed
+      const currentTicker = prevTickers.get(tickerUpdate.s);
+      if (currentTicker && 
+          currentTicker.c === tickerUpdate.c && 
+          currentTicker.P === tickerUpdate.P && 
+          currentTicker.q === tickerUpdate.q) {
+        return prevTickers; // No change, return same reference
+      }
+      // Value changed, create new Map
       const newTickers = new Map(prevTickers);
       newTickers.set(tickerUpdate.s, tickerUpdate);
       return newTickers;
@@ -294,14 +303,15 @@ const AppContent: React.FC = () => {
       
       // Increment bar counts in signal history
       setSignalHistory(prev => {
+        const entry = prev.get(symbol);
+        if (!entry) return prev; // No entry, no change
+        
+        // Only create new Map if we need to update
         const newHistory = new Map(prev);
-        const entry = newHistory.get(symbol);
-        if (entry) {
-          newHistory.set(symbol, {
-            ...entry,
-            barCount: entry.barCount + 1
-          });
-        }
+        newHistory.set(symbol, {
+          ...entry,
+          barCount: entry.barCount + 1
+        });
         return newHistory;
       });
     }
@@ -312,35 +322,51 @@ const AppContent: React.FC = () => {
     tradeManager.updatePrice(symbol, currentPrice);
     
     setHistoricalData(prevKlines => {
-      const newKlinesMap = new Map(prevKlines);
-      const symbolKlines = newKlinesMap.get(symbol) ? [...newKlinesMap.get(symbol)!] : [];
+      const existingKlines = prevKlines.get(symbol);
       
-      if (symbolKlines.length === 0) { 
-          symbolKlines.push(kline);
-      } else {
-          if (isClosed) {
-              if(kline[0] > symbolKlines[symbolKlines.length - 1][0]) {
-                  symbolKlines.push(kline);
-                  if (symbolKlines.length > KLINE_HISTORY_LIMIT) {
-                      symbolKlines.shift();
-                  }
-              } else if (kline[0] === symbolKlines[symbolKlines.length - 1][0]) {
-                  symbolKlines[symbolKlines.length - 1] = kline;
+      // For new symbols, create new Map
+      if (!existingKlines) {
+        const newKlinesMap = new Map(prevKlines);
+        newKlinesMap.set(symbol, [kline]);
+        return newKlinesMap;
+      }
+      
+      // Work with existing array
+      const symbolKlines = [...existingKlines];
+      
+      let needsUpdate = false;
+      
+      if (isClosed) {
+          if(kline[0] > symbolKlines[symbolKlines.length - 1][0]) {
+              symbolKlines.push(kline);
+              if (symbolKlines.length > KLINE_HISTORY_LIMIT) {
+                  symbolKlines.shift();
               }
-
-          } else { 
-              if (symbolKlines.length > 0 && symbolKlines[symbolKlines.length - 1][0] === kline[0]) {
-                  symbolKlines[symbolKlines.length - 1] = kline;
-              } else {
-                  symbolKlines.push(kline);
-                   if (symbolKlines.length > KLINE_HISTORY_LIMIT) {
-                      symbolKlines.shift();
-                  }
+              needsUpdate = true;
+          } else if (kline[0] === symbolKlines[symbolKlines.length - 1][0]) {
+              symbolKlines[symbolKlines.length - 1] = kline;
+              needsUpdate = true;
+          }
+      } else { 
+          if (symbolKlines.length > 0 && symbolKlines[symbolKlines.length - 1][0] === kline[0]) {
+              symbolKlines[symbolKlines.length - 1] = kline;
+              needsUpdate = true;
+          } else {
+              symbolKlines.push(kline);
+               if (symbolKlines.length > KLINE_HISTORY_LIMIT) {
+                  symbolKlines.shift();
               }
+              needsUpdate = true;
           }
       }
-      newKlinesMap.set(symbol, symbolKlines);
       
+      // Only create new Map if data actually changed
+      if (!needsUpdate) {
+          return prevKlines;
+      }
+      
+      const newKlinesMap = new Map(prevKlines);
+      newKlinesMap.set(symbol, symbolKlines);
       return newKlinesMap;
     });
   }, []);

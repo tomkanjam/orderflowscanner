@@ -3,7 +3,7 @@ import { SignalLifecycle, SignalStatus } from '../abstractions/interfaces';
 import { signalManager } from '../services/signalManager';
 import { Ticker, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
-import { Bell, BellOff, ChevronDown, ChevronRight, TrendingUp, TrendingDown, AlertCircle, X } from 'lucide-react';
+import { Bell, BellOff, TrendingUp, TrendingDown, AlertCircle, X } from 'lucide-react';
 
 interface TraderSignalsTableProps {
   tickers: Map<string, Ticker>;
@@ -43,7 +43,6 @@ export function TraderSignalsTable({
   onSignalDedupeThresholdChange,
 }: TraderSignalsTableProps) {
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [newSignalTimestamps, setNewSignalTimestamps] = useState<Set<number>>(new Set());
   const [soundEnabled, setSoundEnabled] = useState(() => {
     return localStorage.getItem('traderSignalSoundEnabled') === 'true';
@@ -130,15 +129,6 @@ export function TraderSignalsTable({
     localStorage.setItem('traderSignalSoundEnabled', newValue.toString());
   };
 
-  const toggleRowExpanded = (signalId: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(signalId)) {
-      newExpanded.delete(signalId);
-    } else {
-      newExpanded.add(signalId);
-    }
-    setExpandedRows(newExpanded);
-  };
 
   // Filter and sort signals by timestamp, newest first
   const sortedSignals = useMemo(() => {
@@ -345,7 +335,6 @@ export function TraderSignalsTable({
         <table className="w-full tm-table">
           <thead className="sticky top-0 bg-[var(--tm-bg-tertiary)] z-10">
             <tr className="text-left text-xs md:text-sm text-[var(--tm-text-muted)]">
-              <th className="p-2 md:px-4 md:py-2"></th>
               <th className="p-2 md:px-4 md:py-2">Time</th>
               <th className="p-2 md:px-4 md:py-2">Symbol</th>
               <th className="p-2 md:px-4 md:py-2">Trader</th>
@@ -364,17 +353,8 @@ export function TraderSignalsTable({
                   className={`border-b border-[var(--tm-border)] hover:bg-[var(--tm-bg-hover)] transition-colors cursor-pointer ${
                     newSignalTimestamps.has(signal.createdAt.getTime()) ? 'animate-pulse bg-[var(--tm-accent)]/10' : ''
                   }`}
-                  onClick={() => {
-                    toggleRowExpanded(signal.id);
-                    onRowClick?.(signal.symbol, signal.traderId);
-                  }}
-                >
-                  <td className="p-2 md:px-4 md:py-2">
-                    {expandedRows.has(signal.id) ? 
-                      <ChevronDown className="h-4 w-4 text-[var(--tm-text-muted)]" /> : 
-                      <ChevronRight className="h-4 w-4 text-[var(--tm-text-muted)]" />
-                    }
-                  </td>
+                  onClick={() => onRowClick?.(signal.symbol, signal.traderId)}
+>
                   <td className="p-2 md:px-4 md:py-2 text-xs md:text-sm text-[var(--tm-text-muted)]">
                     {formatDistanceToNow(signal.createdAt, { addSuffix: true })}
                   </td>
@@ -404,39 +384,13 @@ export function TraderSignalsTable({
                     {signal.volume24h ? signal.volume24h.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'}
                   </td>
                 </tr>
-                
-                {/* Expanded Row - Signal Details */}
-                {expandedRows.has(signal.id) && (
-                  <tr className="bg-[var(--tm-bg-hover)]">
-                    <td colSpan={9} className="p-4">
-                      <div className="space-y-2">
-                        <div>
-                          <h4 className="text-sm font-medium text-[var(--tm-text-secondary)] mb-1">Matched Conditions</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {signal.matchedConditions.map((condition, i) => (
-                              <span key={i} className="px-2 py-1 bg-[var(--tm-bg-secondary)] rounded text-xs text-[var(--tm-text-primary)]">
-                                {condition}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        {signal.analysis && (
-                          <div>
-                            <h4 className="text-sm font-medium text-[var(--tm-text-secondary)] mb-1">Analysis</h4>
-                            <p className="text-sm text-[var(--tm-text-primary)]">{signal.analysis.reasoning}</p>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )}
               </React.Fragment>
             ))}
             
             {/* Separator row - only show when trader selected */}
             {selectedTraderId && sortedHistoricalSignals.length > 0 && (
               <tr className="bg-[var(--tm-bg-tertiary)]/50 border-t border-b border-[var(--tm-border-light)]">
-                <td colSpan={9} className="text-center py-2 text-sm text-[var(--tm-accent)] font-medium">
+                <td colSpan={8} className="text-center py-2 text-sm text-[var(--tm-accent)] font-medium">
                   📊 Historical Signals (Found in Past Data)
                 </td>
               </tr>
@@ -452,8 +406,7 @@ export function TraderSignalsTable({
                   key={`historical-${signal.symbol}-${signal.timestamp}-${index}`}
                   className="border-b border-[var(--tm-border)] hover:bg-[var(--tm-bg-hover)] transition-colors cursor-pointer opacity-75"
                   onClick={() => onRowClick?.(signal.symbol, signal.traderId)}
-                >
-                  <td className="p-2 md:px-4 md:py-2"></td>
+>
                   <td className="p-2 md:px-4 md:py-2 text-xs md:text-sm text-[var(--tm-text-muted)]">
                     {new Date(signal.klineTimestamp).toLocaleString()}
                   </td>
@@ -487,7 +440,7 @@ export function TraderSignalsTable({
             
             {signals.length === 0 && historicalSignals.length === 0 && (
               <tr>
-                <td colSpan={9} className="text-center text-[var(--tm-text-muted)] p-4">
+                <td colSpan={8} className="text-center text-[var(--tm-text-muted)] p-4">
                   No signals generated yet. Enable your traders to start capturing signals.
                 </td>
               </tr>

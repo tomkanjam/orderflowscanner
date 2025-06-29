@@ -82,7 +82,10 @@ class ObservabilityService {
     }
 
     // For other events, batch them
-    this.batchQueue.push(timestampedEvent);
+    // Limit queue size to prevent unbounded growth
+    if (this.batchQueue.length < 100) {
+      this.batchQueue.push(timestampedEvent);
+    }
     
     if (this.batchQueue.length >= 10) {
       this.flushBatch();

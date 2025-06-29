@@ -24,3 +24,9 @@ export const DEFAULT_KLINE_INTERVAL = KlineInterval.ONE_MINUTE;
 export const DEFAULT_GEMINI_MODEL = GeminiModelOption.PRO;
 
 export const DEBOUNCE_DELAY = 300; // ms for search input or other debounced actions
+
+// Debug mode flag - set to false for production
+export const DEBUG_MODE = false;
+
+// Maximum number of signal log entries to keep in memory
+export const MAX_SIGNAL_LOG_ENTRIES = 100;

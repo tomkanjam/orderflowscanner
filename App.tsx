@@ -6,7 +6,7 @@ import Modal from './components/Modal';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket } from './services/binanceService';
 import { getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
-import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS } from './constants';
+import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS, MAX_SIGNAL_LOG_ENTRIES } from './constants';
 import * as screenerHelpers from './screenerHelpers';
 import { useHistoricalScanner } from './hooks/useHistoricalScanner';
 import { useMultiTraderHistoricalScanner } from './hooks/useMultiTraderHistoricalScanner';
@@ -163,21 +163,13 @@ const AppContent: React.FC = () => {
   // Subscribe to traders
   useEffect(() => {
     const unsubscribe = traderManager.subscribe((updatedTraders) => {
-      console.log('Traders updated:', updatedTraders.map(t => ({
-        name: t.name,
-        hasIndicators: !!t.filter?.indicators,
-        indicatorCount: t.filter?.indicators?.length || 0
-      })));
+      // Traders updated
       setTraders(updatedTraders);
     });
     
     // Initial load
     traderManager.getTraders().then((traders) => {
-      console.log('Initial traders load:', traders.map(t => ({
-        name: t.name,
-        hasIndicators: !!t.filter?.indicators,
-        indicatorCount: t.filter?.indicators?.length || 0
-      })));
+      // Initial traders loaded
       setTraders(traders);
     });
     
@@ -267,6 +259,23 @@ const AppContent: React.FC = () => {
     const historyObj = Object.fromEntries(signalHistory);
     localStorage.setItem('signalHistory', JSON.stringify(historyObj));
   }, [signalHistory]);
+
+  // Cleanup old signals and trades periodically
+  useEffect(() => {
+    // Run cleanup every 5 minutes
+    const cleanupInterval = setInterval(() => {
+      // Clean up signals older than 1 hour
+      signalManager.cleanupOldSignals(60 * 60 * 1000);
+      // Clean up closed trades older than 24 hours
+      tradeManager.cleanupOldTrades(24 * 60 * 60 * 1000);
+    }, 5 * 60 * 1000);
+
+    // Run initial cleanup
+    signalManager.cleanupOldSignals(60 * 60 * 1000);
+    tradeManager.cleanupOldTrades(24 * 60 * 60 * 1000);
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
 
   // Create stable handlers using useCallback
   const handleTickerUpdateStable = useCallback((tickerUpdate: Ticker) => {
@@ -460,7 +469,7 @@ const AppContent: React.FC = () => {
                                  historyEntry.barCount >= signalDedupeThreshold || 
                                  timeSinceLastSignal >= minTimeBetweenSignals;
     
-    console.log(`[${new Date(timestamp).toISOString()}] Signal for ${symbol}: barCount=${historyEntry?.barCount || 0}, threshold=${signalDedupeThreshold}, timeSince=${Math.floor(timeSinceLastSignal/1000)}s, minTime=${Math.floor(minTimeBetweenSignals/1000)}s, newSignal=${shouldCreateNewSignal}`);
+    // Signal deduplication check
     
     // Create signal through the new signal lifecycle system
     if (shouldCreateNewSignal && activeStrategy) {
@@ -501,8 +510,8 @@ const AppContent: React.FC = () => {
           return newHistory;
         });
         
-        // Keep max 500 log entries for performance, prepending new ones
-        return [newEntry, ...prevLog.slice(0, 499)];
+        // Keep limited log entries to prevent memory growth
+        return [newEntry, ...prevLog.slice(0, MAX_SIGNAL_LOG_ENTRIES - 1)];
       } else {
         // Increment count on existing signal by finding it in the array
         return prevLog.map(entry => {
@@ -525,16 +534,12 @@ const AppContent: React.FC = () => {
 
   // Multi-trader screener hook
   const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [App] handleMultiTraderResults called with ${results.length} trader results`);
-    
     results.forEach(result => {
-      console.log(`[${timestamp}] [App] Trader ${result.traderId} has ${result.signalSymbols.length} new signals:`, result.signalSymbols);
       
       result.signalSymbols.forEach(symbol => {
         const ticker = tickers.get(symbol);
         if (!ticker) {
-          console.log(`[${timestamp}] [App] No ticker data for ${symbol}, skipping signal creation`);
+          // No ticker data, skipping signal creation
           return;
         }
         
@@ -561,11 +566,7 @@ const AppContent: React.FC = () => {
                                      historyEntry.barCount >= signalDedupeThreshold || 
                                      timeSinceLastSignal >= minTimeBetweenSignals;
         
-        console.log(`[${timestamp}] [App] Dedup check for ${symbol} from trader ${result.traderId}:`);
-        console.log(`  - Previous signal: ${historyEntry ? new Date(historyEntry.timestamp).toISOString() : 'none'}`);
-        console.log(`  - Bar count: ${historyEntry?.barCount || 0}/${signalDedupeThreshold}`);
-        console.log(`  - Time since last: ${Math.floor(timeSinceLastSignal/1000)}s (min: ${Math.floor(minTimeBetweenSignals/1000)}s)`);
-        console.log(`  - Should create: ${shouldCreateNewSignal}`);
+        // Deduplication check performed
         
         if (shouldCreateNewSignal) {
           // Create signal with trader attribution
@@ -577,7 +578,7 @@ const AppContent: React.FC = () => {
             matchedConditions: [`Trader: ${traders.find(t => t.id === result.traderId)?.name || 'Unknown'}`]
           };
           
-          console.log(`[${timestamp}] [App] Creating signal for ${symbol} from trader ${result.traderId}`);
+          // Creating signal
           
           const signal = signalManager.createSignal(
             filterResult, 
@@ -609,14 +610,14 @@ const AppContent: React.FC = () => {
               count: 1,
             };
             
-            // Keep max 500 log entries
-            return [newEntry, ...prevLog.slice(0, 499)];
+            // Keep limited log entries to prevent memory growth
+            return [newEntry, ...prevLog.slice(0, MAX_SIGNAL_LOG_ENTRIES - 1)];
           });
           
           // Update trader metrics
           traderManager.incrementSignalCount(result.traderId);
         } else {
-          console.log(`[${timestamp}] [App] Skipping duplicate signal for ${symbol} from trader ${result.traderId}`);
+          // Skipping duplicate signal
         }
       });
     });
@@ -776,7 +777,6 @@ const AppContent: React.FC = () => {
     // First check if a specific signal's trader was clicked
     if (selectedSignalTraderId) {
       const signalTrader = traders.find(t => t.id === selectedSignalTraderId);
-      console.log('Signal trader:', signalTrader?.name, 'Indicators:', signalTrader?.filter?.indicators);
       if (signalTrader?.filter?.indicators) {
         return signalTrader.filter.indicators;
       }
@@ -785,7 +785,7 @@ const AppContent: React.FC = () => {
     // Then check if a trader filter is selected
     if (selectedTraderId) {
       const selectedTrader = traders.find(t => t.id === selectedTraderId);
-      console.log('Selected trader:', selectedTrader?.name, 'Indicators:', selectedTrader?.filter?.indicators);
+      // Selected trader indicators check
       if (selectedTrader?.filter?.indicators) {
         return selectedTrader.filter.indicators;
       }

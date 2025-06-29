@@ -138,7 +138,7 @@ export class TradeManager {
             : currentPrice >= trade.stopLoss;
             
           if (hitStopLoss) {
-            console.log(`Stop loss hit for ${symbol} at ${currentPrice}`);
+            // Stop loss hit
             // In real implementation, would auto-close
           }
         }
@@ -150,7 +150,7 @@ export class TradeManager {
             : currentPrice <= trade.takeProfit[0];
             
           if (hitTakeProfit) {
-            console.log(`Take profit hit for ${symbol} at ${currentPrice}`);
+            // Take profit hit
             // In real implementation, would auto-close or partial close
           }
         }
@@ -241,6 +241,25 @@ export class TradeManager {
   subscribe(callback: (trades: Trade[]) => void): () => void {
     this.updateCallbacks.add(callback);
     return () => this.updateCallbacks.delete(callback);
+  }
+  
+  // Clean up old closed trades
+  cleanupOldTrades(maxAge: number = 24 * 60 * 60 * 1000) { // 24 hours default
+    const cutoff = Date.now() - maxAge;
+    let removed = false;
+    
+    this.trades.forEach((trade, id) => {
+      if (trade.closedAt && 
+          new Date(trade.closedAt).getTime() < cutoff && 
+          trade.status === 'closed') {
+        this.trades.delete(id);
+        removed = true;
+      }
+    });
+    
+    if (removed) {
+      this.notifyUpdate();
+    }
   }
   
   private findSignalByTradeId(tradeId: string): SignalLifecycle | undefined {

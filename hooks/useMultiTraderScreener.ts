@@ -40,8 +40,7 @@ export function useMultiTraderScreener({
 
   // Initialize worker only once
   useEffect(() => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [useMultiTraderScreener] Creating new worker`);
+    // Creating new worker
     
     workerRef.current = new Worker(
       new URL('../workers/multiTraderScreenerWorker.ts', import.meta.url),
@@ -63,8 +62,7 @@ export function useMultiTraderScreener({
     });
 
     return () => {
-      const cleanupTimestamp = new Date().toISOString();
-      console.log(`[${cleanupTimestamp}] [useMultiTraderScreener] Terminating worker`);
+      // Terminating worker
       workerRef.current?.terminate();
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -90,21 +88,18 @@ export function useMultiTraderScreener({
 
   // Run screener function - stable reference
   const runScreener = useCallback(() => {
-    const timestamp = new Date().toISOString();
-    
     if (!workerRef.current || !enabledRef.current || tradersRef.current.length === 0 || symbolsRef.current.length === 0) {
-      console.log(`[${timestamp}] [useMultiTraderScreener] Skipping run - worker: ${!!workerRef.current}, enabled: ${enabledRef.current}, traders: ${tradersRef.current.length}, symbols: ${symbolsRef.current.length}`);
       return;
     }
 
     // Filter only enabled traders
     const enabledTraders = tradersRef.current.filter(t => t.enabled);
     if (enabledTraders.length === 0) {
-      console.log(`[${timestamp}] [useMultiTraderScreener] Skipping run - no enabled traders`);
+      // Skipping run - no enabled traders
       return;
     }
 
-    console.log(`[${timestamp}] [useMultiTraderScreener] Starting screener run with ${enabledTraders.length} traders for ${symbolsRef.current.length} symbols`);
+    // Starting screener run
     setIsRunning(true);
     requestIdRef.current += 1;
 
@@ -167,8 +162,7 @@ export function useMultiTraderScreener({
 
   // Reset cache when traders change
   const resetCache = useCallback(() => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [useMultiTraderScreener] Resetting cache`);
+    // Resetting cache
     if (workerRef.current) {
       workerRef.current.postMessage({ type: 'RESET_CACHE' });
     }

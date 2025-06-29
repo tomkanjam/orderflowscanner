@@ -1,4 +1,4 @@
-import { API_BASE_URL, WS_BASE_URL, TOP_N_PAIRS_LIMIT, KLINE_HISTORY_LIMIT } from '../constants';
+import { API_BASE_URL, WS_BASE_URL, TOP_N_PAIRS_LIMIT, KLINE_HISTORY_LIMIT, DEBUG_MODE } from '../constants';
 import { Ticker, Kline, KlineInterval } from '../types';
 
 export async function fetchTopPairsAndInitialKlines(
@@ -82,23 +82,23 @@ export function connectWebSocket(
   try {
     ws = new WebSocket(WS_BASE_URL + allStreams);
   } catch (e) {
-    console.error("Failed to create WebSocket:", e);
+    if (DEBUG_MODE) console.error("Failed to create WebSocket:", e);
     throw e;
   }
 
   // Set up event handlers before connection
   ws.onopen = () => {
-    console.log("WebSocket connected successfully");
+    // WebSocket connected successfully
     onOpen();
   };
   
   ws.onerror = (error) => {
-    console.error("WebSocket error:", error);
+    if (DEBUG_MODE) console.error("WebSocket error:", error);
     onError(error);
   };
   
   ws.onclose = (event) => {
-    console.log("WebSocket closed:", event.code, event.reason);
+    // WebSocket closed
     onClose();
   };
 
@@ -136,7 +136,7 @@ export function connectWebSocket(
         }
       }
     } catch (e) {
-      console.error("Error processing WebSocket message:", e);
+      if (DEBUG_MODE) console.error("Error processing WebSocket message:", e);
     }
   };
 

@@ -34,7 +34,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     // Subscribe to ticker updates from binance service
     // Note: In real implementation, we'd need to expose this from binanceService
     // For now, this is a placeholder
-    console.log('Would subscribe to price updates here');
+    // Would subscribe to price updates here
     
     return () => {
       // Cleanup subscription
@@ -44,7 +44,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   // Create signal from filter result
   const createSignalFromFilter = useCallback((filterResult: FilterResult, traderId?: string) => {
     if (!activeStrategy) {
-      console.warn('No active strategy to create signal');
+      // No active strategy to create signal
       return;
     }
     

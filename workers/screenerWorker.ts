@@ -33,9 +33,7 @@ function runScreenerFilter(
   historicalData: Record<string, Kline[]>,
   filterCode: string
 ): { filteredSymbols: string[], signalSymbols: string[] } {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [ScreenerWorker] Starting filter run for ${symbols.length} symbols`);
-  console.log(`[${timestamp}] [ScreenerWorker] Previous matches: ${previousMatches.size} symbols`, Array.from(previousMatches));
+  // Starting filter run
   
   try {
     // Create the filter function with HVN data
@@ -44,7 +42,7 @@ function runScreenerFilter(
       'klines', 
       'helpers',
       'hvnNodes',
-      `try { ${filterCode} } catch(e) { console.error('Screener code runtime error for ticker:', ticker.s, e); return false; }`
+      `try { ${filterCode} } catch(e) { return false; }`
     ) as (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: any[]) => boolean;
     
     const filteredSymbols: string[] = [];
@@ -72,7 +70,7 @@ function runScreenerFilter(
           // Check if this is a new signal (wasn't matching before)
           if (!previousMatches.has(symbol)) {
             signalSymbols.push(symbol);
-            console.log(`[${timestamp}] [ScreenerWorker] NEW SIGNAL: ${symbol} (wasn't in previousMatches)`);
+            // New signal detected
           }
         }
       } catch (error) {
@@ -80,8 +78,7 @@ function runScreenerFilter(
       }
     }
     
-    console.log(`[${timestamp}] [ScreenerWorker] Filter complete - Matched: ${filteredSymbols.length}, New signals: ${signalSymbols.length}`);
-    console.log(`[${timestamp}] [ScreenerWorker] Current matches:`, Array.from(currentMatches));
+    // Filter complete
     
     // Update the cache for next run
     previousMatches = currentMatches;
@@ -129,8 +126,7 @@ self.addEventListener('message', (event: MessageEvent<ScreenerWorkerMessage>) =>
 // Reset cache when filter changes
 self.addEventListener('message', (event: MessageEvent<{ type: 'RESET_CACHE' }>) => {
   if (event.data.type === 'RESET_CACHE') {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [ScreenerWorker] RESET_CACHE received - clearing ${previousMatches.size} previous matches`);
+    // Cache reset
     previousMatches.clear();
   }
 });

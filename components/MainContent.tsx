@@ -38,8 +38,6 @@ interface MainContentProps {
   historicalScanConfig?: HistoricalScanConfig;
   onHistoricalScanConfigChange?: (config: HistoricalScanConfig) => void;
   onCancelHistoricalScan?: () => void;
-  // Strategy selection
-  onSetAiPrompt?: (prompt: string) => void;
   // Signal deduplication
   signalDedupeThreshold?: number;
   onSignalDedupeThresholdChange?: (threshold: number) => void;
@@ -72,7 +70,6 @@ const MainContent: React.FC<MainContentProps> = ({
   historicalScanConfig,
   onHistoricalScanConfigChange,
   onCancelHistoricalScan,
-  onSetAiPrompt,
   signalDedupeThreshold,
   onSignalDedupeThresholdChange,
 }) => {

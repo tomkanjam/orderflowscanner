@@ -828,7 +828,6 @@ const AppContent: React.FC = () => {
         historicalScanConfig={historicalScanConfig}
         onHistoricalScanConfigChange={setHistoricalScanConfig}
         onCancelHistoricalScan={multiTraderEnabled && traders.some(t => t.enabled) ? cancelMultiTraderHistoricalScan : cancelHistoricalScan}
-        onSetAiPrompt={setAiPrompt}
         signalDedupeThreshold={signalDedupeThreshold}
         onSignalDedupeThresholdChange={setSignalDedupeThreshold}
       />

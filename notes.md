@@ -29,6 +29,17 @@ Done:
 6. move historical scanner controls to the top of the signals table
 
 
+We need to now move on the building the automated analysis flow.
+As each signal comes in, we need to send the price, indicator, any open position data for that symbol, filter condition, and strategy data to gemini-2.5-flash-lite-preview-06-17 model.
+Gemini needs to return a trade decision:
+- buy/sell
+- close (close the position)
+- hold (hold the position)
+- no trade (the setup doesn't look good for the strategy)
+- monitor (the setup has potential and the ai trader will analyze the setup at the next candle interval)
+
+Please carefully analyze these requirements and the related code. Am I missing anything? Do you see any problems? What's the best way to architect this workflow? No code changes yet. ultrathink.
+
 
 RSI < 30
 

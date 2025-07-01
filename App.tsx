@@ -138,6 +138,7 @@ const AppContent: React.FC = () => {
   // Use refs to avoid stale closures
   const tickersRef = useRef(tickers);
   const historicalDataRef = useRef(historicalData);
+  const tradersRef = useRef(traders);
   
   // Update refs when state changes
   useEffect(() => {
@@ -147,6 +148,10 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     historicalDataRef.current = historicalData;
   }, [historicalData]);
+  
+  useEffect(() => {
+    tradersRef.current = traders;
+  }, [traders]);
   
   // Signal lifecycle hook
   const { 
@@ -173,14 +178,10 @@ const AppContent: React.FC = () => {
       
       // If traderId provided, use trader's interval
       if (traderId) {
-        const trader = traders.find(t => t.id === traderId);
-        console.log(`[DEBUG] getMarketData - looking for trader ${traderId}:`, {
-          found: !!trader,
-          hasInterval: !!trader?.filter?.interval,
-          interval: trader?.filter?.interval,
-          traderName: trader?.name
-        });
-        if (trader?.filter?.interval) {
+        const trader = tradersRef.current.find(t => t.id === traderId);
+        if (!trader) {
+          console.warn(`[DEBUG] getMarketData - trader ${traderId} not found in ${tradersRef.current.length} traders`);
+        } else if (trader?.filter?.interval) {
           interval = trader.filter.interval as KlineInterval;
         }
       }
@@ -188,11 +189,9 @@ const AppContent: React.FC = () => {
       // Get klines for the appropriate interval
       const klines = intervalMap.get(interval) || intervalMap.get(KlineInterval.ONE_MINUTE);
       if (!klines) {
-        console.log(`[DEBUG] getMarketData - No klines found for ${symbol} at interval ${interval}, available intervals:`, Array.from(intervalMap.keys()));
+        console.warn(`[DEBUG] getMarketData - No klines found for ${symbol} at interval ${interval}, available intervals:`, Array.from(intervalMap.keys()));
         return null;
       }
-      
-      console.log(`[DEBUG] getMarketData for ${symbol}: using interval ${interval}${traderId ? ` for trader ${traderId}` : ''}, klines count: ${klines.length}`);
       return { ticker, klines };
     },
   });
@@ -233,10 +232,6 @@ const AppContent: React.FC = () => {
     
     // Initial load
     traderManager.getTraders().then((traders) => {
-      console.log(`[DEBUG] Initial traders loaded: ${traders.length} traders`);
-      traders.forEach(t => {
-        console.log(`[DEBUG] Trader loaded: ${t.name} (${t.id}) - interval: ${t.filter?.interval || 'undefined'}`);
-      });
       setTraders(traders);
     });
     
@@ -286,11 +281,10 @@ const AppContent: React.FC = () => {
     try {
       // Determine which intervals are needed by active traders
       const activeIntervals = new Set<KlineInterval>();
-      console.log(`[DEBUG] Collecting intervals from ${traders.length} traders:`);
-      traders.forEach(trader => {
+      const currentTraders = tradersRef.current; // Use ref to get current traders
+      currentTraders.forEach(trader => {
         if (trader.enabled) {
           const interval = trader.filter?.interval || KlineInterval.ONE_MINUTE;
-          console.log(`[DEBUG] Trader ${trader.name} (${trader.id}): enabled=${trader.enabled}, interval=${trader.filter?.interval || 'undefined (using 1m)'}`);
           activeIntervals.add(interval);
         }
       });
@@ -347,11 +341,20 @@ const AppContent: React.FC = () => {
     } finally {
       setInitialLoading(false);
     }
-  }, [traders]); // Depend on traders to determine which intervals to load
+  }, []); // No dependencies needed since we use tradersRef
+
+  // Create a stable key that only changes when trader intervals or enabled state changes
+  const traderIntervalsKey = useMemo(() => {
+    return traders
+      .filter(t => t.enabled)
+      .map(t => `${t.id}:${t.filter?.interval || '1m'}`)
+      .sort()
+      .join(',');
+  }, [traders]);
 
   useEffect(() => {
     loadInitialData(klineHistoryConfig.screenerLimit);
-  }, [loadInitialData, klineHistoryConfig.screenerLimit, traders]); // Re-load when traders or kline config changes
+  }, [loadInitialData, klineHistoryConfig.screenerLimit, traderIntervalsKey]); // Only reload when intervals actually change
   
   // Persist signal deduplication threshold to localStorage
   useEffect(() => {

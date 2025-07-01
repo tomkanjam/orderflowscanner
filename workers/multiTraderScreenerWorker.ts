@@ -88,7 +88,8 @@ function runTraderFilter(
       
       try {
         // Skip if we don't have enough data for meaningful analysis
-        if (klines.length < 20) continue;
+        // StochRSI needs at least 28 bars (14 for RSI + 14 for Stochastic)
+        if (klines.length < 30) continue;
         
         // Calculate HVN nodes on demand
         const hvnNodes = helpers.calculateHighVolumeNodes(klines, { lookback: Math.min(klines.length, 100) });

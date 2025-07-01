@@ -82,8 +82,8 @@ function runTraderOnHistoricalData(
       const historicalSlice = klines.slice(0, i + 1);
       
       // Skip if we don't have enough data for meaningful analysis
-      // Most indicators need at least 14-20 periods
-      if (historicalSlice.length < 20) continue;
+      // StochRSI needs at least 28 bars (14 for RSI + 14 for Stochastic)
+      if (historicalSlice.length < 30) continue;
       
       try {
         // Calculate HVN nodes for this point in history

@@ -138,6 +138,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
             
             // Convert Map to object for easier use
             const indicatorData: Record<string, any> = {};
+            console.log(`Calculated indicators for ${signal.symbol}:`, indicatorValues.size, 'indicators');
             indicatorValues.forEach((values, indicatorId) => {
               const indicator = trader.filter.indicators!.find((ind: any) => ind.id === indicatorId);
               if (indicator && values.length > 0) {
@@ -172,6 +173,13 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
               klines: limitedKlines,
               calculatedIndicators: indicatorData,
             };
+            
+            console.log(`Market data for ${signal.symbol} AI analysis:`, {
+              klineCount: limitedKlines.length,
+              indicatorCount: Object.keys(indicatorData).length,
+              indicators: Object.keys(indicatorData),
+              traderAiLimit
+            });
           }
         }
       }

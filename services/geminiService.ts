@@ -1000,7 +1000,8 @@ export async function generateStructuredAnalysis(
     symbol: string,
     marketData: { price: number; volume: number; klines: Kline[]; calculatedIndicators?: Record<string, any> },
     strategy: string,
-    modelName: string = 'gemini-2.5-flash'
+    modelName: string = 'gemini-2.5-flash',
+    aiAnalysisLimit: number = 100
 ): Promise<string> {
     // Use calculated indicators if provided, otherwise calculate basic ones
     const technicalIndicators = marketData.calculatedIndicators || {
@@ -1025,8 +1026,8 @@ Technical Indicators:
 ${JSON.stringify(technicalIndicators, null, 2)}
 
 Historical Price Data (OHLCV):
-${marketData.klines ? JSON.stringify(marketData.klines.slice(-20).map((k, i) => ({
-  bar: marketData.klines.length - 20 + i + 1,
+${marketData.klines ? JSON.stringify(marketData.klines.slice(-aiAnalysisLimit).map((k, i) => ({
+  bar: marketData.klines.length - Math.min(aiAnalysisLimit, marketData.klines.length) + i + 1,
   time: new Date(k[0]).toISOString(),
   open: parseFloat(k[1]),
   high: parseFloat(k[2]),
@@ -1037,12 +1038,12 @@ ${marketData.klines ? JSON.stringify(marketData.klines.slice(-20).map((k, i) => 
 
 Note: 
 - Each indicator includes current value and a 'history' array with past values
-- The history array contains up to ${marketData.klines?.length || 100} recent values
+- The history array contains up to ${Math.min(aiAnalysisLimit, marketData.klines?.length || 0)} recent values
 - For multi-line indicators:
   - StochRSI: value = %K, value2 = %D
   - MACD: value = MACD line, value2 = Signal line, value3 = Histogram
   - Bollinger Bands: value = middle band, value2 = upper band, value3 = lower band
-- Historical price data shows the most recent 20 bars for context
+- Historical price data shows the most recent ${Math.min(aiAnalysisLimit, marketData.klines?.length || 0)} bars for analysis
 
 Return ONLY a valid JSON object with this exact structure:
 {

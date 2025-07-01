@@ -34,7 +34,8 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
         symbol,
         marketData as any, // Cast to any to include calculatedIndicators
         strategy.description,
-        modelName // Use the model passed in or default
+        modelName, // Use the model passed in or default
+        marketData.klines?.length || 100 // Pass the actual klines length as aiAnalysisLimit
       );
       
       // Parse the structured response from the analysis text

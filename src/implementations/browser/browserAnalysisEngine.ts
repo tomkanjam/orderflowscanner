@@ -16,8 +16,9 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
     strategy: Strategy, 
     marketData: MarketData, 
     chartImage?: Blob,
-    modelName: string = 'gemini-2.0-flash-exp' // Default to Gemini 2.0 Flash
+    modelName: string = 'gemini-2.5-flash' // Default to Gemini 2.5 Flash
   ): Promise<AnalysisResult> {
+    
     try {
       // Calculate technical indicators
       const technicalIndicators = this.calculateTechnicalIndicators(marketData);
@@ -31,7 +32,7 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
       // Get AI analysis using structured analysis
       const response = await generateStructuredAnalysis(
         symbol,
-        marketData,
+        marketData as any, // Cast to any to include calculatedIndicators
         strategy.description,
         modelName // Use the model passed in or default
       );
@@ -116,6 +117,17 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
   }
 
   private calculateTechnicalIndicators(marketData: MarketData): Record<string, any> {
+    // Use calculated indicators if provided
+    if ((marketData as any).calculatedIndicators) {
+      // Ensure current price and volume are included
+      return {
+        currentPrice: marketData.price,
+        volume: marketData.volume,
+        ...(marketData as any).calculatedIndicators
+      };
+    }
+    
+    // Otherwise calculate basic indicators
     const closes = marketData.klines.map(k => parseFloat(k[4]));
     const highs = marketData.klines.map(k => parseFloat(k[2]));
     const lows = marketData.klines.map(k => parseFloat(k[3]));
@@ -174,6 +186,7 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
         confidence: parseFloat(parsed.confidence),
         reasoning: parsed.reasoning,
         keyLevels: parsed.keyLevels,
+        tradePlan: parsed.tradePlan, // Include trade plan if present
         chartAnalysis: parsed.chartAnalysis,
       };
     } catch (error) {

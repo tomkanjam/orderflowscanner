@@ -66,6 +66,8 @@ Work with the PM on debugging
 - Historical data limited to 250 klines for screening, 100 for detailed analysis
 - Real-time updates use efficient Map-based state management
 
+### Model Constraints
+- We will only ever use these models: gemini-2.5-flash, gemini-2.5-pro, and gemini-2.5-flash-lite-preview-06-17
 
 ## Git Commits
 - Create a commit after every task is complete.

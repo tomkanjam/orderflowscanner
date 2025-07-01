@@ -1,4 +1,4 @@
-import { CustomIndicatorConfig } from '../../types';
+import { CustomIndicatorConfig, KlineInterval } from '../../types';
 
 // Core Trader interfaces
 export interface Trader {
@@ -27,11 +27,14 @@ export interface TraderFilter {
   code: string;
   description: string[];
   indicators?: CustomIndicatorConfig[];
+  interval?: KlineInterval; // The candle interval this trader uses (e.g., '1m', '5m', '15m', etc.)
 }
 
 export interface TraderStrategy {
   instructions: string;
   riskManagement: RiskManagement;
+  aiAnalysisLimit?: number; // Number of bars to send to AI (default: 100, range: 1-1000)
+  modelTier?: 'lite' | 'standard' | 'pro'; // AI model tier for analysis (default: 'standard')
 }
 
 export interface RiskManagement {

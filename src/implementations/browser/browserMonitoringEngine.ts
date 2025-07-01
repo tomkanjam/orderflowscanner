@@ -59,7 +59,7 @@ export class BrowserMonitoringEngine implements IMonitoringEngine {
         strategy,
         marketData,
         undefined,
-        'gemini-2.0-flash-exp' // Use fast model for monitoring
+        'gemini-2.5-flash' // Use fast model for monitoring
       );
       
       // Determine action based on analysis

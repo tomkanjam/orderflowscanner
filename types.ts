@@ -176,4 +176,5 @@ export interface HistoricalScanProgress {
 export interface KlineHistoryConfig {
   screenerLimit: number;      // Number of klines for screener operations (default: 250)
   analysisLimit: number;      // Number of klines for symbol analysis (default: 100)
+  aiAnalysisLimit: number;    // Number of klines/indicators for AI signal analysis (default: 100, range: 1-1000)
 }

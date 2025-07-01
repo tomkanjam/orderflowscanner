@@ -998,11 +998,12 @@ Consider overall market sentiment if inferable from this limited data.
 
 export async function generateStructuredAnalysis(
     symbol: string,
-    marketData: { price: number; volume: number; klines: Kline[] },
+    marketData: { price: number; volume: number; klines: Kline[]; calculatedIndicators?: Record<string, any> },
     strategy: string,
-    modelName: string = 'gemini-1.5-flash-latest'
+    modelName: string = 'gemini-2.5-flash'
 ): Promise<string> {
-    const technicalIndicators = {
+    // Use calculated indicators if provided, otherwise calculate basic ones
+    const technicalIndicators = marketData.calculatedIndicators || {
         currentPrice: marketData.price,
         sma20: helpers.calculateMA(marketData.klines, 20),
         rsi: helpers.getLatestRSI(marketData.klines, 14),
@@ -1018,16 +1019,37 @@ Strategy: ${strategy}
 Current Market Data:
 - Price: $${marketData.price}
 - 24h Volume: ${marketData.volume}
+- Historical Bars Provided: ${marketData.klines?.length || 0}
 
 Technical Indicators:
 ${JSON.stringify(technicalIndicators, null, 2)}
 
+Historical Price Data (OHLCV):
+${marketData.klines ? JSON.stringify(marketData.klines.slice(-20).map((k, i) => ({
+  bar: marketData.klines.length - 20 + i + 1,
+  time: new Date(k[0]).toISOString(),
+  open: parseFloat(k[1]),
+  high: parseFloat(k[2]),
+  low: parseFloat(k[3]),
+  close: parseFloat(k[4]),
+  volume: parseFloat(k[5])
+})), null, 2) : 'No historical data'}
+
+Note: 
+- Each indicator includes current value and a 'history' array with past values
+- The history array contains up to ${marketData.klines?.length || 100} recent values
+- For multi-line indicators:
+  - StochRSI: value = %K, value2 = %D
+  - MACD: value = MACD line, value2 = Signal line, value3 = Histogram
+  - Bollinger Bands: value = middle band, value2 = upper band, value3 = lower band
+- Historical price data shows the most recent 20 bars for context
+
 Return ONLY a valid JSON object with this exact structure:
 {
-  "decision": "bad_setup" | "good_setup" | "enter_trade",
-  "direction": "long" | "short" (only if decision is "enter_trade"),
+  "decision": "buy" | "sell" | "hold" | "no_trade" | "monitor",
+  "direction": "long" | "short" (required if decision is "buy" or "sell"),
   "confidence": 0.0-1.0,
-  "reasoning": "Detailed explanation based on the strategy",
+  "reasoning": "Detailed explanation of why this decision was made based on the strategy",
   "keyLevels": {
     "entry": number,
     "stopLoss": number,
@@ -1035,17 +1057,32 @@ Return ONLY a valid JSON object with this exact structure:
     "support": [number],
     "resistance": [number]
   },
+  "tradePlan": {
+    "entry": "Specific entry price or condition",
+    "stopLoss": "Risk management level with reasoning",
+    "takeProfit": "Target levels with reasoning for each",
+    "positionSize": "Recommended allocation percentage",
+    "timeframe": "Expected trade duration",
+    "notes": "Additional trade management notes"
+  } (only if decision is "buy" or "sell"),
   "chartAnalysis": "Technical analysis of the current setup"
 }
 
-Focus on:
-1. How well the current setup matches the strategy criteria
-2. Risk/reward ratio
-3. Market structure and trend
-4. Key support/resistance levels
-5. Entry timing
+Decision Guidelines:
+- "buy": Enter a long position immediately, strong setup matching strategy
+- "sell": Enter a short position immediately, strong bearish setup
+- "hold": Already in position, maintain current trade
+- "monitor": Good potential setup, wait for better entry or confirmation
+- "no_trade": Setup doesn't match strategy criteria, skip this signal
 
-Be decisive and specific. Only suggest "enter_trade" if the setup strongly matches the strategy with good risk/reward.
+Focus on:
+1. How well the current setup matches the trader's specific strategy
+2. Risk/reward ratio and position sizing
+3. Clear entry, stop loss, and take profit levels
+4. Market structure and trend alignment
+5. Timing and confluence of signals
+
+Be decisive and actionable. Only suggest "buy" or "sell" if the setup strongly matches the strategy with good risk/reward.
 `;
 
     const startTime = Date.now();

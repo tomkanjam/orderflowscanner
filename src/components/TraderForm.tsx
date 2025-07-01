@@ -3,6 +3,9 @@ import { X, Wand2, Code, AlertCircle, Loader2, RefreshCw, ChevronLeft } from 'lu
 import { generateTrader, regenerateFilterCode } from '../../services/geminiService';
 import { traderManager } from '../services/traderManager';
 import { Trader, TraderGeneration } from '../abstractions/trader.interfaces';
+import { MODEL_TIERS, type ModelTier } from '../constants/models';
+import { KlineInterval } from '../../types';
+import { KLINE_INTERVALS } from '../../constants';
 
 interface TraderFormProps {
   onTraderCreated?: (trader: Trader) => void;
@@ -24,6 +27,9 @@ export function TraderForm({
   const [manualFilterCode, setManualFilterCode] = useState(editingTrader?.filter.code || '');
   const [manualStrategy, setManualStrategy] = useState(editingTrader?.strategy.instructions || '');
   const [filterConditions, setFilterConditions] = useState<string[]>(editingTrader?.filter?.description || []);
+  const [aiAnalysisLimit, setAiAnalysisLimit] = useState(editingTrader?.strategy.aiAnalysisLimit || 100);
+  const [modelTier, setModelTier] = useState<ModelTier>(editingTrader?.strategy.modelTier || 'standard');
+  const [filterInterval, setFilterInterval] = useState<KlineInterval>(editingTrader?.filter?.interval || KlineInterval.ONE_MINUTE);
   const [generating, setGenerating] = useState(false);
   const [regeneratingCode, setRegeneratingCode] = useState(false);
   const [error, setError] = useState('');
@@ -43,6 +49,9 @@ export function TraderForm({
       setManualFilterCode(editingTrader.filter?.code || '');
       setManualStrategy(editingTrader.strategy?.instructions || '');
       setFilterConditions(editingTrader.filter?.description || []);
+      setAiAnalysisLimit(editingTrader.strategy?.aiAnalysisLimit || 100);
+      setModelTier(editingTrader.strategy?.modelTier || 'standard');
+      setFilterInterval(editingTrader.filter?.interval || KlineInterval.ONE_MINUTE);
       originalConditionsRef.current = editingTrader.filter?.description || [];
       setConditionsModified(false);
     }
@@ -62,6 +71,9 @@ export function TraderForm({
     setManualFilterCode('');
     setManualStrategy('');
     setFilterConditions([]);
+    setAiAnalysisLimit(100);
+    setModelTier('standard');
+    setFilterInterval(KlineInterval.ONE_MINUTE);
     setGenerating(false);
     setRegeneratingCode(false);
     setError('');
@@ -181,11 +193,14 @@ export function TraderForm({
           filter: {
             code: manualFilterCode,
             description: validConditions,
-            indicators: generatedTrader?.indicators || editingTrader.filter.indicators
+            indicators: generatedTrader?.indicators || editingTrader.filter.indicators,
+            interval: filterInterval
           },
           strategy: {
             instructions: manualStrategy,
-            riskManagement: generatedTrader?.riskParameters || editingTrader.strategy.riskManagement
+            riskManagement: generatedTrader?.riskParameters || editingTrader.strategy.riskManagement,
+            aiAnalysisLimit: aiAnalysisLimit,
+            modelTier: modelTier
           }
         });
         
@@ -200,7 +215,8 @@ export function TraderForm({
           filter: {
             code: manualFilterCode,
             description: validConditions,
-            indicators: generatedTrader?.indicators
+            indicators: generatedTrader?.indicators,
+            interval: filterInterval
           },
           strategy: {
             instructions: manualStrategy,
@@ -209,7 +225,9 @@ export function TraderForm({
               takeProfit: 0.05,
               maxPositions: 3,
               positionSizePercent: 0.1
-            }
+            },
+            aiAnalysisLimit: aiAnalysisLimit,
+            modelTier: modelTier
           }
         });
         
@@ -481,6 +499,85 @@ export function TraderForm({
               className="w-full p-3 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg text-[var(--tm-text-primary)] placeholder-[var(--tm-text-muted)] focus:border-[var(--tm-accent)] focus:outline-none resize-none"
               rows={4}
             />
+          </div>
+
+          {/* Candle Interval Selection */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+              Candle Interval
+            </label>
+            <select
+              value={filterInterval}
+              onChange={(e) => setFilterInterval(e.target.value as KlineInterval)}
+              className="w-full p-2 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg text-[var(--tm-text-primary)] focus:border-[var(--tm-accent)] focus:outline-none"
+            >
+              {KLINE_INTERVALS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-[var(--tm-text-muted)] mt-1">
+              The time interval for candlestick data this trader will analyze
+            </p>
+          </div>
+
+          {/* AI Analysis Data Limit */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+              AI Analysis Data Limit
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="1"
+                max="1000"
+                step="10"
+                value={aiAnalysisLimit}
+                onChange={(e) => setAiAnalysisLimit(parseInt(e.target.value))}
+                className="flex-1"
+              />
+              <input
+                type="number"
+                min="1"
+                max="1000"
+                value={aiAnalysisLimit}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (!isNaN(value) && value >= 1 && value <= 1000) {
+                    setAiAnalysisLimit(value);
+                  }
+                }}
+                className="w-20 tm-input text-sm px-2 py-1"
+              />
+              <span className="text-sm text-[var(--tm-text-muted)]">bars</span>
+            </div>
+            <p className="text-xs text-[var(--tm-text-muted)] mt-1">
+              Number of historical price bars and indicator values sent to AI for signal analysis (1-1000 bars)
+            </p>
+          </div>
+
+          {/* AI Model Selection */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+              AI Model for Analysis
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(Object.entries(MODEL_TIERS) as [ModelTier, typeof MODEL_TIERS[ModelTier]][]).map(([tier, config]) => (
+                <button
+                  key={tier}
+                  onClick={() => setModelTier(tier)}
+                  className={`p-2 rounded-lg border transition-all ${
+                    modelTier === tier
+                      ? 'bg-[var(--tm-accent)]/10 border-[var(--tm-accent)] text-[var(--tm-accent)]'
+                      : 'border-[var(--tm-border)] text-[var(--tm-text-muted)] hover:border-[var(--tm-border-light)]'
+                  }`}
+                >
+                  <div className="font-medium text-sm">{config.name}</div>
+                  <div className="text-xs mt-1">{config.description}</div>
+                </button>
+              ))}
+            </div>
           </div>
 
           {generatedTrader && (

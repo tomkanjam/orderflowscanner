@@ -35,6 +35,23 @@ export class SignalManager {
     
     // Update status based on analysis decision
     switch (analysis.decision) {
+      case 'no_trade':
+        signal.status = 'rejected';
+        break;
+      case 'monitor':
+        signal.status = 'monitoring';
+        signal.monitoringStarted = new Date();
+        signal.monitoringUpdates = [];
+        break;
+      case 'buy':
+      case 'sell':
+        signal.status = 'ready';
+        signal.direction = analysis.direction || (analysis.decision === 'buy' ? 'long' : 'short');
+        break;
+      case 'hold':
+        signal.status = 'monitoring';
+        break;
+      // Handle legacy decisions for backwards compatibility
       case 'bad_setup':
         signal.status = 'rejected';
         break;

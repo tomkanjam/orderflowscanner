@@ -1,10 +1,11 @@
-import { Ticker, Kline } from '../types';
+import { Ticker, Kline, KlineInterval } from '../types';
 import * as helpers from '../screenerHelpers';
 
 // Message types for communication with main thread
 export interface TraderFilter {
   traderId: string;
   filterCode: string;
+  interval?: KlineInterval; // The interval this trader uses
 }
 
 export interface MultiTraderScreenerMessage {
@@ -13,7 +14,7 @@ export interface MultiTraderScreenerMessage {
   data?: {
     symbols: string[];
     tickers: Record<string, Ticker>; // Convert Map to object for serialization
-    historicalData: Record<string, Kline[]>; // Convert Map to object
+    historicalData: Record<string, Record<string, Kline[]>>; // symbol -> interval -> klines
     traders: TraderFilter[]; // Multiple trader filters to run
   };
 }
@@ -42,9 +43,10 @@ const previousMatchesByTrader = new Map<string, Set<string>>();
 function runTraderFilter(
   traderId: string,
   filterCode: string,
+  interval: KlineInterval,
   symbols: string[],
   tickers: Record<string, Ticker>,
-  historicalData: Record<string, Kline[]>
+  historicalData: Record<string, Record<string, Kline[]>>
 ): TraderResult {
   const previousMatches = previousMatchesByTrader.get(traderId) || new Set<string>();
   
@@ -77,7 +79,8 @@ function runTraderFilter(
     // Run filter on each symbol
     for (const symbol of symbols) {
       const ticker = tickers[symbol];
-      const klines = historicalData[symbol];
+      const symbolData = historicalData[symbol];
+      const klines = symbolData?.[interval] || symbolData?.['1m']; // Use trader's interval or fallback to 1m
       
       if (!ticker || !klines || klines.length === 0) {
         continue;
@@ -121,7 +124,7 @@ function runTraderFilter(
 function runMultiTraderScreener(
   symbols: string[],
   tickers: Record<string, Ticker>,
-  historicalData: Record<string, Kline[]>,
+  historicalData: Record<string, Record<string, Kline[]>>,
   traders: TraderFilter[]
 ): TraderResult[] {
   const startTime = performance.now();
@@ -132,6 +135,7 @@ function runMultiTraderScreener(
     const result = runTraderFilter(
       trader.traderId,
       trader.filterCode,
+      trader.interval || '1m' as KlineInterval,
       symbols,
       tickers,
       historicalData

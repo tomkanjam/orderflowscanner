@@ -187,6 +187,24 @@ export function TraderList({
                   </div>
                 )}
 
+                {/* AI Analysis Settings */}
+                <div className="text-xs text-[var(--tm-text-muted)] mb-2">
+                  <div>Interval: {(() => {
+                    const interval = trader.filter?.interval || '1m';
+                    const intervalMap: Record<string, string> = {
+                      '1m': '1 Minute',
+                      '5m': '5 Minutes',
+                      '15m': '15 Minutes',
+                      '1h': '1 Hour',
+                      '4h': '4 Hours',
+                      '1d': '1 Day'
+                    };
+                    return intervalMap[interval] || interval;
+                  })()}</div>
+                  <div>AI Model: {trader.strategy?.modelTier ? trader.strategy.modelTier.charAt(0).toUpperCase() + trader.strategy.modelTier.slice(1) : 'Standard'}</div>
+                  <div>Analysis Data: {trader.strategy?.aiAnalysisLimit || 100} bars</div>
+                </div>
+
                 {/* Metrics */}
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div className="text-center">

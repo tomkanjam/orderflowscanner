@@ -1,4 +1,4 @@
-import { Ticker, Kline, HistoricalSignal, HistoricalScanConfig } from '../types';
+import { Ticker, Kline, HistoricalSignal, HistoricalScanConfig, KlineInterval } from '../types';
 import * as helpers from '../screenerHelpers';
 
 interface TraderData {
@@ -6,12 +6,13 @@ interface TraderData {
   name: string;
   filterCode: string;
   filterDescription: string[];
+  interval?: KlineInterval;
 }
 
 interface ScanMessage {
   type: 'scan';
   symbols: string[];
-  historicalData: Record<string, Kline[]>;
+  historicalData: Record<string, Record<string, Kline[]>>;
   tickers: Record<string, Ticker>;
   traders: TraderData[];
   config: HistoricalScanConfig;
@@ -110,15 +111,24 @@ self.addEventListener('message', (event: MessageEvent<ScanMessage>) => {
   try {
     // Process each symbol for each trader
     for (const symbol of symbols) {
-      const klines = historicalData[symbol];
+      const symbolData = historicalData[symbol];
       const ticker = tickers[symbol];
       
-      if (!klines || !ticker || klines.length === 0) {
+      if (!symbolData || !ticker) {
         completedOperations += traders.length;
         continue;
       }
       
       for (const trader of traders) {
+        // Get klines for the trader's interval, fallback to 1m
+        const interval = trader.interval || '1m' as KlineInterval;
+        const klines = symbolData[interval] || symbolData['1m'];
+        
+        if (!klines || klines.length === 0) {
+          completedOperations++;
+          continue;
+        }
+        
         // Run the trader's filter on this symbol's historical data
         const signals = runTraderOnHistoricalData(trader, symbol, klines, ticker, config);
         allSignals.push(...signals);

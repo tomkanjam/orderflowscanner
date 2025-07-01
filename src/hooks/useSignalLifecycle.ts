@@ -1,18 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { signalManager } from '../services/signalManager';
-import { SignalLifecycle, FilterResult, AnalysisResult, Strategy } from '../abstractions/interfaces';
+import { SignalLifecycle, FilterResult, Strategy } from '../abstractions/interfaces';
 import { ServiceFactory } from '../services/serviceFactory';
-import { binanceService } from '../services/binanceService';
+import { traderManager } from '../services/traderManager';
+import { MODEL_TIERS } from '../constants/models';
 
 interface UseSignalLifecycleOptions {
   activeStrategy: Strategy | null;
   autoAnalyze?: boolean;
   autoMonitor?: boolean;
   modelName?: string;
+  aiAnalysisLimit?: number; // Number of bars to send to AI (default: 100, range: 1-1000)
+  calculateIndicators?: (indicators: any[], klines: any[]) => Promise<Map<string, any[]>>; // Function to calculate trader indicators
+  getMarketData?: (symbol: string) => { ticker: any; klines: any[] } | null; // Function to get market data
 }
 
 export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
-  const { activeStrategy, autoAnalyze = false, autoMonitor = true, modelName = 'gemini-2.0-flash-exp' } = options;
+  const { activeStrategy, autoAnalyze = false, autoMonitor = true, modelName = 'gemini-2.5-flash', aiAnalysisLimit: globalAiAnalysisLimit = 100, calculateIndicators, getMarketData } = options;
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const monitoringInterval = useRef<NodeJS.Timeout>();
@@ -27,9 +31,6 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   
   // Subscribe to price updates
   useEffect(() => {
-    const handleTickerUpdate = (ticker: any) => {
-      signalManager.updatePrice(ticker.s, parseFloat(ticker.c));
-    };
     
     // Subscribe to ticker updates from binance service
     // Note: In real implementation, we'd need to expose this from binanceService
@@ -43,14 +44,18 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   
   // Create signal from filter result
   const createSignalFromFilter = useCallback((filterResult: FilterResult, traderId?: string) => {
-    if (!activeStrategy) {
-      // No active strategy to create signal
+    // Allow trader signals without active strategy
+    if (!activeStrategy && !traderId) {
+      console.warn('No active strategy and no trader ID provided for signal creation');
       return;
     }
     
-    const signal = signalManager.createSignal(filterResult, activeStrategy.id, traderId);
+    // Use trader ID as strategy ID when no active strategy
+    const strategyId = activeStrategy?.id || `trader-${traderId}`;
+    const signal = signalManager.createSignal(filterResult, strategyId, traderId);
     
     if (autoAnalyze) {
+      // Queue all signals for analysis (including trader signals)
       analysisQueue.current.push(signal.id);
       processAnalysisQueue();
     }
@@ -61,7 +66,37 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   // Analyze a signal
   const analyzeSignal = useCallback(async (signalId: string, customModel?: string) => {
     const signal = signalManager.getSignal(signalId);
-    if (!signal || !activeStrategy) return;
+    if (!signal) return;
+    
+    // For trader signals, fetch trader's strategy
+    let strategyToUse: Strategy | null = activeStrategy;
+    
+    if (!activeStrategy && signal.traderId) {
+      // Get trader from traderManager to access their strategy
+      const trader = await traderManager.getTrader(signal.traderId);
+      
+      if (!trader) {
+        console.error('Trader not found for signal:', signalId);
+        return;
+      }
+      
+      // Create a Strategy object from trader data
+      strategyToUse = {
+        id: `trader-${trader.id}`,
+        userId: 'system',
+        name: trader.name,
+        description: trader.strategy.instructions, // Use trader's strategy instructions
+        filterCode: trader.filter.code,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+    }
+    
+    if (!strategyToUse) {
+      console.error('No strategy available for signal analysis');
+      return;
+    }
     
     // Update status to analyzing
     signal.status = 'analyzing';
@@ -69,19 +104,85 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     
     try {
       const analysisEngine = ServiceFactory.getAnalysis();
-      const marketData = {
+      
+      // Get market data
+      let marketData: any = {
         symbol: signal.symbol,
         price: signal.currentPrice,
-        volume: 0, // Would need to get from ticker
-        klines: [], // Would need to get from binance service
+        volume: 0,
+        klines: [],
+        calculatedIndicators: {} as Record<string, any>,
       };
+      
+      // If trader signal, get trader's indicators and calculate them
+      if (signal.traderId && calculateIndicators && getMarketData) {
+        const trader = await traderManager.getTrader(signal.traderId);
+        if (trader?.filter?.indicators && trader.filter.indicators.length > 0) {
+          // Get raw market data
+          const rawData = getMarketData(signal.symbol);
+          
+          if (rawData) {
+            // Use trader's specific aiAnalysisLimit or fall back to global
+            const traderAiLimit = trader.strategy?.aiAnalysisLimit || globalAiAnalysisLimit;
+            
+            // Calculate trader's specific indicators
+            const indicatorValues = await calculateIndicators(trader.filter.indicators, rawData.klines);
+            
+            // Convert Map to object for easier use
+            const indicatorData: Record<string, any> = {};
+            indicatorValues.forEach((values, indicatorId) => {
+              const indicator = trader.filter.indicators!.find((ind: any) => ind.id === indicatorId);
+              if (indicator && values.length > 0) {
+                // Get the latest value(s)
+                const latestValue = values[values.length - 1];
+                // Limit historical values to trader's aiAnalysisLimit
+                const limitedValues = values.slice(-traderAiLimit);
+                indicatorData[indicator.name] = {
+                  id: indicator.id,
+                  name: indicator.name,
+                  value: latestValue.y,
+                  ...(latestValue.y2 !== undefined && { value2: latestValue.y2 }),
+                  ...(latestValue.y3 !== undefined && { value3: latestValue.y3 }),
+                  ...(latestValue.y4 !== undefined && { value4: latestValue.y4 }),
+                  history: limitedValues.map(v => ({
+                    value: v.y,
+                    ...(v.y2 !== undefined && { value2: v.y2 }),
+                    ...(v.y3 !== undefined && { value3: v.y3 }),
+                    ...(v.y4 !== undefined && { value4: v.y4 }),
+                  })),
+                };
+              }
+            });
+            
+            // Limit klines to trader's aiAnalysisLimit
+            const limitedKlines = rawData.klines.slice(-traderAiLimit);
+            
+            marketData = {
+              symbol: signal.symbol,
+              price: signal.currentPrice,
+              volume: rawData.ticker ? parseFloat(rawData.ticker.q) : 0,
+              klines: limitedKlines,
+              calculatedIndicators: indicatorData,
+            };
+          }
+        }
+      }
+      
+      // Determine which model to use for this trader
+      let modelToUse = customModel || modelName;
+      if (signal.traderId && !customModel) {
+        const trader = await traderManager.getTrader(signal.traderId);
+        if (trader?.strategy?.modelTier) {
+          modelToUse = MODEL_TIERS[trader.strategy.modelTier].model;
+        }
+      }
       
       const result = await analysisEngine.analyzeSetup(
         signal.symbol,
-        activeStrategy,
+        strategyToUse,
         marketData,
         undefined,
-        customModel || modelName
+        modelToUse
       );
       
       signalManager.updateWithAnalysis(signalId, result);
@@ -99,7 +200,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       signalManager['notifyUpdate']();
       throw error;
     }
-  }, [activeStrategy, autoMonitor, modelName]);
+  }, [activeStrategy, autoMonitor, modelName, globalAiAnalysisLimit, calculateIndicators, getMarketData]);
   
   // Process analysis queue
   const processAnalysisQueue = useCallback(async () => {
@@ -139,7 +240,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     
     // Monitor all signals in monitoring status every 30 seconds
     monitoringInterval.current = setInterval(async () => {
-      const monitoringSignals = signals.filter(s => s.status === 'monitoring');
+      const monitoringSignals = signals.filter((s: SignalLifecycle) => s.status === 'monitoring');
       
       for (const signal of monitoringSignals) {
         try {
@@ -150,7 +251,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
           const update = {
             timestamp: new Date(),
             price: signal.currentPrice,
-            action: result?.decision === 'enter_trade' ? 'enter' : 'continue' as const,
+            action: (result?.decision === 'enter_trade' ? 'enter' : 'continue') as 'enter' | 'continue',
             reason: result?.reasoning || 'Monitoring update',
             confidence: result?.confidence,
           };

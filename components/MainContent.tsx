@@ -2,7 +2,6 @@
 import React from 'react';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from '../types';
 import { TraderSignalsTable } from '../src/components/TraderSignalsTable';
-import CryptoTable from './CryptoTable';
 import ChartDisplay from './ChartDisplay';
 import Loader from './Loader';
 import ErrorMessage from './ErrorMessage';
@@ -28,7 +27,6 @@ interface MainContentProps {
   onRowClick: (symbol: string, traderId?: string) => void;
   onAiInfoClick: (symbol: string, event: React.MouseEvent) => void;
   signalLog: SignalLogEntry[]; // Add signalLog prop
-  onNewSignal: (symbol: string, timestamp: number) => void; // Add onNewSignal prop
   historicalSignals?: HistoricalSignal[]; // Add historicalSignals prop
   // Historical scanner props
   hasActiveFilter?: boolean;
@@ -41,6 +39,9 @@ interface MainContentProps {
   // Signal deduplication
   signalDedupeThreshold?: number;
   onSignalDedupeThresholdChange?: (threshold: number) => void;
+  // Kline history configuration
+  klineHistoryConfig?: any; // Using any to avoid importing KlineHistoryConfig
+  onKlineHistoryConfigChange?: (config: any) => void;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -60,8 +61,7 @@ const MainContent: React.FC<MainContentProps> = ({
   chartConfigForDisplay,
   onRowClick,
   onAiInfoClick,
-  signalLog, 
-  onNewSignal,
+  signalLog,
   historicalSignals = [],
   hasActiveFilter,
   onRunHistoricalScan,
@@ -72,6 +72,8 @@ const MainContent: React.FC<MainContentProps> = ({
   onCancelHistoricalScan,
   signalDedupeThreshold,
   onSignalDedupeThresholdChange,
+  klineHistoryConfig,
+  onKlineHistoryConfigChange,
 }) => {
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-y-hidden">
@@ -107,19 +109,8 @@ const MainContent: React.FC<MainContentProps> = ({
                   historicalSignals={historicalSignals}
                   signalDedupeThreshold={signalDedupeThreshold}
                   onSignalDedupeThresholdChange={onSignalDedupeThresholdChange}
-                />
-              </div>
-              {/* Hidden CryptoTable to keep screener running */}
-              <div className="hidden">
-                <CryptoTable
-                  allSymbols={allSymbols}
-                  tickers={tickers}
-                  historicalData={historicalData}
-                  currentFilterFn={currentFilterFn}
-                  onRowClick={onRowClick}
-                  onAiInfoClick={onAiInfoClick}
-                  isLoading={initialLoading}
-                  onNewSignal={onNewSignal}
+                  klineHistoryConfig={klineHistoryConfig}
+                  onKlineHistoryConfigChange={onKlineHistoryConfigChange}
                 />
               </div>
             </>

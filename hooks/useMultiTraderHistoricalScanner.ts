@@ -25,7 +25,7 @@ function getMillisecondsPerBar(interval: KlineInterval): number {
 interface UseMultiTraderHistoricalScannerProps {
   traders: Trader[];
   symbols: string[];
-  historicalData: Map<string, Kline[]>;
+  historicalData: Map<string, Map<KlineInterval, Kline[]>>;
   tickers: Map<string, Ticker>;
   klineInterval: KlineInterval;
   signalDedupeThreshold: number;
@@ -108,14 +108,17 @@ export function useMultiTraderHistoricalScanner({
       );
       
       // Convert Map to plain object for worker
-      const historicalDataObj: Record<string, Kline[]> = {};
+      const historicalDataObj: Record<string, Record<string, Kline[]>> = {};
       const tickersObj: Record<string, Ticker> = {};
       
       symbols.forEach(symbol => {
-        const klines = historicalData.get(symbol);
+        const intervalMap = historicalData.get(symbol);
         const ticker = tickers.get(symbol);
-        if (klines && ticker) {
-          historicalDataObj[symbol] = klines;
+        if (intervalMap && ticker) {
+          historicalDataObj[symbol] = {};
+          intervalMap.forEach((klines, interval) => {
+            historicalDataObj[symbol][interval] = klines;
+          });
           tickersObj[symbol] = ticker;
         }
       });
@@ -208,6 +211,7 @@ export function useMultiTraderHistoricalScanner({
         name: t.name,
         filterCode: t.filter.code,
         filterDescription: t.filter.description || [],
+        interval: t.filter.interval || KlineInterval.ONE_MINUTE,
       }));
       
       // Start scanning

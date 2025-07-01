@@ -11,7 +11,7 @@ interface UseMultiTraderScreenerProps {
   traders: Trader[];
   symbols: string[];
   tickers: Map<string, Ticker>;
-  historicalData: Map<string, Kline[]>;
+  historicalData: Map<string, Map<KlineInterval, Kline[]>>;
   onResults: (results: TraderResult[]) => void;
   interval?: number; // How often to run the screener (in ms)
   enabled?: boolean;
@@ -109,9 +109,12 @@ export function useMultiTraderScreener({
       tickersObj[key] = value;
     });
 
-    const historicalDataObj: Record<string, Kline[]> = {};
-    historicalDataRef.current.forEach((value, key) => {
-      historicalDataObj[key] = value;
+    const historicalDataObj: Record<string, Record<string, Kline[]>> = {};
+    historicalDataRef.current.forEach((intervalMap, symbol) => {
+      historicalDataObj[symbol] = {};
+      intervalMap.forEach((klines, interval) => {
+        historicalDataObj[symbol][interval] = klines;
+      });
     });
 
     const message: MultiTraderScreenerMessage = {
@@ -123,7 +126,8 @@ export function useMultiTraderScreener({
         historicalData: historicalDataObj,
         traders: enabledTraders.map(t => ({
           traderId: t.id,
-          filterCode: t.filter.code
+          filterCode: t.filter.code,
+          interval: t.filter.interval
         }))
       }
     };

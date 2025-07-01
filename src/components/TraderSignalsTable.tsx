@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SignalLifecycle, SignalStatus } from '../abstractions/interfaces';
 import { signalManager } from '../services/signalManager';
-import { Ticker, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from '../../types';
+import { Ticker, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
 import { Bell, BellOff, TrendingUp, TrendingDown, AlertCircle, X } from 'lucide-react';
 
@@ -23,6 +23,9 @@ interface TraderSignalsTableProps {
   // Signal deduplication
   signalDedupeThreshold?: number;
   onSignalDedupeThresholdChange?: (threshold: number) => void;
+  // Kline history configuration
+  klineHistoryConfig?: KlineHistoryConfig;
+  onKlineHistoryConfigChange?: (config: KlineHistoryConfig) => void;
 }
 
 export function TraderSignalsTable({
@@ -41,6 +44,8 @@ export function TraderSignalsTable({
   historicalSignals = [],
   signalDedupeThreshold = 50,
   onSignalDedupeThresholdChange,
+  klineHistoryConfig,
+  onKlineHistoryConfigChange,
 }: TraderSignalsTableProps) {
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
   const [newSignalTimestamps, setNewSignalTimestamps] = useState<Set<number>>(new Set());
@@ -367,9 +372,46 @@ export function TraderSignalsTable({
                       : 'AI Screener'}
                   </td>
                   <td className="p-2 md:px-4 md:py-2">
-                    <span className={`text-xs ${getStatusColor(signal.status)}`}>
-                      {signal.status.replace('_', ' ')}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-xs ${getStatusColor(signal.status)}`}>
+                        {signal.status.replace('_', ' ')}
+                      </span>
+                      {signal.analysis && (
+                        <div className="text-xs text-[var(--tm-text-muted)]">
+                          <span className="font-medium">
+                            {signal.analysis.decision === 'buy' && '🟢 BUY'}
+                            {signal.analysis.decision === 'sell' && '🔴 SELL'}
+                            {signal.analysis.decision === 'hold' && '⏸️ HOLD'}
+                            {signal.analysis.decision === 'monitor' && '👁️ MONITOR'}
+                            {signal.analysis.decision === 'no_trade' && '❌ NO TRADE'}
+                            {signal.analysis.decision === 'enter_trade' && '🟢 ENTER'}
+                            {signal.analysis.decision === 'good_setup' && '👁️ GOOD SETUP'}
+                            {signal.analysis.decision === 'bad_setup' && '❌ BAD SETUP'}
+                          </span>
+                          <details className="cursor-pointer">
+                            <summary className="hover:text-[var(--tm-text-secondary)]">View reasoning ({Math.round(signal.analysis.confidence * 100)}% confidence)</summary>
+                            <div className="mt-1 p-2 bg-[var(--tm-bg-hover)] rounded text-[var(--tm-text-secondary)]">
+                              <p className="mb-1">{signal.analysis.reasoning}</p>
+                              {signal.analysis.tradePlan && (
+                                <div className="mt-2 border-t border-[var(--tm-border)] pt-2">
+                                  <p className="font-medium text-[var(--tm-text-primary)]">Trade Plan:</p>
+                                  <ul className="text-xs space-y-1 mt-1">
+                                    <li>Entry: {signal.analysis.tradePlan.entry}</li>
+                                    <li>Stop Loss: {signal.analysis.tradePlan.stopLoss}</li>
+                                    <li>Take Profit: {signal.analysis.tradePlan.takeProfit}</li>
+                                    <li>Position Size: {signal.analysis.tradePlan.positionSize}</li>
+                                    <li>Timeframe: {signal.analysis.tradePlan.timeframe}</li>
+                                    {signal.analysis.tradePlan.notes && (
+                                      <li>Notes: {signal.analysis.tradePlan.notes}</li>
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </details>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="p-2 md:px-4 md:py-2 text-right text-sm font-mono">
                     ${signal.initialPrice.toFixed(4)}

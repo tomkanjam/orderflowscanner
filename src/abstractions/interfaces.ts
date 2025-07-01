@@ -60,14 +60,24 @@ export interface Alert {
 }
 
 export interface AnalysisResult {
-  decision: 'bad_setup' | 'good_setup' | 'enter_trade';
+  decision: 'buy' | 'sell' | 'hold' | 'no_trade' | 'monitor' | 'bad_setup' | 'good_setup' | 'enter_trade'; // Support new and legacy formats
   direction?: 'long' | 'short';
   confidence: number;
   reasoning: string;
   keyLevels?: KeyLevels;
+  tradePlan?: TradePlan; // Detailed trade plan for buy/sell decisions
   chartAnalysis?: string; // Multi-modal chart interpretation
   technicalIndicators?: Record<string, any>;
   timestamp: Date;
+}
+
+export interface TradePlan {
+  entry: string;
+  stopLoss: string;
+  takeProfit: string;
+  positionSize: string;
+  timeframe: string;
+  notes?: string;
 }
 
 export interface KeyLevels {

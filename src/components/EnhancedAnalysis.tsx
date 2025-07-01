@@ -15,7 +15,7 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash-exp');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
 
   const runAnalysis = async () => {
     if (!activeStrategy) {

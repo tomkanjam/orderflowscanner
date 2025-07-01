@@ -4,7 +4,7 @@ import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import Modal from './components/Modal';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
-import { fetchTopPairsAndInitialKlines, connectWebSocket } from './services/binanceService';
+import { fetchTopPairsAndInitialKlines, connectWebSocket, connectMultiIntervalWebSocket } from './services/binanceService';
 import { getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS, MAX_SIGNAL_LOG_ENTRIES } from './constants';
 import * as screenerHelpers from './screenerHelpers';
@@ -21,6 +21,7 @@ import { tradeManager } from './src/services/tradeManager';
 import { traderManager } from './src/services/traderManager';
 import { useMultiTraderScreener } from './hooks/useMultiTraderScreener';
 import { TraderResult } from './workers/multiTraderScreenerWorker';
+import { useIndicatorWorker } from './hooks/useIndicatorWorker';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -32,16 +33,20 @@ const AppContent: React.FC = () => {
   const { activeStrategy } = useStrategy();
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
-  const [historicalData, setHistoricalData] = useState<Map<string, Kline[]>>(new Map());
+  const [historicalData, setHistoricalData] = useState<Map<string, Map<KlineInterval, Kline[]>>>(new Map());
   const [traders, setTraders] = useState<any[]>([]);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
+  
+  // Helper to get klines for a specific interval
+  const getKlinesForInterval = useCallback((symbol: string, interval: KlineInterval): Kline[] => {
+    return historicalData.get(symbol)?.get(interval) || [];
+  }, [historicalData]);
   
   const [klineInterval, setKlineInterval] = useState<KlineInterval>(DEFAULT_KLINE_INTERVAL);
   const [selectedGeminiModel, setSelectedGeminiModel] = useState<GeminiModelOption>(DEFAULT_GEMINI_MODEL);
   
 
   const [signalLog, setSignalLog] = useState<SignalLogEntry[]>([]); // New state for signal log
-  const [strategy, setStrategy] = useState<string>(''); // User's trading strategy
   
   // Signal deduplication threshold (default 50 bars)
   const [signalDedupeThreshold, setSignalDedupeThreshold] = useState<number>(() => {
@@ -95,17 +100,25 @@ const AppContent: React.FC = () => {
     const saved = localStorage.getItem('klineHistoryConfig');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Ensure aiAnalysisLimit exists with default
+        return {
+          screenerLimit: parsed.screenerLimit || KLINE_HISTORY_LIMIT,
+          analysisLimit: parsed.analysisLimit || KLINE_HISTORY_LIMIT_FOR_ANALYSIS,
+          aiAnalysisLimit: parsed.aiAnalysisLimit || 100
+        };
       } catch {
         return {
           screenerLimit: KLINE_HISTORY_LIMIT,
-          analysisLimit: KLINE_HISTORY_LIMIT_FOR_ANALYSIS
+          analysisLimit: KLINE_HISTORY_LIMIT_FOR_ANALYSIS,
+          aiAnalysisLimit: 100
         };
       }
     }
     return {
       screenerLimit: KLINE_HISTORY_LIMIT,
-      analysisLimit: KLINE_HISTORY_LIMIT_FOR_ANALYSIS
+      analysisLimit: KLINE_HISTORY_LIMIT_FOR_ANALYSIS,
+      aiAnalysisLimit: 100
     };
   });
 
@@ -119,6 +132,22 @@ const AppContent: React.FC = () => {
   // Auth state
   const { user, loading: authLoading } = useAuth();
   
+  // Indicator calculation hook
+  const { calculateIndicators } = useIndicatorWorker();
+  
+  // Use refs to avoid stale closures
+  const tickersRef = useRef(tickers);
+  const historicalDataRef = useRef(historicalData);
+  
+  // Update refs when state changes
+  useEffect(() => {
+    tickersRef.current = tickers;
+  }, [tickers]);
+  
+  useEffect(() => {
+    historicalDataRef.current = historicalData;
+  }, [historicalData]);
+  
   // Signal lifecycle hook
   const { 
     signals: enhancedSignals,
@@ -131,6 +160,15 @@ const AppContent: React.FC = () => {
     activeStrategy,
     autoAnalyze: true,
     autoMonitor: true,
+    modelName: 'gemini-2.5-flash', // Default model if trader doesn't specify
+    calculateIndicators,
+    aiAnalysisLimit: klineHistoryConfig.aiAnalysisLimit,
+    getMarketData: (symbol: string) => {
+      const ticker = tickersRef.current.get(symbol);
+      const klines = historicalDataRef.current.get(symbol);
+      if (!ticker || !klines) return null;
+      return { ticker, klines };
+    },
   });
 
   // Historical scanner hook
@@ -209,7 +247,7 @@ const AppContent: React.FC = () => {
   }, [klineHistoryConfig]);
   
   
-  const loadInitialData = useCallback(async (interval: KlineInterval, klineLimit: number) => {
+  const loadInitialData = useCallback(async (klineLimit: number) => {
     setInitialLoading(true);
     setInitialError(null);
     setStatusText('Fetching initial data...');
@@ -217,10 +255,52 @@ const AppContent: React.FC = () => {
     setSignalLog([]); // Clear signal log on new data load
 
     try {
-      const { symbols, tickers: initialTickers, klinesData } = await fetchTopPairsAndInitialKlines(interval, klineLimit);
+      // Determine which intervals are needed by active traders
+      const activeIntervals = new Set<KlineInterval>();
+      traders.forEach(trader => {
+        if (trader.enabled) {
+          activeIntervals.add(trader.filter?.interval || KlineInterval.ONE_MINUTE);
+        }
+      });
+      
+      // Always include 1m as default/fallback
+      activeIntervals.add(KlineInterval.ONE_MINUTE);
+      
+      console.log('Loading data for intervals:', Array.from(activeIntervals));
+      
+      // First, fetch top pairs and tickers
+      const { symbols, tickers: initialTickers, klinesData: oneMinuteData } = await fetchTopPairsAndInitialKlines(KlineInterval.ONE_MINUTE, klineLimit);
       setAllSymbols(symbols);
       setTickers(initialTickers);
-      setHistoricalData(klinesData);
+      
+      // Initialize multi-interval data structure
+      const multiIntervalData = new Map<string, Map<KlineInterval, Kline[]>>();
+      
+      // Add 1-minute data
+      oneMinuteData.forEach((klines, symbol) => {
+        if (!multiIntervalData.has(symbol)) {
+          multiIntervalData.set(symbol, new Map());
+        }
+        multiIntervalData.get(symbol)!.set(KlineInterval.ONE_MINUTE, klines);
+      });
+      
+      // Fetch data for other intervals if needed
+      const otherIntervals = Array.from(activeIntervals).filter(interval => interval !== KlineInterval.ONE_MINUTE);
+      
+      for (const interval of otherIntervals) {
+        console.log(`Fetching data for interval: ${interval}`);
+        const { klinesData: intervalData } = await fetchTopPairsAndInitialKlines(interval, klineLimit);
+        
+        // Merge into multiIntervalData
+        intervalData.forEach((klines, symbol) => {
+          if (!multiIntervalData.has(symbol)) {
+            multiIntervalData.set(symbol, new Map());
+          }
+          multiIntervalData.get(symbol)!.set(interval, klines);
+        });
+      }
+      
+      setHistoricalData(multiIntervalData);
     } catch (error) {
       console.error("Error fetching initial data:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
@@ -233,11 +313,11 @@ const AppContent: React.FC = () => {
     } finally {
       setInitialLoading(false);
     }
-  }, []); // Empty dependency array since we're only using setters
+  }, [traders]); // Depend on traders to determine which intervals to load
 
   useEffect(() => {
-    loadInitialData(klineInterval, klineHistoryConfig.screenerLimit);
-  }, [klineInterval, klineHistoryConfig.screenerLimit]); // Remove loadInitialData from deps since it's stable
+    loadInitialData(klineHistoryConfig.screenerLimit);
+  }, [loadInitialData, klineHistoryConfig.screenerLimit, traders]); // Re-load when traders or kline config changes
   
   // Persist signal deduplication threshold to localStorage
   useEffect(() => {
@@ -295,9 +375,9 @@ const AppContent: React.FC = () => {
     });
   }, []);
 
-  const handleKlineUpdateStable = useCallback((symbol: string, kline: Kline, isClosed: boolean) => {
-    // Track bar counts for signal deduplication
-    if (isClosed) {
+  const handleKlineUpdateStable = useCallback((symbol: string, interval: KlineInterval, kline: Kline, isClosed: boolean) => {
+    // Track bar counts for signal deduplication (only for 1m interval)
+    if (isClosed && interval === KlineInterval.ONE_MINUTE) {
       const currentCount = klineUpdateCountRef.current.get(symbol) || 0;
       klineUpdateCountRef.current.set(symbol, currentCount + 1);
       
@@ -316,58 +396,75 @@ const AppContent: React.FC = () => {
       });
     }
     
-    // Update signal and trade managers with current price
-    const currentPrice = parseFloat(kline[4]); // Close price
-    signalManager.updatePrice(symbol, currentPrice);
-    tradeManager.updatePrice(symbol, currentPrice);
+    // Update signal and trade managers with current price (use 1m interval for real-time price)
+    if (interval === KlineInterval.ONE_MINUTE) {
+      const currentPrice = parseFloat(kline[4]); // Close price
+      signalManager.updatePrice(symbol, currentPrice);
+      tradeManager.updatePrice(symbol, currentPrice);
+    }
     
-    setHistoricalData(prevKlines => {
-      const existingKlines = prevKlines.get(symbol);
+    setHistoricalData(prevData => {
+      const symbolData = prevData.get(symbol);
       
-      // For new symbols, create new Map
-      if (!existingKlines) {
-        const newKlinesMap = new Map(prevKlines);
-        newKlinesMap.set(symbol, [kline]);
-        return newKlinesMap;
+      // For new symbols, create new interval map
+      if (!symbolData) {
+        const newData = new Map(prevData);
+        const intervalMap = new Map<KlineInterval, Kline[]>();
+        intervalMap.set(interval, [kline]);
+        newData.set(symbol, intervalMap);
+        return newData;
+      }
+      
+      const intervalKlines = symbolData.get(interval);
+      
+      // For new intervals, add to the symbol's interval map
+      if (!intervalKlines) {
+        const newData = new Map(prevData);
+        const newIntervalMap = new Map(symbolData);
+        newIntervalMap.set(interval, [kline]);
+        newData.set(symbol, newIntervalMap);
+        return newData;
       }
       
       // Work with existing array
-      const symbolKlines = [...existingKlines];
+      const klines = [...intervalKlines];
       
       let needsUpdate = false;
       
       if (isClosed) {
-          if(kline[0] > symbolKlines[symbolKlines.length - 1][0]) {
-              symbolKlines.push(kline);
-              if (symbolKlines.length > KLINE_HISTORY_LIMIT) {
-                  symbolKlines.shift();
+          if(kline[0] > klines[klines.length - 1][0]) {
+              klines.push(kline);
+              if (klines.length > KLINE_HISTORY_LIMIT) {
+                  klines.shift();
               }
               needsUpdate = true;
-          } else if (kline[0] === symbolKlines[symbolKlines.length - 1][0]) {
-              symbolKlines[symbolKlines.length - 1] = kline;
+          } else if (kline[0] === klines[klines.length - 1][0]) {
+              klines[klines.length - 1] = kline;
               needsUpdate = true;
           }
       } else { 
-          if (symbolKlines.length > 0 && symbolKlines[symbolKlines.length - 1][0] === kline[0]) {
-              symbolKlines[symbolKlines.length - 1] = kline;
+          if (klines.length > 0 && klines[klines.length - 1][0] === kline[0]) {
+              klines[klines.length - 1] = kline;
               needsUpdate = true;
           } else {
-              symbolKlines.push(kline);
-               if (symbolKlines.length > KLINE_HISTORY_LIMIT) {
-                  symbolKlines.shift();
+              klines.push(kline);
+               if (klines.length > KLINE_HISTORY_LIMIT) {
+                  klines.shift();
               }
               needsUpdate = true;
           }
       }
       
-      // Only create new Map if data actually changed
+      // Only create new Maps if data actually changed
       if (!needsUpdate) {
-          return prevKlines;
+          return prevData;
       }
       
-      const newKlinesMap = new Map(prevKlines);
-      newKlinesMap.set(symbol, symbolKlines);
-      return newKlinesMap;
+      const newData = new Map(prevData);
+      const newIntervalMap = new Map(symbolData);
+      newIntervalMap.set(interval, klines);
+      newData.set(symbol, newIntervalMap);
+      return newData;
     });
   }, []);
 
@@ -388,19 +485,30 @@ const AppContent: React.FC = () => {
       }
     };
 
-    const handleKlineUpdate = (symbol: string, kline: Kline, isClosed: boolean) => {
+    const handleKlineUpdate = (symbol: string, interval: KlineInterval, kline: Kline, isClosed: boolean) => {
       if (!isCleanedUp) {
-        handleKlineUpdateStable(symbol, kline, isClosed);
+        handleKlineUpdateStable(symbol, interval, kline, isClosed);
       }
     };
+    
+    // Determine which intervals are needed by active traders
+    const activeIntervals = new Set<KlineInterval>();
+    traders.forEach(trader => {
+      if (trader.enabled) {
+        activeIntervals.add(trader.filter?.interval || KlineInterval.ONE_MINUTE);
+      }
+    });
+    
+    // Always include 1m as default/fallback
+    activeIntervals.add(KlineInterval.ONE_MINUTE);
     
     const connectWebSocketWithRetry = () => {
       if (isCleanedUp) return;
       
       try {
-        ws = connectWebSocket(
+        ws = connectMultiIntervalWebSocket(
           allSymbols,
-          klineInterval,
+          activeIntervals,
           handleTickerUpdate,
           handleKlineUpdate,
           () => { 
@@ -467,96 +575,9 @@ const AppContent: React.FC = () => {
         }
       }
     };
-  // Only re-run when symbols or interval changes, plus stable handlers
-  }, [allSymbols, klineInterval, handleTickerUpdateStable, handleKlineUpdateStable]); 
+  // Only re-run when symbols, traders or handlers change
+  }, [allSymbols, traders, handleTickerUpdateStable, handleKlineUpdateStable]); 
 
-  const handleNewSignal = useCallback((symbol: string, timestamp: number) => {
-    const tickerData = tickers.get(symbol);
-    if (!tickerData) return;
-    
-    // Check signal history for deduplication
-    const historyEntry = signalHistory.get(symbol);
-    
-    // Calculate time-based deduplication threshold based on kline interval and bar threshold
-    const klineIntervalMinutes = {
-      '1m': 1,
-      '5m': 5,
-      '15m': 15,
-      '1h': 60,
-      '4h': 240,
-      '1d': 1440,
-    }[klineInterval] || 5;
-    
-    const minTimeBetweenSignals = klineIntervalMinutes * signalDedupeThreshold * 60 * 1000; // Convert to milliseconds
-    const timeSinceLastSignal = historyEntry ? timestamp - historyEntry.timestamp : Infinity;
-    
-    // Use both bar count and time-based deduplication
-    const shouldCreateNewSignal = !historyEntry || 
-                                 historyEntry.barCount >= signalDedupeThreshold || 
-                                 timeSinceLastSignal >= minTimeBetweenSignals;
-    
-    // Signal deduplication check
-    
-    // Create signal through the new signal lifecycle system
-    if (shouldCreateNewSignal && activeStrategy) {
-      const filterResult = {
-        symbol,
-        price: parseFloat(tickerData.c),
-        change24h: parseFloat(tickerData.P),
-        volume24h: parseFloat(tickerData.q),
-        matchedConditions: ['Filter matched'],
-      };
-      
-      createSignalFromFilter(filterResult);
-    }
-    
-    setSignalLog(prevLog => {
-      const shortDesc = "AI Filter Active";
-      
-      if (shouldCreateNewSignal) {
-        // Create new signal
-        const newEntry: SignalLogEntry = {
-          timestamp,
-          symbol,
-          interval: klineInterval,
-          filterDesc: shortDesc,
-          priceAtSignal: parseFloat(tickerData.c),
-          changePercentAtSignal: parseFloat(tickerData.P),
-          volumeAtSignal: parseFloat(tickerData.q),
-          count: 1, // Initial count
-        };
-        
-        // Update signal history - reset bar count for new signal
-        setSignalHistory(prev => {
-          const newHistory = new Map(prev);
-          newHistory.set(symbol, {
-            timestamp,
-            barCount: 0,
-          });
-          return newHistory;
-        });
-        
-        // Keep limited log entries to prevent memory growth
-        return [newEntry, ...prevLog.slice(0, MAX_SIGNAL_LOG_ENTRIES - 1)];
-      } else {
-        // Increment count on existing signal by finding it in the array
-        return prevLog.map(entry => {
-          if (entry.symbol === symbol) {
-            // Find the most recent signal for this symbol
-            const sameSymbolSignals = prevLog.filter(e => e.symbol === symbol);
-            if (sameSymbolSignals[0] === entry) {
-              // This is the most recent signal for this symbol
-              return {
-                ...entry,
-                count: (entry.count || 1) + 1,
-              };
-            }
-          }
-          return entry;
-        });
-      }
-    });
-  }, [klineInterval, tickers, signalHistory, signalDedupeThreshold, activeStrategy, createSignalFromFilter]);
 
   // Multi-trader screener hook
   const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
@@ -565,7 +586,6 @@ const AppContent: React.FC = () => {
       result.signalSymbols.forEach(symbol => {
         const ticker = tickers.get(symbol);
         if (!ticker) {
-          // No ticker data, skipping signal creation
           return;
         }
         
@@ -606,11 +626,7 @@ const AppContent: React.FC = () => {
           
           // Creating signal
           
-          const signal = signalManager.createSignal(
-            filterResult, 
-            activeStrategy?.id || 'default',
-            result.traderId
-          );
+          const signal = createSignalFromFilter(filterResult, result.traderId);
           
           // Update signal history - reset bar count for new signal
           setSignalHistory(prev => {
@@ -647,7 +663,7 @@ const AppContent: React.FC = () => {
         }
       });
     });
-  }, [traders, tickers, activeStrategy, klineInterval, signalHistory, signalDedupeThreshold]);
+  }, [traders, tickers, activeStrategy, klineInterval, signalHistory, signalDedupeThreshold, createSignalFromFilter]);
 
   const { isRunning: isMultiTraderRunning } = useMultiTraderScreener({
     traders,
@@ -707,79 +723,9 @@ const AppContent: React.FC = () => {
     }
 
     try {
-        const analysisText = await getSymbolAnalysis(symbol, tickerData, klineData, null, internalGeminiModelName, klineInterval, klineHistoryConfig.analysisLimit, strategy);
+        const analysisText = await getSymbolAnalysis(symbol, tickerData, klineData, null, internalGeminiModelName, klineInterval, klineHistoryConfig.analysisLimit, null);
         
-        // Parse the analysis if strategy is provided
-        let decisionMatch = null;
-        let reasoningMatch = null;
-        let tradePlanMatch = null;
-        
-        if (strategy && strategy.trim()) {
-            // Extract decision, reasoning, and trade plan from the analysis
-            decisionMatch = analysisText.match(/DECISION:\s*(BUY|SELL|HOLD|WAIT)/i);
-            reasoningMatch = analysisText.match(/REASONING:\s*([^\n]+)/i);
-            tradePlanMatch = analysisText.match(/TRADE PLAN:\s*([^\n]+)/i);
-            
-            if (decisionMatch) {
-                const decision = decisionMatch[1].toUpperCase() as 'BUY' | 'SELL' | 'HOLD' | 'WAIT';
-                const reasoning = reasoningMatch ? reasoningMatch[1].trim() : '';
-                const tradePlan = tradePlanMatch ? tradePlanMatch[1].trim() : '';
-                
-                // Update the signal log with analysis results
-                setSignalLog(prevLog => 
-                    prevLog.map(signal => 
-                        signal.symbol === symbol 
-                            ? { ...signal, tradeDecision: decision, reasoning, tradePlan, fullAnalysis: analysisText }
-                            : signal
-                    )
-                );
-            }
-        }
-        
-        // Format the modal content with structured display if strategy is used
-        if (strategy && strategy.trim() && decisionMatch) {
-            const decision = decisionMatch[1].toUpperCase();
-            const reasoning = reasoningMatch ? reasoningMatch[1].trim() : '';
-            const tradePlan = tradePlanMatch ? tradePlanMatch[1].trim() : '';
-            
-            // Extract the technical analysis part (everything after the trade plan)
-            const technicalAnalysisStart = analysisText.indexOf('\n\n', analysisText.indexOf('TRADE PLAN:'));
-            const technicalAnalysis = technicalAnalysisStart > -1 ? analysisText.substring(technicalAnalysisStart).trim() : '';
-            
-            setModalContent(
-                <div className="space-y-4 text-sm md:text-base">
-                    <div className="border-l-4 border-[var(--tm-accent)] pl-4">
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="text-[var(--tm-text-muted)] font-semibold">Decision:</span>
-                            <span className={`px-3 py-1 text-sm font-bold rounded ${
-                                decision === 'BUY' ? 'bg-[var(--tm-success)] text-[var(--tm-text-primary)]' :
-                                decision === 'SELL' ? 'bg-[var(--tm-error)] text-[var(--tm-text-primary)]' :
-                                decision === 'HOLD' ? 'bg-[var(--tm-info)] text-[var(--tm-text-primary)]' :
-                                'bg-[var(--tm-bg-hover)] text-[var(--tm-text-primary)]'
-                            }`}>
-                                {decision}
-                            </span>
-                        </div>
-                        <div className="mb-2">
-                            <span className="text-[var(--tm-text-muted)] font-semibold">Reasoning:</span>
-                            <p className="text-[var(--tm-text-secondary)] mt-1">{reasoning}</p>
-                        </div>
-                        <div>
-                            <span className="text-[var(--tm-text-muted)] font-semibold">Trade Plan:</span>
-                            <p className="text-[var(--tm-text-secondary)] mt-1">{tradePlan}</p>
-                        </div>
-                    </div>
-                    {technicalAnalysis && (
-                        <div>
-                            <h4 className="text-[var(--tm-text-muted)] font-semibold mb-2">Technical Analysis:</h4>
-                            <div className="whitespace-pre-wrap text-[var(--tm-text-secondary)]">{technicalAnalysis}</div>
-                        </div>
-                    )}
-                </div>
-            );
-        } else {
-            setModalContent(<div className="whitespace-pre-wrap text-sm md:text-base">{analysisText}</div>);
-        }
+        setModalContent(<div className="whitespace-pre-wrap text-sm md:text-base">{analysisText}</div>);
     } catch (error) {
         console.error(`Symbol Analysis error for ${symbol}:`, error);
         const errorMessage = error instanceof Error ? error.message : "Failed to get analysis.";
@@ -787,7 +733,7 @@ const AppContent: React.FC = () => {
     } finally {
         setIsSymbolAnalysisLoading(false);
     }
-  }, [tickers, historicalData, internalGeminiModelName, klineInterval, strategy]);
+  }, [tickers, historicalData, internalGeminiModelName, klineInterval]);
 
 
   const handleRowClick = (symbol: string, traderId?: string) => {
@@ -845,7 +791,6 @@ const AppContent: React.FC = () => {
         onRowClick={handleRowClick}
         onAiInfoClick={handleAiInfoClick}
         signalLog={signalLog} // Pass signalLog to MainContent
-        onNewSignal={handleNewSignal} // Pass handleNewSignal
         historicalSignals={historicalSignals} // Pass historical signals
         hasActiveFilter={multiTraderEnabled && traders.some(t => t.enabled)}
         onRunHistoricalScan={handleRunHistoricalScan}
@@ -856,6 +801,8 @@ const AppContent: React.FC = () => {
         onCancelHistoricalScan={multiTraderEnabled && traders.some(t => t.enabled) ? cancelMultiTraderHistoricalScan : cancelHistoricalScan}
         signalDedupeThreshold={signalDedupeThreshold}
         onSignalDedupeThresholdChange={setSignalDedupeThreshold}
+        klineHistoryConfig={klineHistoryConfig}
+        onKlineHistoryConfigChange={setKlineHistoryConfig}
       />
       <Modal
         isOpen={isModalOpen}

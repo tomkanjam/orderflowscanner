@@ -185,6 +185,14 @@ export function TraderForm({
     try {
       setError('');
       
+      // Debug log indicators being saved
+      const indicatorsToSave = generatedTrader?.indicators || (editingTrader?.filter?.indicators);
+      console.log(`[DEBUG] TraderForm saving trader with indicators:`, {
+        mode: editingTrader ? 'update' : 'create',
+        indicatorCount: indicatorsToSave?.length || 0,
+        indicators: indicatorsToSave?.map(ind => ({ id: ind.id, name: ind.name })) || []
+      });
+      
       if (editingTrader) {
         // Update existing trader
         const updated = await traderManager.updateTrader(editingTrader.id, {

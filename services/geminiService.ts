@@ -1012,6 +1012,15 @@ export async function generateStructuredAnalysis(
         volume: marketData.volume,
     };
     
+    // Debug log the indicators being passed to AI
+    console.log(`[DEBUG] generateStructuredAnalysis for ${symbol}:`, {
+        hasCalculatedIndicators: !!marketData.calculatedIndicators,
+        indicatorCount: Object.keys(technicalIndicators).length,
+        indicatorNames: Object.keys(technicalIndicators),
+        klineCount: marketData.klines?.length || 0,
+        aiAnalysisLimit: aiAnalysisLimit
+    });
+    
     const prompt = `
 You are an expert trading analyst. Analyze this ${symbol} setup and provide a structured JSON response.
 
@@ -1513,6 +1522,17 @@ function parseAndValidateTraderGeneration(responseText: string): TraderGeneratio
         // Ensure arrays
         parsed.filterDescription = Array.isArray(parsed.filterDescription) ? parsed.filterDescription : [];
         parsed.indicators = Array.isArray(parsed.indicators) ? parsed.indicators : [];
+        
+        // Debug log the generated indicators
+        console.log(`[DEBUG] generateTrader created ${parsed.indicators.length} indicators:`, 
+            parsed.indicators.map(ind => ({
+                id: ind.id,
+                name: ind.name,
+                panel: ind.panel,
+                hasCalculateFunction: !!ind.calculateFunction,
+                functionLength: ind.calculateFunction?.length
+            }))
+        );
         
         // Validate risk parameters with defaults
         const defaultRisk = {

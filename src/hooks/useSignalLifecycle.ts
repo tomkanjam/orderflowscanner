@@ -138,7 +138,12 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
             
             // Convert Map to object for easier use
             const indicatorData: Record<string, any> = {};
-            console.log(`Calculated indicators for ${signal.symbol}:`, indicatorValues.size, 'indicators');
+            console.log(`[DEBUG] useSignalLifecycle calculated indicators for ${signal.symbol}:`, {
+              traderId: signal.traderId,
+              indicatorCount: indicatorValues.size,
+              indicatorIds: Array.from(indicatorValues.keys()),
+              traderIndicators: trader.filter.indicators!.map((ind: any) => ({ id: ind.id, name: ind.name }))
+            });
             indicatorValues.forEach((values, indicatorId) => {
               const indicator = trader.filter.indicators!.find((ind: any) => ind.id === indicatorId);
               if (indicator && values.length > 0) {
@@ -174,11 +179,17 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
               calculatedIndicators: indicatorData,
             };
             
-            console.log(`Market data for ${signal.symbol} AI analysis:`, {
+            console.log(`[DEBUG] Market data for ${signal.symbol} AI analysis:`, {
               klineCount: limitedKlines.length,
               indicatorCount: Object.keys(indicatorData).length,
               indicators: Object.keys(indicatorData),
-              traderAiLimit
+              traderAiLimit,
+              indicatorDetails: Object.entries(indicatorData).map(([name, data]) => ({
+                name,
+                hasValue: data.value !== undefined,
+                hasHistory: data.history?.length > 0,
+                historyLength: data.history?.length || 0
+              }))
             });
           }
         }

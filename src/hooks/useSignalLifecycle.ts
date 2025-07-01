@@ -12,7 +12,7 @@ interface UseSignalLifecycleOptions {
   modelName?: string;
   aiAnalysisLimit?: number; // Number of bars to send to AI (default: 100, range: 1-1000)
   calculateIndicators?: (indicators: any[], klines: any[]) => Promise<Map<string, any[]>>; // Function to calculate trader indicators
-  getMarketData?: (symbol: string) => { ticker: any; klines: any[] } | null; // Function to get market data
+  getMarketData?: (symbol: string, traderId?: string) => { ticker: any; klines: any[] } | null; // Function to get market data
 }
 
 export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
@@ -118,8 +118,8 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       if (signal.traderId && calculateIndicators && getMarketData) {
         const trader = await traderManager.getTrader(signal.traderId);
         if (trader?.filter?.indicators && trader.filter.indicators.length > 0) {
-          // Get raw market data
-          const rawData = getMarketData(signal.symbol);
+          // Get raw market data - pass traderId to get correct interval
+          const rawData = getMarketData(signal.symbol, signal.traderId);
           
           // Debug log to see what's being returned
           if (rawData && !Array.isArray(rawData.klines)) {

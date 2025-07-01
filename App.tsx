@@ -163,13 +163,27 @@ const AppContent: React.FC = () => {
     modelName: 'gemini-2.5-flash', // Default model if trader doesn't specify
     calculateIndicators,
     aiAnalysisLimit: klineHistoryConfig.aiAnalysisLimit,
-    getMarketData: (symbol: string) => {
+    getMarketData: (symbol: string, traderId?: string) => {
       const ticker = tickersRef.current.get(symbol);
       const intervalMap = historicalDataRef.current.get(symbol);
       if (!ticker || !intervalMap) return null;
-      // Get klines for 1m interval (default for real-time analysis)
-      const klines = intervalMap.get(KlineInterval.ONE_MINUTE);
+      
+      // Determine which interval to use
+      let interval: KlineInterval = KlineInterval.ONE_MINUTE; // Default
+      
+      // If traderId provided, use trader's interval
+      if (traderId) {
+        const trader = traders.find(t => t.id === traderId);
+        if (trader?.filter?.interval) {
+          interval = trader.filter.interval as KlineInterval;
+        }
+      }
+      
+      // Get klines for the appropriate interval
+      const klines = intervalMap.get(interval) || intervalMap.get(KlineInterval.ONE_MINUTE);
       if (!klines) return null;
+      
+      console.log(`[DEBUG] getMarketData for ${symbol}: using interval ${interval}${traderId ? ` for trader ${traderId}` : ''}`);
       return { ticker, klines };
     },
   });

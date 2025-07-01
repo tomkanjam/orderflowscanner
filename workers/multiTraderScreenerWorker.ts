@@ -87,6 +87,9 @@ function runTraderFilter(
       }
       
       try {
+        // Skip if we don't have enough data for meaningful analysis
+        if (klines.length < 20) continue;
+        
         // Calculate HVN nodes on demand
         const hvnNodes = helpers.calculateHighVolumeNodes(klines, { lookback: Math.min(klines.length, 100) });
         

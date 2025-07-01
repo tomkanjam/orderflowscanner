@@ -35,6 +35,35 @@ function runTraderOnHistoricalData(
   const signals: TraderHistoricalSignal[] = [];
   
   try {
+    // Create a wrapped helpers object that handles null returns gracefully
+    const wrappedHelpers = new Proxy(helpers, {
+      get(target, prop) {
+        const original = target[prop as keyof typeof helpers];
+        if (typeof original === 'function') {
+          return (...args: any[]) => {
+            try {
+              const result = original.apply(target, args);
+              // If the result is null and the filter tries to access properties, return a safe default
+              if (result === null) {
+                // Return an empty array for functions that normally return arrays
+                if (prop === 'calculateRSI' || prop === 'calculateMACD' || prop === 'calculateBollingerBands' || 
+                    prop === 'calculateStochRSI' || prop === 'calculateVolumeDelta') {
+                  return [];
+                }
+                // Return 0 for functions that normally return numbers
+                return 0;
+              }
+              return result;
+            } catch (error) {
+              console.error(`Helper function ${String(prop)} error:`, error);
+              return prop === 'calculateRSI' || prop === 'calculateMACD' ? [] : 0;
+            }
+          };
+        }
+        return original;
+      }
+    });
+    
     // Create the filter function
     const filterFunction = new Function(
       'ticker', 
@@ -52,7 +81,9 @@ function runTraderOnHistoricalData(
       // Create a slice of klines up to this point
       const historicalSlice = klines.slice(0, i + 1);
       
-      if (historicalSlice.length < 2) continue; // Need at least 2 klines
+      // Skip if we don't have enough data for meaningful analysis
+      // Most indicators need at least 14-20 periods
+      if (historicalSlice.length < 20) continue;
       
       try {
         // Calculate HVN nodes for this point in history
@@ -60,8 +91,8 @@ function runTraderOnHistoricalData(
           lookback: Math.min(historicalSlice.length, 100) 
         });
         
-        // Run the filter
-        const matches = filterFunction(ticker, historicalSlice, helpers, hvnNodes);
+        // Run the filter with wrapped helpers
+        const matches = filterFunction(ticker, historicalSlice, wrappedHelpers, hvnNodes);
         
         if (matches) {
           const kline = klines[i];

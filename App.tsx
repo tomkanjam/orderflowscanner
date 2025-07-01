@@ -165,8 +165,11 @@ const AppContent: React.FC = () => {
     aiAnalysisLimit: klineHistoryConfig.aiAnalysisLimit,
     getMarketData: (symbol: string) => {
       const ticker = tickersRef.current.get(symbol);
-      const klines = historicalDataRef.current.get(symbol);
-      if (!ticker || !klines) return null;
+      const intervalMap = historicalDataRef.current.get(symbol);
+      if (!ticker || !intervalMap) return null;
+      // Get klines for 1m interval (default for real-time analysis)
+      const klines = intervalMap.get(KlineInterval.ONE_MINUTE);
+      if (!klines) return null;
       return { ticker, klines };
     },
   });

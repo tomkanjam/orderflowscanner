@@ -16,7 +16,7 @@ interface MainContentProps {
   initialError: string | null;
   allSymbols: string[];
   tickers: Map<string, Ticker>;
-  historicalData: Map<string, Kline[]>;
+  historicalData: Map<string, Map<KlineInterval, Kline[]>>;
   traders?: any[]; // Add traders prop
   selectedTraderId?: string | null; // Selected trader for filtering
   onSelectTrader?: (traderId: string | null) => void; // Trader selection callback
@@ -86,7 +86,7 @@ const MainContent: React.FC<MainContentProps> = ({
             <>
               <ChartDisplay
                 symbol={selectedSymbolForChart}
-                klines={selectedSymbolForChart ? historicalData.get(selectedSymbolForChart) : undefined}
+                klines={selectedSymbolForChart ? historicalData.get(selectedSymbolForChart)?.get(klineInterval) : undefined}
                 indicators={chartConfigForDisplay}
                 interval={klineInterval}
                 signalLog={signalLog} // Pass signalLog to ChartDisplay

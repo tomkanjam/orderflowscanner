@@ -121,7 +121,15 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
           // Get raw market data
           const rawData = getMarketData(signal.symbol);
           
-          if (rawData) {
+          // Debug log to see what's being returned
+          if (rawData && !Array.isArray(rawData.klines)) {
+            console.warn(`getMarketData returned non-array klines for ${signal.symbol}:`, typeof rawData.klines, rawData.klines);
+          }
+          if (!rawData) {
+            console.warn(`getMarketData returned null for ${signal.symbol}`);
+          }
+          
+          if (rawData && rawData.klines && Array.isArray(rawData.klines)) {
             // Use trader's specific aiAnalysisLimit or fall back to global
             const traderAiLimit = trader.strategy?.aiAnalysisLimit || globalAiAnalysisLimit;
             

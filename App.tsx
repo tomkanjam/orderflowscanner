@@ -269,7 +269,9 @@ const AppContent: React.FC = () => {
       // Always include 1m as default/fallback
       activeIntervals.add(KlineInterval.ONE_MINUTE);
       
-      console.log('Loading data for intervals:', Array.from(activeIntervals));
+      if (activeIntervals.size > 0) {
+        console.log('Loading data for intervals:', Array.from(activeIntervals));
+      }
       
       // First, fetch top pairs and tickers
       const { symbols, tickers: initialTickers, klinesData: oneMinuteData } = await fetchTopPairsAndInitialKlines(KlineInterval.ONE_MINUTE, klineLimit);

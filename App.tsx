@@ -22,6 +22,7 @@ import { traderManager } from './src/services/traderManager';
 import { useMultiTraderScreener } from './hooks/useMultiTraderScreener';
 import { TraderResult } from './workers/multiTraderScreenerWorker';
 import { useIndicatorWorker } from './hooks/useIndicatorWorker';
+import ActivityPanel from './src/components/ActivityPanel';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -85,6 +86,10 @@ const AppContent: React.FC = () => {
   const [modalTitle, setModalTitle] = useState<string>('');
   const [modalContent, setModalContent] = useState<React.ReactNode>('');
   
+  // Activity panel state
+  const [isActivityPanelOpen, setIsActivityPanelOpen] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
+  
   // Historical signals state
   const [historicalSignals, setHistoricalSignals] = useState<HistoricalSignal[]>([]);
   const [isHistoricalScanRunning, setIsHistoricalScanRunning] = useState<boolean>(false);
@@ -134,6 +139,16 @@ const AppContent: React.FC = () => {
   
   // Indicator calculation hook
   const { calculateIndicators } = useIndicatorWorker();
+  
+  // Handle window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // Use refs to avoid stale closures
   const tickersRef = useRef(tickers);
@@ -805,42 +820,55 @@ const AppContent: React.FC = () => {
   }, [selectedSymbolForChart, selectedSignalTraderId, selectedTraderId, traders]);
 
 
+  // Get signals and trades for activity panel
+  const allSignals = signalManager.getSignals();
+  const allTrades = tradeManager.getTrades();
+
   return (
-    <div className="flex flex-col md:flex-row min-h-screen">
+    <div className="flex flex-col md:flex-row min-h-screen relative">
       <Sidebar
         onSelectedTraderChange={setSelectedTraderId}
       />
-      <MainContent
-        statusText={statusText}
-        statusLightClass={statusLightClass}
-        initialLoading={initialLoading}
-        initialError={initialError}
-        allSymbols={allSymbols}
-        tickers={tickers}
-        historicalData={historicalData}
-        traders={traders} // Pass traders to MainContent
-        selectedTraderId={selectedTraderId} // Pass selected trader
-        onSelectTrader={setSelectedTraderId} // Pass selection callback
-        currentFilterFn={null} 
-        klineInterval={klineInterval}
-        selectedSymbolForChart={selectedSymbolForChart}
-        chartConfigForDisplay={chartConfigForDisplay}
-        onRowClick={handleRowClick}
-        onAiInfoClick={handleAiInfoClick}
-        signalLog={signalLog} // Pass signalLog to MainContent
-        historicalSignals={historicalSignals} // Pass historical signals
-        hasActiveFilter={multiTraderEnabled && traders.some(t => t.enabled)}
-        onRunHistoricalScan={handleRunHistoricalScan}
-        isHistoricalScanning={multiTraderEnabled && traders.some(t => t.enabled) ? isMultiTraderHistoricalScanning : isHistoricalScanning}
-        historicalScanProgress={multiTraderEnabled && traders.some(t => t.enabled) ? multiTraderHistoricalProgress : historicalScanProgress}
-        historicalScanConfig={historicalScanConfig}
-        onHistoricalScanConfigChange={setHistoricalScanConfig}
-        onCancelHistoricalScan={multiTraderEnabled && traders.some(t => t.enabled) ? cancelMultiTraderHistoricalScan : cancelHistoricalScan}
-        signalDedupeThreshold={signalDedupeThreshold}
-        onSignalDedupeThresholdChange={setSignalDedupeThreshold}
-        klineHistoryConfig={klineHistoryConfig}
-        onKlineHistoryConfigChange={setKlineHistoryConfig}
-      />
+      <div className="flex flex-1">
+        <MainContent
+          statusText={statusText}
+          statusLightClass={statusLightClass}
+          initialLoading={initialLoading}
+          initialError={initialError}
+          allSymbols={allSymbols}
+          tickers={tickers}
+          historicalData={historicalData}
+          traders={traders} // Pass traders to MainContent
+          selectedTraderId={selectedTraderId} // Pass selected trader
+          onSelectTrader={setSelectedTraderId} // Pass selection callback
+          currentFilterFn={null} 
+          klineInterval={klineInterval}
+          selectedSymbolForChart={selectedSymbolForChart}
+          chartConfigForDisplay={chartConfigForDisplay}
+          onRowClick={handleRowClick}
+          onAiInfoClick={handleAiInfoClick}
+          signalLog={signalLog} // Pass signalLog to MainContent
+          historicalSignals={historicalSignals} // Pass historical signals
+          hasActiveFilter={multiTraderEnabled && traders.some(t => t.enabled)}
+          onRunHistoricalScan={handleRunHistoricalScan}
+          isHistoricalScanning={multiTraderEnabled && traders.some(t => t.enabled) ? isMultiTraderHistoricalScanning : isHistoricalScanning}
+          historicalScanProgress={multiTraderEnabled && traders.some(t => t.enabled) ? multiTraderHistoricalProgress : historicalScanProgress}
+          historicalScanConfig={historicalScanConfig}
+          onHistoricalScanConfigChange={setHistoricalScanConfig}
+          onCancelHistoricalScan={multiTraderEnabled && traders.some(t => t.enabled) ? cancelMultiTraderHistoricalScan : cancelHistoricalScan}
+          signalDedupeThreshold={signalDedupeThreshold}
+          onSignalDedupeThresholdChange={setSignalDedupeThreshold}
+          klineHistoryConfig={klineHistoryConfig}
+          onKlineHistoryConfigChange={setKlineHistoryConfig}
+        />
+        <ActivityPanel
+          signals={allSignals}
+          trades={allTrades}
+          isOpen={isActivityPanelOpen}
+          onClose={() => setIsActivityPanelOpen(false)}
+          isMobile={isMobile}
+        />
+      </div>
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -848,6 +876,26 @@ const AppContent: React.FC = () => {
       >
         {modalContent}
       </Modal>
+      
+      {/* Activity Panel Toggle Button */}
+      {!isActivityPanelOpen && (
+        <button
+          onClick={() => setIsActivityPanelOpen(true)}
+          className="fixed bottom-6 right-6 z-40 bg-[var(--tm-accent)] text-white rounded-full p-4 shadow-lg hover:bg-[var(--tm-accent-hover)] transition-all hover:scale-110"
+          aria-label="Open activity history"
+        >
+          <div className="relative">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {allSignals.filter(s => ['monitoring', 'ready'].includes(s.status)).length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-[var(--tm-error)] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {allSignals.filter(s => ['monitoring', 'ready'].includes(s.status)).length}
+              </span>
+            )}
+          </div>
+        </button>
+      )}
     </div>
   );
 };

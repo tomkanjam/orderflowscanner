@@ -174,6 +174,12 @@ const AppContent: React.FC = () => {
       // If traderId provided, use trader's interval
       if (traderId) {
         const trader = traders.find(t => t.id === traderId);
+        console.log(`[DEBUG] getMarketData - looking for trader ${traderId}:`, {
+          found: !!trader,
+          hasInterval: !!trader?.filter?.interval,
+          interval: trader?.filter?.interval,
+          traderName: trader?.name
+        });
         if (trader?.filter?.interval) {
           interval = trader.filter.interval as KlineInterval;
         }
@@ -181,9 +187,12 @@ const AppContent: React.FC = () => {
       
       // Get klines for the appropriate interval
       const klines = intervalMap.get(interval) || intervalMap.get(KlineInterval.ONE_MINUTE);
-      if (!klines) return null;
+      if (!klines) {
+        console.log(`[DEBUG] getMarketData - No klines found for ${symbol} at interval ${interval}, available intervals:`, Array.from(intervalMap.keys()));
+        return null;
+      }
       
-      console.log(`[DEBUG] getMarketData for ${symbol}: using interval ${interval}${traderId ? ` for trader ${traderId}` : ''}`);
+      console.log(`[DEBUG] getMarketData for ${symbol}: using interval ${interval}${traderId ? ` for trader ${traderId}` : ''}, klines count: ${klines.length}`);
       return { ticker, klines };
     },
   });
@@ -224,7 +233,10 @@ const AppContent: React.FC = () => {
     
     // Initial load
     traderManager.getTraders().then((traders) => {
-      // Initial traders loaded
+      console.log(`[DEBUG] Initial traders loaded: ${traders.length} traders`);
+      traders.forEach(t => {
+        console.log(`[DEBUG] Trader loaded: ${t.name} (${t.id}) - interval: ${t.filter?.interval || 'undefined'}`);
+      });
       setTraders(traders);
     });
     
@@ -274,9 +286,12 @@ const AppContent: React.FC = () => {
     try {
       // Determine which intervals are needed by active traders
       const activeIntervals = new Set<KlineInterval>();
+      console.log(`[DEBUG] Collecting intervals from ${traders.length} traders:`);
       traders.forEach(trader => {
         if (trader.enabled) {
-          activeIntervals.add(trader.filter?.interval || KlineInterval.ONE_MINUTE);
+          const interval = trader.filter?.interval || KlineInterval.ONE_MINUTE;
+          console.log(`[DEBUG] Trader ${trader.name} (${trader.id}): enabled=${trader.enabled}, interval=${trader.filter?.interval || 'undefined (using 1m)'}`);
+          activeIntervals.add(interval);
         }
       });
       

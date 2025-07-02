@@ -35,6 +35,7 @@ export interface TraderStrategy {
   riskManagement: RiskManagement;
   aiAnalysisLimit?: number; // Number of bars to send to AI (default: 100, range: 1-1000)
   modelTier?: 'lite' | 'standard' | 'pro'; // AI model tier for analysis (default: 'standard')
+  maxConcurrentAnalysis?: number; // Maximum number of signals to analyze concurrently (default: 3)
 }
 
 export interface RiskManagement {

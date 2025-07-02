@@ -177,6 +177,7 @@ export function TraderSignalsTable({
   const getStatusColor = (status: SignalStatus) => {
     switch (status) {
       case 'new': return 'text-blue-500';
+      case 'analysis_queued': return 'text-orange-500';
       case 'analyzing': return 'text-yellow-500';
       case 'rejected': return 'text-gray-500';
       case 'monitoring': return 'text-yellow-500';
@@ -375,9 +376,24 @@ export function TraderSignalsTable({
                   </td>
                   <td className="p-2 md:px-4 md:py-2">
                     <div className="flex flex-col gap-1">
-                      <span className={`text-xs ${getStatusColor(signal.status)}`}>
-                        {signal.status.replace('_', ' ')}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs ${getStatusColor(signal.status)}`}>
+                          {signal.status.replace('_', ' ')}
+                        </span>
+                        {signal.status === 'analysis_queued' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Remove from queue and update status back to 'new'
+                              signalManager.updateSignalStatus(signal.id, 'new');
+                            }}
+                            className="text-xs text-orange-500 hover:text-orange-600 underline"
+                            title="Cancel queued analysis"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
                       {signal.analysis && (
                         <div className="text-xs text-[var(--tm-text-muted)]">
                           <span className="font-medium">

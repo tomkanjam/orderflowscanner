@@ -99,6 +99,7 @@ export interface FilterResult {
 // Unified Signal Lifecycle Types
 export type SignalStatus = 
   | 'new'           // Just matched filter
+  | 'analysis_queued' // Waiting in queue for analysis
   | 'analyzing'     // AI analysis in progress
   | 'rejected'      // AI said bad_setup
   | 'monitoring'    // AI said good_setup, watching for entry

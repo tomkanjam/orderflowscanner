@@ -21,7 +21,8 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const monitoringInterval = useRef<NodeJS.Timeout>();
   const analysisQueue = useRef<string[]>([]);
-  const isAnalyzing = useRef(false);
+  const activeAnalyses = useRef<Map<string, Promise<void>>>(new Map());
+  const traderAnalysisCounts = useRef<Map<string, number>>(new Map());
   
   // Subscribe to signal updates
   useEffect(() => {
@@ -57,6 +58,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     if (autoAnalyze) {
       // Queue all signals for analysis (including trader signals)
       analysisQueue.current.push(signal.id);
+      signalManager.updateSignalStatus(signal.id, 'analysis_queued');
       processAnalysisQueue();
     }
     
@@ -229,24 +231,64 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     }
   }, [activeStrategy, autoMonitor, modelName, globalAiAnalysisLimit, calculateIndicators, getMarketData]);
   
-  // Process analysis queue
+  // Process analysis queue with concurrent limit
   const processAnalysisQueue = useCallback(async () => {
-    if (isAnalyzing.current || analysisQueue.current.length === 0) return;
-    
-    isAnalyzing.current = true;
-    const signalId = analysisQueue.current.shift()!;
-    
-    try {
-      await analyzeSignal(signalId);
-    } catch (error) {
-      console.error('Queue analysis failed:', error);
-    }
-    
-    isAnalyzing.current = false;
-    
-    // Process next in queue
-    if (analysisQueue.current.length > 0) {
-      setTimeout(processAnalysisQueue, 1000); // Wait 1s between analyses
+    // Process queue while respecting concurrent limits
+    while (analysisQueue.current.length > 0) {
+      const nextSignalId = analysisQueue.current[0];
+      const signal = signalManager.getSignal(nextSignalId);
+      
+      if (!signal) {
+        analysisQueue.current.shift();
+        continue;
+      }
+      
+      // Get trader's max concurrent analysis limit
+      let maxConcurrent = 3; // Default global limit
+      if (signal.traderId) {
+        const trader = await traderManager.getTrader(signal.traderId);
+        if (trader?.strategy?.maxConcurrentAnalysis) {
+          maxConcurrent = trader.strategy.maxConcurrentAnalysis;
+        }
+      }
+      
+      // Check if trader has reached concurrent limit
+      const currentCount = traderAnalysisCounts.current.get(signal.traderId || 'global') || 0;
+      if (currentCount >= maxConcurrent) {
+        // Check if any active analyses are complete
+        for (const [id, promise] of activeAnalyses.current.entries()) {
+          const sig = signalManager.getSignal(id);
+          if (sig?.traderId === signal.traderId) {
+            await Promise.race([promise, Promise.resolve()]);
+          }
+        }
+        // Re-check after potential completion
+        const updatedCount = traderAnalysisCounts.current.get(signal.traderId || 'global') || 0;
+        if (updatedCount >= maxConcurrent) {
+          break; // Still at limit, wait for next process cycle
+        }
+      }
+      
+      // Remove from queue and start analysis
+      analysisQueue.current.shift();
+      
+      // Increment trader's concurrent count
+      const traderId = signal.traderId || 'global';
+      traderAnalysisCounts.current.set(traderId, currentCount + 1);
+      
+      // Start analysis and track promise
+      const analysisPromise = analyzeSignal(nextSignalId)
+        .finally(() => {
+          // Decrement count and remove from active analyses
+          const count = traderAnalysisCounts.current.get(traderId) || 0;
+          traderAnalysisCounts.current.set(traderId, Math.max(0, count - 1));
+          activeAnalyses.current.delete(nextSignalId);
+          
+          // Process queue again after completion
+          setTimeout(processAnalysisQueue, 100);
+        });
+      
+      activeAnalyses.current.set(nextSignalId, analysisPromise);
     }
   }, [analyzeSignal]);
   
@@ -308,10 +350,26 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     };
   }, []);
   
+  // Cancel a queued analysis
+  const cancelQueuedAnalysis = useCallback((signalId: string) => {
+    const signal = signalManager.getSignal(signalId);
+    if (!signal || signal.status !== 'analysis_queued') return;
+    
+    // Remove from queue
+    const index = analysisQueue.current.indexOf(signalId);
+    if (index > -1) {
+      analysisQueue.current.splice(index, 1);
+    }
+    
+    // Update status back to 'new'
+    signalManager.updateSignalStatus(signalId, 'new');
+  }, []);
+
   return {
     signals,
     createSignalFromFilter,
     analyzeSignal,
+    cancelQueuedAnalysis,
     startMonitoring,
     stopMonitoring,
     isMonitoring,

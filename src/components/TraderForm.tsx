@@ -30,6 +30,7 @@ export function TraderForm({
   const [aiAnalysisLimit, setAiAnalysisLimit] = useState(editingTrader?.strategy.aiAnalysisLimit || 100);
   const [modelTier, setModelTier] = useState<ModelTier>(editingTrader?.strategy.modelTier || 'standard');
   const [filterInterval, setFilterInterval] = useState<KlineInterval>(editingTrader?.filter?.interval || KlineInterval.ONE_MINUTE);
+  const [maxConcurrentAnalysis, setMaxConcurrentAnalysis] = useState(editingTrader?.strategy.maxConcurrentAnalysis || 3);
   const [generating, setGenerating] = useState(false);
   const [regeneratingCode, setRegeneratingCode] = useState(false);
   const [error, setError] = useState('');
@@ -52,6 +53,7 @@ export function TraderForm({
       setAiAnalysisLimit(editingTrader.strategy?.aiAnalysisLimit || 100);
       setModelTier(editingTrader.strategy?.modelTier || 'standard');
       setFilterInterval(editingTrader.filter?.interval || KlineInterval.ONE_MINUTE);
+      setMaxConcurrentAnalysis(editingTrader.strategy?.maxConcurrentAnalysis || 3);
       originalConditionsRef.current = editingTrader.filter?.description || [];
       setConditionsModified(false);
     }
@@ -74,6 +76,7 @@ export function TraderForm({
     setAiAnalysisLimit(100);
     setModelTier('standard');
     setFilterInterval(KlineInterval.ONE_MINUTE);
+    setMaxConcurrentAnalysis(3);
     setGenerating(false);
     setRegeneratingCode(false);
     setError('');
@@ -208,7 +211,8 @@ export function TraderForm({
             instructions: manualStrategy,
             riskManagement: generatedTrader?.riskParameters || editingTrader.strategy.riskManagement,
             aiAnalysisLimit: aiAnalysisLimit,
-            modelTier: modelTier
+            modelTier: modelTier,
+            maxConcurrentAnalysis: maxConcurrentAnalysis
           }
         });
         
@@ -235,7 +239,8 @@ export function TraderForm({
               positionSizePercent: 0.1
             },
             aiAnalysisLimit: aiAnalysisLimit,
-            modelTier: modelTier
+            modelTier: modelTier,
+            maxConcurrentAnalysis: maxConcurrentAnalysis
           }
         });
         
@@ -586,6 +591,41 @@ export function TraderForm({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Max Concurrent Analysis */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+              Max Concurrent Analysis
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="1"
+                max="10"
+                step="1"
+                value={maxConcurrentAnalysis}
+                onChange={(e) => setMaxConcurrentAnalysis(parseInt(e.target.value))}
+                className="flex-1"
+              />
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={maxConcurrentAnalysis}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (!isNaN(value) && value >= 1 && value <= 10) {
+                    setMaxConcurrentAnalysis(value);
+                  }
+                }}
+                className="w-16 tm-input text-sm px-2 py-1"
+              />
+              <span className="text-sm text-[var(--tm-text-muted)]">signals</span>
+            </div>
+            <p className="text-xs text-[var(--tm-text-muted)] mt-1">
+              Maximum number of signals from this trader that can be analyzed simultaneously (1-10)
+            </p>
           </div>
 
           {generatedTrader && (

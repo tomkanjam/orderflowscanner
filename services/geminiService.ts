@@ -1001,7 +1001,8 @@ export async function generateStructuredAnalysis(
     marketData: { price: number; volume: number; klines: Kline[]; calculatedIndicators?: Record<string, any> },
     strategy: string,
     modelName: string = 'gemini-2.5-flash',
-    aiAnalysisLimit: number = 100
+    aiAnalysisLimit: number = 100,
+    positionContext?: string
 ): Promise<string> {
     // Use calculated indicators if provided, otherwise calculate basic ones
     const technicalIndicators = marketData.calculatedIndicators || {
@@ -1030,6 +1031,8 @@ Current Market Data:
 - Price: $${marketData.price}
 - 24h Volume: ${marketData.volume}
 - Historical Bars Provided: ${marketData.klines?.length || 0}
+
+${positionContext ? `${positionContext}\n` : 'Position Status: No open position for this symbol\n'}
 
 Technical Indicators:
 ${JSON.stringify(technicalIndicators, null, 2)}
@@ -1143,22 +1146,48 @@ Be decisive and actionable. Only suggest "buy" or "sell" if the setup strongly m
 
 export async function getSymbolAnalysis(
     symbol: string,
-    ticker: Ticker,
-    allKlinesForSymbol: Kline[], 
+    ticker: Ticker | null,
+    allKlinesForSymbol: Kline[] | null, 
     indicators: CustomIndicatorConfig[] | null,
     modelName: string,
     klineInterval: string,
     analysisKlineLimit: number = KLINE_HISTORY_LIMIT_FOR_ANALYSIS,
-    strategy?: string
+    strategy?: string,
+    includePositionContext: boolean = true
 ): Promise<string> {
+    // Handle missing data by fetching it if needed
+    if (!ticker || !allKlinesForSymbol) {
+        // Import binanceService dynamically to avoid circular dependencies
+        const { fetchTickerData, fetchKlines } = await import('../services/binanceService');
+        
+        if (!ticker) {
+            const tickers = await fetchTickerData();
+            ticker = tickers.find(t => t.s === symbol);
+            if (!ticker) {
+                throw new Error(`No ticker data available for ${symbol}`);
+            }
+        }
+        
+        if (!allKlinesForSymbol) {
+            allKlinesForSymbol = await fetchKlines(symbol, klineInterval as any, analysisKlineLimit);
+        }
+    }
 
     const analysisKlines = allKlinesForSymbol.slice(-analysisKlineLimit);
     const klinesForDisplayCount = Math.min(analysisKlines.length, 15); 
 
+    // Get position context if requested
+    let positionContext = '';
+    if (includePositionContext) {
+        const { getPositionContext } = await import('../src/utils/positionContext');
+        const positionCtx = await getPositionContext(symbol);
+        positionContext = `\n${positionCtx.formattedText}\n`;
+    }
+
     let prompt = `Provide a brief technical analysis (2-3 short paragraphs) for ${symbol} on the ${klineInterval} interval.
 Current Price: ${parseFloat(ticker.c).toFixed(4)} USDT
 24h Change: ${ticker.P}%
-Analysis is based on the last ${analysisKlines.length} klines.
+Analysis is based on the last ${analysisKlines.length} klines.${positionContext}
 Recent Kline Data (Open, High, Low, Close, Volume) - last ${klinesForDisplayCount} of ${analysisKlines.length}, most recent first:
 ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloat(k[1]).toFixed(4)}, H:${parseFloat(k[2]).toFixed(4)}, L:${parseFloat(k[3]).toFixed(4)}, C:${parseFloat(k[4]).toFixed(4)}, V:${parseFloat(k[5]).toFixed(2)}`).join('\n')}
 `;

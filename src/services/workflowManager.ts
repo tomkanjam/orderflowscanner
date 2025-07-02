@@ -5,6 +5,7 @@ import { tradeManager } from './tradeManager';
 import { traderManager } from './traderManager';
 import { KlineInterval } from '../../types';
 import { getSymbolAnalysis } from '../../services/geminiService';
+import { getPositionContext } from '../utils/positionContext';
 
 export interface WorkflowSchedule {
   id: string;
@@ -241,7 +242,7 @@ class WorkflowManager {
     }
 
     // Build monitoring prompt
-    const prompt = this.buildMonitoringPrompt(signal, trader, kline);
+    const prompt = await this.buildMonitoringPrompt(signal, trader, kline);
     
     // Get AI analysis
     const analysis = await getSymbolAnalysis(
@@ -288,9 +289,12 @@ class WorkflowManager {
     console.log('[WorkflowManager] Position management not yet implemented');
   }
 
-  private buildMonitoringPrompt(signal: any, trader: any, kline: number[]): string {
+  private async buildMonitoringPrompt(signal: any, trader: any, kline: number[]): Promise<string> {
     const closePrice = kline[4];
     const priceChange = ((closePrice - signal.initialPrice) / signal.initialPrice) * 100;
+    
+    // Get position context for this symbol
+    const positionCtx = await getPositionContext(signal.symbol);
     
     return `You are monitoring a trading setup AT CANDLE CLOSE. A ${trader.filter?.interval || '1m'} candle has just closed.
 
@@ -301,6 +305,8 @@ Original Signal:
 - Price Change: ${priceChange.toFixed(2)}%
 - Time in Monitoring: ${this.getTimeElapsed(signal.createdAt)}
 - Matched Conditions: ${signal.matchedConditions?.join(', ') || 'N/A'}
+
+${positionCtx.formattedText}
 
 Just Closed Candle:
 - Open: ${kline[1]}

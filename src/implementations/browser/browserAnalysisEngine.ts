@@ -9,6 +9,7 @@ import {
 // Import from the correct location
 import { generateStructuredAnalysis } from '../../../services/geminiService';
 import * as helpers from '../../../screenerHelpers';
+import { getPositionContext } from '../../utils/positionContext';
 
 export class BrowserAnalysisEngine implements IAnalysisEngine {
   async analyzeSetup(
@@ -29,13 +30,17 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
         chartBase64 = await this.blobToBase64(chartImage);
       }
       
+      // Get position context for this symbol
+      const positionCtx = await getPositionContext(symbol);
+      
       // Get AI analysis using structured analysis
       const response = await generateStructuredAnalysis(
         symbol,
         marketData as any, // Cast to any to include calculatedIndicators
         strategy.description,
         modelName, // Use the model passed in or default
-        marketData.klines?.length || 100 // Pass the actual klines length as aiAnalysisLimit
+        marketData.klines?.length || 100, // Pass the actual klines length as aiAnalysisLimit
+        positionCtx.formattedText
       );
       
       // Parse the structured response from the analysis text

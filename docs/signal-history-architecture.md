@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the architecture for implementing a comprehensive signal history and audit trail system using Supabase as the backend database. The system tracks all signal lifecycle events from creation through trade completion, providing full auditability and historical analysis capabilities.
+This document outlines the architecture for implementing a comprehensive signal history and audit trail system using Supabase as the backend database. The system tracks all signal lifecycle events from creation through trade completion, providing full auditability and historical analysis capabilities. This architecture is designed to seamlessly integrate with the CCXT trading system for real order execution.
 
 ## Database Schema
 
@@ -29,9 +29,31 @@ CREATE TABLE traders (
   indicators JSONB NOT NULL,
   ai_analysis_limit INTEGER DEFAULT 10,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'paused', 'deleted')),
+  
+  -- Trading configuration
+  default_exchange_account_id UUID, -- Links to exchange_accounts table
+  position_size_type TEXT DEFAULT 'fixed', -- 'fixed', 'percentage', 'risk_based'
+  position_size_value DECIMAL, -- Amount or percentage
+  max_concurrent_positions INTEGER DEFAULT 1,
+  
+  -- Risk management defaults
+  stop_loss_type TEXT, -- 'percentage', 'price', 'atr'
+  stop_loss_value DECIMAL,
+  take_profit_type TEXT, -- 'percentage', 'price', 'atr'
+  take_profit_value DECIMAL,
+  
+  -- Performance tracking
+  total_signals_generated INTEGER DEFAULT 0,
+  successful_signals INTEGER DEFAULT 0,
+  total_trades_executed INTEGER DEFAULT 0,
+  winning_trades INTEGER DEFAULT 0,
+  
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX idx_traders_user_id ON traders(user_id);
+CREATE INDEX idx_traders_status ON traders(status);
 ```
 
 #### 3. `signals`
@@ -53,15 +75,25 @@ CREATE TABLE signals (
   -- Analysis data
   analysis_result JSONB,
   analysis_confidence DECIMAL,
+  analysis_trade_plan JSONB, -- {entry, stopLoss, takeProfit, positionSize}
   
   -- Monitoring data
   last_monitored_at TIMESTAMPTZ,
   monitoring_count INTEGER DEFAULT 0,
+  monitoring_updates JSONB[], -- Array of monitoring snapshots
   
-  -- Trade data (if entered)
-  trade_id UUID REFERENCES trades(id),
+  -- Trading linkage (references CCXT schema)
+  has_active_orders BOOLEAN DEFAULT false,
+  has_open_position BOOLEAN DEFAULT false,
+  total_orders_count INTEGER DEFAULT 0,
+  successful_trades_count INTEGER DEFAULT 0,
+  total_pnl DECIMAL DEFAULT 0,
   
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  analyzed_at TIMESTAMPTZ,
+  ready_at TIMESTAMPTZ,
+  position_opened_at TIMESTAMPTZ,
+  closed_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -70,6 +102,7 @@ CREATE INDEX idx_signals_trader_id ON signals(trader_id);
 CREATE INDEX idx_signals_status ON signals(status);
 CREATE INDEX idx_signals_symbol ON signals(symbol);
 CREATE INDEX idx_signals_created_at ON signals(created_at DESC);
+CREATE INDEX idx_signals_trading_status ON signals(has_active_orders, has_open_position);
 ```
 
 #### 4. `signal_events`
@@ -79,48 +112,76 @@ CREATE TABLE signal_events (
   signal_id UUID REFERENCES signals(id) ON DELETE CASCADE,
   event_type TEXT NOT NULL,
   event_data JSONB NOT NULL,
+  
+  -- Optional linkage to CCXT tables
+  order_id UUID, -- References orders table in CCXT schema
+  position_id UUID, -- References positions table in CCXT schema
+  trade_execution_id UUID, -- References trade_executions table
+  
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_signal_events_signal_id ON signal_events(signal_id);
-CREATE INDEX idx_signal_events_created_at ON signal_events(created_at DESC);
+CREATE INDEX idx_signal_events_signal_id ON signal_events(signal_id, created_at DESC);
 CREATE INDEX idx_signal_events_type ON signal_events(event_type);
+CREATE INDEX idx_signal_events_order ON signal_events(order_id) WHERE order_id IS NOT NULL;
+CREATE INDEX idx_signal_events_position ON signal_events(position_id) WHERE position_id IS NOT NULL;
 ```
 
-#### 5. `trades`
+#### 5. `signal_monitoring_snapshots`
 ```sql
-CREATE TABLE trades (
+CREATE TABLE signal_monitoring_snapshots (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  trader_id UUID REFERENCES traders(id) ON DELETE SET NULL,
-  signal_id UUID REFERENCES signals(id) ON DELETE SET NULL,
-  symbol TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('pending', 'open', 'closed', 'cancelled')),
+  signal_id UUID REFERENCES signals(id) ON DELETE CASCADE,
   
-  -- Entry data
-  entry_price DECIMAL,
-  entry_time TIMESTAMPTZ,
-  position_size DECIMAL,
+  -- Market snapshot
+  price DECIMAL NOT NULL,
+  volume DECIMAL,
+  price_change_1m DECIMAL,
+  price_change_5m DECIMAL,
   
-  -- Exit data
-  exit_price DECIMAL,
-  exit_time TIMESTAMPTZ,
+  -- Monitoring decision
+  action TEXT NOT NULL, -- 'continue', 'ready', 'exit', 'stop_monitoring'
+  confidence DECIMAL,
+  reasoning TEXT,
   
-  -- P&L
-  realized_pnl DECIMAL,
-  realized_pnl_pct DECIMAL,
+  -- Technical indicators at time
+  indicators JSONB, -- RSI, MACD, etc.
   
-  -- Risk management
-  stop_loss DECIMAL,
-  take_profit DECIMAL,
-  
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_trades_user_id ON trades(user_id);
-CREATE INDEX idx_trades_signal_id ON trades(signal_id);
-CREATE INDEX idx_trades_status ON trades(status);
+CREATE INDEX idx_monitoring_snapshots_signal ON signal_monitoring_snapshots(signal_id, created_at DESC);
+```
+
+#### 6. Signal-Order Bridge Table
+```sql
+-- Links signals to CCXT orders
+CREATE TABLE signal_orders (
+  signal_id UUID REFERENCES signals(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL, -- References orders.id in CCXT schema
+  order_type TEXT NOT NULL, -- 'entry', 'stop_loss', 'take_profit', 'exit'
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  PRIMARY KEY (signal_id, order_id)
+);
+
+CREATE INDEX idx_signal_orders_signal ON signal_orders(signal_id);
+CREATE INDEX idx_signal_orders_order ON signal_orders(order_id);
+```
+
+#### 7. Signal-Position Bridge Table
+```sql
+-- Links signals to CCXT positions
+CREATE TABLE signal_positions (
+  signal_id UUID REFERENCES signals(id) ON DELETE CASCADE,
+  position_id UUID NOT NULL, -- References positions.id in CCXT schema
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  PRIMARY KEY (signal_id, position_id)
+);
+
+CREATE INDEX idx_signal_positions_signal ON signal_positions(signal_id);
+CREATE INDEX idx_signal_positions_position ON signal_positions(position_id);
 ```
 
 ## Event Types and Structure
@@ -128,11 +189,6 @@ CREATE INDEX idx_trades_status ON trades(status);
 ### Signal Events
 
 ```typescript
-interface SignalEvent {
-  event_type: SignalEventType;
-  event_data: Record<string, any>;
-}
-
 enum SignalEventType {
   // Lifecycle events
   CREATED = 'signal_created',
@@ -148,16 +204,19 @@ enum SignalEventType {
   MONITORING_UPDATE = 'monitoring_update',
   MONITORING_ACTION = 'monitoring_action',
   
-  // Price events
-  PRICE_UPDATED = 'price_updated',
-  PRICE_ALERT = 'price_alert',
+  // Trading events (link to CCXT)
+  ORDER_CREATED = 'order_created',
+  ORDER_FILLED = 'order_filled',
+  ORDER_PARTIALLY_FILLED = 'order_partially_filled',
+  ORDER_CANCELED = 'order_canceled',
+  POSITION_OPENED = 'position_opened',
+  POSITION_UPDATED = 'position_updated',
+  POSITION_CLOSED = 'position_closed',
   
-  // Trade events
-  TRADE_CREATED = 'trade_created',
-  TRADE_ENTERED = 'trade_entered',
-  TRADE_EXITED = 'trade_exited',
-  STOP_LOSS_UPDATED = 'stop_loss_updated',
-  TAKE_PROFIT_UPDATED = 'take_profit_updated'
+  // Risk events
+  STOP_LOSS_TRIGGERED = 'stop_loss_triggered',
+  TAKE_PROFIT_TRIGGERED = 'take_profit_triggered',
+  TRAILING_STOP_UPDATED = 'trailing_stop_updated'
 }
 ```
 
@@ -172,182 +231,290 @@ enum SignalEventType {
     initial_price: 45000,
     matched_conditions: ['RSI < 30', 'Volume spike'],
     trader_id: 'uuid',
-    source: 'ai_screener'
+    source: 'trader_filter'
   }
 }
 
-// Analysis Completed Event
+// Order Created Event (links to CCXT)
 {
-  event_type: 'analysis_completed',
+  event_type: 'order_created',
   event_data: {
-    result: 'approved',
-    confidence: 0.85,
-    reasoning: 'Strong oversold conditions with volume confirmation',
-    indicators: {
-      rsi: 28.5,
-      volume_ratio: 2.3
-    }
-  }
+    order_type: 'entry',
+    exchange: 'binance',
+    exchange_order_id: 'ABC123',
+    side: 'buy',
+    amount: 0.01,
+    price: 45000
+  },
+  order_id: 'uuid-from-ccxt-orders-table'
 }
 
-// Monitoring Update Event
+// Position Opened Event
 {
-  event_type: 'monitoring_update',
+  event_type: 'position_opened',
   event_data: {
-    action: 'continue',
-    current_price: 45200,
-    price_change_pct: 0.44,
-    reasoning: 'Conditions still valid, waiting for stronger confirmation',
-    indicators: {
-      rsi: 32.1,
-      macd: { signal: -0.5, histogram: 0.1 }
-    }
-  }
+    exchange: 'binance',
+    contracts: 0.01,
+    entry_price: 45000,
+    stop_loss: 44100,
+    take_profit: 46350
+  },
+  position_id: 'uuid-from-ccxt-positions-table'
+}
+
+// Position Closed Event with P&L
+{
+  event_type: 'position_closed',
+  event_data: {
+    exit_price: 46200,
+    realized_pnl: 12.00,
+    pnl_percentage: 2.67,
+    exit_reason: 'take_profit',
+    duration_minutes: 45
+  },
+  position_id: 'uuid-from-ccxt-positions-table'
 }
 ```
 
 ## Implementation Strategy
 
-### 1. Database Service Layer
+### 1. Enhanced Database Service Layer
 
 ```typescript
-// src/services/supabaseService.ts
-interface SupabaseService {
+// src/services/supabaseSignalService.ts
+interface SupabaseSignalService {
   // Signal operations
   createSignal(signal: SignalCreateDTO): Promise<Signal>;
   updateSignal(id: string, updates: Partial<Signal>): Promise<Signal>;
   addSignalEvent(signalId: string, event: SignalEvent): Promise<void>;
   getSignalHistory(signalId: string): Promise<SignalEvent[]>;
   
-  // Trader operations
-  createTrader(trader: TraderCreateDTO): Promise<Trader>;
-  updateTrader(id: string, updates: Partial<Trader>): Promise<Trader>;
+  // Trading linkage
+  linkSignalToOrder(signalId: string, orderId: string, orderType: string): Promise<void>;
+  linkSignalToPosition(signalId: string, positionId: string): Promise<void>;
+  updateSignalPnL(signalId: string, pnl: number): Promise<void>;
   
-  // Query operations
-  getActiveSignals(userId: string): Promise<Signal[]>;
-  getSignalsByStatus(userId: string, status: string): Promise<Signal[]>;
-  getTraderPerformance(traderId: string): Promise<PerformanceMetrics>;
+  // Monitoring
+  addMonitoringSnapshot(signalId: string, snapshot: MonitoringSnapshot): Promise<void>;
+  getMonitoringHistory(signalId: string, limit?: number): Promise<MonitoringSnapshot[]>;
+  
+  // Performance queries
+  getSignalPerformance(signalId: string): Promise<SignalPerformance>;
+  getTraderPerformance(traderId: string, timeRange?: TimeRange): Promise<TraderPerformance>;
 }
 ```
 
-### 2. Event Recording Integration
+### 2. Integration with CCXT Trading
 
 ```typescript
-// Modify existing signalManager.ts
-class SignalManager {
-  async createSignal(result: FilterResult, source: SignalSource): Promise<Signal> {
-    const signal = /* existing signal creation logic */;
-    
-    // Record to Supabase
-    const dbSignal = await supabaseService.createSignal({
-      signal_id: signal.id,
-      symbol: signal.symbol,
-      initial_price: signal.initialPrice,
-      matched_conditions: signal.matchedConditions,
-      trader_id: source.traderId,
-      status: 'new'
-    });
-    
-    // Record creation event
-    await supabaseService.addSignalEvent(dbSignal.id, {
-      event_type: SignalEventType.CREATED,
-      event_data: {
-        symbol: signal.symbol,
-        initial_price: signal.initialPrice,
-        matched_conditions: signal.matchedConditions,
-        source: source.type
-      }
-    });
-    
-    return signal;
-  }
+// src/services/signalTradingBridge.ts
+class SignalTradingBridge {
+  constructor(
+    private signalService: SupabaseSignalService,
+    private exchangeManager: IExchangeManager,
+    private eventEmitter: EventEmitter
+  ) {}
   
-  async updateSignalStatus(signalId: string, newStatus: string): Promise<void> {
-    // Update local state
-    // ...
-    
-    // Update database
-    await supabaseService.updateSignal(signalId, { status: newStatus });
-    
-    // Record status change event
-    await supabaseService.addSignalEvent(signalId, {
-      event_type: SignalEventType.STATUS_CHANGED,
-      event_data: {
-        old_status: oldStatus,
-        new_status: newStatus,
-        timestamp: new Date().toISOString()
-      }
-    });
-  }
-}
-```
-
-### 3. Real-time Subscriptions
-
-```typescript
-// Subscribe to signal updates
-const signalSubscription = supabase
-  .channel('signals')
-  .on(
-    'postgres_changes',
-    {
-      event: '*',
-      schema: 'public',
-      table: 'signals',
-      filter: `user_id=eq.${userId}`
-    },
-    (payload) => {
-      // Update local state with database changes
-      handleSignalUpdate(payload);
+  async executeSignalTrade(signalId: string, accountId: string): Promise<void> {
+    // 1. Get signal with trade plan
+    const signal = await this.signalService.getSignal(signalId);
+    if (!signal.analysis_trade_plan) {
+      throw new Error('Signal has no trade plan');
     }
-  )
-  .subscribe();
+    
+    // 2. Create entry order via CCXT
+    const entryOrder = await this.exchangeManager.createOrder(accountId, {
+      symbol: signal.symbol,
+      type: 'limit',
+      side: signal.analysis_trade_plan.side,
+      amount: signal.analysis_trade_plan.positionSize,
+      price: signal.analysis_trade_plan.entry
+    });
+    
+    // 3. Link order to signal
+    await this.signalService.linkSignalToOrder(
+      signalId, 
+      entryOrder.id, 
+      'entry'
+    );
+    
+    // 4. Record event
+    await this.signalService.addSignalEvent(signalId, {
+      event_type: SignalEventType.ORDER_CREATED,
+      event_data: {
+        order_type: 'entry',
+        exchange_order_id: entryOrder.exchangeOrderId,
+        amount: entryOrder.amount,
+        price: entryOrder.price
+      },
+      order_id: entryOrder.id
+    });
+    
+    // 5. Update signal status
+    await this.signalService.updateSignal(signalId, {
+      has_active_orders: true,
+      total_orders_count: signal.total_orders_count + 1
+    });
+  }
+  
+  async handleOrderFilled(orderId: string, ccxtOrder: any): Promise<void> {
+    // Find associated signal
+    const signalOrder = await this.db.query(`
+      SELECT s.* FROM signals s
+      JOIN signal_orders so ON s.id = so.signal_id
+      WHERE so.order_id = $1
+    `, [orderId]);
+    
+    if (!signalOrder) return;
+    
+    const signal = signalOrder[0];
+    
+    // Record fill event
+    await this.signalService.addSignalEvent(signal.id, {
+      event_type: SignalEventType.ORDER_FILLED,
+      event_data: {
+        order_type: signalOrder.order_type,
+        fill_price: ccxtOrder.average,
+        fill_amount: ccxtOrder.filled
+      },
+      order_id: orderId
+    });
+    
+    // If this was an entry order, create SL/TP orders
+    if (signalOrder.order_type === 'entry') {
+      await this.createProtectionOrders(signal, ccxtOrder);
+    }
+  }
+  
+  async handlePositionUpdate(positionId: string, position: any): Promise<void> {
+    // Find associated signal
+    const signalPosition = await this.db.query(`
+      SELECT s.* FROM signals s
+      JOIN signal_positions sp ON s.id = sp.signal_id
+      WHERE sp.position_id = $1
+    `, [positionId]);
+    
+    if (!signalPosition) return;
+    
+    const signal = signalPosition[0];
+    
+    // Update signal P&L
+    await this.signalService.updateSignalPnL(
+      signal.id, 
+      position.totalPnl
+    );
+    
+    // Record position update
+    await this.signalService.addSignalEvent(signal.id, {
+      event_type: SignalEventType.POSITION_UPDATED,
+      event_data: {
+        unrealized_pnl: position.unrealizedPnl,
+        pnl_percentage: position.pnlPercentage,
+        mark_price: position.markPrice
+      },
+      position_id: positionId
+    });
+  }
+}
 ```
 
-### 4. Query Patterns
+### 3. Real-time Synchronization
 
 ```typescript
-// Get complete signal history
-async function getSignalAuditTrail(signalId: string) {
-  const { data: signal } = await supabase
-    .from('signals')
-    .select(`
-      *,
-      signal_events (
-        event_type,
-        event_data,
-        created_at
-      ),
-      trades (
-        id,
-        status,
-        entry_price,
-        exit_price,
-        realized_pnl
-      )
-    `)
-    .eq('id', signalId)
-    .single();
+// Subscribe to both signal and trading updates
+class RealtimeSyncService {
+  async initialize(userId: string) {
+    // Signal updates
+    const signalChannel = supabase
+      .channel('signals')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'signals',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => this.handleSignalUpdate(payload)
+      );
     
-  return signal;
+    // Signal events
+    const eventChannel = supabase
+      .channel('signal_events')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'signal_events'
+        },
+        (payload) => this.handleNewEvent(payload)
+      );
+    
+    // Subscribe to CCXT events
+    this.eventEmitter.on('order:updated', this.handleOrderUpdate.bind(this));
+    this.eventEmitter.on('position:updated', this.handlePositionUpdate.bind(this));
+    
+    await Promise.all([
+      signalChannel.subscribe(),
+      eventChannel.subscribe()
+    ]);
+  }
 }
+```
 
-// Get trader performance metrics
-async function getTraderMetrics(traderId: string, timeRange: string) {
-  const { data: signals } = await supabase
-    .from('signals')
-    .select(`
-      *,
-      trades (
-        realized_pnl,
-        realized_pnl_pct
-      )
-    `)
-    .eq('trader_id', traderId)
-    .gte('created_at', getTimeRangeStart(timeRange));
-    
-  return calculateMetrics(signals);
-}
+### 4. Performance Analytics Queries
+
+```sql
+-- Create materialized view for signal performance
+CREATE MATERIALIZED VIEW signal_performance_analytics AS
+WITH signal_orders AS (
+  SELECT 
+    s.id as signal_id,
+    s.symbol,
+    s.trader_id,
+    s.created_at as signal_created_at,
+    COUNT(DISTINCT o.id) as total_orders,
+    COUNT(DISTINCT o.id) FILTER (WHERE o.status = 'closed') as completed_orders
+  FROM signals s
+  LEFT JOIN signal_orders so ON s.id = so.signal_id
+  LEFT JOIN orders o ON so.order_id = o.id
+  GROUP BY s.id
+),
+signal_positions AS (
+  SELECT 
+    s.id as signal_id,
+    COUNT(DISTINCT p.id) as total_positions,
+    SUM(p.realized_pnl) as total_realized_pnl,
+    AVG(p.pnl_percentage) as avg_pnl_percentage,
+    MAX(p.unrealized_pnl + p.realized_pnl) as max_pnl,
+    MIN(p.unrealized_pnl + p.realized_pnl) as min_pnl
+  FROM signals s
+  LEFT JOIN signal_positions sp ON s.id = sp.signal_id
+  LEFT JOIN positions p ON sp.position_id = p.id
+  GROUP BY s.id
+)
+SELECT 
+  s.*,
+  so.total_orders,
+  so.completed_orders,
+  sp.total_positions,
+  sp.total_realized_pnl,
+  sp.avg_pnl_percentage,
+  sp.max_pnl,
+  sp.min_pnl,
+  CASE 
+    WHEN sp.total_realized_pnl > 0 THEN 'profitable'
+    WHEN sp.total_realized_pnl < 0 THEN 'loss'
+    ELSE 'breakeven'
+  END as outcome
+FROM signal_orders so
+JOIN signal_positions sp ON so.signal_id = sp.signal_id
+JOIN signals s ON s.id = so.signal_id;
+
+-- Refresh every hour
+CREATE INDEX idx_signal_performance_signal ON signal_performance_analytics(signal_id);
+CREATE INDEX idx_signal_performance_trader ON signal_performance_analytics(trader_id);
 ```
 
 ## Security Considerations
@@ -356,66 +523,96 @@ async function getTraderMetrics(traderId: string, timeRange: string) {
 
 ```sql
 -- Enable RLS on all tables
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE traders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE signals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE signal_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trades ENABLE ROW LEVEL SECURITY;
+ALTER TABLE signal_monitoring_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE signal_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE signal_positions ENABLE ROW LEVEL SECURITY;
 
--- Users can only see their own data
-CREATE POLICY "Users can view own data" ON signals
+-- Users can only see their own signals
+CREATE POLICY "Users view own signals" ON signals
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own data" ON signals
+CREATE POLICY "Users create own signals" ON signals
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own data" ON signals
+CREATE POLICY "Users update own signals" ON signals
   FOR UPDATE USING (auth.uid() = user_id);
+
+-- Signal events inherit signal permissions
+CREATE POLICY "Users view signal events" ON signal_events
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM signals 
+      WHERE signals.id = signal_events.signal_id 
+      AND signals.user_id = auth.uid()
+    )
+  );
 ```
 
 ## Migration Strategy
 
-### Phase 1: Database Setup
-1. Create Supabase project
-2. Run migration scripts to create tables
-3. Set up RLS policies
-4. Configure authentication
+### Phase 1: Core Signal Tables
+1. Create signals and related tables
+2. Implement basic CRUD operations
+3. Add event recording
+4. Set up RLS policies
 
-### Phase 2: Service Integration
-1. Implement SupabaseService
-2. Add event recording to existing managers
-3. Set up real-time subscriptions
-4. Add error handling and retry logic
+### Phase 2: Trading Integration
+1. Create bridge tables (signal_orders, signal_positions)
+2. Implement SignalTradingBridge service
+3. Connect to CCXT event system
+4. Add P&L tracking
 
-### Phase 3: UI Integration
-1. Add history views for signals
-2. Create audit trail component
-3. Add performance dashboards
-4. Implement export functionality
+### Phase 3: Analytics & Performance
+1. Create materialized views
+2. Build performance queries
+3. Add monitoring snapshots
+4. Implement analytics API
+
+### Phase 4: Real-time Features
+1. Set up Supabase real-time
+2. Implement cross-device sync
+3. Add WebSocket event bridging
+4. Enable collaborative features
 
 ## Benefits
 
-1. **Complete Auditability**: Every signal action is recorded with timestamp and context
-2. **Performance Analysis**: Historical data enables backtesting and strategy optimization
-3. **Debugging**: Full event history helps diagnose issues
-4. **Compliance**: Audit trails for regulatory requirements
-5. **Real-time Sync**: Multiple devices stay synchronized
-6. **Scalability**: Supabase handles scaling automatically
-7. **Offline Support**: Local state with background sync
+1. **Complete Audit Trail**: Every signal and trading action is recorded
+2. **P&L Attribution**: Track performance from signal to final trade
+3. **Risk Analysis**: Historical data for risk modeling
+4. **Strategy Optimization**: Data-driven strategy improvements
+5. **Regulatory Compliance**: Full audit trail for reporting
+6. **Multi-Exchange Support**: Unified view across all exchanges
+7. **Real-time Sync**: Live updates across all connected clients
 
-## Performance Considerations
+## Performance Optimizations
 
-1. **Batch Events**: Group multiple events for batch insertion
-2. **Archival**: Move old events to archive tables after 90 days
-3. **Indexes**: Proper indexing on frequently queried columns
-4. **Pagination**: Use cursor-based pagination for large result sets
-5. **Caching**: Cache frequently accessed data locally
-6. **Selective Sync**: Only sync active signals in real-time
+1. **Batch Operations**: Group events for efficient insertion
+2. **Materialized Views**: Pre-compute analytics queries
+3. **Partitioning**: Partition large tables by date
+4. **Archival Strategy**: Move old data to cold storage
+5. **Connection Pooling**: Reuse database connections
+6. **Selective Replication**: Only sync active data
 
 ## Future Enhancements
 
-1. **Analytics Dashboard**: Aggregate metrics and visualizations
-2. **Export API**: Export signal history to CSV/JSON
-3. **Webhooks**: Notify external systems of signal events
-4. **Machine Learning**: Use historical data for signal quality prediction
-5. **Social Features**: Share successful strategies with other users
+1. **Advanced Analytics**
+   - Win rate by market conditions
+   - Optimal position sizing analysis
+   - Strategy correlation analysis
+
+2. **Machine Learning**
+   - Signal quality prediction
+   - Optimal entry/exit timing
+   - Risk-adjusted position sizing
+
+3. **Social Trading**
+   - Share successful strategies
+   - Copy trading functionality
+   - Performance leaderboards
+
+4. **Advanced Reporting**
+   - Tax reporting
+   - Performance attribution
+   - Risk-adjusted returns

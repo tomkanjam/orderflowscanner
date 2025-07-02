@@ -95,8 +95,9 @@ const MainContent: React.FC<MainContentProps> = ({
   const [selectedSignal, setSelectedSignal] = useState<SignalLifecycle | null>(null);
   
   return (
-    <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-hidden">
-      <div className="container mx-auto px-4 py-2 md:px-6 md:py-3 flex-grow flex flex-col overflow-hidden">
+    <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex h-screen overflow-hidden">
+      <div className="flex-grow flex flex-col overflow-hidden">
+        <div className="container mx-auto px-4 py-2 md:px-6 md:py-3 flex-grow flex flex-col overflow-hidden">
         <main className="flex-grow flex flex-col overflow-hidden">
           {initialLoading && <Loader text="Fetching initial market data..." />}
           <ErrorMessage message={initialError} />
@@ -135,44 +136,27 @@ const MainContent: React.FC<MainContentProps> = ({
                     onKlineHistoryConfigChange={onKlineHistoryConfigChange}
                   />
                 </div>
-                {!isMobile && (
-                  <ActivityPanel
-                    signals={allSignals}
-                    trades={allTrades}
-                    isOpen={true}
-                    onClose={() => {}}
-                    isMobile={false}
-                    selectedSignalId={selectedSignalId}
-                  />
-                )}
               </div>
             </>
           )}
         </main>
+        </div>
+        <footer className="text-center text-[var(--tm-text-muted)] py-3 text-xs md:text-sm border-t border-[var(--tm-border)]">
+          <p>Powered by <span className="text-[var(--tm-secondary)]">Binance API</span> &amp; <span className="text-[var(--tm-accent)]">Gemini AI</span>. Not financial advice.</p>
+        </footer>
       </div>
-      <footer className="text-center text-[var(--tm-text-muted)] py-3 text-xs md:text-sm border-t border-[var(--tm-border)]">
-        <p>Powered by <span className="text-[var(--tm-secondary)]">Binance API</span> &amp; <span className="text-[var(--tm-accent)]">Gemini AI</span>. Not financial advice.</p>
-      </footer>
-      
-      {/* Mobile Activity Panel */}
-      {isMobile && (
-        <ActivityPanel
-          signals={allSignals}
-          trades={allTrades}
-          isOpen={isActivityPanelOpen}
-          onClose={onCloseActivityPanel || (() => {})}
-          isMobile={true}
-          selectedSignalId={selectedSignalId}
-        />
-      )}
       
       {/* Signal History Sidebar */}
-      <SignalHistorySidebar 
-        signal={selectedSignal}
-        onClose={() => setSelectedSignal(null)}
-        tickers={tickers}
-        traders={traders || []}
-      />
+      {selectedSignal && (
+        <div className="w-96 border-l border-[var(--tm-border)] bg-[var(--tm-bg-primary)] h-full overflow-hidden flex-shrink-0">
+          <SignalHistorySidebar 
+            signal={selectedSignal}
+            onClose={() => setSelectedSignal(null)}
+            tickers={tickers}
+            traders={traders || []}
+          />
+        </div>
+      )}
     </div>
   );
 };

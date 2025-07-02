@@ -82,7 +82,7 @@ export function SignalHistorySidebar({ signal, onClose, tickers, traders }: Sign
   };
 
   return (
-    <div className="fixed right-0 top-0 h-full w-96 bg-[var(--tm-bg-primary)] border-l border-[var(--tm-border)] shadow-xl z-50 flex flex-col">
+    <div className="h-full w-full bg-[var(--tm-bg-primary)] flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-[var(--tm-border)]">
         <div className="flex items-center justify-between mb-3">

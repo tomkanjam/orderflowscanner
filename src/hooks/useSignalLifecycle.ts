@@ -49,6 +49,22 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   const activeAnalyses = useRef<Map<string, Promise<void>>>(new Map());
   const traderAnalysisCounts = useRef<Map<string, number>>(new Map());
   
+  // Cleanup old trader analysis counts periodically
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      const maxSize = 100;
+      if (traderAnalysisCounts.current.size > maxSize) {
+        // Keep only the most recent entries
+        const entries = Array.from(traderAnalysisCounts.current.entries());
+        const toKeep = entries.slice(-maxSize);
+        traderAnalysisCounts.current = new Map(toKeep);
+        console.log(`[useSignalLifecycle] Cleaned trader analysis counts from ${entries.length} to ${maxSize}`);
+      }
+    }, 5 * 60 * 1000); // Every 5 minutes
+    
+    return () => clearInterval(cleanupInterval);
+  }, []);
+  
   // Subscribe to signal updates
   useEffect(() => {
     const unsubscribe = signalManager.subscribe(setSignals);

@@ -26,12 +26,21 @@ import ActivityPanel from './src/components/ActivityPanel';
 import { klineEventBus } from './src/services/klineEventBus';
 import { workflowManager } from './src/services/workflowManager';
 import { tradingManager } from './src/services/tradingManager';
+import { memoryMonitor } from './src/utils/memoryMonitor';
+import { webSocketManager } from './src/utils/webSocketManager';
+import { useOptimizedMap, BatchedUpdater, LimitedMap } from './src/utils/stateOptimizer';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
 
 // Initialize observability
 observability.setupUnloadHandler();
+
+// Initialize memory monitoring in development
+if (process.env.NODE_ENV === 'development') {
+  memoryMonitor.start(10000); // Monitor every 10 seconds
+  console.log('[App] Memory monitoring started');
+}
 
 const AppContent: React.FC = () => {
   const { activeStrategy } = useStrategy();
@@ -135,14 +144,58 @@ const AppContent: React.FC = () => {
     return GEMINI_MODELS.find(m => m.value === selectedGeminiModel)?.internalModel || GEMINI_MODELS[0].internalModel;
   }, [selectedGeminiModel]);
   
-  // Track kline updates for bar counting
-  const klineUpdateCountRef = React.useRef<Map<string, number>>(new Map());
+  // Track kline updates for bar counting with size limit
+  const klineUpdateCountRef = React.useRef<LimitedMap<string, number>>(new LimitedMap(200)); // Limit to 200 symbols
   
   // Auth state
   const { user, loading: authLoading } = useAuth();
   
   // Indicator calculation hook
   const { calculateIndicators } = useIndicatorWorker();
+  
+  // Batched ticker updater to reduce state updates
+  const tickerBatchUpdater = useRef<BatchedUpdater<Ticker>>();
+  useEffect(() => {
+    tickerBatchUpdater.current = new BatchedUpdater<Ticker>(
+      (updates) => {
+        setTickers(prevTickers => {
+          const newTickers = new Map(prevTickers);
+          updates.forEach(ticker => {
+            newTickers.set(ticker.s, ticker);
+          });
+          return newTickers;
+        });
+      },
+      50 // Batch updates every 50ms
+    );
+    
+    return () => {
+      tickerBatchUpdater.current?.clear();
+    };
+  }, []);
+  
+  // Register memory monitoring metrics
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      // Register custom metrics to track data structure sizes
+      memoryMonitor.registerMetric('tickersSize', () => tickers.size);
+      memoryMonitor.registerMetric('historicalDataSize', () => {
+        let totalKlines = 0;
+        historicalData.forEach(intervalMap => {
+          intervalMap.forEach(klines => {
+            totalKlines += klines.length;
+          });
+        });
+        return totalKlines;
+      });
+      memoryMonitor.registerMetric('signalLogSize', () => signalLog.length);
+      memoryMonitor.registerMetric('signalHistorySize', () => signalHistory.size);
+      memoryMonitor.registerMetric('klineUpdateCountSize', () => klineUpdateCountRef.current.size);
+      memoryMonitor.registerMetric('wsConnections', () => webSocketManager.getStats().activeConnections);
+      
+      console.log('[App] Memory monitoring metrics registered');
+    }
+  }, [tickers, historicalData, signalLog, signalHistory]);
   
   // Initialize workflow and trading managers
   useEffect(() => {
@@ -460,22 +513,94 @@ const AppContent: React.FC = () => {
     return () => clearInterval(cleanupInterval);
   }, []);
 
+  // Periodic cleanup of app data structures to prevent memory leaks
+  useEffect(() => {
+    const dataCleanupInterval = setInterval(() => {
+      const now = Date.now();
+      const maxSignalHistoryAge = 4 * 60 * 60 * 1000; // 4 hours
+      const maxSignalLogAge = 2 * 60 * 60 * 1000; // 2 hours
+      
+      // Clean signal history
+      setSignalHistory(prev => {
+        const cleaned = new Map<string, SignalHistoryEntry>();
+        let removedCount = 0;
+        prev.forEach((entry, symbol) => {
+          if (now - entry.lastSignalTime < maxSignalHistoryAge) {
+            cleaned.set(symbol, entry);
+          } else {
+            removedCount++;
+          }
+        });
+        
+        if (removedCount > 0) {
+          console.log(`[App] Cleaned ${removedCount} old signal history entries`);
+        }
+        
+        // Save to localStorage (limit size)
+        if (cleaned.size <= 500) {
+          const obj: { [key: string]: SignalHistoryEntry } = {};
+          cleaned.forEach((value, key) => {
+            obj[key] = value;
+          });
+          localStorage.setItem('signalHistory', JSON.stringify(obj));
+        }
+        
+        return cleaned;
+      });
+      
+      // Clean signal log
+      setSignalLog(prev => {
+        const filtered = prev.filter(entry => now - entry.timestamp < maxSignalLogAge);
+        if (filtered.length < prev.length) {
+          console.log(`[App] Cleaned ${prev.length - filtered.length} old signal log entries`);
+        }
+        return filtered.slice(-MAX_SIGNAL_LOG_ENTRIES); // Also enforce max entries
+      });
+      
+      // Clean historical signals
+      setHistoricalSignals(prev => {
+        const maxHistoricalAge = 4 * 60 * 60 * 1000; // 4 hours
+        const filtered = prev.filter(signal => now - signal.detectedAt < maxHistoricalAge);
+        if (filtered.length < prev.length) {
+          console.log(`[App] Cleaned ${prev.length - filtered.length} old historical signals`);
+        }
+        return filtered.slice(-1000); // Keep max 1000 historical signals
+      });
+      
+      // Log memory stats
+      if (process.env.NODE_ENV === 'development') {
+        const stats = memoryMonitor.getStatus();
+        if (stats && stats.current.heapUsagePercent > 0.7) {
+          console.warn('[App] High memory usage detected:', stats.formattedUsage);
+        }
+      }
+    }, 60000); // Run every minute
+    
+    return () => clearInterval(dataCleanupInterval);
+  }, []);
+
   // Create stable handlers using useCallback
   const handleTickerUpdateStable = useCallback((tickerUpdate: Ticker) => {
-    setTickers(prevTickers => {
-      // Only create new Map if the value actually changed
-      const currentTicker = prevTickers.get(tickerUpdate.s);
-      if (currentTicker && 
-          currentTicker.c === tickerUpdate.c && 
-          currentTicker.P === tickerUpdate.P && 
-          currentTicker.q === tickerUpdate.q) {
-        return prevTickers; // No change, return same reference
-      }
-      // Value changed, create new Map
-      const newTickers = new Map(prevTickers);
-      newTickers.set(tickerUpdate.s, tickerUpdate);
-      return newTickers;
-    });
+    // Use batched updater for better performance
+    if (tickerBatchUpdater.current) {
+      tickerBatchUpdater.current.add(tickerUpdate);
+    } else {
+      // Fallback to direct update if batch updater not ready
+      setTickers(prevTickers => {
+        // Only create new Map if the value actually changed
+        const currentTicker = prevTickers.get(tickerUpdate.s);
+        if (currentTicker && 
+            currentTicker.c === tickerUpdate.c && 
+            currentTicker.P === tickerUpdate.P && 
+            currentTicker.q === tickerUpdate.q) {
+          return prevTickers; // No change, return same reference
+        }
+        // Value changed, create new Map
+        const newTickers = new Map(prevTickers);
+        newTickers.set(tickerUpdate.s, tickerUpdate);
+        return newTickers;
+      });
+    }
   }, []);
   
   // Update trading manager with ticker data for demo mode
@@ -541,30 +666,50 @@ const AppContent: React.FC = () => {
         return newData;
       }
       
-      // Work with existing array
-      const klines = [...intervalKlines];
+      // Check if update is needed before creating new array
+      const lastKline = intervalKlines[intervalKlines.length - 1];
+      const lastTime = lastKline ? lastKline[0] : 0;
+      const newTime = kline[0];
       
       let needsUpdate = false;
+      let klines = intervalKlines; // Don't clone unless needed
       
       if (isClosed) {
-          if(kline[0] > klines[klines.length - 1][0]) {
-              klines.push(kline);
+          if (newTime > lastTime) {
+              // New candle - need to add it
+              klines = [...intervalKlines, kline];
               if (klines.length > KLINE_HISTORY_LIMIT) {
-                  klines.shift();
+                  klines = klines.slice(-KLINE_HISTORY_LIMIT);
               }
               needsUpdate = true;
-          } else if (kline[0] === klines[klines.length - 1][0]) {
-              klines[klines.length - 1] = kline;
-              needsUpdate = true;
+          } else if (newTime === lastTime && lastKline) {
+              // Update existing candle only if values changed
+              if (lastKline[2] !== kline[2] || // high
+                  lastKline[3] !== kline[3] || // low
+                  lastKline[4] !== kline[4] || // close
+                  lastKline[5] !== kline[5]) { // volume
+                  klines = [...intervalKlines];
+                  klines[klines.length - 1] = kline;
+                  needsUpdate = true;
+              }
           }
-      } else { 
-          if (klines.length > 0 && klines[klines.length - 1][0] === kline[0]) {
-              klines[klines.length - 1] = kline;
-              needsUpdate = true;
+      } else {
+          // Not closed - real-time update
+          if (intervalKlines.length > 0 && lastTime === newTime) {
+              // Update existing candle only if values changed
+              if (lastKline[2] !== kline[2] || // high
+                  lastKline[3] !== kline[3] || // low
+                  lastKline[4] !== kline[4] || // close
+                  lastKline[5] !== kline[5]) { // volume
+                  klines = [...intervalKlines];
+                  klines[klines.length - 1] = kline;
+                  needsUpdate = true;
+              }
           } else {
-              klines.push(kline);
-               if (klines.length > KLINE_HISTORY_LIMIT) {
-                  klines.shift();
+              // New candle
+              klines = [...intervalKlines, kline];
+              if (klines.length > KLINE_HISTORY_LIMIT) {
+                  klines = klines.slice(-KLINE_HISTORY_LIMIT);
               }
               needsUpdate = true;
           }
@@ -590,9 +735,7 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    let ws: WebSocket | null = null;
     let isCleanedUp = false;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const handleTickerUpdate = (tickerUpdate: Ticker) => {
       if (!isCleanedUp) {
@@ -617,78 +760,88 @@ const AppContent: React.FC = () => {
     // Always include 1m as default/fallback
     activeIntervals.add(KlineInterval.ONE_MINUTE);
     
-    const connectWebSocketWithRetry = () => {
-      if (isCleanedUp) return;
-      
-      try {
-        ws = connectMultiIntervalWebSocket(
-          allSymbols,
-          activeIntervals,
-          handleTickerUpdate,
-          handleKlineUpdate,
-          () => { 
+    // Create WebSocket URL for multi-interval connection
+    const tickerStreams = allSymbols.map(s => `${s.toLowerCase()}@ticker`);
+    const klineStreams: string[] = [];
+    allSymbols.forEach(symbol => {
+      activeIntervals.forEach(interval => {
+        klineStreams.push(`${symbol.toLowerCase()}@kline_${interval}`);
+      });
+    });
+    const allStreams = [...tickerStreams, ...klineStreams].join('/');
+    const wsUrl = `wss://stream.binance.com:9443/ws/${allStreams}`;
+    
+    // Connect using WebSocket manager
+    try {
+      webSocketManager.connect(
+        'main-connection',
+        wsUrl,
+        {
+          onOpen: () => {
             if (!isCleanedUp) {
-              setStatusText('Live'); 
-              setStatusLightClass('bg-[var(--tm-success)]'); 
+              setStatusText('Live');
+              setStatusLightClass('bg-[var(--tm-success)]');
+              console.log(`[App] WebSocket connected with ${activeIntervals.size} intervals for ${allSymbols.length} symbols`);
             }
           },
-          (errorEvent) => { 
+          onMessage: (event) => {
+            if (isCleanedUp) return;
+            
+            try {
+              const message = JSON.parse(event.data as string);
+              if (message.stream && message.data) {
+                if (message.stream.includes('@ticker')) {
+                  const tickerData = message.data;
+                  handleTickerUpdate({
+                    s: tickerData.s,
+                    P: tickerData.P,
+                    c: tickerData.c,
+                    q: tickerData.q,
+                    ...tickerData
+                  });
+                } else if (message.stream.includes('@kline')) {
+                  const klineData = message.data;
+                  const k = klineData.k;
+                  
+                  // Extract interval from stream name
+                  const streamParts = message.stream.split('_');
+                  const interval = streamParts[streamParts.length - 1] as KlineInterval;
+                  
+                  const kline: Kline = [
+                    k.t, k.o, k.h, k.l, k.c, k.v, k.T, k.q, k.n, k.V, k.Q, k.B
+                  ];
+                  handleKlineUpdate(klineData.s, interval, kline, k.x);
+                }
+              }
+            } catch (e) {
+              console.error("Error processing WebSocket message:", e);
+            }
+          },
+          onError: (error) => {
             if (!isCleanedUp) {
-              console.error("WebSocket Error:", errorEvent); 
-              setStatusText('WS Error'); 
+              console.error("WebSocket Error:", error);
+              setStatusText('WS Error');
               setStatusLightClass('bg-[var(--tm-error)]');
-              
-              // Reconnect after error
-              reconnectTimeout = setTimeout(connectWebSocketWithRetry, 5000);
             }
           },
-          () => { 
+          onClose: () => {
             if (!isCleanedUp) {
-              setStatusText('Disconnected'); 
+              setStatusText('Disconnected');
               setStatusLightClass('bg-[var(--tm-warning)]');
-              
-              // Reconnect after close
-              reconnectTimeout = setTimeout(connectWebSocketWithRetry, 3000);
             }
           }
-        );
-      } catch(e) {
-        if (!isCleanedUp) {
-          console.error("Failed to connect WebSocket:", e);
-          setStatusText('WS Failed');
-          setStatusLightClass('bg-[var(--tm-error)]');
-          
-          // Retry connection
-          reconnectTimeout = setTimeout(connectWebSocketWithRetry, 5000);
-        }
-      }
-    };
-    
-    // Initial connection with small delay
-    reconnectTimeout = setTimeout(connectWebSocketWithRetry, 500);
-    
+        },
+        true // Enable auto-reconnect
+      );
+    } catch (e) {
+      console.error("Failed to connect WebSocket:", e);
+      setStatusText('WS Failed');
+      setStatusLightClass('bg-[var(--tm-error)]');
+    }
 
     return () => {
       isCleanedUp = true;
-      
-      // Clear any pending reconnect timeout
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      
-      // Close WebSocket if it exists
-      if (ws) {
-        // Remove event handlers to prevent callbacks during cleanup
-        ws.onclose = null;
-        ws.onerror = null;
-        ws.onmessage = null;
-        ws.onopen = null;
-        
-        // Only close if not already closed
-        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-          ws.close();
-        }
-      }
+      webSocketManager.disconnect('main-connection');
     };
   // Only re-run when symbols, traders or handlers change
   }, [allSymbols, traders, handleTickerUpdateStable, handleKlineUpdateStable]); 

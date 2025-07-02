@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Signal, SignalStatus, MonitoringUpdate, Trade } from '../../src/abstractions/interfaces';
+import { workflowManager, MonitoringDecision } from '../services/workflowManager';
 
 interface ActivityPanelProps {
   signals: Signal[];
@@ -7,13 +8,15 @@ interface ActivityPanelProps {
   isOpen: boolean;
   onClose: () => void;
   isMobile?: boolean;
+  selectedSignalId?: string | null;
 }
 
 interface ActivityEvent {
   id: string;
   timestamp: number;
-  type: 'signal_created' | 'signal_analyzed' | 'signal_monitoring' | 'signal_ready' | 'trade_opened' | 'trade_closed';
+  type: 'signal_created' | 'signal_analyzed' | 'signal_monitoring' | 'signal_ready' | 'trade_opened' | 'trade_closed' | 'monitoring_decision';
   symbol: string;
+  signalId?: string;
   status?: SignalStatus;
   price?: number;
   message?: string;
@@ -27,10 +30,27 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
   trades = [], 
   isOpen, 
   onClose,
-  isMobile = false 
+  isMobile = false,
+  selectedSignalId 
 }) => {
   const [filter, setFilter] = useState<'all' | 'signals' | 'trades'>('all');
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
+  const [monitoringDecisions, setMonitoringDecisions] = useState<Map<string, MonitoringDecision[]>>(new Map());
+
+  // Fetch monitoring decisions when a signal is selected
+  useEffect(() => {
+    if (selectedSignalId) {
+      workflowManager.getMonitoringDecisions(selectedSignalId).then(decisions => {
+        setMonitoringDecisions(prev => {
+          const newMap = new Map(prev);
+          newMap.set(selectedSignalId, decisions);
+          return newMap;
+        });
+      }).catch(error => {
+        console.error('Failed to fetch monitoring decisions:', error);
+      });
+    }
+  }, [selectedSignalId]);
 
   // Convert signals and trades to activity events
   const activityEvents = useMemo(() => {
@@ -44,6 +64,7 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
         timestamp: signal.createdAt,
         type: 'signal_created',
         symbol: signal.symbol,
+        signalId: signal.id,
         status: signal.status,
         price: signal.initialPrice,
         message: `Signal created at $${signal.initialPrice.toLocaleString()}`,
@@ -60,6 +81,7 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
           timestamp: signal.analyzedAt || signal.createdAt + 60000,
           type: 'signal_analyzed',
           symbol: signal.symbol,
+          signalId: signal.id,
           status: signal.status,
           confidence: signal.analysisResult.confidence,
           message: signal.analysisResult.approved ? 'Analysis approved' : 'Analysis rejected',
@@ -77,6 +99,7 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
           timestamp: update.timestamp,
           type: 'signal_monitoring',
           symbol: signal.symbol,
+          signalId: signal.id,
           status: signal.status,
           price: update.price,
           action: update.action,
@@ -95,9 +118,35 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
           timestamp: signal.updatedAt,
           type: 'signal_ready',
           symbol: signal.symbol,
+          signalId: signal.id,
           status: signal.status,
           price: signal.currentPrice,
           message: 'Entry signal triggered'
+        });
+      }
+    });
+
+    // Add monitoring decisions from workflowManager
+    monitoringDecisions.forEach((decisions, signalId) => {
+      const signal = signals.find(s => s.id === signalId);
+      if (signal) {
+        decisions.forEach((decision, index) => {
+          events.push({
+            id: `${signalId}-decision-${index}`,
+            timestamp: decision.timestamp.getTime(),
+            type: 'monitoring_decision',
+            symbol: signal.symbol,
+            signalId: signalId,
+            price: decision.price,
+            confidence: decision.confidence,
+            message: `Monitoring decision: ${decision.decision.toUpperCase()}`,
+            details: {
+              reasoning: decision.reasoning,
+              decision: decision.decision,
+              indicators: decision.indicators,
+              tradePlan: decision.trade_plan
+            }
+          });
         });
       }
     });
@@ -137,15 +186,25 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
 
     // Sort by timestamp descending
     return events.sort((a, b) => b.timestamp - a.timestamp);
-  }, [signals, trades]);
+  }, [signals, trades, monitoringDecisions]);
 
   // Filter events
   const filteredEvents = useMemo(() => {
-    if (filter === 'all') return activityEvents;
-    if (filter === 'signals') return activityEvents.filter(e => e.type.startsWith('signal_'));
-    if (filter === 'trades') return activityEvents.filter(e => e.type.startsWith('trade_'));
-    return activityEvents;
-  }, [activityEvents, filter]);
+    let events = activityEvents;
+    
+    // Filter by selected signal if specified
+    if (selectedSignalId) {
+      events = events.filter(e => e.signalId === selectedSignalId || 
+        (e.type === 'trade_opened' && trades.find(t => t.id === e.id.split('-')[0])?.signalId === selectedSignalId) ||
+        (e.type === 'trade_closed' && trades.find(t => t.id === e.id.split('-')[0])?.signalId === selectedSignalId)
+      );
+    }
+    
+    // Apply type filter
+    if (filter === 'signals') return events.filter(e => e.type.startsWith('signal_') || e.type === 'monitoring_decision');
+    if (filter === 'trades') return events.filter(e => e.type.startsWith('trade_'));
+    return events;
+  }, [activityEvents, filter, selectedSignalId, trades]);
 
   const toggleEventExpanded = (eventId: string) => {
     setExpandedEvents(prev => {
@@ -167,6 +226,7 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
       case 'signal_ready': return '✅';
       case 'trade_opened': return '💰';
       case 'trade_closed': return '🏁';
+      case 'monitoring_decision': return '🎯';
       default: return '•';
     }
   };
@@ -179,6 +239,7 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
       case 'signal_ready': return 'text-[var(--tm-success)]';
       case 'trade_opened': return 'text-[var(--tm-accent)]';
       case 'trade_closed': return 'text-[var(--tm-secondary)]';
+      case 'monitoring_decision': return 'text-[var(--tm-accent)]';
       default: return 'text-[var(--tm-text-dim)]';
     }
   };
@@ -200,7 +261,14 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-[var(--tm-border)] flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold">Trader Activity</h3>
+          <h3 className="text-lg font-semibold">
+            {selectedSignalId ? 'Signal History' : 'Trader Activity'}
+          </h3>
+          {selectedSignalId && (
+            <span className="text-sm text-[var(--tm-text-muted)]">
+              (Click another signal to change view)
+            </span>
+          )}
         </div>
         
         <div className="flex gap-2">
@@ -319,6 +387,24 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
                               <span className="text-[var(--tm-text-muted)]">P&L:</span>
                               <div className={`mt-1 font-medium ${event.details.pnl >= 0 ? 'text-[var(--tm-success)]' : 'text-[var(--tm-error)]'}`}>
                                 ${event.details.pnl.toFixed(2)} ({event.details.pnlPct.toFixed(2)}%)
+                              </div>
+                            </div>
+                          )}
+                          
+                          {event.details.decision && (
+                            <div className="mb-1">
+                              <span className="text-[var(--tm-text-muted)]">Decision:</span>
+                              <div className="mt-1 font-medium text-[var(--tm-accent)]">{event.details.decision.toUpperCase()}</div>
+                            </div>
+                          )}
+                          
+                          {event.details.tradePlan && (
+                            <div className="mb-1">
+                              <span className="text-[var(--tm-text-muted)]">Trade Plan:</span>
+                              <div className="mt-1">
+                                Entry: ${event.details.tradePlan.entry} |
+                                Stop: ${event.details.tradePlan.stopLoss} |
+                                Target: ${event.details.tradePlan.takeProfit}
                               </div>
                             </div>
                           )}

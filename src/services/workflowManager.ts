@@ -61,6 +61,8 @@ class WorkflowManager {
   private activeWorkflows: Map<string, WorkflowSchedule> = new Map();
   private subscriptions: Map<string, () => void> = new Map();
   private initialized = false;
+  // Store monitoring decisions in memory for local mode
+  private localMonitoringDecisions: Map<string, MonitoringDecision[]> = new Map();
 
   private constructor() {}
 
@@ -556,13 +558,22 @@ TAKE_PROFIT: [exact price(s) with reasoning]`;
 
   private async recordMonitoringDecision(signalId: string, kline: number[], decision: Partial<MonitoringDecision>) {
     try {
-      const record = {
+      const fullDecision: MonitoringDecision = {
+        id: `${signalId}-${Date.now()}`,
         signal_id: signalId,
         timestamp: new Date(),
-        price: kline[4], // Close price
-        volume: kline[5],
-        ...decision
+        price: parseFloat(kline[4]), // Close price
+        decision: decision.decision || 'continue',
+        confidence: decision.confidence || 0,
+        reasoning: decision.reasoning || '',
+        indicators: decision.indicators || {},
+        created_at: new Date()
       };
+
+      // Store in local memory
+      const existing = this.localMonitoringDecisions.get(signalId) || [];
+      existing.push(fullDecision);
+      this.localMonitoringDecisions.set(signalId, existing);
 
       // In local mode, just log the decision
       if (!isSupabaseConfigured() || !supabase) {
@@ -576,12 +587,56 @@ TAKE_PROFIT: [exact price(s) with reasoning]`;
 
       await supabase
         .from('monitoring_decisions')
-        .insert([record]);
+        .insert([fullDecision]);
 
       console.log(`[WorkflowManager] Recorded monitoring decision for signal ${signalId}: ${decision.decision}`);
     } catch (error) {
       console.error('[WorkflowManager] Error recording monitoring decision:', error);
     }
+  }
+
+  async getMonitoringDecisions(signalId: string): Promise<MonitoringDecision[]> {
+    // First check local memory
+    const localDecisions = this.localMonitoringDecisions.get(signalId) || [];
+    
+    // If Supabase is configured, also fetch from database
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('monitoring_decisions')
+          .select('*')
+          .eq('signal_id', signalId)
+          .order('created_at', { ascending: true });
+        
+        if (error) {
+          console.error('[WorkflowManager] Error fetching monitoring decisions:', error);
+          return localDecisions;
+        }
+        
+        // Merge local and database decisions, removing duplicates
+        const allDecisions = [...localDecisions];
+        const localIds = new Set(localDecisions.map(d => d.id));
+        
+        if (data) {
+          data.forEach(dbDecision => {
+            if (!localIds.has(dbDecision.id)) {
+              allDecisions.push({
+                ...dbDecision,
+                timestamp: new Date(dbDecision.timestamp),
+                created_at: new Date(dbDecision.created_at)
+              });
+            }
+          });
+        }
+        
+        return allDecisions.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+      } catch (error) {
+        console.error('[WorkflowManager] Failed to fetch monitoring decisions:', error);
+        return localDecisions;
+      }
+    }
+    
+    return localDecisions;
   }
 
   async shutdown() {

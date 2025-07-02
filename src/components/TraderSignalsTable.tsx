@@ -12,7 +12,7 @@ interface TraderSignalsTableProps {
   traders?: any[]; // Add traders list to look up names
   selectedTraderId?: string | null; // Currently selected trader
   onSelectTrader?: (traderId: string | null) => void; // Callback to change selection
-  onRowClick?: (symbol: string, traderId?: string) => void;
+  onRowClick?: (symbol: string, traderId?: string, signalId?: string) => void;
   // Historical scanner props
   hasActiveFilter?: boolean;
   onRunHistoricalScan?: () => void;
@@ -360,7 +360,7 @@ export function TraderSignalsTable({
                   className={`border-b border-[var(--tm-border)] hover:bg-[var(--tm-bg-hover)] transition-colors cursor-pointer ${
                     newSignalTimestamps.has(signal.createdAt.getTime()) ? 'animate-pulse bg-[var(--tm-accent)]/10' : ''
                   }`}
-                  onClick={() => onRowClick?.(signal.symbol, signal.traderId)}
+                  onClick={() => onRowClick?.(signal.symbol, signal.traderId, signal.id)}
 >
                   <td className="p-2 md:px-4 md:py-2 text-xs md:text-sm text-[var(--tm-text-muted)]">
                     {formatDistanceToNow(signal.createdAt, { addSuffix: true })}

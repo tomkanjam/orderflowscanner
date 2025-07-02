@@ -25,7 +25,8 @@ interface MainContentProps {
   klineInterval: KlineInterval;
   selectedSymbolForChart: string | null;
   chartConfigForDisplay: CustomIndicatorConfig[] | null;
-  onRowClick: (symbol: string, traderId?: string) => void;
+  onRowClick: (symbol: string, traderId?: string, signalId?: string) => void;
+  selectedSignalId?: string | null;
   onAiInfoClick: (symbol: string, event: React.MouseEvent) => void;
   signalLog: SignalLogEntry[]; // Add signalLog prop
   historicalSignals?: HistoricalSignal[]; // Add historicalSignals prop
@@ -67,6 +68,7 @@ const MainContent: React.FC<MainContentProps> = ({
   selectedSymbolForChart,
   chartConfigForDisplay,
   onRowClick,
+  selectedSignalId,
   onAiInfoClick,
   signalLog,
   historicalSignals = [],
@@ -133,6 +135,7 @@ const MainContent: React.FC<MainContentProps> = ({
                     isOpen={true}
                     onClose={() => {}}
                     isMobile={false}
+                    selectedSignalId={selectedSignalId}
                   />
                 )}
               </div>
@@ -152,6 +155,7 @@ const MainContent: React.FC<MainContentProps> = ({
           isOpen={isActivityPanelOpen}
           onClose={onCloseActivityPanel || (() => {})}
           isMobile={true}
+          selectedSignalId={selectedSignalId}
         />
       )}
     </div>

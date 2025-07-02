@@ -84,6 +84,7 @@ const AppContent: React.FC = () => {
   
   const [selectedSymbolForChart, setSelectedSymbolForChart] = useState<string | null>(null);
   const [selectedSignalTraderId, setSelectedSignalTraderId] = useState<string | null>(null);
+  const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
   
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalTitle, setModalTitle] = useState<string>('');
@@ -832,9 +833,10 @@ const AppContent: React.FC = () => {
   }, [tickers, historicalData, internalGeminiModelName, klineInterval]);
 
 
-  const handleRowClick = (symbol: string, traderId?: string) => {
+  const handleRowClick = (symbol: string, traderId?: string, signalId?: string) => {
     setSelectedSymbolForChart(symbol);
     setSelectedSignalTraderId(traderId || null);
+    setSelectedSignalId(signalId || null);
   };
   
   
@@ -889,6 +891,7 @@ const AppContent: React.FC = () => {
         selectedSymbolForChart={selectedSymbolForChart}
         chartConfigForDisplay={chartConfigForDisplay}
         onRowClick={handleRowClick}
+        selectedSignalId={selectedSignalId}
         onAiInfoClick={handleAiInfoClick}
         signalLog={signalLog} // Pass signalLog to MainContent
         historicalSignals={historicalSignals} // Pass historical signals

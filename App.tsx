@@ -716,14 +716,9 @@ const AppContent: React.FC = () => {
             matchedConditions: [`Trader: ${trader?.name || 'Unknown'}`]
           };
           
-          // Creating signal with interval info
-          
-          const signal = createSignalFromFilter(filterResult, result.traderId);
-          
-          // Store interval in signal for workflow manager
-          if (signal && trader?.filter?.interval) {
-            signal.interval = trader.filter.interval;
-          }
+          // Creating signal with interval info from trader
+          const interval = trader?.filter?.interval || KlineInterval.ONE_MINUTE;
+          const signal = createSignalFromFilter(filterResult, result.traderId, interval);
           
           // Update signal history - reset bar count for new signal
           setSignalHistory(prev => {

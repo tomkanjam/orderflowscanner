@@ -6,12 +6,13 @@ export class SignalManager {
   private updateCallbacks: Set<(signals: SignalLifecycle[]) => void> = new Set();
   
   // Create a new signal from a filter result
-  createSignal(filterResult: FilterResult, strategyId: string, traderId?: string): SignalLifecycle {
+  createSignal(filterResult: FilterResult, strategyId: string, traderId?: string, interval?: string): SignalLifecycle {
     const signal: SignalLifecycle = {
       id: `${filterResult.symbol}-${Date.now()}`,
       symbol: filterResult.symbol,
       strategyId,
       traderId, // Add trader attribution
+      interval, // Add interval for candle-based monitoring
       createdAt: new Date(),
       matchedConditions: filterResult.matchedConditions,
       initialPrice: filterResult.price,

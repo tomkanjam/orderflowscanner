@@ -15,12 +15,35 @@ interface UseSignalLifecycleOptions {
   getMarketData?: (symbol: string, traderId?: string) => { ticker: any; klines: any[] } | null; // Function to get market data
 }
 
+// Helper function to calculate milliseconds until next candle close
+function getMillisecondsToNextCandle(interval: string): number {
+  const now = new Date();
+  const currentTime = now.getTime();
+  
+  // Parse interval to get duration in minutes
+  const intervalMinutes: Record<string, number> = {
+    '1m': 1,
+    '5m': 5,
+    '15m': 15,
+    '1h': 60,
+    '4h': 240,
+    '1d': 1440,
+  };
+  
+  const minutes = intervalMinutes[interval] || 1;
+  const milliseconds = minutes * 60 * 1000;
+  
+  // Calculate time until next candle
+  const nextCandleTime = Math.ceil(currentTime / milliseconds) * milliseconds;
+  return nextCandleTime - currentTime;
+}
+
 export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   const { activeStrategy, autoAnalyze = false, autoMonitor = true, modelName = 'gemini-2.5-flash', aiAnalysisLimit: globalAiAnalysisLimit = 100, calculateIndicators, getMarketData } = options;
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [reanalyzingSignals, setReanalyzingSignals] = useState<Set<string>>(new Set());
-  const monitoringInterval = useRef<NodeJS.Timeout>();
+  const monitoringIntervals = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const analysisQueue = useRef<string[]>([]);
   const activeAnalyses = useRef<Map<string, Promise<void>>>(new Map());
   const traderAnalysisCounts = useRef<Map<string, number>>(new Map());
@@ -45,7 +68,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   }, []);
   
   // Create signal from filter result
-  const createSignalFromFilter = useCallback((filterResult: FilterResult, traderId?: string) => {
+  const createSignalFromFilter = useCallback((filterResult: FilterResult, traderId?: string, interval?: string) => {
     // Allow trader signals without active strategy
     if (!activeStrategy && !traderId) {
       console.warn('No active strategy and no trader ID provided for signal creation');
@@ -54,7 +77,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     
     // Use trader ID as strategy ID when no active strategy
     const strategyId = activeStrategy?.id || `trader-${traderId}`;
-    const signal = signalManager.createSignal(filterResult, strategyId, traderId);
+    const signal = signalManager.createSignal(filterResult, strategyId, traderId, interval);
     
     if (autoAnalyze) {
       // Queue all signals for analysis (including trader signals)
@@ -302,69 +325,147 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     console.log('Would start monitoring signal:', signalId);
   }, []);
   
+  // Helper function to re-analyze signals for a specific interval
+  const reanalyzeSignalsForInterval = useCallback(async (interval: string) => {
+    const monitoringSignals = signals.filter((s: SignalLifecycle) => 
+      (s.status === 'monitoring' || s.status === 'in_position') && 
+      s.interval === interval
+    );
+    
+    console.log(`Candle closed for ${interval}, re-analyzing ${monitoringSignals.length} signals`);
+    
+    for (const signal of monitoringSignals) {
+      try {
+        // Mark signal as being re-analyzed
+        setReanalyzingSignals(prev => new Set(prev).add(signal.id));
+        
+        // Re-analyze with current data
+        const result = await analyzeSignal(signal.id);
+        
+        if (result) {
+          // Update the full analysis result
+          signalManager.updateReanalysis(signal.id, result);
+          
+          // Also create monitoring update for history
+          const update = {
+            timestamp: new Date(),
+            price: signal.currentPrice,
+            action: (result.decision === 'enter_trade' ? 'enter' : 'continue') as 'enter' | 'continue',
+            reason: result.reasoning || 'Monitoring update',
+            confidence: result.confidence,
+          };
+          
+          signalManager.addMonitoringUpdate(signal.id, update);
+        }
+      } catch (error) {
+        console.error('Monitoring update failed:', error);
+      } finally {
+        // Remove from re-analyzing set
+        setReanalyzingSignals(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(signal.id);
+          return newSet;
+        });
+      }
+    }
+  }, [signals, analyzeSignal]);
+  
+  // Setup candle-based monitoring for an interval
+  const setupIntervalMonitoring = useCallback((interval: string) => {
+    // Clear existing timer for this interval
+    const existingTimer = monitoringIntervals.current.get(interval);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+    
+    // Calculate time to next candle close
+    const msToNextCandle = getMillisecondsToNextCandle(interval);
+    
+    console.log(`Setting up monitoring for ${interval}, next candle in ${Math.round(msToNextCandle / 1000)}s`);
+    
+    // Set timer for next candle close
+    const timer = setTimeout(() => {
+      // Re-analyze signals for this interval
+      reanalyzeSignalsForInterval(interval);
+      
+      // Setup timer for the next candle
+      setupIntervalMonitoring(interval);
+    }, msToNextCandle);
+    
+    monitoringIntervals.current.set(interval, timer);
+  }, [reanalyzeSignalsForInterval]);
+  
   // Start global monitoring
   const startMonitoring = useCallback(() => {
     if (isMonitoring || !activeStrategy) return;
     
     setIsMonitoring(true);
     
-    // Monitor all signals in monitoring or in_position status every 30 seconds
-    monitoringInterval.current = setInterval(async () => {
-      const monitoringSignals = signals.filter((s: SignalLifecycle) => 
-        s.status === 'monitoring' || s.status === 'in_position'
-      );
-      
-      for (const signal of monitoringSignals) {
-        try {
-          // Mark signal as being re-analyzed
-          setReanalyzingSignals(prev => new Set(prev).add(signal.id));
-          
-          // Re-analyze with current data
-          const result = await analyzeSignal(signal.id);
-          
-          if (result) {
-            // Update the full analysis result
-            signalManager.updateReanalysis(signal.id, result);
-            
-            // Also create monitoring update for history
-            const update = {
-              timestamp: new Date(),
-              price: signal.currentPrice,
-              action: (result.decision === 'enter_trade' ? 'enter' : 'continue') as 'enter' | 'continue',
-              reason: result.reasoning || 'Monitoring update',
-              confidence: result.confidence,
-            };
-            
-            signalManager.addMonitoringUpdate(signal.id, update);
-          }
-        } catch (error) {
-          console.error('Monitoring update failed:', error);
-        } finally {
-          // Remove from re-analyzing set
-          setReanalyzingSignals(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(signal.id);
-            return newSet;
-          });
-        }
+    // Get all unique intervals from monitoring/in_position signals
+    const intervals = new Set<string>();
+    signals.forEach(signal => {
+      if ((signal.status === 'monitoring' || signal.status === 'in_position') && signal.interval) {
+        intervals.add(signal.interval);
       }
-    }, 30000); // Every 30 seconds
-  }, [isMonitoring, activeStrategy, signals, analyzeSignal]);
+    });
+    
+    // Setup monitoring for each interval
+    intervals.forEach(interval => {
+      setupIntervalMonitoring(interval);
+    });
+    
+    console.log(`Started candle-based monitoring for ${intervals.size} intervals`);
+  }, [isMonitoring, activeStrategy, signals, setupIntervalMonitoring]);
   
   // Stop monitoring
   const stopMonitoring = useCallback(() => {
     setIsMonitoring(false);
-    if (monitoringInterval.current) {
-      clearInterval(monitoringInterval.current);
-    }
+    
+    // Clear all interval timers
+    monitoringIntervals.current.forEach((timer, interval) => {
+      clearTimeout(timer);
+      console.log(`Stopped monitoring for ${interval}`);
+    });
+    monitoringIntervals.current.clear();
   }, []);
+  
+  // Re-setup monitoring when signals change (new intervals might be added)
+  useEffect(() => {
+    if (isMonitoring) {
+      // Get all unique intervals from monitoring/in_position signals
+      const currentIntervals = new Set<string>();
+      signals.forEach(signal => {
+        if ((signal.status === 'monitoring' || signal.status === 'in_position') && signal.interval) {
+          currentIntervals.add(signal.interval);
+        }
+      });
+      
+      // Setup monitoring for new intervals
+      currentIntervals.forEach(interval => {
+        if (!monitoringIntervals.current.has(interval)) {
+          setupIntervalMonitoring(interval);
+        }
+      });
+      
+      // Remove monitoring for intervals no longer needed
+      monitoringIntervals.current.forEach((timer, interval) => {
+        if (!currentIntervals.has(interval)) {
+          clearTimeout(timer);
+          monitoringIntervals.current.delete(interval);
+          console.log(`Removed monitoring for ${interval} (no active signals)`);
+        }
+      });
+    }
+  }, [signals, isMonitoring, setupIntervalMonitoring]);
   
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (monitoringInterval.current) {
-        clearInterval(monitoringInterval.current);
-      }
+      // Clear all interval timers
+      monitoringIntervals.current.forEach(timer => {
+        clearTimeout(timer);
+      });
+      monitoringIntervals.current.clear();
     };
   }, []);
   

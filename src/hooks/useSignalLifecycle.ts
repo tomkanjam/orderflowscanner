@@ -13,6 +13,7 @@ interface UseSignalLifecycleOptions {
   aiAnalysisLimit?: number; // Number of bars to send to AI (default: 100, range: 1-1000)
   calculateIndicators?: (indicators: any[], klines: any[]) => Promise<Map<string, any[]>>; // Function to calculate trader indicators
   getMarketData?: (symbol: string, traderId?: string) => { ticker: any; klines: any[] } | null; // Function to get market data
+  onAnalysisComplete?: (signalId: string, analysis: AnalysisResult) => void; // Callback when analysis completes
 }
 
 // Helper function to calculate milliseconds until next candle close
@@ -39,7 +40,7 @@ function getMillisecondsToNextCandle(interval: string): number {
 }
 
 export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
-  const { activeStrategy, autoAnalyze = false, autoMonitor = true, modelName = 'gemini-2.5-flash', aiAnalysisLimit: globalAiAnalysisLimit = 100, calculateIndicators, getMarketData } = options;
+  const { activeStrategy, autoAnalyze = false, autoMonitor = true, modelName = 'gemini-2.5-flash', aiAnalysisLimit: globalAiAnalysisLimit = 100, calculateIndicators, getMarketData, onAnalysisComplete } = options;
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [reanalyzingSignals, setReanalyzingSignals] = useState<Set<string>>(new Set());
@@ -240,6 +241,11 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       
       signalManager.updateWithAnalysis(signalId, result);
       
+      // Call the onAnalysisComplete callback if provided
+      if (onAnalysisComplete) {
+        onAnalysisComplete(signalId, result);
+      }
+      
       // Auto-start monitoring if enabled and decision is good_setup
       if (autoMonitor && result.decision === 'good_setup') {
         startMonitoringSignal(signalId);
@@ -345,6 +351,11 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
         if (result) {
           // Update the full analysis result
           signalManager.updateReanalysis(signal.id, result);
+          
+          // Call the onAnalysisComplete callback for re-analysis too
+          if (onAnalysisComplete) {
+            onAnalysisComplete(signal.id, result);
+          }
           
           // Also create monitoring update for history
           const update = {

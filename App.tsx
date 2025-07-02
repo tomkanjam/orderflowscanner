@@ -236,6 +236,30 @@ const AppContent: React.FC = () => {
       }
       return { ticker, klines };
     },
+    onAnalysisComplete: (signalId: string, analysis: AnalysisResult) => {
+      // Update the signal log with analysis results
+      setSignalLog(prevLog => {
+        return prevLog.map(entry => {
+          // Find matching entry by symbol and approximate time
+          const signal = signalManager.getSignal(signalId);
+          if (signal && entry.symbol === signal.symbol && 
+              Math.abs(entry.timestamp - signal.createdAt.getTime()) < 5000) { // Within 5 seconds
+            return {
+              ...entry,
+              tradeDecision: analysis.decision === 'buy' ? 'BUY' : 
+                            analysis.decision === 'sell' ? 'SELL' :
+                            analysis.decision === 'hold' ? 'HOLD' : 'WAIT',
+              reasoning: analysis.reasoning,
+              tradePlan: analysis.tradePlan ? 
+                `Entry: ${analysis.tradePlan.entry}, SL: ${analysis.tradePlan.stopLoss}, TP: ${analysis.tradePlan.takeProfit}` : 
+                undefined,
+              fullAnalysis: JSON.stringify(analysis),
+            };
+          }
+          return entry;
+        });
+      });
+    },
   });
 
   // Historical scanner hook

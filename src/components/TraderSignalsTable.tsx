@@ -406,6 +406,12 @@ export function TraderSignalsTable({
                             {signal.analysis.decision === 'good_setup' && '👁️ GOOD SETUP'}
                             {signal.analysis.decision === 'bad_setup' && '❌ BAD SETUP'}
                           </span>
+                          {/* Show analysis count if more than 1 */}
+                          {signal.analysisHistory && signal.analysisHistory.length > 1 && (
+                            <span className="ml-2 text-xs text-blue-500 font-medium">
+                              ({signal.analysisHistory.length}x)
+                            </span>
+                          )}
                           {/* Show pulsing indicator if analyzed within last 5 seconds */}
                           {signal.analyzedAt && 
                            new Date().getTime() - new Date(signal.analyzedAt).getTime() < 5000 && (
@@ -464,6 +470,41 @@ export function TraderSignalsTable({
                                       <span className="text-[var(--tm-text-muted)]">
                                         {Math.round(update.confidence * 100)}%
                                       </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+                          {signal.analysisHistory && signal.analysisHistory.length > 1 && (
+                            <details className="cursor-pointer mt-2">
+                              <summary className="hover:text-[var(--tm-text-secondary)] text-xs text-blue-500">
+                                Analysis History ({signal.analysisHistory.length} analyses)
+                              </summary>
+                              <div className="mt-1 p-2 bg-[var(--tm-bg-hover)] rounded space-y-3">
+                                {signal.analysisHistory.slice().reverse().map((analysis, idx) => (
+                                  <div key={idx} className="border-b border-[var(--tm-border)] pb-2 last:border-b-0">
+                                    <div className="flex justify-between items-start mb-1">
+                                      <span className="text-xs text-[var(--tm-text-muted)]">
+                                        {new Date(analysis.timestamp).toLocaleString()}
+                                      </span>
+                                      <span className={`text-xs font-medium ${
+                                        analysis.decision === 'buy' || analysis.decision === 'enter_trade' ? 'text-green-500' :
+                                        analysis.decision === 'sell' ? 'text-red-500' :
+                                        analysis.decision === 'hold' || analysis.decision === 'monitor' || analysis.decision === 'good_setup' ? 'text-yellow-500' :
+                                        'text-gray-500'
+                                      }`}>
+                                        {analysis.decision.toUpperCase().replace('_', ' ')} ({Math.round(analysis.confidence * 100)}%)
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-[var(--tm-text-secondary)] mt-1">
+                                      {analysis.reasoning}
+                                    </p>
+                                    {analysis.tradePlan && (
+                                      <div className="mt-1 text-xs text-[var(--tm-text-muted)]">
+                                        <span className="font-medium">Plan:</span> E: {analysis.tradePlan.entry}, 
+                                        SL: {analysis.tradePlan.stopLoss}, TP: {analysis.tradePlan.takeProfit}
+                                      </div>
                                     )}
                                   </div>
                                 ))}

@@ -34,6 +34,17 @@ export class SignalManager {
     signal.analysis = analysis;
     signal.analyzedAt = new Date();
     
+    // Initialize analysis history if not exists
+    if (!signal.analysisHistory) {
+      signal.analysisHistory = [];
+    }
+    
+    // Add to history with timestamp
+    signal.analysisHistory.push({
+      ...analysis,
+      timestamp: new Date()
+    });
+    
     // Update status based on analysis decision
     switch (analysis.decision) {
       case 'no_trade':
@@ -77,6 +88,17 @@ export class SignalManager {
     // Update the analysis result with the latest
     signal.analysis = analysis;
     signal.analyzedAt = new Date();
+    
+    // Initialize analysis history if not exists
+    if (!signal.analysisHistory) {
+      signal.analysisHistory = [];
+    }
+    
+    // Add to history with timestamp
+    signal.analysisHistory.push({
+      ...analysis,
+      timestamp: new Date()
+    });
     
     // Only update status if the decision changes from monitoring to ready
     if (signal.status === 'monitoring' && analysis.decision === 'enter_trade') {

@@ -126,8 +126,9 @@ export interface SignalLifecycle {
   priceChange: number; // % from initial
   
   // Analysis results
-  analysis?: AnalysisResult;
+  analysis?: AnalysisResult; // Latest analysis
   analyzedAt?: Date;
+  analysisHistory?: AnalysisResult[]; // History of all analyses
   
   // Monitoring data
   monitoringStarted?: Date;

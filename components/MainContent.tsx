@@ -5,6 +5,7 @@ import { TraderSignalsTable } from '../src/components/TraderSignalsTable';
 import ChartDisplay from './ChartDisplay';
 import Loader from './Loader';
 import ErrorMessage from './ErrorMessage';
+import ActivityPanel from '../src/components/ActivityPanel';
 import * as screenerHelpers from '../screenerHelpers'; 
 
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -42,6 +43,12 @@ interface MainContentProps {
   // Kline history configuration
   klineHistoryConfig?: any; // Using any to avoid importing KlineHistoryConfig
   onKlineHistoryConfigChange?: (config: any) => void;
+  // Activity panel props
+  isActivityPanelOpen?: boolean;
+  allSignals?: any[]; // Signal[]
+  allTrades?: any[]; // Trade[]
+  onCloseActivityPanel?: () => void;
+  isMobile?: boolean;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -74,6 +81,11 @@ const MainContent: React.FC<MainContentProps> = ({
   onSignalDedupeThresholdChange,
   klineHistoryConfig,
   onKlineHistoryConfigChange,
+  isActivityPanelOpen = false,
+  allSignals = [],
+  allTrades = [],
+  onCloseActivityPanel,
+  isMobile = false,
 }) => {
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-y-hidden">
@@ -92,26 +104,37 @@ const MainContent: React.FC<MainContentProps> = ({
                 signalLog={signalLog} // Pass signalLog to ChartDisplay
                 historicalSignals={historicalSignals} // Pass historicalSignals to ChartDisplay
               />
-              <div className="mt-2 flex-grow">
-                <TraderSignalsTable 
-                  tickers={tickers}
-                  traders={traders}
-                  selectedTraderId={selectedTraderId}
-                  onSelectTrader={onSelectTrader}
-                  onRowClick={onRowClick}
-                  hasActiveFilter={hasActiveFilter}
-                  onRunHistoricalScan={onRunHistoricalScan}
-                  isHistoricalScanning={isHistoricalScanning}
-                  historicalScanProgress={historicalScanProgress}
-                  historicalScanConfig={historicalScanConfig}
-                  onHistoricalScanConfigChange={onHistoricalScanConfigChange}
-                  onCancelHistoricalScan={onCancelHistoricalScan}
-                  historicalSignals={historicalSignals}
-                  signalDedupeThreshold={signalDedupeThreshold}
-                  onSignalDedupeThresholdChange={onSignalDedupeThresholdChange}
-                  klineHistoryConfig={klineHistoryConfig}
-                  onKlineHistoryConfigChange={onKlineHistoryConfigChange}
-                />
+              <div className="mt-2 flex-grow flex">
+                <div className={`${isActivityPanelOpen && !isMobile ? 'flex-1' : 'w-full'}`}>
+                  <TraderSignalsTable 
+                    tickers={tickers}
+                    traders={traders}
+                    selectedTraderId={selectedTraderId}
+                    onSelectTrader={onSelectTrader}
+                    onRowClick={onRowClick}
+                    hasActiveFilter={hasActiveFilter}
+                    onRunHistoricalScan={onRunHistoricalScan}
+                    isHistoricalScanning={isHistoricalScanning}
+                    historicalScanProgress={historicalScanProgress}
+                    historicalScanConfig={historicalScanConfig}
+                    onHistoricalScanConfigChange={onHistoricalScanConfigChange}
+                    onCancelHistoricalScan={onCancelHistoricalScan}
+                    historicalSignals={historicalSignals}
+                    signalDedupeThreshold={signalDedupeThreshold}
+                    onSignalDedupeThresholdChange={onSignalDedupeThresholdChange}
+                    klineHistoryConfig={klineHistoryConfig}
+                    onKlineHistoryConfigChange={onKlineHistoryConfigChange}
+                  />
+                </div>
+                {!isMobile && (
+                  <ActivityPanel
+                    signals={allSignals}
+                    trades={allTrades}
+                    isOpen={isActivityPanelOpen}
+                    onClose={onCloseActivityPanel || (() => {})}
+                    isMobile={false}
+                  />
+                )}
               </div>
             </>
           )}
@@ -120,6 +143,17 @@ const MainContent: React.FC<MainContentProps> = ({
       <footer className="text-center text-[var(--tm-text-muted)] py-3 text-xs md:text-sm border-t border-[var(--tm-border)]">
         <p>Powered by <span className="text-[var(--tm-secondary)]">Binance API</span> &amp; <span className="text-[var(--tm-accent)]">Gemini AI</span>. Not financial advice.</p>
       </footer>
+      
+      {/* Mobile Activity Panel */}
+      {isMobile && (
+        <ActivityPanel
+          signals={allSignals}
+          trades={allTrades}
+          isOpen={isActivityPanelOpen}
+          onClose={onCloseActivityPanel || (() => {})}
+          isMobile={true}
+        />
+      )}
     </div>
   );
 };

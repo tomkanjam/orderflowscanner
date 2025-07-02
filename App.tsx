@@ -829,46 +829,42 @@ const AppContent: React.FC = () => {
       <Sidebar
         onSelectedTraderChange={setSelectedTraderId}
       />
-      <div className="flex flex-1">
-        <MainContent
-          statusText={statusText}
-          statusLightClass={statusLightClass}
-          initialLoading={initialLoading}
-          initialError={initialError}
-          allSymbols={allSymbols}
-          tickers={tickers}
-          historicalData={historicalData}
-          traders={traders} // Pass traders to MainContent
-          selectedTraderId={selectedTraderId} // Pass selected trader
-          onSelectTrader={setSelectedTraderId} // Pass selection callback
-          currentFilterFn={null} 
-          klineInterval={klineInterval}
-          selectedSymbolForChart={selectedSymbolForChart}
-          chartConfigForDisplay={chartConfigForDisplay}
-          onRowClick={handleRowClick}
-          onAiInfoClick={handleAiInfoClick}
-          signalLog={signalLog} // Pass signalLog to MainContent
-          historicalSignals={historicalSignals} // Pass historical signals
-          hasActiveFilter={multiTraderEnabled && traders.some(t => t.enabled)}
-          onRunHistoricalScan={handleRunHistoricalScan}
-          isHistoricalScanning={multiTraderEnabled && traders.some(t => t.enabled) ? isMultiTraderHistoricalScanning : isHistoricalScanning}
-          historicalScanProgress={multiTraderEnabled && traders.some(t => t.enabled) ? multiTraderHistoricalProgress : historicalScanProgress}
-          historicalScanConfig={historicalScanConfig}
-          onHistoricalScanConfigChange={setHistoricalScanConfig}
-          onCancelHistoricalScan={multiTraderEnabled && traders.some(t => t.enabled) ? cancelMultiTraderHistoricalScan : cancelHistoricalScan}
-          signalDedupeThreshold={signalDedupeThreshold}
-          onSignalDedupeThresholdChange={setSignalDedupeThreshold}
-          klineHistoryConfig={klineHistoryConfig}
-          onKlineHistoryConfigChange={setKlineHistoryConfig}
-        />
-        <ActivityPanel
-          signals={allSignals}
-          trades={allTrades}
-          isOpen={isActivityPanelOpen}
-          onClose={() => setIsActivityPanelOpen(false)}
-          isMobile={isMobile}
-        />
-      </div>
+      <MainContent
+        statusText={statusText}
+        statusLightClass={statusLightClass}
+        initialLoading={initialLoading}
+        initialError={initialError}
+        allSymbols={allSymbols}
+        tickers={tickers}
+        historicalData={historicalData}
+        traders={traders} // Pass traders to MainContent
+        selectedTraderId={selectedTraderId} // Pass selected trader
+        onSelectTrader={setSelectedTraderId} // Pass selection callback
+        currentFilterFn={null} 
+        klineInterval={klineInterval}
+        selectedSymbolForChart={selectedSymbolForChart}
+        chartConfigForDisplay={chartConfigForDisplay}
+        onRowClick={handleRowClick}
+        onAiInfoClick={handleAiInfoClick}
+        signalLog={signalLog} // Pass signalLog to MainContent
+        historicalSignals={historicalSignals} // Pass historical signals
+        hasActiveFilter={multiTraderEnabled && traders.some(t => t.enabled)}
+        onRunHistoricalScan={handleRunHistoricalScan}
+        isHistoricalScanning={multiTraderEnabled && traders.some(t => t.enabled) ? isMultiTraderHistoricalScanning : isHistoricalScanning}
+        historicalScanProgress={multiTraderEnabled && traders.some(t => t.enabled) ? multiTraderHistoricalProgress : historicalScanProgress}
+        historicalScanConfig={historicalScanConfig}
+        onHistoricalScanConfigChange={setHistoricalScanConfig}
+        onCancelHistoricalScan={multiTraderEnabled && traders.some(t => t.enabled) ? cancelMultiTraderHistoricalScan : cancelHistoricalScan}
+        signalDedupeThreshold={signalDedupeThreshold}
+        onSignalDedupeThresholdChange={setSignalDedupeThreshold}
+        klineHistoryConfig={klineHistoryConfig}
+        onKlineHistoryConfigChange={setKlineHistoryConfig}
+        isActivityPanelOpen={isActivityPanelOpen}
+        allSignals={allSignals}
+        allTrades={allTrades}
+        onCloseActivityPanel={() => setIsActivityPanelOpen(false)}
+        isMobile={isMobile}
+      />
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

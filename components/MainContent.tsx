@@ -105,7 +105,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 historicalSignals={historicalSignals} // Pass historicalSignals to ChartDisplay
               />
               <div className="mt-2 flex h-full">
-                <div className={`${isActivityPanelOpen && !isMobile ? 'flex-1' : 'w-full'} h-full`}>
+                <div className={`${!isMobile ? 'flex-1' : 'w-full'} h-full`}>
                   <TraderSignalsTable 
                     tickers={tickers}
                     traders={traders}
@@ -130,8 +130,8 @@ const MainContent: React.FC<MainContentProps> = ({
                   <ActivityPanel
                     signals={allSignals}
                     trades={allTrades}
-                    isOpen={isActivityPanelOpen}
-                    onClose={onCloseActivityPanel || (() => {})}
+                    isOpen={true}
+                    onClose={() => {}}
                     isMobile={false}
                   />
                 )}

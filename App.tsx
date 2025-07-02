@@ -87,7 +87,7 @@ const AppContent: React.FC = () => {
   const [modalContent, setModalContent] = useState<React.ReactNode>('');
   
   // Activity panel state
-  const [isActivityPanelOpen, setIsActivityPanelOpen] = useState<boolean>(false);
+  const [isActivityPanelOpen, setIsActivityPanelOpen] = useState<boolean>(true); // Always open
   const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
   
   // Historical signals state
@@ -872,26 +872,6 @@ const AppContent: React.FC = () => {
       >
         {modalContent}
       </Modal>
-      
-      {/* Activity Panel Toggle Button */}
-      {!isActivityPanelOpen && (
-        <button
-          onClick={() => setIsActivityPanelOpen(true)}
-          className="fixed bottom-6 right-6 z-40 bg-[var(--tm-accent)] text-white rounded-full p-4 shadow-lg hover:bg-[var(--tm-accent-hover)] transition-all hover:scale-110"
-          aria-label="Open activity history"
-        >
-          <div className="relative">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {allSignals.filter(s => ['monitoring', 'ready'].includes(s.status)).length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-[var(--tm-error)] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {allSignals.filter(s => ['monitoring', 'ready'].includes(s.status)).length}
-              </span>
-            )}
-          </div>
-        </button>
-      )}
     </div>
   );
 };

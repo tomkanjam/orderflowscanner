@@ -68,10 +68,27 @@ export class SignalManager {
     this.notifyUpdate();
   }
   
+  // Update signal with re-analysis results (for monitoring/in_position signals)
+  updateReanalysis(signalId: string, analysis: AnalysisResult) {
+    const signal = this.signals.get(signalId);
+    if (!signal) return;
+    
+    // Update the analysis result with the latest
+    signal.analysis = analysis;
+    signal.analyzedAt = new Date();
+    
+    // Only update status if the decision changes from monitoring to ready
+    if (signal.status === 'monitoring' && analysis.decision === 'enter_trade') {
+      signal.status = 'ready';
+    }
+    
+    this.notifyUpdate();
+  }
+  
   // Add monitoring update
   addMonitoringUpdate(signalId: string, update: MonitoringUpdate) {
     const signal = this.signals.get(signalId);
-    if (!signal || signal.status !== 'monitoring') return;
+    if (!signal || (signal.status !== 'monitoring' && signal.status !== 'in_position')) return;
     
     if (!signal.monitoringUpdates) {
       signal.monitoringUpdates = [];

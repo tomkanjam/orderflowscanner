@@ -406,6 +406,12 @@ export function TraderSignalsTable({
                             {signal.analysis.decision === 'good_setup' && '👁️ GOOD SETUP'}
                             {signal.analysis.decision === 'bad_setup' && '❌ BAD SETUP'}
                           </span>
+                          {/* Show pulsing indicator if analyzed within last 5 seconds */}
+                          {signal.analyzedAt && 
+                           new Date().getTime() - new Date(signal.analyzedAt).getTime() < 5000 && (
+                            <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
+                                  title="Recently re-analyzed" />
+                          )}
                           {signal.status === 'monitoring' && (
                             <WorkflowStatus signalId={signal.id} compact={true} />
                           )}
@@ -433,6 +439,37 @@ export function TraderSignalsTable({
                               )}
                             </div>
                           </details>
+                          {signal.monitoringUpdates && signal.monitoringUpdates.length > 0 && (
+                            <details className="cursor-pointer mt-2">
+                              <summary className="hover:text-[var(--tm-text-secondary)] text-xs">
+                                Monitoring History ({signal.monitoringUpdates.length} updates)
+                              </summary>
+                              <div className="mt-1 p-2 bg-[var(--tm-bg-hover)] rounded text-xs space-y-1">
+                                {signal.monitoringUpdates.slice(-5).reverse().map((update, idx) => (
+                                  <div key={idx} className="flex justify-between items-center">
+                                    <span className="text-[var(--tm-text-muted)]">
+                                      {new Date(update.timestamp).toLocaleTimeString()}
+                                    </span>
+                                    <span className={`font-medium ${
+                                      update.action === 'enter' ? 'text-green-500' : 
+                                      update.action === 'cancel' ? 'text-red-500' : 
+                                      'text-[var(--tm-text-secondary)]'
+                                    }`}>
+                                      {update.action.toUpperCase()}
+                                    </span>
+                                    <span className="text-[var(--tm-text-muted)]">
+                                      ${update.price.toFixed(4)}
+                                    </span>
+                                    {update.confidence && (
+                                      <span className="text-[var(--tm-text-muted)]">
+                                        {Math.round(update.confidence * 100)}%
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
                         </div>
                       )}
                     </div>

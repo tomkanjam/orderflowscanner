@@ -19,6 +19,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   const { activeStrategy, autoAnalyze = false, autoMonitor = true, modelName = 'gemini-2.5-flash', aiAnalysisLimit: globalAiAnalysisLimit = 100, calculateIndicators, getMarketData } = options;
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [reanalyzingSignals, setReanalyzingSignals] = useState<Set<string>>(new Set());
   const monitoringInterval = useRef<NodeJS.Timeout>();
   const analysisQueue = useRef<string[]>([]);
   const activeAnalyses = useRef<Map<string, Promise<void>>>(new Map());
@@ -307,27 +308,44 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     
     setIsMonitoring(true);
     
-    // Monitor all signals in monitoring status every 30 seconds
+    // Monitor all signals in monitoring or in_position status every 30 seconds
     monitoringInterval.current = setInterval(async () => {
-      const monitoringSignals = signals.filter((s: SignalLifecycle) => s.status === 'monitoring');
+      const monitoringSignals = signals.filter((s: SignalLifecycle) => 
+        s.status === 'monitoring' || s.status === 'in_position'
+      );
       
       for (const signal of monitoringSignals) {
         try {
+          // Mark signal as being re-analyzed
+          setReanalyzingSignals(prev => new Set(prev).add(signal.id));
+          
           // Re-analyze with current data
           const result = await analyzeSignal(signal.id);
           
-          // Create monitoring update
-          const update = {
-            timestamp: new Date(),
-            price: signal.currentPrice,
-            action: (result?.decision === 'enter_trade' ? 'enter' : 'continue') as 'enter' | 'continue',
-            reason: result?.reasoning || 'Monitoring update',
-            confidence: result?.confidence,
-          };
-          
-          signalManager.addMonitoringUpdate(signal.id, update);
+          if (result) {
+            // Update the full analysis result
+            signalManager.updateReanalysis(signal.id, result);
+            
+            // Also create monitoring update for history
+            const update = {
+              timestamp: new Date(),
+              price: signal.currentPrice,
+              action: (result.decision === 'enter_trade' ? 'enter' : 'continue') as 'enter' | 'continue',
+              reason: result.reasoning || 'Monitoring update',
+              confidence: result.confidence,
+            };
+            
+            signalManager.addMonitoringUpdate(signal.id, update);
+          }
         } catch (error) {
           console.error('Monitoring update failed:', error);
+        } finally {
+          // Remove from re-analyzing set
+          setReanalyzingSignals(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(signal.id);
+            return newSet;
+          });
         }
       }
     }, 30000); // Every 30 seconds
@@ -373,6 +391,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     startMonitoring,
     stopMonitoring,
     isMonitoring,
+    reanalyzingSignals,
     signalManager,
   };
 }

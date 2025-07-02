@@ -4,6 +4,27 @@
 
 This application includes a comprehensive trading system that supports both demo (paper) trading and live trading capabilities. The system is designed with a flexible architecture that allows switching between different trading modes.
 
+## Position-Aware AI Analysis
+
+All AI trading decisions now include full position context:
+
+- **Signal Analysis** - AI knows if there's an open position when analyzing new signals
+- **Monitoring Workflows** - Position details included in candle-close analysis
+- **Symbol Analysis** - Chart analysis shows current position P&L and risk
+
+Position information provided to AI includes:
+- Current side (long/short) and size
+- Entry price and mark price
+- Unrealized and realized P&L
+- Position age and liquidation price (if applicable)
+- Account balance and exposure percentage
+
+This ensures the AI makes informed decisions like:
+- Avoiding conflicting positions
+- Managing risk based on current exposure
+- Scaling in/out of positions appropriately
+- Setting stops based on existing P&L
+
 ## Architecture
 
 ### Trading Engines

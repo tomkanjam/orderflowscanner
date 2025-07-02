@@ -200,7 +200,7 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
     <>
       <div className="p-4 border-b border-[var(--tm-border)]">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold">Trade Activity</h3>
+          <h3 className="text-lg font-semibold">Trader Activity</h3>
           <button
             onClick={onClose}
             className="text-[var(--tm-text-muted)] hover:text-[var(--tm-text)]"
@@ -344,7 +344,7 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
   // Desktop side panel
   if (!isMobile) {
     return (
-      <div className={`w-80 border-l border-[var(--tm-border)] bg-[var(--tm-bg-primary)] flex flex-col ${isOpen ? '' : 'hidden'}`}>
+      <div className={`w-80 border-l border-[var(--tm-border)] bg-[var(--tm-bg-primary)] flex flex-col h-full ${isOpen ? '' : 'hidden'}`}>
         {panelContent}
       </div>
     );

@@ -237,7 +237,9 @@ export class TradingManager {
     const positionSize = positionValue / entryPrice;
 
     // Round to appropriate decimals (this should be based on exchange's lot size)
-    return Math.floor(positionSize * 1000) / 1000;
+    // Ensure minimum position size of 0.001 to avoid 0 quantity errors
+    const roundedSize = Math.floor(positionSize * 1000) / 1000;
+    return Math.max(roundedSize, 0.001);
   }
 
   private async createStopLoss(

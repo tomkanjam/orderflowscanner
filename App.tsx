@@ -517,8 +517,8 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const dataCleanupInterval = setInterval(() => {
       const now = Date.now();
-      const maxSignalHistoryAge = 4 * 60 * 60 * 1000; // 4 hours
-      const maxSignalLogAge = 2 * 60 * 60 * 1000; // 2 hours
+      const maxSignalHistoryAge = 24 * 60 * 60 * 1000; // 24 hours
+      const maxSignalLogAge = 12 * 60 * 60 * 1000; // 12 hours
       
       // Clean signal history
       setSignalHistory(prev => {
@@ -881,6 +881,9 @@ const AppContent: React.FC = () => {
                                      timeSinceLastSignal >= minTimeBetweenSignals;
         
         // Deduplication check performed
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[App] Signal dedup check for ${symbol}: shouldCreate=${shouldCreateNewSignal}, historyEntry=${!!historyEntry}, barCount=${historyEntry?.barCount || 0}, timeSince=${timeSinceLastSignal}ms`);
+        }
         
         if (shouldCreateNewSignal) {
           // Create signal with trader attribution

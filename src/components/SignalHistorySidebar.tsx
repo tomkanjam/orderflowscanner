@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { SignalLifecycle } from '../abstractions/interfaces';
+import { signalManager } from '../services/signalManager';
 import { X, TrendingUp, TrendingDown, Activity, Clock, Target, AlertCircle, CheckCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -10,7 +11,42 @@ interface SignalHistorySidebarProps {
   traders: any[];
 }
 
-export function SignalHistorySidebar({ signal, onClose, tickers, traders }: SignalHistorySidebarProps) {
+export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, traders }: SignalHistorySidebarProps) {
+  const [signal, setSignal] = useState<SignalLifecycle | null>(initialSignal);
+  const [justUpdated, setJustUpdated] = useState(false);
+
+  // Subscribe to signal updates
+  useEffect(() => {
+    if (!initialSignal) return;
+
+    // Get the latest signal data immediately
+    const latestSignal = signalManager.getSignal(initialSignal.id);
+    if (latestSignal) {
+      setSignal(latestSignal);
+    }
+
+    // Subscribe to updates
+    const unsubscribe = signalManager.subscribe((signals) => {
+      const updatedSignal = signals.find(s => s.id === initialSignal.id);
+      if (updatedSignal) {
+        // Check if analysis was added
+        const prevAnalysisCount = signal?.analysisHistory?.length || 0;
+        const newAnalysisCount = updatedSignal.analysisHistory?.length || 0;
+        
+        if (newAnalysisCount > prevAnalysisCount) {
+          setJustUpdated(true);
+          setTimeout(() => setJustUpdated(false), 2000);
+        }
+        
+        setSignal(updatedSignal);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [initialSignal, signal]);
+
   if (!signal) return null;
 
   const ticker = tickers.get(signal.symbol);
@@ -140,13 +176,34 @@ export function SignalHistorySidebar({ signal, onClose, tickers, traders }: Sign
               ({signal.analysisHistory.length} {signal.analysisHistory.length === 1 ? 'analysis' : 'analyses'})
             </span>
           )}
+          {justUpdated && (
+            <span className="text-xs text-green-500 font-medium animate-pulse">
+              New analysis!
+            </span>
+          )}
         </h3>
         
         {(!signal.analysisHistory || signal.analysisHistory.length === 0) ? (
           <div className="text-center py-8 text-[var(--tm-text-muted)]">
-            <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">No analysis yet</p>
-            <p className="text-xs mt-1">Analysis will appear here once completed</p>
+            {signal.status === 'analyzing' || signal.status === 'analysis_queued' ? (
+              <>
+                <div className="w-12 h-12 mx-auto mb-3 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                <p className="text-sm font-medium text-[var(--tm-text-primary)]">
+                  {signal.status === 'analyzing' ? 'Analyzing signal...' : 'Queued for analysis'}
+                </p>
+                <p className="text-xs mt-1">
+                  {signal.status === 'analyzing' 
+                    ? 'AI is evaluating market conditions' 
+                    : 'Waiting for analysis to start'}
+                </p>
+              </>
+            ) : (
+              <>
+                <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">No analysis yet</p>
+                <p className="text-xs mt-1">Analysis will appear here once completed</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

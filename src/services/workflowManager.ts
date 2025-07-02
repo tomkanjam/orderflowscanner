@@ -296,15 +296,18 @@ class WorkflowManager {
     // Get position context for this symbol
     const positionCtx = await getPositionContext(signal.symbol);
     
-    return `You are monitoring a trading setup AT CANDLE CLOSE. A ${trader.filter?.interval || '1m'} candle has just closed.
+    // Import trader persona
+    const { enhancePromptWithPersona } = await import('../constants/traderPersona');
+    
+    const basePrompt = `MONITORING UPDATE: ${trader.filter?.interval || '1m'} candle has just closed for ${signal.symbol}.
 
-Original Signal:
+SIGNAL CONTEXT:
 - Symbol: ${signal.symbol}
-- Initial Price: ${signal.initialPrice}
-- Current Price: ${closePrice}
-- Price Change: ${priceChange.toFixed(2)}%
+- Initial Signal Price: $${signal.initialPrice}
+- Current Price: $${closePrice}
+- Price Movement: ${priceChange.toFixed(2)}%
 - Time in Monitoring: ${this.getTimeElapsed(signal.createdAt)}
-- Matched Conditions: ${signal.matchedConditions?.join(', ') || 'N/A'}
+- Original Conditions: ${signal.matchedConditions?.join(', ') || 'N/A'}
 
 ${positionCtx.formattedText}
 
@@ -315,23 +318,27 @@ Just Closed Candle:
 - Close: ${kline[4]}
 - Volume: ${kline[5]}
 
-Your Trading Strategy:
-${trader.strategy || 'No specific strategy defined'}
+TRADER'S STRATEGY FOR THIS POSITION:
+${trader.strategy || 'Follow standard technical analysis principles'}
 
-Analyze the current state and decide:
-1. ENTER: The setup is now ready for entry (provide entry, stop loss, and take profit levels)
-2. CONTINUE: Keep monitoring, conditions not yet optimal
-3. ABANDON: The setup is no longer valid
+REQUIRED DECISION:
+Based on your expertise and the current market conditions, make one of these decisions:
+1. ENTER: Confluence achieved, execute the trade now
+2. CONTINUE: Setup still valid but needs more development
+3. ABANDON: Setup invalidated, move on to next opportunity
 
-Provide your decision with reasoning. Format your response with:
+FORMAT YOUR RESPONSE:
 DECISION: [ENTER/CONTINUE/ABANDON]
 CONFIDENCE: [0-100]%
-REASONING: [Your detailed analysis]
+REASONING: [Your analysis based on your trading experience]
 
-If ENTER, also provide:
-ENTRY: [price]
-STOP_LOSS: [price]
-TAKE_PROFIT: [price]`;
+If ENTER, provide execution details:
+ENTRY: [exact price]
+STOP_LOSS: [exact price with reasoning]
+TAKE_PROFIT: [exact price(s) with reasoning]`;
+
+    // Apply trader persona
+    return enhancePromptWithPersona(basePrompt);
   }
 
   private parseMonitoringDecision(analysis: string): Partial<MonitoringDecision> {

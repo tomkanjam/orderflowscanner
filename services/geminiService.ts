@@ -6,6 +6,7 @@ import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS } from "../consta
 import * as helpers from '../screenerHelpers'; // Import all helpers
 import { observability } from './observabilityService';
 import { TraderGeneration } from '../src/abstractions/trader.interfaces';
+import { enhancePromptWithPersona } from '../src/constants/traderPersona';
 
 // Simple indicator executor for analysis (full version is in worker)
 function executeIndicatorFunction(
@@ -339,7 +340,8 @@ General Guidelines:
   let retryAttempted = false;
 
   async function makeApiCall(promptText: string, isRetry: boolean): Promise<AiFilterResponse> {
-    const currentSystemInstruction = isRetry ? "" : systemInstruction + "\n\nUser Request: ";
+    const baseInstruction = isRetry ? "" : systemInstruction + "\n\nUser Request: ";
+    const currentSystemInstruction = isRetry ? baseInstruction : enhancePromptWithPersona(baseInstruction);
     const startTime = Date.now();
     
     let rawTextFromGemini: string = "";
@@ -478,7 +480,7 @@ export async function generateFilterAndChartConfigStream(
 ): Promise<AiFilterResponse> {
   
   // Use the same system instruction with progress comments
-  const systemInstruction = `You are an AI assistant for a crypto screener. The user provides a description of technical conditions. You MUST return a single, valid JSON object with three properties: "description", "screenerCode", and "indicators". Do not include any text outside of this JSON object.
+  const baseSystemInstruction = `You are an AI assistant for a crypto screener. The user provides a description of technical conditions. You MUST return a single, valid JSON object with three properties: "description", "screenerCode", and "indicators". Do not include any text outside of this JSON object.
 
 description: An array of human-readable strings explaining each condition the AI has implemented. Max 3-4 concise conditions.
 
@@ -738,8 +740,11 @@ General Guidelines:
       // We'll validate JSON after streaming completes
     });
 
+    // Apply trader persona to system instruction
+    const enhancedSystemInstruction = enhancePromptWithPersona(baseSystemInstruction);
+    
     // Generate streaming content
-    const result = await model.generateContentStream(systemInstruction + "\n\nUser Request: " + userPrompt);
+    const result = await model.generateContentStream(enhancedSystemInstruction + "\n\nUser Request: " + userPrompt);
     
     let buffer = '';
     let tokenCount = 0;
@@ -1022,19 +1027,24 @@ export async function generateStructuredAnalysis(
         aiAnalysisLimit: aiAnalysisLimit
     });
     
-    const prompt = `
-You are an expert trading analyst. Analyze this ${symbol} setup and provide a structured JSON response.
+    // Import trader persona dynamically
+    const { enhancePromptWithPersona } = await import('../src/constants/traderPersona');
+    
+    const basePrompt = `
+Analyze this ${symbol} setup and provide a structured JSON response based on your expertise.
 
-Strategy: ${strategy}
+TRADER'S STRATEGY DIRECTIVE:
+${strategy}
 
-Current Market Data:
+CURRENT MARKET DATA:
+- Symbol: ${symbol}
 - Price: $${marketData.price}
 - 24h Volume: ${marketData.volume}
-- Historical Bars Provided: ${marketData.klines?.length || 0}
+- Historical Bars: ${marketData.klines?.length || 0} candles available
 
 ${positionContext ? `${positionContext}\n` : 'Position Status: No open position for this symbol\n'}
 
-Technical Indicators:
+TECHNICAL INDICATORS:
 ${JSON.stringify(technicalIndicators, null, 2)}
 
 Historical Price Data (OHLCV):
@@ -1081,22 +1091,18 @@ Return ONLY a valid JSON object with this exact structure:
   "chartAnalysis": "Technical analysis of the current setup"
 }
 
-Decision Guidelines:
-- "buy": Enter a long position immediately, strong setup matching strategy
-- "sell": Enter a short position immediately, strong bearish setup
-- "hold": Already in position, maintain current trade
-- "monitor": Good potential setup, wait for better entry or confirmation
-- "no_trade": Setup doesn't match strategy criteria, skip this signal
+DECISION FRAMEWORK:
+- "buy": Long entry conditions met with proper confluence
+- "sell": Short entry conditions met with proper confluence
+- "hold": In position, conditions favor maintaining
+- "monitor": Setup developing, needs more confirmation
+- "no_trade": Conditions don't meet your standards
 
-Focus on:
-1. How well the current setup matches the trader's specific strategy
-2. Risk/reward ratio and position sizing
-3. Clear entry, stop loss, and take profit levels
-4. Market structure and trend alignment
-5. Timing and confluence of signals
-
-Be decisive and actionable. Only suggest "buy" or "sell" if the setup strongly matches the strategy with good risk/reward.
+Apply your full trading methodology to this decision.
 `;
+
+    // Apply trader persona to enhance the prompt
+    const enhancedPrompt = enhancePromptWithPersona(basePrompt);
 
     const startTime = Date.now();
     
@@ -1108,7 +1114,7 @@ Be decisive and actionable. Only suggest "buy" or "sell" if the setup strongly m
             }
         });
         
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent(enhancedPrompt);
         const response = result.response;
         const text = response.text();
         
@@ -1116,7 +1122,7 @@ Be decisive and actionable. Only suggest "buy" or "sell" if the setup strongly m
         await observability.trackAnalysis(
             'structured',
             modelName,
-            prompt,
+            enhancedPrompt,
             text,
             response.usageMetadata,
             Date.now() - startTime,
@@ -1184,16 +1190,23 @@ export async function getSymbolAnalysis(
         positionContext = `\n${positionCtx.formattedText}\n`;
     }
 
-    let prompt = `Provide a brief technical analysis (2-3 short paragraphs) for ${symbol} on the ${klineInterval} interval.
-Current Price: ${parseFloat(ticker.c).toFixed(4)} USDT
-24h Change: ${ticker.P}%
-Analysis is based on the last ${analysisKlines.length} klines.${positionContext}
-Recent Kline Data (Open, High, Low, Close, Volume) - last ${klinesForDisplayCount} of ${analysisKlines.length}, most recent first:
+    // Import trader persona
+    const { enhancePromptWithPersona } = await import('../src/constants/traderPersona');
+    
+    let basePrompt = `Provide your expert technical analysis for ${symbol} on the ${klineInterval} timeframe.
+
+MARKET SNAPSHOT:
+- Symbol: ${symbol}
+- Current Price: ${parseFloat(ticker.c).toFixed(4)} USDT
+- 24h Change: ${ticker.P}%
+- Analysis Scope: ${analysisKlines.length} candles${positionContext}
+
+RECENT PRICE ACTION (Last ${klinesForDisplayCount} candles, newest first):
 ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloat(k[1]).toFixed(4)}, H:${parseFloat(k[2]).toFixed(4)}, L:${parseFloat(k[3]).toFixed(4)}, C:${parseFloat(k[4]).toFixed(4)}, V:${parseFloat(k[5]).toFixed(2)}`).join('\n')}
 `;
 
     if (indicators && indicators.length > 0 && analysisKlines.length > 0) {
-        prompt += "\nIndicator Data (based on last " + analysisKlines.length + " klines, latest 5 values shown - most recent first, 'null' if not calculable):\n";
+        basePrompt += "\nINDICATOR READINGS (Last " + analysisKlines.length + " candles, showing 5 most recent values):\n";
         
         // Execute indicators inline for analysis
         
@@ -1217,7 +1230,7 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
                         ? latestValues.join(', ') 
                         : 'not enough data';
                     
-                    prompt += `- ${indicator.name}: [${indicatorValuesText}]\n`;
+                    basePrompt += `- ${indicator.name}: [${indicatorValuesText}]\n`;
                     
                     // If indicator has multiple lines (y2, y3), show those too
                     if (dataPoints[0]?.y2 !== undefined) {
@@ -1227,33 +1240,36 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
                             .reverse()
                             .map(p => p.y2!.toFixed(4));
                         if (y2Values.length > 0) {
-                            prompt += `  - Line 2: [${y2Values.join(', ')}]\n`;
+                            basePrompt += `  - Line 2: [${y2Values.join(', ')}]\n`;
                         }
                     }
                 } else {
-                    prompt += `- ${indicator.name}: [calculation error]\n`;
+                    basePrompt += `- ${indicator.name}: [calculation error]\n`;
                 }
             } catch (error) {
                 console.error(`Error calculating indicator ${indicator.name}:`, error);
-                prompt += `- ${indicator.name}: [error in calculation]\n`;
+                basePrompt += `- ${indicator.name}: [error in calculation]\n`;
             }
         }
     }
     
     if (strategy && strategy.trim()) {
-        prompt += `\n\nUser's Trading Strategy:\n${strategy}\n\nBased on this strategy and the technical analysis above, provide:\n1. Trade Decision: BUY, SELL, HOLD, or WAIT (one word)\n2. Reasoning: Why this decision? (max 2 sentences)\n3. Trade Plan: Specific action to take (max 2 sentences)\n\nFormat your response as:\nDECISION: [BUY/SELL/HOLD/WAIT]\nREASONING: [Your reasoning]\nTRADE PLAN: [Your plan]\n\nFollowed by your regular technical analysis.`;
+        basePrompt += `\n\nTRADER'S STRATEGY DIRECTIVE:\n${strategy}\n\nBased on your expertise and this strategy, provide:\n1. TRADE DECISION: Execute specific action based on your analysis\n2. KEY LEVELS: Support, resistance, entry, stop, target levels\n3. MARKET STRUCTURE: Your read on the current setup\n\nFormat your response starting with:\nDECISION: [Your decisive action]\nANALYSIS: [Your expert technical analysis]`;
     } else {
-        prompt += "\nFocus on price action, potential support/resistance levels, and volume analysis based on the provided data. Do not give financial advice. Keep the analysis concise and data-driven.";
+        basePrompt += "\n\nProvide your expert technical analysis focusing on:\n- Market structure and trend\n- Key support/resistance levels\n- Volume analysis and order flow\n- Potential trade setups forming";
     }
 
     const startTime = Date.now();
+    
+    // Apply trader persona enhancement
+    const enhancedPrompt = enhancePromptWithPersona(basePrompt);
     
     try {
         // Create a model instance
         const model = getGenerativeModel(ai, { model: modelName });
         
         // Generate content using Firebase AI Logic
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent(enhancedPrompt);
         const response = result.response;
         const text = response.text();
         
@@ -1261,7 +1277,7 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
         await observability.trackAnalysis(
             'symbol',
             modelName,
-            prompt,
+            enhancedPrompt,
             text,
             response.usageMetadata,
             Date.now() - startTime,
@@ -1277,7 +1293,7 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
         await observability.trackAnalysis(
             'symbol',
             modelName,
-            prompt,
+            enhancedPrompt,
             null,
             null,
             Date.now() - startTime,
@@ -1297,7 +1313,7 @@ export async function regenerateFilterCode(
 ): Promise<{ filterCode: string }> {
     const conditionsList = conditions.map((c, i) => `${i + 1}. ${c}`).join('\n');
     
-    const systemInstruction = `You are an AI assistant that converts human-readable trading conditions into JavaScript filter code.
+    const baseSystemInstruction = `You are an AI assistant that converts human-readable trading conditions into JavaScript filter code.
 
 Given these conditions:
 ${conditionsList}
@@ -1339,6 +1355,9 @@ The ticker object has properties like: ticker.c (lastPrice), ticker.P (priceChan
 Kline interval: ${klineInterval}`;
 
     try {
+        // Apply trader persona to system instruction
+        const enhancedSystemInstruction = enhancePromptWithPersona(baseSystemInstruction);
+        
         const model = getGenerativeModel(ai, {
             model: modelName,
             generationConfig: {
@@ -1346,7 +1365,7 @@ Kline interval: ${klineInterval}`;
             }
         });
 
-        const result = await model.generateContent(systemInstruction);
+        const result = await model.generateContent(enhancedSystemInstruction);
         const response = result.response;
         let filterCode = response.text().trim();
         
@@ -1389,7 +1408,7 @@ export async function generateTrader(
     modelName: string = 'gemini-2.5-pro',
     klineInterval: string = '1h'
 ): Promise<TraderGeneration> {
-    const systemInstruction = `You are an AI assistant that creates complete cryptocurrency trading systems. The user provides a trading strategy description, and you create a unified "Trader" that includes both market scanning filters and trading execution strategy.
+    const baseSystemInstruction = `You are an AI assistant that creates complete cryptocurrency trading systems. The user provides a trading strategy description, and you create a unified "Trader" that includes both market scanning filters and trading execution strategy.
 
 Generate a JSON response with the following structure:
 {
@@ -1483,9 +1502,12 @@ Remember to:
     const startTime = Date.now();
 
     try {
+        // Apply trader persona to system instruction
+        const enhancedSystemInstruction = enhancePromptWithPersona(baseSystemInstruction);
+        
         const model = getGenerativeModel(ai, { model: modelName });
         const result = await model.generateContent({
-            systemInstruction,
+            systemInstruction: enhancedSystemInstruction,
             contents: [{ role: 'user', parts: [{ text: prompt }] }]
         });
         

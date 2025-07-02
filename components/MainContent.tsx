@@ -88,9 +88,9 @@ const MainContent: React.FC<MainContentProps> = ({
   isMobile = false,
 }) => {
   return (
-    <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-y-auto">
-      <div className="container mx-auto px-4 py-2 md:px-6 md:py-3 flex-grow flex flex-col">
-        <main className="flex-grow flex flex-col">
+    <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-hidden">
+      <div className="container mx-auto px-4 py-2 md:px-6 md:py-3 flex-grow flex flex-col overflow-hidden">
+        <main className="flex-grow flex flex-col overflow-hidden">
           {initialLoading && <Loader text="Fetching initial market data..." />}
           <ErrorMessage message={initialError} />
 
@@ -104,8 +104,8 @@ const MainContent: React.FC<MainContentProps> = ({
                 signalLog={signalLog} // Pass signalLog to ChartDisplay
                 historicalSignals={historicalSignals} // Pass historicalSignals to ChartDisplay
               />
-              <div className="mt-2 flex h-full">
-                <div className={`${!isMobile ? 'flex-1' : 'w-full'} h-full`}>
+              <div className="mt-2 flex flex-1 overflow-hidden">
+                <div className={`${!isMobile ? 'flex-1' : 'w-full'} overflow-hidden`}>
                   <TraderSignalsTable 
                     tickers={tickers}
                     traders={traders}

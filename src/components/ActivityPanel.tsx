@@ -197,8 +197,8 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
   if (!isOpen) return null;
 
   const panelContent = (
-    <>
-      <div className="p-4 border-b border-[var(--tm-border)]">
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b border-[var(--tm-border)] flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold">Trader Activity</h3>
         </div>
@@ -237,7 +237,7 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {filteredEvents.length === 0 ? (
           <div className="p-4 text-center text-[var(--tm-text-muted)]">
             No activity to show
@@ -332,13 +332,13 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 
   // Desktop side panel
   if (!isMobile) {
     return (
-      <div className="w-80 border-l border-[var(--tm-border)] bg-[var(--tm-bg-primary)] flex flex-col h-full">
+      <div className="w-80 border-l border-[var(--tm-border)] bg-[var(--tm-bg-primary)] h-full overflow-hidden">
         {panelContent}
       </div>
     );

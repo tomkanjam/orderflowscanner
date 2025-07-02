@@ -13,6 +13,8 @@ interface TraderSignalsTableProps {
   selectedTraderId?: string | null; // Currently selected trader
   onSelectTrader?: (traderId: string | null) => void; // Callback to change selection
   onRowClick?: (symbol: string, traderId?: string, signalId?: string) => void;
+  onSignalSelect?: (signal: SignalLifecycle | null) => void; // Callback for selecting a signal
+  selectedSignalId?: string | null; // Currently selected signal
   // Historical scanner props
   hasActiveFilter?: boolean;
   onRunHistoricalScan?: () => void;
@@ -36,6 +38,8 @@ export function TraderSignalsTable({
   selectedTraderId,
   onSelectTrader,
   onRowClick,
+  onSignalSelect,
+  selectedSignalId,
   hasActiveFilter,
   onRunHistoricalScan,
   isHistoricalScanning,
@@ -360,8 +364,11 @@ export function TraderSignalsTable({
                 <tr 
                   className={`border-b border-[var(--tm-border)] hover:bg-[var(--tm-bg-hover)] transition-colors cursor-pointer ${
                     newSignalTimestamps.has(signal.createdAt.getTime()) ? 'animate-pulse bg-[var(--tm-accent)]/10' : ''
-                  }`}
-                  onClick={() => onRowClick?.(signal.symbol, signal.traderId, signal.id)}
+                  } ${selectedSignalId === signal.id ? 'bg-blue-500/10 border-l-4 border-l-blue-500' : ''}`}
+                  onClick={() => {
+                    onRowClick?.(signal.symbol, signal.traderId, signal.id);
+                    onSignalSelect?.(signal);
+                  }}
 >
                   <td className="p-2 md:px-4 md:py-2 text-xs md:text-sm text-[var(--tm-text-muted)]">
                     {formatDistanceToNow(signal.createdAt, { addSuffix: true })}
@@ -394,125 +401,49 @@ export function TraderSignalsTable({
                           </button>
                         )}
                       </div>
+                      {/* Analysis indicator */}
                       {signal.analysis && (
-                        <div className="text-xs text-[var(--tm-text-muted)]">
-                          <span className="font-medium">
-                            {signal.analysis.decision === 'buy' && '🟢 BUY'}
-                            {signal.analysis.decision === 'sell' && '🔴 SELL'}
-                            {signal.analysis.decision === 'hold' && '⏸️ HOLD'}
-                            {signal.analysis.decision === 'monitor' && '👁️ MONITOR'}
-                            {signal.analysis.decision === 'no_trade' && '❌ NO TRADE'}
-                            {signal.analysis.decision === 'enter_trade' && '🟢 ENTER'}
-                            {signal.analysis.decision === 'good_setup' && '👁️ GOOD SETUP'}
-                            {signal.analysis.decision === 'bad_setup' && '❌ BAD SETUP'}
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-xs font-medium ${
+                            signal.analysis.decision === 'buy' || signal.analysis.decision === 'enter_trade' ? 'text-green-500' :
+                            signal.analysis.decision === 'sell' ? 'text-red-500' :
+                            signal.analysis.decision === 'hold' || signal.analysis.decision === 'monitor' || signal.analysis.decision === 'good_setup' ? 'text-yellow-500' :
+                            'text-gray-500'
+                          }`}>
+                            {signal.analysis.decision === 'buy' && 'BUY'}
+                            {signal.analysis.decision === 'sell' && 'SELL'}
+                            {signal.analysis.decision === 'hold' && 'HOLD'}
+                            {signal.analysis.decision === 'monitor' && 'MONITOR'}
+                            {signal.analysis.decision === 'no_trade' && 'NO TRADE'}
+                            {signal.analysis.decision === 'enter_trade' && 'ENTER'}
+                            {signal.analysis.decision === 'good_setup' && 'GOOD SETUP'}
+                            {signal.analysis.decision === 'bad_setup' && 'BAD SETUP'}
                           </span>
-                          {/* Show analysis count if more than 1 */}
-                          {signal.analysisHistory && signal.analysisHistory.length > 1 && (
-                            <span className="ml-2 text-xs text-blue-500 font-medium">
-                              ({signal.analysisHistory.length}x)
+                          {signal.analysisHistory && signal.analysisHistory.length > 0 && (
+                            <span className="text-xs text-[var(--tm-text-muted)]">
+                              ({signal.analysisHistory.length})
                             </span>
                           )}
                           {/* Show pulsing indicator if analyzed within last 5 seconds */}
                           {signal.analyzedAt && 
                            new Date().getTime() - new Date(signal.analyzedAt).getTime() < 5000 && (
-                            <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
-                                  title="Recently re-analyzed" />
-                          )}
-                          {signal.status === 'monitoring' && (
-                            <WorkflowStatus signalId={signal.id} compact={true} />
-                          )}
-                          {signal.status === 'ready' && (
-                            <AutoTradeButton signalId={signal.id} />
-                          )}
-                          <details className="cursor-pointer">
-                            <summary className="hover:text-[var(--tm-text-secondary)]">View reasoning ({Math.round(signal.analysis.confidence * 100)}% confidence)</summary>
-                            <div className="mt-1 p-2 bg-[var(--tm-bg-hover)] rounded text-[var(--tm-text-secondary)]">
-                              <p className="mb-1">{signal.analysis.reasoning}</p>
-                              {signal.analysis.tradePlan && (
-                                <div className="mt-2 border-t border-[var(--tm-border)] pt-2">
-                                  <p className="font-medium text-[var(--tm-text-primary)]">Trade Plan:</p>
-                                  <ul className="text-xs space-y-1 mt-1">
-                                    <li>Entry: {signal.analysis.tradePlan.entry}</li>
-                                    <li>Stop Loss: {signal.analysis.tradePlan.stopLoss}</li>
-                                    <li>Take Profit: {signal.analysis.tradePlan.takeProfit}</li>
-                                    <li>Position Size: {signal.analysis.tradePlan.positionSize}</li>
-                                    <li>Timeframe: {signal.analysis.tradePlan.timeframe}</li>
-                                    {signal.analysis.tradePlan.notes && (
-                                      <li>Notes: {signal.analysis.tradePlan.notes}</li>
-                                    )}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
-                          </details>
-                          {signal.monitoringUpdates && signal.monitoringUpdates.length > 0 && (
-                            <details className="cursor-pointer mt-2">
-                              <summary className="hover:text-[var(--tm-text-secondary)] text-xs">
-                                Monitoring History ({signal.monitoringUpdates.length} updates)
-                              </summary>
-                              <div className="mt-1 p-2 bg-[var(--tm-bg-hover)] rounded text-xs space-y-1">
-                                {signal.monitoringUpdates.slice(-5).reverse().map((update, idx) => (
-                                  <div key={idx} className="flex justify-between items-center">
-                                    <span className="text-[var(--tm-text-muted)]">
-                                      {new Date(update.timestamp).toLocaleTimeString()}
-                                    </span>
-                                    <span className={`font-medium ${
-                                      update.action === 'enter' ? 'text-green-500' : 
-                                      update.action === 'cancel' ? 'text-red-500' : 
-                                      'text-[var(--tm-text-secondary)]'
-                                    }`}>
-                                      {update.action.toUpperCase()}
-                                    </span>
-                                    <span className="text-[var(--tm-text-muted)]">
-                                      ${update.price.toFixed(4)}
-                                    </span>
-                                    {update.confidence && (
-                                      <span className="text-[var(--tm-text-muted)]">
-                                        {Math.round(update.confidence * 100)}%
-                                      </span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </details>
-                          )}
-                          {signal.analysisHistory && signal.analysisHistory.length > 1 && (
-                            <details className="cursor-pointer mt-2">
-                              <summary className="hover:text-[var(--tm-text-secondary)] text-xs text-blue-500">
-                                Analysis History ({signal.analysisHistory.length} analyses)
-                              </summary>
-                              <div className="mt-1 p-2 bg-[var(--tm-bg-hover)] rounded space-y-3">
-                                {signal.analysisHistory.slice().reverse().map((analysis, idx) => (
-                                  <div key={idx} className="border-b border-[var(--tm-border)] pb-2 last:border-b-0">
-                                    <div className="flex justify-between items-start mb-1">
-                                      <span className="text-xs text-[var(--tm-text-muted)]">
-                                        {new Date(analysis.timestamp).toLocaleString()}
-                                      </span>
-                                      <span className={`text-xs font-medium ${
-                                        analysis.decision === 'buy' || analysis.decision === 'enter_trade' ? 'text-green-500' :
-                                        analysis.decision === 'sell' ? 'text-red-500' :
-                                        analysis.decision === 'hold' || analysis.decision === 'monitor' || analysis.decision === 'good_setup' ? 'text-yellow-500' :
-                                        'text-gray-500'
-                                      }`}>
-                                        {analysis.decision.toUpperCase().replace('_', ' ')} ({Math.round(analysis.confidence * 100)}%)
-                                      </span>
-                                    </div>
-                                    <p className="text-xs text-[var(--tm-text-secondary)] mt-1">
-                                      {analysis.reasoning}
-                                    </p>
-                                    {analysis.tradePlan && (
-                                      <div className="mt-1 text-xs text-[var(--tm-text-muted)]">
-                                        <span className="font-medium">Plan:</span> E: {analysis.tradePlan.entry}, 
-                                        SL: {analysis.tradePlan.stopLoss}, TP: {analysis.tradePlan.takeProfit}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </details>
+                            <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
+                                  title="Recently analyzed" />
                           )}
                         </div>
                       )}
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-2 mt-1">
+                        {signal.status === 'monitoring' && (
+                          <WorkflowStatus signalId={signal.id} compact={true} />
+                        )}
+                        {signal.status === 'ready' && (
+                          <AutoTradeButton signalId={signal.id} />
+                        )}
+                        <span className="text-xs text-[var(--tm-text-muted)] hover:text-blue-500">
+                          Click for details →
+                        </span>
+                      </div>
                     </div>
                   </td>
                   <td className="p-2 md:px-4 md:py-2 text-right text-sm font-mono">

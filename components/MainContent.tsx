@@ -1,7 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from '../types';
 import { TraderSignalsTable } from '../src/components/TraderSignalsTable';
+import { SignalHistorySidebar } from '../src/components/SignalHistorySidebar';
+import { SignalLifecycle } from '../src/abstractions/interfaces';
+import { signalManager } from '../src/services/signalManager';
 import ChartDisplay from './ChartDisplay';
 import Loader from './Loader';
 import ErrorMessage from './ErrorMessage';
@@ -89,6 +92,8 @@ const MainContent: React.FC<MainContentProps> = ({
   onCloseActivityPanel,
   isMobile = false,
 }) => {
+  const [selectedSignal, setSelectedSignal] = useState<SignalLifecycle | null>(null);
+  
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex flex-col h-screen overflow-hidden">
       <div className="container mx-auto px-4 py-2 md:px-6 md:py-3 flex-grow flex flex-col overflow-hidden">
@@ -114,6 +119,8 @@ const MainContent: React.FC<MainContentProps> = ({
                     selectedTraderId={selectedTraderId}
                     onSelectTrader={onSelectTrader}
                     onRowClick={onRowClick}
+                    onSignalSelect={setSelectedSignal}
+                    selectedSignalId={selectedSignal?.id || null}
                     hasActiveFilter={hasActiveFilter}
                     onRunHistoricalScan={onRunHistoricalScan}
                     isHistoricalScanning={isHistoricalScanning}
@@ -158,6 +165,14 @@ const MainContent: React.FC<MainContentProps> = ({
           selectedSignalId={selectedSignalId}
         />
       )}
+      
+      {/* Signal History Sidebar */}
+      <SignalHistorySidebar 
+        signal={selectedSignal}
+        onClose={() => setSelectedSignal(null)}
+        tickers={tickers}
+        traders={traders || []}
+      />
     </div>
   );
 };

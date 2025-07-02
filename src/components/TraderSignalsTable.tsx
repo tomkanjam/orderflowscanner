@@ -5,6 +5,7 @@ import { Ticker, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress,
 import { formatDistanceToNow } from 'date-fns';
 import { Bell, BellOff, TrendingUp, TrendingDown, AlertCircle, X, Eye } from 'lucide-react';
 import { WorkflowStatus } from './WorkflowStatus';
+import { AutoTradeButton } from './AutoTradeButton';
 
 interface TraderSignalsTableProps {
   tickers: Map<string, Ticker>;
@@ -391,6 +392,9 @@ export function TraderSignalsTable({
                           </span>
                           {signal.status === 'monitoring' && (
                             <WorkflowStatus signalId={signal.id} compact={true} />
+                          )}
+                          {signal.status === 'ready' && (
+                            <AutoTradeButton signalId={signal.id} />
                           )}
                           <details className="cursor-pointer">
                             <summary className="hover:text-[var(--tm-text-secondary)]">View reasoning ({Math.round(signal.analysis.confidence * 100)}% confidence)</summary>

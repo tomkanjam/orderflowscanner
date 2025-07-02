@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { TraderList } from '../src/components/TraderList';
 import { TraderForm } from '../src/components/TraderForm';
 import { PortfolioMetrics } from '../src/components/PortfolioMetrics';
+import { TradingModeSelector } from '../src/components/TradingModeSelector';
+import { PositionsPanel } from '../src/components/PositionsPanel';
 import { Trader } from '../src/abstractions/trader.interfaces';
 
 interface SidebarProps {
@@ -64,6 +66,16 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* Portfolio Metrics */}
           <div className="mt-6">
             <PortfolioMetrics />
+          </div>
+          
+          {/* Trading Mode Selector */}
+          <div className="mt-4">
+            <TradingModeSelector />
+          </div>
+          
+          {/* Positions Panel */}
+          <div className="mt-4">
+            <PositionsPanel />
           </div>
         </>
       )}

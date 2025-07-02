@@ -25,6 +25,7 @@ import { useIndicatorWorker } from './hooks/useIndicatorWorker';
 import ActivityPanel from './src/components/ActivityPanel';
 import { klineEventBus } from './src/services/klineEventBus';
 import { workflowManager } from './src/services/workflowManager';
+import { tradingManager } from './src/services/tradingManager';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -142,16 +143,25 @@ const AppContent: React.FC = () => {
   // Indicator calculation hook
   const { calculateIndicators } = useIndicatorWorker();
   
-  // Initialize workflow manager
+  // Initialize workflow and trading managers
   useEffect(() => {
     if (user && !authLoading) {
+      // Initialize workflow manager
       workflowManager.initialize().catch(error => {
         console.error('[WorkflowManager] Initialization error:', error);
+      });
+      
+      // Initialize trading manager
+      tradingManager.initialize().catch(error => {
+        console.error('[TradingManager] Initialization error:', error);
       });
     }
     
     return () => {
       // Cleanup on unmount
+      tradingManager.shutdown().catch(error => {
+        console.error('[TradingManager] Shutdown error:', error);
+      });
       workflowManager.shutdown();
     };
   }, [user, authLoading]);
@@ -442,6 +452,11 @@ const AppContent: React.FC = () => {
       return newTickers;
     });
   }, []);
+  
+  // Update trading manager with ticker data for demo mode
+  useEffect(() => {
+    tradingManager.updateMarketPrices(tickers);
+  }, [tickers]);
 
   const handleKlineUpdateStable = useCallback((symbol: string, interval: KlineInterval, kline: Kline, isClosed: boolean) => {
     // Emit candle close event for workflows

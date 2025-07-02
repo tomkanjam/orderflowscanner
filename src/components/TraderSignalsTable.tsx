@@ -3,7 +3,8 @@ import { SignalLifecycle, SignalStatus } from '../abstractions/interfaces';
 import { signalManager } from '../services/signalManager';
 import { Ticker, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
-import { Bell, BellOff, TrendingUp, TrendingDown, AlertCircle, X } from 'lucide-react';
+import { Bell, BellOff, TrendingUp, TrendingDown, AlertCircle, X, Eye } from 'lucide-react';
+import { WorkflowStatus } from './WorkflowStatus';
 
 interface TraderSignalsTableProps {
   tickers: Map<string, Ticker>;
@@ -388,6 +389,9 @@ export function TraderSignalsTable({
                             {signal.analysis.decision === 'good_setup' && '👁️ GOOD SETUP'}
                             {signal.analysis.decision === 'bad_setup' && '❌ BAD SETUP'}
                           </span>
+                          {signal.status === 'monitoring' && (
+                            <WorkflowStatus signalId={signal.id} compact={true} />
+                          )}
                           <details className="cursor-pointer">
                             <summary className="hover:text-[var(--tm-text-secondary)]">View reasoning ({Math.round(signal.analysis.confidence * 100)}% confidence)</summary>
                             <div className="mt-1 p-2 bg-[var(--tm-bg-hover)] rounded text-[var(--tm-text-secondary)]">

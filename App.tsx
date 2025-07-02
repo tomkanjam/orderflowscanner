@@ -23,6 +23,8 @@ import { useMultiTraderScreener } from './hooks/useMultiTraderScreener';
 import { TraderResult } from './workers/multiTraderScreenerWorker';
 import { useIndicatorWorker } from './hooks/useIndicatorWorker';
 import ActivityPanel from './src/components/ActivityPanel';
+import { klineEventBus } from './src/services/klineEventBus';
+import { workflowManager } from './src/services/workflowManager';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -139,6 +141,20 @@ const AppContent: React.FC = () => {
   
   // Indicator calculation hook
   const { calculateIndicators } = useIndicatorWorker();
+  
+  // Initialize workflow manager
+  useEffect(() => {
+    if (user && !authLoading) {
+      workflowManager.initialize().catch(error => {
+        console.error('[WorkflowManager] Initialization error:', error);
+      });
+    }
+    
+    return () => {
+      // Cleanup on unmount
+      workflowManager.shutdown();
+    };
+  }, [user, authLoading]);
   
   // Handle window resize for mobile detection
   useEffect(() => {
@@ -428,6 +444,13 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handleKlineUpdateStable = useCallback((symbol: string, interval: KlineInterval, kline: Kline, isClosed: boolean) => {
+    // Emit candle close event for workflows
+    if (isClosed) {
+      klineEventBus.emit(symbol, interval, kline).catch(error => {
+        console.error('[KlineEventBus] Error emitting event:', error);
+      });
+    }
+    
     // Track bar counts for signal deduplication (only for 1m interval)
     if (isClosed && interval === KlineInterval.ONE_MINUTE) {
       const currentCount = klineUpdateCountRef.current.get(symbol) || 0;
@@ -668,17 +691,23 @@ const AppContent: React.FC = () => {
         
         if (shouldCreateNewSignal) {
           // Create signal with trader attribution
+          const trader = traders.find(t => t.id === result.traderId);
           const filterResult = {
             symbol,
             price: parseFloat(ticker.c),
             change24h: parseFloat(ticker.P),
             volume24h: parseFloat(ticker.q),
-            matchedConditions: [`Trader: ${traders.find(t => t.id === result.traderId)?.name || 'Unknown'}`]
+            matchedConditions: [`Trader: ${trader?.name || 'Unknown'}`]
           };
           
-          // Creating signal
+          // Creating signal with interval info
           
           const signal = createSignalFromFilter(filterResult, result.traderId);
+          
+          // Store interval in signal for workflow manager
+          if (signal && trader?.filter?.interval) {
+            signal.interval = trader.filter.interval;
+          }
           
           // Update signal history - reset bar count for new signal
           setSignalHistory(prev => {

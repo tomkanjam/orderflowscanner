@@ -112,6 +112,7 @@ export interface SignalLifecycle {
   symbol: string;
   strategyId: string;
   traderId?: string; // NEW: Reference to the trader that created this signal
+  interval?: string; // NEW: Kline interval for workflow processing
   
   // Signal creation
   createdAt: Date;

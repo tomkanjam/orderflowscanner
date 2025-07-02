@@ -162,6 +162,27 @@ export class SignalManager {
     return this.signals.get(signalId);
   }
   
+  // Alias for consistency
+  getSignalById(signalId: string): SignalLifecycle | undefined {
+    return this.signals.get(signalId);
+  }
+  
+  // Update signal status
+  updateSignalStatus(signalId: string, status: SignalStatus) {
+    const signal = this.signals.get(signalId);
+    if (!signal) return;
+    
+    signal.status = status;
+    
+    // Set timestamps based on status changes
+    if (status === 'monitoring' && !signal.monitoringStarted) {
+      signal.monitoringStarted = new Date();
+      signal.monitoringUpdates = [];
+    }
+    
+    this.notifyUpdate();
+  }
+  
   // Subscribe to signal updates
   subscribe(callback: (signals: SignalLifecycle[]) => void): () => void {
     this.updateCallbacks.add(callback);

@@ -557,8 +557,29 @@ export async function generateStructuredAnalysis(
     // Import trader persona dynamically
     const { enhancePromptWithPersona } = await import('../src/constants/traderPersona');
     
-    const basePrompt = `
-Analyze this ${symbol} setup and provide a structured JSON response based on your expertise.
+    // Get the prompt from the prompt manager
+    const promptTemplate = await promptManager.getActivePromptContent('structured-analysis', {
+        symbol: symbol,
+        ticker: JSON.stringify(technicalIndicators, null, 2),
+        klines: marketData.klines ? JSON.stringify(marketData.klines.slice(-aiAnalysisLimit).map((k, i) => ({
+            bar: marketData.klines.length - Math.min(aiAnalysisLimit, marketData.klines.length) + i + 1,
+            time: new Date(k[0]).toISOString(),
+            open: parseFloat(k[1]),
+            high: parseFloat(k[2]),
+            low: parseFloat(k[3]),
+            close: parseFloat(k[4]),
+            volume: parseFloat(k[5])
+        })), null, 2) : 'No historical data',
+        indicators: JSON.stringify(technicalIndicators, null, 2),
+        position: positionContext || 'No open position for this symbol'
+    });
+
+    if (!promptTemplate) {
+        throw new Error('Failed to load structured-analysis prompt');
+    }
+
+    // Construct the user prompt with additional context
+    const basePrompt = `${promptTemplate}
 
 TRADER'S STRATEGY DIRECTIVE:
 ${strategy}
@@ -569,22 +590,6 @@ CURRENT MARKET DATA:
 - 24h Volume: ${marketData.volume}
 - Historical Bars: ${marketData.klines?.length || 0} candles available
 
-${positionContext ? `${positionContext}\n` : 'Position Status: No open position for this symbol\n'}
-
-TECHNICAL INDICATORS:
-${JSON.stringify(technicalIndicators, null, 2)}
-
-Historical Price Data (OHLCV):
-${marketData.klines ? JSON.stringify(marketData.klines.slice(-aiAnalysisLimit).map((k, i) => ({
-  bar: marketData.klines.length - Math.min(aiAnalysisLimit, marketData.klines.length) + i + 1,
-  time: new Date(k[0]).toISOString(),
-  open: parseFloat(k[1]),
-  high: parseFloat(k[2]),
-  low: parseFloat(k[3]),
-  close: parseFloat(k[4]),
-  volume: parseFloat(k[5])
-})), null, 2) : 'No historical data'}
-
 Note: 
 - Each indicator includes current value and a 'history' array with past values
 - The history array contains up to ${Math.min(aiAnalysisLimit, marketData.klines?.length || 0)} recent values
@@ -592,41 +597,7 @@ Note:
   - StochRSI: value = %K, value2 = %D
   - MACD: value = MACD line, value2 = Signal line, value3 = Histogram
   - Bollinger Bands: value = middle band, value2 = upper band, value3 = lower band
-- Historical price data shows the most recent ${Math.min(aiAnalysisLimit, marketData.klines?.length || 0)} bars for analysis
-
-Return ONLY a valid JSON object with this exact structure:
-{
-  "decision": "buy" | "sell" | "hold" | "no_trade" | "monitor",
-  "direction": "long" | "short" (required if decision is "buy" or "sell"),
-  "confidence": 0.0-1.0,
-  "reasoning": "Detailed explanation of why this decision was made based on the strategy",
-  "keyLevels": {
-    "entry": number,
-    "stopLoss": number,
-    "takeProfit": [number, number, number],
-    "support": [number],
-    "resistance": [number]
-  },
-  "tradePlan": {
-    "entry": "Specific entry price or condition",
-    "stopLoss": "Risk management level with reasoning",
-    "takeProfit": "Target levels with reasoning for each",
-    "positionSize": "Recommended allocation percentage",
-    "timeframe": "Expected trade duration",
-    "notes": "Additional trade management notes"
-  } (only if decision is "buy" or "sell"),
-  "chartAnalysis": "Technical analysis of the current setup"
-}
-
-DECISION FRAMEWORK:
-- "buy": Long entry conditions met with proper confluence
-- "sell": Short entry conditions met with proper confluence
-- "hold": In position, conditions favor maintaining
-- "monitor": Setup developing, needs more confirmation
-- "no_trade": Conditions don't meet your standards
-
-Apply your full trading methodology to this decision.
-`;
+- Historical price data shows the most recent ${Math.min(aiAnalysisLimit, marketData.klines?.length || 0)} bars for analysis`;
 
     // Apply trader persona to enhance the prompt
     const enhancedPrompt = enhancePromptWithPersona(basePrompt);
@@ -720,20 +691,20 @@ export async function getSymbolAnalysis(
     // Import trader persona
     const { enhancePromptWithPersona } = await import('../src/constants/traderPersona');
     
-    let basePrompt = `Provide your expert technical analysis for ${symbol} on the ${klineInterval} timeframe.
-
-MARKET SNAPSHOT:
-- Symbol: ${symbol}
+    // Prepare data for the prompt
+    const marketSnapshot = `- Symbol: ${symbol}
 - Current Price: ${parseFloat(ticker.c).toFixed(4)} USDT
 - 24h Change: ${ticker.P}%
-- Analysis Scope: ${analysisKlines.length} candles${positionContext}
+- Analysis Scope: ${analysisKlines.length} candles on ${klineInterval} timeframe`;
 
-RECENT PRICE ACTION (Last ${klinesForDisplayCount} candles, newest first):
-${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloat(k[1]).toFixed(4)}, H:${parseFloat(k[2]).toFixed(4)}, L:${parseFloat(k[3]).toFixed(4)}, C:${parseFloat(k[4]).toFixed(4)}, V:${parseFloat(k[5]).toFixed(2)}`).join('\n')}
-`;
+    const priceAction = analysisKlines.slice(-klinesForDisplayCount).reverse()
+        .map(k => `O:${parseFloat(k[1]).toFixed(4)}, H:${parseFloat(k[2]).toFixed(4)}, L:${parseFloat(k[3]).toFixed(4)}, C:${parseFloat(k[4]).toFixed(4)}, V:${parseFloat(k[5]).toFixed(2)}`)
+        .join('\n');
+
+    let technicalIndicators = '';
 
     if (indicators && indicators.length > 0 && analysisKlines.length > 0) {
-        basePrompt += "\nINDICATOR READINGS (Last " + analysisKlines.length + " candles, showing 5 most recent values):\n";
+        technicalIndicators = "INDICATOR READINGS (Last " + analysisKlines.length + " candles, showing 5 most recent values):\n";
         
         // Execute indicators inline for analysis
         
@@ -757,7 +728,7 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
                         ? latestValues.join(', ') 
                         : 'not enough data';
                     
-                    basePrompt += `- ${indicator.name}: [${indicatorValuesText}]\n`;
+                    technicalIndicators += `- ${indicator.name}: [${indicatorValuesText}]\n`;
                     
                     // If indicator has multiple lines (y2, y3), show those too
                     if (dataPoints[0]?.y2 !== undefined) {
@@ -767,29 +738,45 @@ ${analysisKlines.slice(-klinesForDisplayCount).reverse().map(k => `O:${parseFloa
                             .reverse()
                             .map(p => p.y2!.toFixed(4));
                         if (y2Values.length > 0) {
-                            basePrompt += `  - Line 2: [${y2Values.join(', ')}]\n`;
+                            technicalIndicators += `  - Line 2: [${y2Values.join(', ')}]\n`;
                         }
                     }
                 } else {
-                    basePrompt += `- ${indicator.name}: [calculation error]\n`;
+                    technicalIndicators += `- ${indicator.name}: [calculation error]\n`;
                 }
             } catch (error) {
                 console.error(`Error calculating indicator ${indicator.name}:`, error);
-                basePrompt += `- ${indicator.name}: [error in calculation]\n`;
+                technicalIndicators += `- ${indicator.name}: [error in calculation]\n`;
             }
         }
     }
     
-    if (strategy && strategy.trim()) {
-        basePrompt += `\n\nTRADER'S STRATEGY DIRECTIVE:\n${strategy}\n\nBased on your expertise and this strategy, provide:\n1. TRADE DECISION: Execute specific action based on your analysis\n2. KEY LEVELS: Support, resistance, entry, stop, target levels\n3. MARKET STRUCTURE: Your read on the current setup\n\nFormat your response starting with:\nDECISION: [Your decisive action]\nANALYSIS: [Your expert technical analysis]`;
-    } else {
-        basePrompt += "\n\nProvide your expert technical analysis focusing on:\n- Market structure and trend\n- Key support/resistance levels\n- Volume analysis and order flow\n- Potential trade setups forming";
+    // Prepare strategy context
+    const strategyContext = strategy && strategy.trim() ? 
+        `TRADER'S STRATEGY DIRECTIVE:\n${strategy}\n\nBased on your expertise and this strategy, provide:\n1. TRADE DECISION: Execute specific action based on your analysis\n2. KEY LEVELS: Support, resistance, entry, stop, target levels\n3. MARKET STRUCTURE: Your read on the current setup\n\nFormat your response starting with:\nDECISION: [Your decisive action]\nANALYSIS: [Your expert technical analysis]` : "";
+
+    // Get the prompt template from prompt manager
+    const promptTemplate = await promptManager.getActivePromptContent('symbol-analysis', {
+        symbol: symbol,
+        ticker: JSON.stringify(ticker, null, 2),
+        klines: JSON.stringify(analysisKlines, null, 2),
+        indicators: JSON.stringify(indicators, null, 2),
+        position: positionContext || '',
+        marketSnapshot: marketSnapshot,
+        priceAction: priceAction,
+        technicalIndicators: technicalIndicators,
+        strategyContext: strategyContext,
+        positionContext: positionContext || ''
+    });
+
+    if (!promptTemplate) {
+        throw new Error('Failed to load symbol-analysis prompt');
     }
 
     const startTime = Date.now();
     
     // Apply trader persona enhancement
-    const enhancedPrompt = enhancePromptWithPersona(basePrompt);
+    const enhancedPrompt = enhancePromptWithPersona(promptTemplate);
     
     try {
         // Create a model instance
@@ -840,44 +827,20 @@ export async function regenerateFilterCode(
 ): Promise<{ filterCode: string }> {
     const conditionsList = conditions.map((c, i) => `${i + 1}. ${c}`).join('\n');
     
-    const baseSystemInstruction = `You are an AI assistant that converts human-readable trading conditions into JavaScript filter code.
+    // Get the prompt from the prompt manager
+    const promptTemplate = await promptManager.getActivePromptContent('regenerate-filter', {
+        conditions: conditionsList
+    });
+
+    if (!promptTemplate) {
+        throw new Error('Failed to load regenerate-filter prompt');
+    }
+
+    // Add the conditions and kline interval to the prompt
+    const baseSystemInstruction = `${promptTemplate}
 
 Given these conditions:
 ${conditionsList}
-
-Generate ONLY the JavaScript function body for (ticker, klines, helpers, hvnNodes) => boolean
-
-IMPORTANT:
-- Return ONLY the raw JavaScript code - no markdown formatting, no code blocks, no backticks
-- Just the function body code, no JSON wrapper
-- Use only the 4 provided parameters: ticker, klines, helpers, hvnNodes
-- Do NOT reference undefined variables like 'inputs', 'data', etc.
-- The code must return true when ALL conditions are met, false otherwise
-- Use helper functions like calculateMA, calculateRSI, etc.
-- Do NOT wrap the response in \`\`\`javascript\`\`\` or any other formatting
-
-Available helpers include:
-- calculateMA(klines, period) / calculateMASeries(klines, period) / calculateSMA(values, period)
-- calculateRSI(klines, period) / getLatestRSI(klines, period)
-- calculateEMA(values, period) / calculateEMASeries(klines, period) / getLatestEMA(klines, period)
-- calculateMACD(closes, short=12, long=26, signal=9) / calculateMACDValues(klines) / getLatestMACD(klines)
-- calculateBollingerBands(klines, period=20, stdDev=2) / getLatestBollingerBands(klines, period, stdDev)
-- calculateStochRSI(klines, rsiPeriod=14, stochPeriod=14, kPeriod=3, dPeriod=3) / getLatestStochRSI(klines)
-- calculateStochastic(klines, kPeriod=14, dPeriod=3, smooth=3)
-- calculateADX(klines, period=14)
-- calculateAvgVolume(klines, period)
-- calculateVWAP(klines) / calculateVWAPSeries(klines, anchorPeriod) / getLatestVWAP(klines)
-- calculateVWAPBands(klines, anchorPeriod, stdDevMultiplier) / getLatestVWAPBands(klines)
-- calculatePVISeries(klines, initialPVI=1000) / getLatestPVI(klines)
-- detectRSIDivergence(klines, rsiPeriod=14, lookback=30) / detectGenericDivergence(series1, series2)
-- detectEngulfingPattern(klines)
-- calculateHighVolumeNodes(klines, options) / isNearHVN(price, hvnNodes, tolerance)
-- getClosestHVN(price, hvnNodes, direction) / countHVNInRange(priceLow, priceHigh, hvnNodes)
-- getHighestHigh(klines, period) / getLowestLow(klines, period)
-- clearHVNCache(cacheKey)
-
-The klines array format: each kline is [timestamp, open, high, low, close, volume, ...other]
-The ticker object has properties like: ticker.c (lastPrice), ticker.P (priceChangePercent), ticker.q (quoteVolume)
 
 Kline interval: ${klineInterval}`;
 
@@ -935,88 +898,16 @@ export async function generateTrader(
     modelName: string = 'gemini-2.5-pro',
     klineInterval: string = '1h'
 ): Promise<TraderGeneration> {
-    const baseSystemInstruction = `You are an AI assistant that creates complete cryptocurrency trading systems. The user provides a trading strategy description, and you create a unified "Trader" that includes both market scanning filters and trading execution strategy.
+    // Get the prompt from the prompt manager
+    const baseSystemInstruction = await promptManager.getActivePromptContent('generate-trader', {
+        userPrompt: userPrompt,
+        modelName: modelName,
+        klineInterval: klineInterval
+    });
 
-Generate a JSON response with the following structure:
-{
-  "suggestedName": "A short, descriptive name for this trader (e.g., 'RSI Bounce Trader', 'Momentum Breakout Bot')",
-  "description": "A 1-2 sentence description of what this trader does",
-  "filterDescription": ["Array of 3-4 human-readable conditions this trader looks for"],
-  "filterCode": "JavaScript function body for (ticker, klines, helpers, hvnNodes) => boolean. IMPORTANT: Only use the provided parameters - do not reference undefined variables like 'inputs' or 'data'",
-  "strategyInstructions": "Detailed instructions for AI analysis including entry criteria, exit criteria, and risk management",
-  "indicators": [
-    /* Array of indicator configurations for charting
-    Each indicator should follow this structure:
-    {
-      "id": "unique_id",
-      "name": "Display Name",
-      "panel": true/false (true = separate panel, false = overlay on price),
-      "calculateFunction": "JavaScript function body returning data points",
-      "chartType": "line" or "bar",
-      "style": { "color": ["#color1", "#color2"], "lineWidth": 1.5 },
-      "yAxisConfig": { "min": 0, "max": 100, "label": "RSI" } // optional
+    if (!baseSystemInstruction) {
+        throw new Error('Failed to load generate-trader prompt');
     }
-    */
-  ],
-  "riskParameters": {
-    "stopLoss": /* percentage as decimal, e.g., 0.02 for 2% */,
-    "takeProfit": /* percentage as decimal, e.g., 0.05 for 5% */,
-    "maxPositions": /* number */,
-    "positionSizePercent": /* percentage of portfolio as decimal */,
-    "maxDrawdown": /* maximum acceptable drawdown as decimal */
-  }
-}
-
-IMPORTANT GUIDELINES:
-1. The filter and strategy must work together cohesively - the filter finds opportunities that match the strategy
-2. The filterCode must use the helper functions available (calculateMA, calculateRSI, etc.)
-3. Risk parameters should be conservative by default unless the user specifies otherwise
-4. Include relevant technical indicators that support the strategy
-5. The strategyInstructions should be clear enough for the AI analyzer to make consistent decisions
-6. The filterCode function receives exactly 4 parameters: ticker, klines, helpers, hvnNodes
-   - Do NOT reference any other variables like 'inputs', 'data', 'config', etc.
-   - All data must come from these 4 parameters only
-
-Available helper functions for filterCode:
-- calculateMA(klines, period) / calculateMASeries(klines, period) / calculateSMA(values, period)
-- calculateRSI(klines, period) / getLatestRSI(klines, period)
-- calculateEMA(values, period) / calculateEMASeries(klines, period) / getLatestEMA(klines, period)
-- calculateMACD(closes, short=12, long=26, signal=9) / calculateMACDValues(klines) / getLatestMACD(klines)
-- calculateBollingerBands(klines, period=20, stdDev=2) - Returns {upper: [], middle: [], lower: []}
-- getLatestBollingerBands(klines, period=20, stdDev=2) - Returns {upper: number, middle: number, lower: number}
-- calculateStochRSI(klines, rsiPeriod=14, stochPeriod=14, kPeriod=3, dPeriod=3) / getLatestStochRSI(klines)
-- calculateStochastic(klines, kPeriod=14, dPeriod=3, smooth=3)
-- calculateADX(klines, period=14)
-- calculateAvgVolume(klines, period)
-- calculateVWAP(klines) / calculateVWAPSeries(klines, anchorPeriod) / getLatestVWAP(klines)
-- calculateVWAPBands(klines, anchorPeriod, stdDevMultiplier) / getLatestVWAPBands(klines)
-- calculatePVISeries(klines, initialPVI=1000) / getLatestPVI(klines)
-- detectRSIDivergence(klines, rsiPeriod=14, lookback=30) / detectGenericDivergence(series1, series2)
-- detectEngulfingPattern(klines)
-- calculateHighVolumeNodes(klines, options) / isNearHVN(price, hvnNodes, tolerance)
-- getClosestHVN(price, hvnNodes, direction) / countHVNInRange(priceLow, priceHigh, hvnNodes)
-- getHighestHigh(klines, period) / getLowestLow(klines, period)
-- clearHVNCache(cacheKey)
-
-IMPORTANT: Always check if helper function results exist before accessing properties:
-Example: 
-  const bb = helpers.getLatestBollingerBands(klines, 20, 2);
-  if (!bb || bb.lower === null) return false;
-  // Now safe to use bb.lower
-
-Example indicator objects:
-- Moving Average: {"id": "ma_20", "name": "MA(20)", "panel": false, "calculateFunction": "const ma = helpers.calculateMASeries(klines, 20); return klines.map((k, i) => ({x: k[0], y: ma[i]}));", "chartType": "line", "style": {"color": "#facc15"}}
-- RSI: {"id": "rsi_14", "name": "RSI(14)", "panel": true, "calculateFunction": "const rsi = helpers.calculateRSI(klines, 14) || []; return rsi.map((val, i) => ({x: klines[i][0], y: val}));", "chartType": "line", "style": {"color": "#8b5cf6"}, "yAxisConfig": {"min": 0, "max": 100}}
-- Volume: {"id": "volume", "name": "Volume", "panel": true, "calculateFunction": "return klines.map(k => ({x: k[0], y: parseFloat(k[5]), color: parseFloat(k[4]) > parseFloat(k[1]) ? '#10b981' : '#ef4444'}));", "chartType": "bar"}
-
-IMPORTANT: The filterDescription should be human-readable explanations of what the filter is looking for, NOT code. Users should understand the conditions without seeing JavaScript.
-
-Example user prompt: "Create a mean reversion trader that buys oversold conditions"
-Example response would include:
-- filterDescription: ["RSI is below 30 (oversold)", "Price is near a support level", "Volume is above average"]
-- filterCode: The actual JavaScript implementation
-- indicators: RSI indicator, support/resistance levels, volume indicator
-- Conservative risk parameters (2% stop loss, 5% take profit)`;
 
     const prompt = `Create a complete trader based on this strategy: "${userPrompt}"
 
@@ -1042,10 +933,11 @@ Remember to:
         const text = response.text();
         
         // Track the generation
-        await observability.trackAnalysis(
-            'trader_generation',
-            modelName,
+        await observability.trackGeneration(
             prompt,
+            modelName,
+            klineInterval,
+            250, // Default kline limit for trader generation
             text,
             response.usageMetadata,
             Date.now() - startTime
@@ -1058,14 +950,14 @@ Remember to:
         console.error('Error generating trader:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         
-        await observability.trackAnalysis(
-            'trader_generation',
-            modelName,
+        await observability.trackGeneration(
             prompt,
+            modelName,
+            klineInterval,
+            250, // Default kline limit for trader generation
             null,
             null,
             Date.now() - startTime,
-            undefined,
             errorMessage
         );
         
@@ -1103,7 +995,7 @@ function parseAndValidateTraderGeneration(responseText: string): TraderGeneratio
         
         // Debug log the generated indicators
         console.log(`[DEBUG] generateTrader created ${parsed.indicators.length} indicators:`, 
-            parsed.indicators.map(ind => ({
+            parsed.indicators.map((ind: any) => ({
                 id: ind.id,
                 name: ind.name,
                 panel: ind.panel,

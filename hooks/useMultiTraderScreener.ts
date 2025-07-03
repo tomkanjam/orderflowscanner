@@ -88,14 +88,17 @@ export function useMultiTraderScreener({
 
   // Run screener function - stable reference
   const runScreener = useCallback(() => {
+    console.log('[useMultiTraderScreener] runScreener called - enabled:', enabledRef.current, 'traders:', tradersRef.current.length, 'symbols:', symbolsRef.current.length);
     if (!workerRef.current || !enabledRef.current || tradersRef.current.length === 0 || symbolsRef.current.length === 0) {
+      console.log('[useMultiTraderScreener] Skipping run - conditions not met');
       return;
     }
 
     // Filter only enabled traders
     const enabledTraders = tradersRef.current.filter(t => t.enabled);
+    console.log('[useMultiTraderScreener] Enabled traders:', enabledTraders.length);
     if (enabledTraders.length === 0) {
-      // Skipping run - no enabled traders
+      console.log('[useMultiTraderScreener] Skipping run - no enabled traders');
       return;
     }
 

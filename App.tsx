@@ -346,11 +346,19 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const unsubscribe = traderManager.subscribe((updatedTraders) => {
       // Traders updated
+      console.log('[App] Traders updated from manager:', updatedTraders.length, 'traders');
+      updatedTraders.forEach(t => {
+        console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}`);
+      });
       setTraders(updatedTraders);
     });
     
     // Initial load
     traderManager.getTraders().then((traders) => {
+      console.log('[App] Initial traders loaded:', traders.length, 'traders');
+      traders.forEach(t => {
+        console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}`);
+      });
       setTraders(traders);
     });
     
@@ -849,8 +857,10 @@ const AppContent: React.FC = () => {
 
   // Multi-trader screener hook
   const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
+    console.log('[App] Multi-trader results received:', results.length, 'results');
     results.forEach(result => {
       
+      console.log(`[App] Trader ${result.traderId} found ${result.signalSymbols.length} signals`);
       result.signalSymbols.forEach(symbol => {
         const ticker = tickers.get(symbol);
         if (!ticker) {
@@ -937,13 +947,16 @@ const AppContent: React.FC = () => {
     });
   }, [traders, tickers, activeStrategy, klineInterval, signalHistory, signalDedupeThreshold, createSignalFromFilter]);
 
+  const screenerEnabled = multiTraderEnabled && traders.some(t => t.enabled);
+  console.log('[App] Multi-trader screener enabled:', screenerEnabled, 'multiTraderEnabled:', multiTraderEnabled, 'enabled traders:', traders.filter(t => t.enabled).length);
+  
   const { isRunning: isMultiTraderRunning } = useMultiTraderScreener({
     traders,
     symbols: allSymbols,
     tickers,
     historicalData,
     onResults: handleMultiTraderResults,
-    enabled: multiTraderEnabled && traders.some(t => t.enabled),
+    enabled: screenerEnabled,
     interval: 5000 // Run every 5 seconds
   });
 

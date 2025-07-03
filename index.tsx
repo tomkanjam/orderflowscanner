@@ -1,7 +1,9 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import { AuthProvider } from './src/contexts/AuthContext';
+import { StrategyProvider } from './src/contexts/StrategyContext';
+import { AppRouter } from './src/routes/AppRouter';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,6 +13,10 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <AuthProvider>
+      <StrategyProvider>
+        <AppRouter />
+      </StrategyProvider>
+    </AuthProvider>
   </React.StrictMode>
 );

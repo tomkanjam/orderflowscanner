@@ -1099,13 +1099,7 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  return (
-    <AuthProvider>
-      <StrategyProvider>
-        <AppContent />
-      </StrategyProvider>
-    </AuthProvider>
-  );
+  return <AppContent />;
 };
 
 export default App;

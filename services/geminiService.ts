@@ -86,14 +86,17 @@ export async function generateFilterAndChartConfig(
 ): Promise<AiFilterResponse> {
 
   // Get the system instruction from the prompt manager
+  console.log('[generateFilterAndChartConfig] Getting prompt from manager...');
   const systemInstruction = await promptManager.getActivePromptContent('filter-and-chart-config', {
     klineLimit,
     klineInterval
   });
 
   if (!systemInstruction) {
+    console.error('[generateFilterAndChartConfig] Failed to load filter-and-chart-config prompt');
     throw new Error('Failed to load filter-and-chart-config prompt');
   }
+  console.log('[generateFilterAndChartConfig] Got prompt, length:', systemInstruction.length);
 
   
   let retryAttempted = false;

@@ -36,8 +36,16 @@ export class TraderManager implements ITraderManager {
       }
 
       if (data) {
+        console.log('[TraderManager] Loading', data.length, 'traders from Supabase');
         data.forEach(trader => {
-          this.traders.set(trader.id, this.deserializeTrader(trader));
+          const deserialized = this.deserializeTrader(trader);
+          console.log(`[TraderManager] Loaded trader ${deserialized.name}:`, {
+            enabled: deserialized.enabled,
+            hasFilter: !!deserialized.filter,
+            hasFilterCode: !!deserialized.filter?.code,
+            filterCodeLength: deserialized.filter?.code?.length || 0
+          });
+          this.traders.set(trader.id, deserialized);
         });
       }
 
@@ -262,19 +270,28 @@ export class TraderManager implements ITraderManager {
   }
 
   private deserializeTrader(data: any): Trader {
-    return {
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      enabled: data.enabled,
-      mode: data.mode,
-      exchangeConfig: data.exchange_config ? JSON.parse(data.exchange_config) : undefined,
-      filter: JSON.parse(data.filter),
-      strategy: JSON.parse(data.strategy),
-      metrics: JSON.parse(data.metrics),
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-    };
+    try {
+      const filter = typeof data.filter === 'string' ? JSON.parse(data.filter) : data.filter;
+      const strategy = typeof data.strategy === 'string' ? JSON.parse(data.strategy) : data.strategy;
+      const metrics = typeof data.metrics === 'string' ? JSON.parse(data.metrics) : data.metrics;
+      
+      return {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        enabled: data.enabled,
+        mode: data.mode,
+        exchangeConfig: data.exchange_config ? JSON.parse(data.exchange_config) : undefined,
+        filter: filter,
+        strategy: strategy,
+        metrics: metrics,
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at),
+      };
+    } catch (error) {
+      console.error('[TraderManager] Error deserializing trader', data.name, error);
+      throw error;
+    }
   }
 
   // Public method to get enabled traders for screener

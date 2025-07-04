@@ -120,6 +120,16 @@ export function useMultiTraderScreener({
       });
     });
 
+    // Log trader filter details
+    enabledTraders.forEach(t => {
+      console.log(`[useMultiTraderScreener] Trader ${t.name} (${t.id}):`, {
+        hasFilter: !!t.filter,
+        hasFilterCode: !!t.filter?.code,
+        filterCodeLength: t.filter?.code?.length || 0,
+        interval: t.filter?.interval
+      });
+    });
+
     const message: MultiTraderScreenerMessage = {
       id: requestIdRef.current.toString(),
       type: 'RUN_MULTI_SCREENER',
@@ -129,8 +139,8 @@ export function useMultiTraderScreener({
         historicalData: historicalDataObj,
         traders: enabledTraders.map(t => ({
           traderId: t.id,
-          filterCode: t.filter.code,
-          interval: t.filter.interval
+          filterCode: t.filter?.code || '',
+          interval: t.filter?.interval
         }))
       }
     };

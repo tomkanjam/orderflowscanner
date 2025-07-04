@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Trader } from '../abstractions/trader.interfaces';
 import { traderManager } from '../services/traderManager';
 import { Plus, Power, Edit2, Trash2, TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { FixTraderFiltersButton } from './FixTraderFiltersButton';
 
 interface TraderListProps {
   onCreateTrader: () => void;
@@ -244,6 +245,13 @@ export function TraderList({
               </div>
             );
           })}
+        </div>
+      )}
+      
+      {/* Fix Trader Filters Button - show if there are traders */}
+      {traders.length > 0 && (
+        <div className="mt-4 border-t border-[var(--tm-border)] pt-4">
+          <FixTraderFiltersButton />
         </div>
       )}
     </div>

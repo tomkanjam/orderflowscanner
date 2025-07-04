@@ -137,6 +137,36 @@ function runTraderFilter(
         
         const matches = filterFunction(ticker, klines, helpers, hvnNodes);
         
+        // Debug logging for Momentum Breakout Scalper
+        if (traderId.includes('momentum') || traderId.includes('breakout')) {
+          // Execute filter with detailed debugging
+          try {
+            const debugFilterCode = filterCode.replace(
+              'return false;',
+              `console.log('[Filter Debug] ${symbol} failed at:', arguments.callee.caller.arguments); return false;`
+            );
+            const currentClose = parseFloat(klines[klines.length - 1][4]);
+            const prevClose = parseFloat(klines[klines.length - 2][4]);
+            const currentVolume = parseFloat(klines[klines.length - 1][5]);
+            const recentHigh = helpers.getHighestHigh(klines.slice(-21, -1), 20);
+            const avgVolume = helpers.calculateAvgVolume(klines.slice(-21, -1), 20);
+            
+            console.log(`[Worker] Momentum Breakout Debug for ${symbol}:`, {
+              currentClose,
+              prevClose,
+              recentHigh,
+              breakoutOccurred: prevClose < recentHigh && currentClose > recentHigh,
+              currentVolume,
+              avgVolume,
+              volumeRatio: currentVolume / avgVolume,
+              volumeThreshold: 1.5,
+              meetsVolumeReq: currentVolume >= avgVolume * 1.5
+            });
+          } catch (debugError) {
+            console.error('[Worker] Debug error:', debugError);
+          }
+        }
+        
         if (matches) {
           console.log(`[Worker] ✅ Trader ${traderId} matched symbol ${symbol}`, {
             price: ticker.c,

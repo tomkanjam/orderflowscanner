@@ -528,7 +528,10 @@ class PromptManager {
         .eq('is_active', true);
 
       if (error) {
-        console.error('Failed to load prompt overrides:', error);
+        // Only log if it's not a "table doesn't exist" error
+        if (error.code !== '42P01') {
+          console.error('Failed to load prompt overrides:', error);
+        }
         return;
       }
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { SignalLifecycle } from '../abstractions/interfaces';
 import { signalManager } from '../services/signalManager';
 import { X, TrendingUp, TrendingDown, Activity, Clock, Target, AlertCircle, CheckCircle } from 'lucide-react';
@@ -14,6 +14,7 @@ interface SignalHistorySidebarProps {
 export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, traders }: SignalHistorySidebarProps) {
   const [signal, setSignal] = useState<SignalLifecycle | null>(initialSignal);
   const [justUpdated, setJustUpdated] = useState(false);
+  const prevAnalysisCountRef = useRef(0);
 
   // Subscribe to signal updates
   useEffect(() => {
@@ -23,6 +24,7 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
     const latestSignal = signalManager.getSignal(initialSignal.id);
     if (latestSignal) {
       setSignal(latestSignal);
+      prevAnalysisCountRef.current = latestSignal.analysisHistory?.length || 0;
     }
 
     // Subscribe to updates
@@ -30,14 +32,22 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
       const updatedSignal = signals.find(s => s.id === initialSignal.id);
       if (updatedSignal) {
         // Check if analysis was added
-        const prevAnalysisCount = signal?.analysisHistory?.length || 0;
         const newAnalysisCount = updatedSignal.analysisHistory?.length || 0;
         
-        if (newAnalysisCount > prevAnalysisCount) {
+        console.log(`[SignalHistorySidebar] Signal ${updatedSignal.id} update:`, {
+          prevCount: prevAnalysisCountRef.current,
+          newCount: newAnalysisCount,
+          status: updatedSignal.status,
+          latestAnalysis: updatedSignal.analysisHistory?.[newAnalysisCount - 1]
+        });
+        
+        if (newAnalysisCount > prevAnalysisCountRef.current) {
+          console.log(`[SignalHistorySidebar] New analysis detected! Count: ${prevAnalysisCountRef.current} -> ${newAnalysisCount}`);
           setJustUpdated(true);
           setTimeout(() => setJustUpdated(false), 2000);
         }
         
+        prevAnalysisCountRef.current = newAnalysisCount;
         setSignal(updatedSignal);
       }
     });
@@ -45,7 +55,7 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
     return () => {
       unsubscribe();
     };
-  }, [initialSignal, signal]);
+  }, [initialSignal]);
 
   if (!signal) return null;
 

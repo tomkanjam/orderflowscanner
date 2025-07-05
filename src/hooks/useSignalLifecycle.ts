@@ -361,11 +361,60 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
         // Mark signal as being re-analyzed
         setReanalyzingSignals(prev => new Set(prev).add(signal.id));
         
-        // Re-analyze with current data
-        const result = await analyzeSignal(signal.id);
+        // Get market data for analysis
+        const marketData = getMarketData(signal.symbol);
+        if (!marketData) {
+          console.warn(`No market data available for ${signal.symbol}`);
+          continue;
+        }
+        
+        // Determine strategy to use
+        let strategyToUse = activeStrategy;
+        if (signal.traderId) {
+          const trader = await traderManager.getTrader(signal.traderId);
+          if (trader?.strategy) {
+            strategyToUse = trader.strategy.instructions;
+          }
+        }
+        
+        // Determine model to use
+        let modelToUse = modelName;
+        if (signal.traderId) {
+          const trader = await traderManager.getTrader(signal.traderId);
+          if (trader?.strategy?.modelTier) {
+            modelToUse = MODEL_TIERS[trader.strategy.modelTier].model;
+          }
+        }
+        
+        // Calculate indicators
+        const indicatorData: any = {};
+        for (const calculator of calculateIndicators) {
+          const data = calculator.calculate(signal.symbol);
+          if (data) {
+            indicatorData[calculator.name] = data;
+          }
+        }
+        
+        // Get analysis engine
+        const analysisEngine = ServiceFactory.getAnalysis();
+        
+        // Directly call analysis engine to avoid duplicate history entries
+        const result = await analysisEngine.analyzeSetup(
+          signal.symbol,
+          strategyToUse,
+          marketData,
+          undefined,
+          modelToUse
+        );
         
         if (result) {
-          // Update the full analysis result
+          console.log(`[useSignalLifecycle] Re-analysis complete for signal ${signal.id}:`, {
+            decision: result.decision,
+            confidence: result.confidence,
+            historyLength: signal.analysisHistory?.length || 0
+          });
+          
+          // Use updateReanalysis which is designed for monitoring updates
           signalManager.updateReanalysis(signal.id, result);
           
           // Call the onAnalysisComplete callback for re-analysis too

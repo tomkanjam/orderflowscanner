@@ -85,6 +85,8 @@ export class SignalManager {
     const signal = this.signals.get(signalId);
     if (!signal) return;
     
+    const oldHistoryLength = signal.analysisHistory?.length || 0;
+    
     // Update the analysis result with the latest
     signal.analysis = analysis;
     signal.analyzedAt = new Date();
@@ -98,6 +100,13 @@ export class SignalManager {
     signal.analysisHistory.push({
       ...analysis,
       timestamp: new Date()
+    });
+    
+    console.log(`[signalManager] Updated re-analysis for signal ${signalId}:`, {
+      oldHistoryLength,
+      newHistoryLength: signal.analysisHistory.length,
+      decision: analysis.decision,
+      status: signal.status
     });
     
     // Only update status if the decision changes from monitoring to ready

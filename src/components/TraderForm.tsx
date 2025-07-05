@@ -569,19 +569,10 @@ export function TraderForm({
             )}
             <button
               onClick={handleCreateTrader}
-              disabled={!manualName.trim() || !manualFilterCode.trim() || !manualStrategy.trim() || filterConditions.filter(c => c.trim()).length === 0 || regeneratingCode}
+              disabled={!manualName.trim() || !manualFilterCode.trim() || !manualStrategy.trim() || filterConditions.filter(c => c.trim()).length === 0}
               className="flex-1 px-4 py-2 bg-[var(--tm-accent)] text-[var(--tm-bg-primary)] rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center gap-2"
             >
-              {regeneratingCode ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Regenerating...
-                </>
-              ) : conditionsModified ? (
-                <>⚠️ {editingTrader ? 'Update' : 'Create'} (will regenerate)</>
-              ) : (
-                editingTrader ? 'Update Trader' : 'Create Trader'
-              )}
+              {editingTrader ? 'Update Trader' : 'Create Trader'}
             </button>
           </div>
         </div>

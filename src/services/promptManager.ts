@@ -487,11 +487,58 @@ Return a JSON object with this structure:
 The filterCode should use the same helper functions available in the main screener.
 The strategy should be complete and actionable, with clear rules for entry, exit, and risk management.
 
-Available helper functions for filterCode:
+IMPORTANT: The filterCode is a JavaScript function body that receives these parameters:
+- ticker: 24hr ticker data object with properties like c (lastPrice), P (priceChangePercent), v (volume), etc.
+- klines: Array of candlestick data [openTime, open, high, low, close, volume, ...]
+- helpers: Object with utility functions. ALL functions must be called via this object (e.g., helpers.getLatestRSI())
+- hvnNodes: High volume node array (must be calculated first if needed)
+
+DO NOT use standalone functions like getPrice(), getRSI(), getEMA(), getVolume(). 
+These DO NOT exist. Use the helpers object instead:
+- For prices: parseFloat(klines[klines.length - 1][4]) for last close
+- For RSI: helpers.getLatestRSI(klines, period)
+- For EMA: helpers.getLatestEMA(klines, period)
+- For volume: parseFloat(klines[klines.length - 1][5])
+
+Available helper functions (ALL must be called via helpers object):
 {{helperFunctions}}`,
     parameters: ['userPrompt', 'modelName', 'klineInterval'],
     placeholders: {
-      helperFunctions: `Same as regenerate-filter prompt`
+      helperFunctions: `1. helpers.calculateMA(klines, period)
+2. helpers.calculateAvgVolume(klines, period)
+3. helpers.calculateRSI(klines, period = 14)
+4. helpers.getLatestRSI(klines, period = 14)
+5. helpers.detectRSIDivergence(klines, rsiPeriod = 14, lookbackCandles = 30, minPeakValleySeparation = 5)
+6. helpers.detectGenericDivergence(series1, series2, lookbackCandles = 30, minPeakValleySeparation = 5)
+7. helpers.calculateEMASeries(klines, period)
+8. helpers.getLatestEMA(klines, period)
+9. helpers.calculateMACDValues(klines, shortPeriod = 12, longPeriod = 26, signalPeriod = 9)
+10. helpers.getLatestMACD(klines, shortPeriod = 12, longPeriod = 26, signalPeriod = 9)
+11. helpers.getHighestHigh(klines, period)
+12. helpers.getLowestLow(klines, period)
+13. helpers.detectEngulfingPattern(klines)
+14. helpers.calculateMASeries(klines, period)
+15. helpers.calculatePVISeries(klines, initialPVI = 1000)
+16. helpers.getLatestPVI(klines, initialPVI = 1000)
+17. helpers.calculateHighVolumeNodes(klines, options)
+18. helpers.isNearHVN(price, hvnNodes, tolerance = 0.5)
+19. helpers.getClosestHVN(price, hvnNodes, direction = 'both')
+20. helpers.countHVNInRange(priceLow, priceHigh, hvnNodes)
+21. helpers.calculateVWAPSeries(klines, anchorPeriod?)
+22. helpers.getLatestVWAP(klines, anchorPeriod?)
+23. helpers.calculateVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)
+24. helpers.getLatestVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)
+25. helpers.calculateBollingerBands(klines, period = 20, stdDev = 2)
+26. helpers.getLatestBollingerBands(klines, period = 20, stdDev = 2)
+27. helpers.calculateStochRSI(klines, rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3)
+28. helpers.getLatestStochRSI(klines, rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3)
+29. helpers.calculateStochastic(klines, kPeriod = 14, dPeriod = 3, smooth = 3)
+30. helpers.calculateEMA(values, period)
+31. helpers.calculateSMA(values, period)
+32. helpers.calculateMACD(closes, shortPeriod = 12, longPeriod = 26, signalPeriod = 9)
+33. helpers.calculateADX(klines, period = 14)
+34. helpers.calculateVWAP(klines)
+35. helpers.clearHVNCache(cacheKey?)`
     },
     lastModified: new Date(),
     version: 1,

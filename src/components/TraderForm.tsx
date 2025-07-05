@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { X, Wand2, Code, AlertCircle, Loader2, RefreshCw, ChevronLeft } from 'lucide-react';
-import { generateTrader, regenerateFilterCode } from '../../services/geminiService';
+import { X, Wand2, Code, AlertCircle, Loader2, ChevronLeft } from 'lucide-react';
+import { generateTrader } from '../../services/geminiService';
 import { traderManager } from '../services/traderManager';
 import { Trader, TraderGeneration } from '../abstractions/trader.interfaces';
 import { MODEL_TIERS, type ModelTier } from '../constants/models';
@@ -32,14 +32,10 @@ export function TraderForm({
   const [filterInterval, setFilterInterval] = useState<KlineInterval>(editingTrader?.filter?.interval || KlineInterval.ONE_MINUTE);
   const [maxConcurrentAnalysis, setMaxConcurrentAnalysis] = useState(editingTrader?.strategy.maxConcurrentAnalysis || 3);
   const [generating, setGenerating] = useState(false);
-  const [regeneratingCode, setRegeneratingCode] = useState(false);
   const [error, setError] = useState('');
   const [generatedTrader, setGeneratedTrader] = useState<TraderGeneration | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   
-  // Track the original conditions to detect changes
-  const originalConditionsRef = useRef<string[]>(editingTrader?.filter?.description || []);
-  const [conditionsModified, setConditionsModified] = useState(false);
 
   // Update form fields when editingTrader changes
   React.useEffect(() => {
@@ -54,16 +50,9 @@ export function TraderForm({
       setModelTier(editingTrader.strategy?.modelTier || 'standard');
       setFilterInterval(editingTrader.filter?.interval || KlineInterval.ONE_MINUTE);
       setMaxConcurrentAnalysis(editingTrader.strategy?.maxConcurrentAnalysis || 3);
-      originalConditionsRef.current = editingTrader.filter?.description || [];
-      setConditionsModified(false);
     }
   }, [editingTrader]);
   
-  // Check if conditions have been modified
-  React.useEffect(() => {
-    const hasChanged = JSON.stringify(filterConditions) !== JSON.stringify(originalConditionsRef.current);
-    setConditionsModified(hasChanged);
-  }, [filterConditions]);
 
   const resetForm = () => {
     setMode('ai');
@@ -78,11 +67,8 @@ export function TraderForm({
     setFilterInterval(KlineInterval.ONE_MINUTE);
     setMaxConcurrentAnalysis(3);
     setGenerating(false);
-    setRegeneratingCode(false);
     setError('');
     setGeneratedTrader(null);
-    originalConditionsRef.current = [];
-    setConditionsModified(false);
   };
 
   const handleCancel = () => {
@@ -110,8 +96,6 @@ export function TraderForm({
       setManualFilterCode(generated.filterCode);
       setManualStrategy(generated.strategyInstructions);
       setFilterConditions(generated.filterDescription || []);
-      originalConditionsRef.current = generated.filterDescription || [];
-      setConditionsModified(false);
     } catch (error) {
       console.error('Failed to generate trader:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate trader');
@@ -120,28 +104,6 @@ export function TraderForm({
     }
   };
   
-  const handleRegenerateFilterCode = async () => {
-    const validConditions = filterConditions.filter(c => c.trim().length > 0);
-    if (validConditions.length === 0) {
-      setError('Please add at least one filter condition');
-      return;
-    }
-    
-    setRegeneratingCode(true);
-    setError('');
-    
-    try {
-      const { filterCode } = await regenerateFilterCode(validConditions);
-      setManualFilterCode(filterCode);
-      originalConditionsRef.current = [...filterConditions];
-      setConditionsModified(false);
-    } catch (error) {
-      console.error('Failed to regenerate filter code:', error);
-      setError(error instanceof Error ? error.message : 'Failed to regenerate filter code');
-    } finally {
-      setRegeneratingCode(false);
-    }
-  };
 
   const handleCreateTrader = async () => {
     // Validate fields
@@ -162,23 +124,6 @@ export function TraderForm({
       return;
     }
     
-    // Check if we need to regenerate filter code due to condition changes
-    if (conditionsModified) {
-      setError('Filter conditions have been modified. Regenerating filter code...');
-      try {
-        setRegeneratingCode(true);
-        const { filterCode } = await regenerateFilterCode(validConditions);
-        setManualFilterCode(filterCode);
-        originalConditionsRef.current = [...filterConditions];
-        setConditionsModified(false);
-      } catch (error) {
-        console.error('Failed to regenerate filter code:', error);
-        setError('Failed to regenerate filter code. Please try manually or revert changes.');
-        return;
-      } finally {
-        setRegeneratingCode(false);
-      }
-    }
 
     if (!manualFilterCode.trim()) {
       setError('Filter code is required');
@@ -380,30 +325,9 @@ export function TraderForm({
 
           {/* Filter Conditions - Editable */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-[var(--tm-text-primary)]">
-                Filter Conditions
-              </label>
-              {conditionsModified && (
-                <button
-                  onClick={handleRegenerateFilterCode}
-                  disabled={regeneratingCode}
-                  className="flex items-center gap-1 px-2 py-1 bg-[var(--tm-accent)]/10 border border-[var(--tm-accent)] rounded text-xs text-[var(--tm-accent)] hover:bg-[var(--tm-accent)]/20 transition-all"
-                >
-                  {regeneratingCode ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Regenerating...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-3 w-3" />
-                      Regenerate Code
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
+            <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+              Filter Conditions
+            </label>
             <div className="space-y-2">
               {filterConditions.map((condition, index) => (
                 <div key={index} className="flex items-start gap-2">
@@ -437,16 +361,9 @@ export function TraderForm({
                 + Add Condition
               </button>
             </div>
-            <div className="flex items-start justify-between mt-2">
-              <p className="text-xs text-[var(--tm-text-muted)]">
-                Describe what market conditions this trader looks for in plain language
-              </p>
-              {conditionsModified && (
-                <p className="text-xs text-[var(--tm-accent)]">
-                  ⚠️ Code needs regeneration
-                </p>
-              )}
-            </div>
+            <p className="text-xs text-[var(--tm-text-muted)] mt-2">
+              Describe what market conditions this trader looks for in plain language
+            </p>
           </div>
 
           {/* Indicators Display */}

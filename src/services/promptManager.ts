@@ -387,9 +387,12 @@ You will receive an array of conditions that describe a trading filter. Your tas
 
 The function receives these parameters:
 - ticker: 24hr ticker data object
-- klines: Array of candlestick data
+- timeframes: Object containing kline data for each timeframe. Access via timeframes['1m'], timeframes['5m'], etc.
 - helpers: Object with helper functions (same as in filter generation)
 - hvnNodes: High volume nodes array
+
+For single timeframe strategies, get the klines like this:
+const klines = timeframes['15m']; // or whatever interval you need
 
 Generate ONLY the JavaScript function body that returns a boolean. Do not include:
 - Function declaration
@@ -497,13 +500,16 @@ The strategy should be complete and actionable, with clear rules for entry, exit
 
 IMPORTANT: The filterCode is a JavaScript function body that receives these parameters:
 - ticker: 24hr ticker data object with properties like c (lastPrice), P (priceChangePercent), v (volume), etc.
-- klines: Array of candlestick data [openTime, open, high, low, close, volume, ...]
+- timeframes: Object containing kline data for each timeframe. Access via timeframes['1m'], timeframes['5m'], etc.
 - helpers: Object with utility functions. ALL functions must be called via this object (e.g., helpers.getLatestRSI())
 - hvnNodes: High volume node array (must be calculated first if needed)
 
+For single timeframe strategies, get the klines like this:
+const klines = timeframes['15m']; // or whatever interval you need
+
 DO NOT use standalone functions like getPrice(), getRSI(), getEMA(), getVolume(). 
 These DO NOT exist. Use the helpers object instead:
-- For prices: parseFloat(klines[klines.length - 1][4]) for last close
+- For prices: const klines = timeframes['15m']; parseFloat(klines[klines.length - 1][4]) for last close
 - For RSI: helpers.getLatestRSI(klines, period)
 - For EMA: helpers.getLatestEMA(klines, period)
 - For volume: parseFloat(klines[klines.length - 1][5])

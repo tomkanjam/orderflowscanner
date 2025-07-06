@@ -61,13 +61,29 @@ function runTraderFilter(
       // Log the first 500 chars of filter code
       // console.log(`[Worker] Trader ${traderId} filter code preview: ${filterCode.substring(0, 500)}...`);
       
+      // Check if this is an old-style filter that expects 'klines'
+      const usesOldKlinesPattern = filterCode.includes('klines') && !filterCode.includes('timeframes');
+      
+      let wrappedFilterCode = filterCode;
+      if (usesOldKlinesPattern) {
+        // Provide backward compatibility by creating a klines variable
+        // Use the refresh interval or fall back to 1m
+        const defaultInterval = refreshInterval || '1m';
+        wrappedFilterCode = `
+          // Backward compatibility for old filter code
+          const klines = timeframes['${defaultInterval}'] || timeframes['1m'] || Object.values(timeframes)[0] || [];
+          ${filterCode}
+        `;
+        console.log(`[Worker] Trader ${traderId} using legacy klines pattern, wrapping with compatibility layer`);
+      }
+      
       filterFunction = new Function(
         'ticker', 
         'timeframes', 
         'helpers',
         'hvnNodes',
         `try { 
-          ${filterCode} 
+          ${wrappedFilterCode} 
         } catch(e) { 
           console.error('[Worker] Filter execution error:', e);
           return false; 

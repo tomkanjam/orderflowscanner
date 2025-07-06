@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { X, Wand2, Code, AlertCircle, Loader2, ChevronLeft } from 'lucide-react';
-import { generateTrader } from '../../services/geminiService';
+import { generateTrader, regenerateFilterCode } from '../../services/geminiService';
 import { traderManager } from '../services/traderManager';
 import { Trader, TraderGeneration } from '../abstractions/trader.interfaces';
 import { MODEL_TIERS, type ModelTier } from '../constants/models';
@@ -35,6 +35,10 @@ export function TraderForm({
   const [error, setError] = useState('');
   const [generatedTrader, setGeneratedTrader] = useState<TraderGeneration | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [regeneratingCode, setRegeneratingCode] = useState(false);
+  
+  // Track the original conditions to detect changes
+  const originalConditionsRef = useRef<string[]>(editingTrader?.filter?.description || []);
   
 
   // Update form fields when editingTrader changes
@@ -50,8 +54,69 @@ export function TraderForm({
       setModelTier(editingTrader.strategy?.modelTier || 'standard');
       setFilterInterval(editingTrader.filter?.interval || KlineInterval.ONE_MINUTE);
       setMaxConcurrentAnalysis(editingTrader.strategy?.maxConcurrentAnalysis || 3);
+      originalConditionsRef.current = editingTrader.filter?.description || [];
     }
   }, [editingTrader]);
+  
+  // Automatically regenerate filter code when conditions change
+  React.useEffect(() => {
+    // Skip if we're in AI generation mode or if conditions haven't been initialized
+    if (mode === 'ai' || generating) return;
+    
+    // Check if conditions have changed from original
+    const hasChanged = JSON.stringify(filterConditions) !== JSON.stringify(originalConditionsRef.current);
+    if (!hasChanged) return;
+    
+    // Check if we have valid conditions
+    const validConditions = filterConditions.filter(c => c.trim().length > 0);
+    if (validConditions.length === 0) return;
+    
+    // Debounce the regeneration
+    const timeoutId = setTimeout(async () => {
+      setRegeneratingCode(true);
+      setError('');
+      
+      try {
+        const { filterCode } = await regenerateFilterCode(validConditions, 'gemini-2.5-pro', filterInterval);
+        setManualFilterCode(filterCode);
+        originalConditionsRef.current = [...filterConditions];
+      } catch (error) {
+        console.error('Failed to regenerate filter code:', error);
+        setError('Failed to regenerate filter code. Please check your conditions.');
+      } finally {
+        setRegeneratingCode(false);
+      }
+    }, 1500); // 1.5 second debounce
+    
+    return () => clearTimeout(timeoutId);
+  }, [filterConditions, mode, generating, filterInterval]);
+  
+  // Regenerate filter code when interval changes (only if we have conditions)
+  React.useEffect(() => {
+    // Skip if we're in AI generation mode or no conditions
+    if (mode === 'ai' || generating) return;
+    
+    const validConditions = filterConditions.filter(c => c.trim().length > 0);
+    if (validConditions.length === 0) return;
+    
+    // Skip on initial mount
+    if (!manualFilterCode) return;
+    
+    setRegeneratingCode(true);
+    setError('');
+    
+    regenerateFilterCode(validConditions, 'gemini-2.5-pro', filterInterval)
+      .then(({ filterCode }) => {
+        setManualFilterCode(filterCode);
+      })
+      .catch((error) => {
+        console.error('Failed to regenerate filter code for interval change:', error);
+        setError('Failed to regenerate filter code. Please check your conditions.');
+      })
+      .finally(() => {
+        setRegeneratingCode(false);
+      });
+  }, [filterInterval]);
   
 
   const resetForm = () => {
@@ -67,8 +132,10 @@ export function TraderForm({
     setFilterInterval(KlineInterval.ONE_MINUTE);
     setMaxConcurrentAnalysis(3);
     setGenerating(false);
+    setRegeneratingCode(false);
     setError('');
     setGeneratedTrader(null);
+    originalConditionsRef.current = [];
   };
 
   const handleCancel = () => {
@@ -96,6 +163,7 @@ export function TraderForm({
       setManualFilterCode(generated.filterCode);
       setManualStrategy(generated.strategyInstructions);
       setFilterConditions(generated.filterDescription || []);
+      originalConditionsRef.current = generated.filterDescription || [];
     } catch (error) {
       console.error('Failed to generate trader:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate trader');
@@ -325,9 +393,17 @@ export function TraderForm({
 
           {/* Filter Conditions - Editable */}
           <div>
-            <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
-              Filter Conditions
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-[var(--tm-text-primary)]">
+                Filter Conditions
+              </label>
+              {regeneratingCode && (
+                <div className="flex items-center gap-1 text-xs text-[var(--tm-accent)]">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Regenerating code...
+                </div>
+              )}
+            </div>
             <div className="space-y-2">
               {filterConditions.map((condition, index) => (
                 <div key={index} className="flex items-start gap-2">
@@ -413,7 +489,7 @@ export function TraderForm({
                 rows={6}
               />
               <p className="text-xs text-[var(--tm-text-muted)] mt-1">
-                ⚠️ Editing the code directly may break the trader. Only modify if you understand JavaScript.
+                ⚠️ This code is automatically generated from the filter conditions above. Manual edits will be lost when conditions change.
               </p>
             </div>
           )}
@@ -569,10 +645,17 @@ export function TraderForm({
             )}
             <button
               onClick={handleCreateTrader}
-              disabled={!manualName.trim() || !manualFilterCode.trim() || !manualStrategy.trim() || filterConditions.filter(c => c.trim()).length === 0}
+              disabled={!manualName.trim() || !manualFilterCode.trim() || !manualStrategy.trim() || filterConditions.filter(c => c.trim()).length === 0 || regeneratingCode}
               className="flex-1 px-4 py-2 bg-[var(--tm-accent)] text-[var(--tm-bg-primary)] rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center gap-2"
             >
-              {editingTrader ? 'Update Trader' : 'Create Trader'}
+              {regeneratingCode ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Regenerating Code...
+                </>
+              ) : (
+                editingTrader ? 'Update Trader' : 'Create Trader'
+              )}
             </button>
           </div>
         </div>

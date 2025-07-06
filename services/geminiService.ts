@@ -822,6 +822,79 @@ export async function getSymbolAnalysis(
     }
 }
 
+// Regenerate filter code from human-readable conditions
+export async function regenerateFilterCode(
+    conditions: string[],
+    modelName: string = 'gemini-2.5-pro',
+    klineInterval: string = '1h'
+): Promise<{ filterCode: string }> {
+    const conditionsList = conditions.map((c, i) => `${i + 1}. ${c}`).join('\n');
+    
+    // Get the prompt from the prompt manager
+    const promptTemplate = await promptManager.getActivePromptContent('regenerate-filter', {
+        conditions: conditionsList
+    });
+
+    if (!promptTemplate) {
+        throw new Error('Failed to load regenerate-filter prompt');
+    }
+
+    // Add the conditions and kline interval to the prompt
+    const baseSystemInstruction = `${promptTemplate}
+
+Given these conditions:
+${conditionsList}
+
+Kline interval: ${klineInterval}`;
+
+    try {
+        // Apply trader persona to system instruction
+        const enhancedSystemInstruction = enhancePromptWithPersona(baseSystemInstruction);
+        
+        const model = getGenerativeModel(ai, {
+            model: modelName,
+            generationConfig: {
+                responseMimeType: "text/plain",
+            }
+        });
+
+        const result = await model.generateContent(enhancedSystemInstruction);
+        const response = result.response;
+        let filterCode = response.text().trim();
+        
+        // Remove markdown code blocks if present
+        if (filterCode.startsWith('```')) {
+            // Remove opening code block
+            filterCode = filterCode.replace(/^```[a-zA-Z]*\n?/, '');
+            // Remove closing code block
+            filterCode = filterCode.replace(/\n?```$/, '');
+            filterCode = filterCode.trim();
+        }
+        
+        // Remove any remaining backticks
+        filterCode = filterCode.replace(/^`+|`+$/g, '');
+        
+        // Basic validation
+        if (!filterCode.includes('return')) {
+            throw new Error('Generated filter code is missing a return statement');
+        }
+        
+        // Try to validate the syntax by creating a function
+        try {
+            new Function('ticker', 'klines', 'helpers', 'hvnNodes', filterCode);
+        } catch (syntaxError) {
+            console.error('Generated filter code has syntax error:', syntaxError);
+            console.error('Filter code:', filterCode);
+            throw new Error(`Generated filter code has invalid syntax: ${syntaxError.message}`);
+        }
+        
+        console.log('Successfully regenerated filter code from conditions');
+        return { filterCode };
+    } catch (error) {
+        console.error('Failed to regenerate filter code:', error);
+        throw error;
+    }
+}
 
 export async function generateTrader(
     userPrompt: string,

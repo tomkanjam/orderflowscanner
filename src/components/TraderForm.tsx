@@ -148,8 +148,15 @@ export function TraderForm({
         // Regenerate filter code
         setRegeneratingCode(true);
         try {
-          const { filterCode } = await regenerateFilterCode(validConditions, 'gemini-2.5-pro', filterInterval);
+          const { filterCode, requiredTimeframes } = await regenerateFilterCode(validConditions, 'gemini-2.5-pro', filterInterval);
           finalFilterCode = filterCode;
+          // Update the generated trader with new required timeframes if available
+          if (requiredTimeframes && generatedTrader) {
+            setGeneratedTrader({
+              ...generatedTrader,
+              requiredTimeframes
+            });
+          }
         } catch (error) {
           console.error('Failed to regenerate filter code:', error);
           setError('Failed to regenerate filter code. Please try again.');
@@ -186,7 +193,7 @@ export function TraderForm({
             description: validConditions,
             indicators: generatedTrader?.indicators || editingTrader.filter.indicators,
             refreshInterval: filterInterval,
-            requiredTimeframes: generatedTrader?.requiredTimeframes || editingTrader.filter.requiredTimeframes
+            requiredTimeframes: generatedTrader?.requiredTimeframes || editingTrader.filter.requiredTimeframes || [filterInterval]
           },
           strategy: {
             instructions: manualStrategy,
@@ -210,7 +217,7 @@ export function TraderForm({
             description: validConditions,
             indicators: generatedTrader?.indicators,
             refreshInterval: filterInterval,
-            requiredTimeframes: generatedTrader?.requiredTimeframes
+            requiredTimeframes: generatedTrader?.requiredTimeframes || [filterInterval]
           },
           strategy: {
             instructions: manualStrategy,

@@ -24,19 +24,8 @@ export interface PromptOverride {
   version: number;
 }
 
-// Complete prompts extracted from geminiService.ts
-const DEFAULT_PROMPTS: PromptTemplate[] = [
-  {
-    id: 'filter-and-chart-config',
-    name: 'Filter and Chart Config',
-    category: 'screener',
-    description: 'Main screener filter generation - converts natural language to screening filters',
-    systemInstruction: `You are an AI assistant for a crypto screener. The user provides a description of technical conditions. You MUST return a single, valid JSON object with four properties: "description", "screenerCode", "indicators", and "requiredTimeframes". Do not include any text outside of this JSON object.
-
-description: An array of human-readable strings explaining each condition the AI has implemented. Max 3-4 concise conditions.
-
-requiredTimeframes: An array of timeframe strings that your filter needs to analyze. Valid values: "1m", "5m", "15m", "1h", "4h", "1d". Analyze the user's prompt to determine which timeframes are referenced. If no specific timeframes are mentioned, default to ["{{klineInterval}}"].
-
+// Shared filter code generation instructions
+const FILTER_CODE_INSTRUCTIONS = `
 screenerCode: A string containing the body of a JavaScript function \`(ticker, timeframes, helpers, hvnNodes)\` that returns a boolean (true if conditions met, false otherwise).
     Function Arguments:
         \`ticker\`: A 24hr summary object for the symbol. Example: \`{ "s": "BNBUSDT", "P": "2.500" (priceChangePercent), "c": "590.5" (lastPrice), "q": "100000000" (quoteVolume), ...otherProps }\`.
@@ -105,6 +94,27 @@ screenerCode: A string containing the body of a JavaScript function \`(ticker, t
           - \`// Evaluating price action...\`
           - \`// Validating MACD signals...\`
           - \`// Calculating moving averages...\`
+
+For single timeframe strategies, get the klines like this:
+const klines = timeframes['15m']; // or whatever interval you need
+
+DO NOT use standalone functions like getPrice(), getRSI(), getEMA(), getVolume(). 
+These DO NOT exist. Use the helpers object instead.`;
+
+// Complete prompts extracted from geminiService.ts
+const DEFAULT_PROMPTS: PromptTemplate[] = [
+  {
+    id: 'filter-and-chart-config',
+    name: 'Filter and Chart Config',
+    category: 'screener',
+    description: 'Main screener filter generation - converts natural language to screening filters',
+    systemInstruction: `You are an AI assistant for a crypto screener. The user provides a description of technical conditions. You MUST return a single, valid JSON object with four properties: "description", "screenerCode", "indicators", and "requiredTimeframes". Do not include any text outside of this JSON object.
+
+description: An array of human-readable strings explaining each condition the AI has implemented. Max 3-4 concise conditions.
+
+requiredTimeframes: An array of timeframe strings that your filter needs to analyze. Valid values: "1m", "5m", "15m", "1h", "4h", "1d". Analyze the user's prompt to determine which timeframes are referenced. If no specific timeframes are mentioned, default to ["{{klineInterval}}"].
+
+${FILTER_CODE_INSTRUCTIONS}
 
 indicators: An array of custom indicator configurations for charting. Each indicator can display ANY calculation or combination of values. Max 4-5 indicators.
 
@@ -383,39 +393,50 @@ Keep your analysis focused and actionable for traders.`,
     description: 'Converts human-readable conditions back into JavaScript filter code',
     systemInstruction: `You are an AI assistant that converts human-readable trading conditions into JavaScript code.
 
-You will receive an array of conditions that describe a trading filter. Your task is to generate the JavaScript function body that implements these conditions.
+You will receive an array of conditions that describe a trading filter. Your task is to:
+1. Analyze the conditions to determine which timeframes are needed
+2. Generate the JavaScript function body that implements these conditions
 
-The function receives these parameters:
-- ticker: 24hr ticker data object
-- timeframes: Object containing kline data for each timeframe. Access via timeframes['1m'], timeframes['5m'], etc.
-- helpers: Object with helper functions (same as in filter generation)
-- hvnNodes: High volume nodes array
+Return a JSON object with this structure:
+{
+  "requiredTimeframes": ["1m", "5m", ...], // Array of timeframes needed based on the conditions
+  "filterCode": "// JavaScript function body"
+}
 
-For single timeframe strategies, get the klines like this:
-const klines = timeframes['15m']; // or whatever interval you need
+For the filterCode:
+${FILTER_CODE_INSTRUCTIONS}
 
-Generate ONLY the JavaScript function body that returns a boolean. Do not include:
+The filterCode should be ONLY the JavaScript function body that returns a boolean. Do not include:
 - Function declaration
-- Helper function definitions
+- Helper function definitions  
 - Any markdown formatting
-- Any explanatory text
+- Any explanatory text outside the JSON
 
-Available helper functions:
-{{helperFunctions}}
+If no specific timeframes are mentioned in the conditions, default to the provided klineInterval.
 
-Example input conditions:
-["RSI is below 30", "Price above 50 SMA", "Volume spike detected"]
+Example input:
+{
+  "conditions": ["RSI is below 30", "Price above 50 SMA", "Volume spike detected"],
+  "klineInterval": "15m"
+}
 
 Example output:
-const rsi = helpers.getLatestRSI(klines, 14);
-const sma50 = helpers.calculateMA(klines, 50);
-const avgVolume = helpers.calculateAvgVolume(klines, 20);
-const currentVolume = parseFloat(klines[klines.length - 1][5]);
-const lastClose = parseFloat(klines[klines.length - 1][4]);
+{
+  "requiredTimeframes": ["15m"],
+  "filterCode": "const klines = timeframes['15m'];\nif (!klines || klines.length < 50) return false;\n\nconst rsi = helpers.getLatestRSI(klines, 14);\nconst sma50 = helpers.calculateMA(klines, 50);\nconst avgVolume = helpers.calculateAvgVolume(klines, 20);\nconst currentVolume = parseFloat(klines[klines.length - 1][5]);\nconst lastClose = parseFloat(klines[klines.length - 1][4]);\n\nif (!rsi || !sma50 || !avgVolume) return false;\n\nreturn rsi < 30 && lastClose > sma50 && currentVolume > avgVolume * 1.5;"
+}
 
-if (!rsi || !sma50 || !avgVolume) return false;
+Multi-timeframe example input:
+{
+  "conditions": ["1m and 5m StochRSI below 30 and rising"],
+  "klineInterval": "15m"
+}
 
-return rsi < 30 && lastClose > sma50 && currentVolume > avgVolume * 1.5;`,
+Multi-timeframe example output:
+{
+  "requiredTimeframes": ["1m", "5m"],
+  "filterCode": "// Check 1m StochRSI\nconst klines1m = timeframes['1m'];\nif (!klines1m || klines1m.length < 14) return false;\nconst stoch1m = helpers.calculateStochRSI(klines1m, 14, 14, 3, 3);\nif (!stoch1m || stoch1m.length < 2) return false;\nconst last1m = stoch1m[stoch1m.length - 1];\nconst prev1m = stoch1m[stoch1m.length - 2];\n\n// Check 5m StochRSI\nconst klines5m = timeframes['5m'];\nif (!klines5m || klines5m.length < 14) return false;\nconst stoch5m = helpers.calculateStochRSI(klines5m, 14, 14, 3, 3);\nif (!stoch5m || stoch5m.length < 2) return false;\nconst last5m = stoch5m[stoch5m.length - 1];\nconst prev5m = stoch5m[stoch5m.length - 2];\n\n// Both timeframes: StochRSI below 30 and rising\nreturn prev1m.k < 30 && last1m.k > prev1m.k && prev5m.k < 30 && last5m.k > prev5m.k;"
+}`,
     parameters: ['conditions'],
     placeholders: {
       helperFunctions: `1. helpers.calculateMA(klines, period)
@@ -501,27 +522,12 @@ Return a JSON object with this structure:
   }
 }
 
-The filterCode should use the same helper functions available in the main screener.
+For the filterCode field:
+${FILTER_CODE_INSTRUCTIONS}
+
 The strategy should be complete and actionable, with clear rules for entry, exit, and risk management.
 
-IMPORTANT: The filterCode is a JavaScript function body that receives these parameters:
-- ticker: 24hr ticker data object with properties like c (lastPrice), P (priceChangePercent), v (volume), etc.
-- timeframes: Object containing kline data for each timeframe. Access via timeframes['1m'], timeframes['5m'], etc.
-- helpers: Object with utility functions. ALL functions must be called via this object (e.g., helpers.getLatestRSI())
-- hvnNodes: High volume node array (must be calculated first if needed)
-
-For single timeframe strategies, get the klines like this:
-const klines = timeframes['15m']; // or whatever interval you need
-
-DO NOT use standalone functions like getPrice(), getRSI(), getEMA(), getVolume(). 
-These DO NOT exist. Use the helpers object instead:
-- For prices: const klines = timeframes['15m']; parseFloat(klines[klines.length - 1][4]) for last close
-- For RSI: helpers.getLatestRSI(klines, period)
-- For EMA: helpers.getLatestEMA(klines, period)
-- For volume: parseFloat(klines[klines.length - 1][5])
-
-Available helper functions (ALL must be called via helpers object):
-{{helperFunctions}}`,
+For indicators, only include indicators that are relevant to the conditions being screened for. For simple conditions, 1-2 indicators may be sufficient.`,
     parameters: ['userPrompt', 'modelName', 'klineInterval'],
     placeholders: {
       helperFunctions: `1. helpers.calculateMA(klines, period)

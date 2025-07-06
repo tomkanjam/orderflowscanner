@@ -862,7 +862,7 @@ export async function regenerateFilterCode(
     conditions: string[],
     modelName: string = 'gemini-2.5-pro',
     klineInterval: string = '1h'
-): Promise<{ filterCode: string }> {
+): Promise<{ filterCode: string, requiredTimeframes?: string[] }> {
     const conditionsList = conditions.map((c, i) => `${i + 1}. ${c}`).join('\n');
     
     // Get the prompt from the prompt manager
@@ -889,25 +889,28 @@ Kline interval: ${klineInterval}`;
         const model = getGenerativeModel(ai, {
             model: modelName,
             generationConfig: {
-                responseMimeType: "text/plain",
+                responseMimeType: "application/json",
             }
         });
 
         const result = await model.generateContent(enhancedSystemInstruction);
         const response = result.response;
-        let filterCode = response.text().trim();
+        const responseText = response.text().trim();
         
-        // Remove markdown code blocks if present
-        if (filterCode.startsWith('```')) {
-            // Remove opening code block
-            filterCode = filterCode.replace(/^```[a-zA-Z]*\n?/, '');
-            // Remove closing code block
-            filterCode = filterCode.replace(/\n?```$/, '');
-            filterCode = filterCode.trim();
+        // Parse JSON response
+        let parsedResponse;
+        try {
+            parsedResponse = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('Failed to parse regenerate response as JSON:', responseText);
+            throw new Error('Failed to parse AI response as JSON');
         }
         
-        // Remove any remaining backticks
-        filterCode = filterCode.replace(/^`+|`+$/g, '');
+        const { filterCode, requiredTimeframes } = parsedResponse;
+        
+        if (!filterCode) {
+            throw new Error('Response is missing filterCode');
+        }
         
         // Basic validation
         if (!filterCode.includes('return')) {
@@ -916,7 +919,7 @@ Kline interval: ${klineInterval}`;
         
         // Try to validate the syntax by creating a function
         try {
-            new Function('ticker', 'klines', 'helpers', 'hvnNodes', filterCode);
+            new Function('ticker', 'timeframes', 'helpers', 'hvnNodes', filterCode);
         } catch (syntaxError) {
             console.error('Generated filter code has syntax error:', syntaxError);
             console.error('Filter code:', filterCode);
@@ -924,7 +927,7 @@ Kline interval: ${klineInterval}`;
         }
         
         console.log('Successfully regenerated filter code from conditions');
-        return { filterCode };
+        return { filterCode, requiredTimeframes };
     } catch (error) {
         console.error('Failed to regenerate filter code:', error);
         throw error;

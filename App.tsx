@@ -39,7 +39,7 @@ observability.setupUnloadHandler();
 // Initialize memory monitoring in development
 if (process.env.NODE_ENV === 'development') {
   memoryMonitor.start(10000); // Monitor every 10 seconds
-  console.log('[App] Memory monitoring started');
+  // console.log('[App] Memory monitoring started');
 }
 
 const AppContent: React.FC = () => {
@@ -193,7 +193,7 @@ const AppContent: React.FC = () => {
       memoryMonitor.registerMetric('klineUpdateCountSize', () => klineUpdateCountRef.current.size);
       memoryMonitor.registerMetric('wsConnections', () => webSocketManager.getStats().activeConnections);
       
-      console.log('[App] Memory monitoring metrics registered');
+      // console.log('[App] Memory monitoring metrics registered');
     }
   }, [tickers, historicalData, signalLog, signalHistory]);
   
@@ -346,18 +346,18 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const unsubscribe = traderManager.subscribe((updatedTraders) => {
       // Traders updated
-      console.log('[App] Traders updated from manager:', updatedTraders.length, 'traders');
+      // console.log('[App] Traders updated from manager:', updatedTraders.length, 'traders');
       updatedTraders.forEach(t => {
-        console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}`);
+        // console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}`);
       });
       setTraders(updatedTraders);
     });
     
     // Initial load
     traderManager.getTraders().then((traders) => {
-      console.log('[App] Initial traders loaded:', traders.length, 'traders');
+      // console.log('[App] Initial traders loaded:', traders.length, 'traders');
       traders.forEach(t => {
-        console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}`);
+        // console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}`);
       });
       setTraders(traders);
     });
@@ -541,7 +541,7 @@ const AppContent: React.FC = () => {
         });
         
         if (removedCount > 0) {
-          console.log(`[App] Cleaned ${removedCount} old signal history entries`);
+          // console.log(`[App] Cleaned ${removedCount} old signal history entries`);
         }
         
         // Save to localStorage (limit size)
@@ -560,7 +560,7 @@ const AppContent: React.FC = () => {
       setSignalLog(prev => {
         const filtered = prev.filter(entry => now - entry.timestamp < maxSignalLogAge);
         if (filtered.length < prev.length) {
-          console.log(`[App] Cleaned ${prev.length - filtered.length} old signal log entries`);
+          // console.log(`[App] Cleaned ${prev.length - filtered.length} old signal log entries`);
         }
         return filtered.slice(-MAX_SIGNAL_LOG_ENTRIES); // Also enforce max entries
       });
@@ -570,7 +570,7 @@ const AppContent: React.FC = () => {
         const maxHistoricalAge = 4 * 60 * 60 * 1000; // 4 hours
         const filtered = prev.filter(signal => now - signal.detectedAt < maxHistoricalAge);
         if (filtered.length < prev.length) {
-          console.log(`[App] Cleaned ${prev.length - filtered.length} old historical signals`);
+          // console.log(`[App] Cleaned ${prev.length - filtered.length} old historical signals`);
         }
         return filtered.slice(-1000); // Keep max 1000 historical signals
       });
@@ -789,7 +789,7 @@ const AppContent: React.FC = () => {
             if (!isCleanedUp) {
               setStatusText('Live');
               setStatusLightClass('bg-[var(--tm-success)]');
-              console.log(`[App] WebSocket connected with ${activeIntervals.size} intervals for ${allSymbols.length} symbols`);
+              // console.log(`[App] WebSocket connected with ${activeIntervals.size} intervals for ${allSymbols.length} symbols`);
             }
           },
           onMessage: (event) => {
@@ -857,10 +857,10 @@ const AppContent: React.FC = () => {
 
   // Multi-trader screener hook
   const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
-    console.log('[App] Multi-trader results received:', results.length, 'results');
+    // console.log('[App] Multi-trader results received:', results.length, 'results');
     results.forEach(result => {
       
-      console.log(`[App] Trader ${result.traderId} found ${result.signalSymbols.length} signals`);
+      // console.log(`[App] Trader ${result.traderId} found ${result.signalSymbols.length} signals`);
       result.signalSymbols.forEach(symbol => {
         const ticker = tickers.get(symbol);
         if (!ticker) {
@@ -892,7 +892,7 @@ const AppContent: React.FC = () => {
         
         // Deduplication check performed
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[App] Signal dedup check for ${symbol}: shouldCreate=${shouldCreateNewSignal}, historyEntry=${!!historyEntry}, barCount=${historyEntry?.barCount || 0}, timeSince=${timeSinceLastSignal}ms`);
+          // console.log(`[App] Signal dedup check for ${symbol}: shouldCreate=${shouldCreateNewSignal}, historyEntry=${!!historyEntry}, barCount=${historyEntry?.barCount || 0}, timeSince=${timeSinceLastSignal}ms`);
         }
         
         if (shouldCreateNewSignal) {
@@ -949,7 +949,7 @@ const AppContent: React.FC = () => {
   }, [traders, tickers, activeStrategy, klineInterval, signalHistory, signalDedupeThreshold, createSignalFromFilter]);
 
   const screenerEnabled = multiTraderEnabled && traders.some(t => t.enabled);
-  console.log('[App] Multi-trader screener enabled:', screenerEnabled, 'multiTraderEnabled:', multiTraderEnabled, 'enabled traders:', traders.filter(t => t.enabled).length);
+  // console.log('[App] Multi-trader screener enabled:', screenerEnabled, 'multiTraderEnabled:', multiTraderEnabled, 'enabled traders:', traders.filter(t => t.enabled).length);
   
   const { isRunning: isMultiTraderRunning } = useMultiTraderScreener({
     traders,

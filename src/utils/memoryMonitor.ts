@@ -49,7 +49,7 @@ class MemoryMonitor {
       this.stop();
     }
 
-    console.log('[MemoryMonitor] Starting memory monitoring with interval:', intervalMs + 'ms');
+    // console.log('[MemoryMonitor] Starting memory monitoring with interval:', intervalMs + 'ms');
     
     // Take initial snapshot
     this.takeSnapshot();
@@ -67,7 +67,7 @@ class MemoryMonitor {
     if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
-      console.log('[MemoryMonitor] Stopped memory monitoring');
+      // console.log('[MemoryMonitor] Stopped memory monitoring');
     }
   }
 
@@ -130,14 +130,14 @@ class MemoryMonitor {
     const heapGrowthRate = (latest.usedJSHeapSize - previous.usedJSHeapSize) / timeDiff;
     
     // Log current status
-    console.log(`[MemoryMonitor] Heap: ${this.formatBytes(latest.usedJSHeapSize)} / ${this.formatBytes(latest.jsHeapSizeLimit)} (${(latest.heapUsagePercent * 100).toFixed(1)}%)`,
-      `Growth: ${heapGrowthRate > 0 ? '+' : ''}${this.formatBytes(heapGrowthRate)}/s`);
+    // console.log(`[MemoryMonitor] Heap: ${this.formatBytes(latest.usedJSHeapSize)} / ${this.formatBytes(latest.jsHeapSizeLimit)} (${(latest.heapUsagePercent * 100).toFixed(1)}%)`,
+    //   `Growth: ${heapGrowthRate > 0 ? '+' : ''}${this.formatBytes(heapGrowthRate)}/s`);
 
     // Log custom metrics
     Object.entries(latest.customMetrics).forEach(([name, value]) => {
       const prevValue = previous.customMetrics[name] || 0;
       const growth = (value - prevValue) / timeDiff;
-      console.log(`[MemoryMonitor] ${name}: ${value} (${growth > 0 ? '+' : ''}${growth.toFixed(2)}/s)`);
+      // console.log(`[MemoryMonitor] ${name}: ${value} (${growth > 0 ? '+' : ''}${growth.toFixed(2)}/s`);
     });
 
     // Check for warnings

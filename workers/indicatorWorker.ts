@@ -25,6 +25,9 @@ function executeIndicatorFunction(
   params?: Record<string, any>
 ): IndicatorDataPoint[] {
   try {
+    // Debug log the code being executed
+    console.log('[INDICATOR_DEBUG] Executing calculateFunction:', code.substring(0, 200) + '...');
+    
     // Create a new function with controlled scope
     const func = new Function(
       'klines', 
@@ -52,9 +55,13 @@ function executeIndicatorFunction(
       { log: () => {} } // Provide no-op console
     );
     
+    // Debug log the result type
+    console.log('[INDICATOR_DEBUG] Function returned:', typeof result, 'isArray:', Array.isArray(result));
+    
     // Validate the result
     if (!Array.isArray(result)) {
       console.error('Indicator function must return an array, got:', typeof result);
+      console.error('[INDICATOR_DEBUG] Full code that failed:', code);
       return [];
     }
     

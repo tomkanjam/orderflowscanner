@@ -1037,6 +1037,16 @@ const AppContent: React.FC = () => {
     if (selectedSignalTraderId) {
       const signalTrader = traders.find(t => t.id === selectedSignalTraderId);
       if (signalTrader?.filter?.indicators) {
+        console.log('[APP_DEBUG] Using signal trader indicators:', {
+          traderId: selectedSignalTraderId,
+          indicatorCount: signalTrader.filter.indicators.length,
+          indicators: signalTrader.filter.indicators.map(ind => ({
+            id: ind.id,
+            name: ind.name,
+            hasCalculateFunction: !!ind.calculateFunction,
+            calculateFunctionLength: ind.calculateFunction?.length
+          }))
+        });
         return signalTrader.filter.indicators;
       }
     }
@@ -1046,11 +1056,22 @@ const AppContent: React.FC = () => {
       const selectedTrader = traders.find(t => t.id === selectedTraderId);
       // Selected trader indicators check
       if (selectedTrader?.filter?.indicators) {
+        console.log('[APP_DEBUG] Using selected trader indicators:', {
+          traderId: selectedTraderId,
+          indicatorCount: selectedTrader.filter.indicators.length,
+          indicators: selectedTrader.filter.indicators.map(ind => ({
+            id: ind.id,
+            name: ind.name,
+            hasCalculateFunction: !!ind.calculateFunction,
+            calculateFunctionLength: ind.calculateFunction?.length
+          }))
+        });
         return selectedTrader.filter.indicators;
       }
     }
     
     // No indicators configured
+    console.log('[APP_DEBUG] No indicators configured for display');
     return null;
   }, [selectedSymbolForChart, selectedSignalTraderId, selectedTraderId, traders]);
 

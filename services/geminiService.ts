@@ -170,6 +170,17 @@ export async function generateFilterAndChartConfig(
           // Ensure calculateFunction returns something
           if (!indicator.calculateFunction.includes('return')) {
               console.warn(`Indicator at index ${index} may be missing a return statement.`);
+              // Try to fix common patterns where the AI forgets the return statement
+              const trimmedFunction = indicator.calculateFunction.trim();
+              
+              // Check if it looks like it's trying to return an array/map operation
+              if (trimmedFunction.includes('.map(') || trimmedFunction.includes('klines.map(')) {
+                  // If it's missing a return at the start, add it
+                  if (!trimmedFunction.startsWith('return')) {
+                      console.warn(`[FIX_INDICATOR] Adding missing return statement to indicator ${index}`);
+                      indicator.calculateFunction = 'return ' + trimmedFunction;
+                  }
+              }
           }
       });
       if (parsedResponse.description.some(d => typeof d !== 'string')) {
@@ -408,6 +419,30 @@ export async function generateFilterAndChartConfigStream(
       if (!parsedResponse.indicators || !Array.isArray(parsedResponse.indicators)) {
         throw new Error("AI response is missing 'indicators' or it's not an array.");
       }
+      
+      // Validate and fix indicators
+      parsedResponse.indicators.forEach((indicator, index) => {
+        // Basic validation
+        if (!indicator.calculateFunction || typeof indicator.calculateFunction !== 'string') {
+          throw new Error(`Invalid indicator at index ${index}: missing or invalid 'calculateFunction'.`);
+        }
+        
+        // Ensure calculateFunction returns something
+        if (!indicator.calculateFunction.includes('return')) {
+          console.warn(`[STREAMING] Indicator at index ${index} may be missing a return statement.`);
+          // Try to fix common patterns where the AI forgets the return statement
+          const trimmedFunction = indicator.calculateFunction.trim();
+          
+          // Check if it looks like it's trying to return an array/map operation
+          if (trimmedFunction.includes('.map(') || trimmedFunction.includes('klines.map(')) {
+            // If it's missing a return at the start, add it
+            if (!trimmedFunction.startsWith('return')) {
+              console.warn(`[FIX_INDICATOR_STREAMING] Adding missing return statement to indicator ${index}`);
+              indicator.calculateFunction = 'return ' + trimmedFunction;
+            }
+          }
+        }
+      });
       
       // Send complete update with token usage
       onUpdate?.({

@@ -230,14 +230,28 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   // Calculate indicators when they change
   useEffect(() => {
     if (!indicators || !klines || klines.length === 0) {
+      console.log('[CHART_DEBUG] No indicators or klines, clearing calculated indicators');
       setCalculatedIndicators(new Map());
       return;
     }
+    
+    console.log('[CHART_DEBUG] Processing indicators:', indicators.map(ind => ({
+      id: ind.id,
+      name: ind.name,
+      panel: ind.panel,
+      hasCalculateFunction: !!ind.calculateFunction,
+      calculateFunctionPreview: ind.calculateFunction?.substring(0, 100) + '...'
+    })));
     
     const calculateAllIndicators = async () => {
       setIsCalculating(true);
       try {
         const results = await calculateIndicators(indicators, klines);
+        console.log('[CHART_DEBUG] Calculated indicators results:', Array.from(results.entries()).map(([id, data]) => ({
+          id,
+          dataLength: data.length,
+          firstPoint: data[0]
+        })));
         setCalculatedIndicators(results);
       } catch (error) {
         console.error('Error calculating indicators:', error);

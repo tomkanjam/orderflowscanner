@@ -180,6 +180,7 @@ export interface TraderGeneration {
   strategyInstructions: string;
   indicators: CustomIndicatorConfig[];
   riskParameters: RiskManagement;
+  requiredTimeframes?: KlineInterval[];
 }
 
 // Events

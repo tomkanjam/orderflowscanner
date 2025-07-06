@@ -185,7 +185,8 @@ export function TraderForm({
             code: finalFilterCode,
             description: validConditions,
             indicators: generatedTrader?.indicators || editingTrader.filter.indicators,
-            refreshInterval: filterInterval
+            refreshInterval: filterInterval,
+            requiredTimeframes: generatedTrader?.requiredTimeframes || editingTrader.filter.requiredTimeframes
           },
           strategy: {
             instructions: manualStrategy,
@@ -208,7 +209,8 @@ export function TraderForm({
             code: finalFilterCode,
             description: validConditions,
             indicators: generatedTrader?.indicators,
-            refreshInterval: filterInterval
+            refreshInterval: filterInterval,
+            requiredTimeframes: generatedTrader?.requiredTimeframes
           },
           strategy: {
             instructions: manualStrategy,
@@ -417,9 +419,9 @@ export function TraderForm({
               </label>
               <div className="bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg p-3">
                 <div className="flex flex-wrap gap-2">
-                  {generatedTrader.indicators.map((indicator) => (
+                  {generatedTrader.indicators.map((indicator, index) => (
                     <span 
-                      key={indicator.id} 
+                      key={indicator.id || `indicator-${index}`} 
                       className="px-2 py-1 bg-[var(--tm-bg-primary)] rounded text-xs text-[var(--tm-text-secondary)]"
                     >
                       {indicator.name}

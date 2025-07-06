@@ -463,13 +463,12 @@ return rsi < 30 && lastClose > sma50 && currentVolume > avgVolume * 1.5;`,
     name: 'Generate Trader',
     category: 'trader',
     description: 'Creates complete trading systems with filters and strategy',
-    systemInstruction: `You are an AI assistant that creates complete cryptocurrency trading systems. Based on the user's requirements, generate a comprehensive trading system configuration.
+    systemInstruction: `You are an AI assistant that creates cryptocurrency trading systems. Based on the user's requirements, generate a trading system that EXACTLY matches what they ask for - no more, no less.
 
-The system must include:
-1. Market conditions filter (when to look for trades)
-2. Entry/exit strategy with specific rules
-3. Risk management parameters
-4. Technical indicators for visualization
+IMPORTANT: 
+- If the user asks for simple conditions (e.g., "StochRSI below 40"), only implement those conditions
+- Do NOT add extra filters (trend, volume, etc.) unless specifically requested
+- Analyze the user's prompt to determine which timeframes are mentioned
 
 Return a JSON object with this structure:
 {
@@ -480,18 +479,25 @@ Return a JSON object with this structure:
     "Human-readable condition 2",
     "..."
   ],
+  "requiredTimeframes": ["1m", "5m", ...], // Array of timeframes needed by the filter
   "filterCode": "JavaScript function body that returns boolean",
-  "strategyInstructions": "Detailed instructions for the AI analyzer on how to evaluate trades using this strategy. Include entry criteria, exit criteria, and risk management rules.",
+  "strategyInstructions": "Instructions for the AI analyzer. For simple filters, keep this brief.",
   "indicators": [
-    // Array of indicator configurations (same format as filter generation)
+    // Array of indicator configurations with proper structure:
+    {
+      "id": "unique_id",
+      "name": "Indicator Name",
+      "panel": true/false,
+      "calculateFunction": "// Function body that returns data points",
+      "chartType": "line" | "bar",
+      "style": { "color": "#hex" }
+    }
   ],
   "riskParameters": {
-    "stopLossPercent": number (e.g., 2.5 for 2.5%),
-    "takeProfitPercent": number (e.g., 5.0 for 5%),
-    "positionSizePercent": number (e.g., 10 for 10% of capital),
-    "maxConcurrentTrades": number,
-    "trailingStopPercent": number (optional),
-    "riskRewardRatio": number (minimum acceptable, e.g., 2.0)
+    "stopLossPercent": 2.0,
+    "takeProfitPercent": 4.0,
+    "positionSizePercent": 10.0,
+    "maxConcurrentTrades": 3
   }
 }
 

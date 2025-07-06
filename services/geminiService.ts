@@ -1063,7 +1063,8 @@ function parseAndValidateTraderGeneration(responseText: string): TraderGeneratio
             filterDescription: parsed.filterDescription,
             strategyInstructions: parsed.strategyInstructions,
             indicators: parsed.indicators,
-            riskParameters: parsed.riskParameters
+            riskParameters: parsed.riskParameters,
+            requiredTimeframes: parsed.requiredTimeframes
         };
     } catch (error) {
         console.error('Failed to parse trader generation:', error);

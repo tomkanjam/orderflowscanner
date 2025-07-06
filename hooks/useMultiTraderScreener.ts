@@ -150,9 +150,11 @@ export function useMultiTraderScreener({
 
   // Set up interval
   useEffect(() => {
+    console.log(`[SIGNAL_DEBUG] useMultiTraderScreener interval effect triggered - enabled: ${enabled}, interval: ${interval}, traders changed: ${traders.length}`);
     if (enabled && interval > 0) {
       // Clear any existing interval first
       if (intervalRef.current) {
+        console.log(`[SIGNAL_DEBUG] Clearing existing screener interval and setting up new one`);
         clearInterval(intervalRef.current);
       }
       

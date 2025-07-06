@@ -98,6 +98,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     
     if (autoAnalyze) {
       // Queue all signals for analysis (including trader signals)
+      console.log(`[SIGNAL_DEBUG] Queueing signal ${signal.id} for analysis, queue length before: ${analysisQueue.current.length}`);
       analysisQueue.current.push(signal.id);
       signalManager.updateSignalStatus(signal.id, 'analysis_queued');
       processAnalysisQueue();
@@ -247,6 +248,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
         }
       }
       
+      console.log(`[SIGNAL_DEBUG] Starting analysis for signal ${signalId} (${signal.symbol}) at ${new Date().toISOString()}`);
       const result = await analysisEngine.analyzeSetup(
         signal.symbol,
         strategyToUse,
@@ -255,6 +257,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
         modelToUse
       );
       
+      console.log(`[SIGNAL_DEBUG] Analysis complete for signal ${signalId}, calling updateWithAnalysis`);
       signalManager.updateWithAnalysis(signalId, result);
       
       // Call the onAnalysisComplete callback if provided
@@ -279,6 +282,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   
   // Process analysis queue with concurrent limit
   const processAnalysisQueue = useCallback(async () => {
+    console.log(`[SIGNAL_DEBUG] processAnalysisQueue called, queue length: ${analysisQueue.current.length}, queue contents: ${analysisQueue.current.join(', ')}`);
     // Process queue while respecting concurrent limits
     while (analysisQueue.current.length > 0) {
       const nextSignalId = analysisQueue.current[0];
@@ -323,8 +327,10 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       traderAnalysisCounts.current.set(traderId, currentCount + 1);
       
       // Start analysis and track promise
+      console.log(`[SIGNAL_DEBUG] Starting analysis promise for signal ${nextSignalId}`);
       const analysisPromise = analyzeSignal(nextSignalId)
         .finally(() => {
+          console.log(`[SIGNAL_DEBUG] Analysis promise completed for signal ${nextSignalId}, calling processAnalysisQueue again`);
           // Decrement count and remove from active analyses
           const count = traderAnalysisCounts.current.get(traderId) || 0;
           traderAnalysisCounts.current.set(traderId, Math.max(0, count - 1));

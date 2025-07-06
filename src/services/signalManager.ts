@@ -40,6 +40,7 @@ export class SignalManager {
     }
     
     // Add to history with timestamp
+    console.log(`[SIGNAL_DEBUG] updateWithAnalysis: Adding analysis to history for signal ${signalId}, history length before: ${signal.analysisHistory.length}`);
     signal.analysisHistory.push({
       ...analysis,
       timestamp: new Date()
@@ -97,6 +98,7 @@ export class SignalManager {
     }
     
     // Add to history with timestamp
+    console.log(`[SIGNAL_DEBUG] updateReanalysis: Adding analysis to history for signal ${signalId}, history length before: ${signal.analysisHistory.length}`);
     signal.analysisHistory.push({
       ...analysis,
       timestamp: new Date()

@@ -908,6 +908,7 @@ const AppContent: React.FC = () => {
           
           // Creating signal with interval info from trader
           const interval = trader?.filter?.interval || KlineInterval.ONE_MINUTE;
+          console.log(`[SIGNAL_DEBUG] Creating signal for ${symbol} from trader ${result.traderId} at ${new Date().toISOString()}`);
           const signal = createSignalFromFilter(filterResult, result.traderId, interval);
           
           // Update signal history - reset bar count for new signal

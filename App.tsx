@@ -953,7 +953,7 @@ const AppContent: React.FC = () => {
   const screenerEnabled = multiTraderEnabled && traders.some(t => t.enabled);
   // console.log('[App] Multi-trader screener enabled:', screenerEnabled, 'multiTraderEnabled:', multiTraderEnabled, 'enabled traders:', traders.filter(t => t.enabled).length);
   
-  const { isRunning: isMultiTraderRunning } = useMultiTraderScreener({
+  const { isRunning: isMultiTraderRunning, resetCache: resetMultiTraderCache } = useMultiTraderScreener({
     traders,
     symbols: allSymbols,
     tickers,
@@ -963,6 +963,11 @@ const AppContent: React.FC = () => {
     interval: 5000 // Run every 5 seconds
   });
 
+  // Reset worker cache when traders list changes (especially on deletion)
+  useEffect(() => {
+    // Reset cache to clear any references to deleted traders
+    resetMultiTraderCache();
+  }, [traders.length, resetMultiTraderCache]);
 
   const handleRunHistoricalScan = () => {
     // Only run historical scan when a trader is selected

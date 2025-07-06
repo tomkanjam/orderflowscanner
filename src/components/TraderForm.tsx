@@ -47,6 +47,20 @@ export function TraderForm({
   const originalIntervalRef = useRef<KlineInterval>(editingTrader?.filter?.interval || KlineInterval.ONE_MINUTE);
   
 
+  // Check for pending prompt in localStorage on component mount
+  React.useEffect(() => {
+    const pendingPrompt = localStorage.getItem('pendingScreenerPrompt');
+    if (pendingPrompt && user && !editingTrader) {
+      // Pre-fill the AI prompt and switch to AI mode
+      setMode('ai');
+      setAiPrompt(pendingPrompt);
+      // Clear the localStorage immediately to prevent re-use
+      localStorage.removeItem('pendingScreenerPrompt');
+      // Optionally, auto-trigger generation
+      // handleGenerateTrader(); // Uncomment if you want auto-generation
+    }
+  }, [user, editingTrader]);
+
   // Update form fields when editingTrader changes
   React.useEffect(() => {
     if (editingTrader) {
@@ -69,7 +83,14 @@ export function TraderForm({
   const handleAuthSuccess = React.useCallback(() => {
     setShowAuthModal(false);
     
-    if (pendingTraderData) {
+    // Also check localStorage in case modal was closed differently
+    const pendingPrompt = localStorage.getItem('pendingScreenerPrompt');
+    if (pendingPrompt) {
+      setMode('ai');
+      setAiPrompt(pendingPrompt);
+      localStorage.removeItem('pendingScreenerPrompt');
+      setPendingTraderData({ aiPrompt: pendingPrompt });
+    } else if (pendingTraderData) {
       if (pendingTraderData.aiPrompt) {
         // Resume AI generation
         setAiPrompt(pendingTraderData.aiPrompt);
@@ -110,8 +131,11 @@ export function TraderForm({
     setRegeneratingCode(false);
     setError('');
     setGeneratedTrader(null);
+    setPendingTraderData(null);
     originalConditionsRef.current = [];
     originalIntervalRef.current = KlineInterval.ONE_MINUTE;
+    // Clear any pending prompt from localStorage
+    localStorage.removeItem('pendingScreenerPrompt');
   };
 
   const handleCancel = () => {
@@ -152,6 +176,8 @@ export function TraderForm({
     } catch (error) {
       console.error('Failed to generate trader:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate trader');
+      // Clear any pending prompt from localStorage on error
+      localStorage.removeItem('pendingScreenerPrompt');
     } finally {
       setGenerating(false);
     }
@@ -297,10 +323,14 @@ export function TraderForm({
         onTraderCreated?.(trader);
       }
       
+      // Clear any pending prompt from localStorage on successful creation
+      localStorage.removeItem('pendingScreenerPrompt');
       resetForm();
     } catch (error) {
       console.error('Failed to save trader:', error);
       setError(error instanceof Error ? error.message : 'Failed to save trader');
+      // Clear any pending prompt from localStorage on error
+      localStorage.removeItem('pendingScreenerPrompt');
     }
   };
 

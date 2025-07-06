@@ -5,7 +5,8 @@ import * as helpers from '../screenerHelpers';
 export interface TraderFilter {
   traderId: string;
   filterCode: string;
-  interval?: KlineInterval; // The interval this trader uses
+  refreshInterval?: KlineInterval; // How often to check for new signals
+  requiredTimeframes?: KlineInterval[]; // Timeframes needed by the filter code
 }
 
 export interface MultiTraderScreenerMessage {
@@ -43,17 +44,18 @@ const previousMatchesByTrader = new Map<string, Set<string>>();
 function runTraderFilter(
   traderId: string,
   filterCode: string,
-  interval: KlineInterval,
+  refreshInterval: KlineInterval,
+  requiredTimeframes: KlineInterval[],
   symbols: string[],
   tickers: Record<string, Ticker>,
   historicalData: Record<string, Record<string, Kline[]>>
 ): TraderResult {
-  // console.log(`[Worker] Running filter for trader ${traderId}, checking ${symbols.length} symbols, interval: ${interval}`);
+  // console.log(`[Worker] Running filter for trader ${traderId}, checking ${symbols.length} symbols, refresh: ${refreshInterval}, timeframes: ${requiredTimeframes.join(',')}`);
   const previousMatches = previousMatchesByTrader.get(traderId) || new Set<string>();
   
   try {
     // Create the filter function with HVN data
-    let filterFunction: (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: any[]) => boolean;
+    let filterFunction: (ticker: Ticker, timeframes: Record<string, Kline[]>, helpers: typeof helpers, hvnNodes: any[]) => boolean;
     
     try {
       // Log the first 500 chars of filter code
@@ -61,7 +63,7 @@ function runTraderFilter(
       
       filterFunction = new Function(
         'ticker', 
-        'klines', 
+        'timeframes', 
         'helpers',
         'hvnNodes',
         `try { 
@@ -70,7 +72,7 @@ function runTraderFilter(
           console.error('[Worker] Filter execution error:', e);
           return false; 
         }`
-      ) as (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: any[]) => boolean;
+      ) as (ticker: Ticker, timeframes: Record<string, Kline[]>, helpers: typeof helpers, hvnNodes: any[]) => boolean;
       
       // console.log(`[Worker] Successfully created filter function for trader ${traderId}`);
     } catch (syntaxError) {
@@ -92,19 +94,26 @@ function runTraderFilter(
     for (const symbol of symbols) {
       const ticker = tickers[symbol];
       const symbolData = historicalData[symbol];
-      const klines = symbolData?.[interval] || symbolData?.['1m']; // Use trader's interval or fallback to 1m
       
-      if (!ticker || !klines || klines.length === 0) {
+      if (!ticker || !symbolData) {
         skippedNoData++;
-        if (symbol === 'BTCUSDT' || symbol === 'ETHUSDT') {
-          // console.log(`[Worker] ${symbol} check - ticker: ${!!ticker}, klines: ${klines ? klines.length : 'null'}, interval: ${interval}`);
-        }
         continue;
       }
       
-      // Skip if we don't have enough data for meaningful analysis
-      // StochRSI needs at least 28 bars (14 for RSI + 14 for Stochastic)
-      if (klines.length < 30) {
+      // Build timeframes object with required timeframe data
+      const timeframes: Record<string, Kline[]> = {};
+      let hasAllRequiredData = true;
+      
+      for (const tf of requiredTimeframes) {
+        const klines = symbolData[tf];
+        if (!klines || klines.length < 30) {
+          hasAllRequiredData = false;
+          break;
+        }
+        timeframes[tf] = klines;
+      }
+      
+      if (!hasAllRequiredData) {
         skippedInsufficientData++;
         continue;
       }
@@ -116,56 +125,25 @@ function runTraderFilter(
         //   tickerPrice: ticker.c,
         //   tickerVolume: ticker.v,
         //   tickerChange: ticker.P,
-        //   klinesCount: klines.length,
-        //   interval: interval,
-        //   latestKline: klines.length > 0 ? {
-        //     time: new Date(klines[klines.length - 1][0]).toISOString(),
-        //     open: klines[klines.length - 1][1],
-        //     high: klines[klines.length - 1][2],
-        //     low: klines[klines.length - 1][3],
-        //     close: klines[klines.length - 1][4],
-        //     volume: klines[klines.length - 1][5]
-        //   } : null
+        //   timeframes: Object.keys(timeframes).map(tf => ({ tf, klines: timeframes[tf].length })),
+        //   refreshInterval: refreshInterval
         // });
       }
       
       checkedCount++;
       
       try {
-        // Calculate HVN nodes on demand
-        const hvnNodes = helpers.calculateHighVolumeNodes(klines, { lookback: Math.min(klines.length, 100) });
+        // Calculate HVN nodes on demand using longest timeframe data
+        const longestTf = requiredTimeframes.includes('1d' as KlineInterval) ? '1d' : 
+                         requiredTimeframes.includes('4h' as KlineInterval) ? '4h' : 
+                         requiredTimeframes.includes('1h' as KlineInterval) ? '1h' : 
+                         requiredTimeframes[0];
+        const hvnKlines = timeframes[longestTf];
+        const hvnNodes = helpers.calculateHighVolumeNodes(hvnKlines, { lookback: Math.min(hvnKlines.length, 100) });
         
-        const matches = filterFunction(ticker, klines, helpers, hvnNodes);
+        const matches = filterFunction(ticker, timeframes, helpers, hvnNodes);
         
-        // Debug logging for Momentum Breakout Scalper
-        if (traderId.includes('momentum') || traderId.includes('breakout')) {
-          // Execute filter with detailed debugging
-          try {
-            const debugFilterCode = filterCode.replace(
-              'return false;',
-              `console.log('[Filter Debug] ${symbol} failed at:', arguments.callee.caller.arguments); return false;`
-            );
-            const currentClose = parseFloat(klines[klines.length - 1][4]);
-            const prevClose = parseFloat(klines[klines.length - 2][4]);
-            const currentVolume = parseFloat(klines[klines.length - 1][5]);
-            const recentHigh = helpers.getHighestHigh(klines.slice(-21, -1), 20);
-            const avgVolume = helpers.calculateAvgVolume(klines.slice(-21, -1), 20);
-            
-            // console.log(`[Worker] Momentum Breakout Debug for ${symbol}:`, {
-            //   currentClose,
-            //   prevClose,
-            //   recentHigh,
-            //   breakoutOccurred: prevClose < recentHigh && currentClose > recentHigh,
-            //   currentVolume,
-            //   avgVolume,
-            //   volumeRatio: currentVolume / avgVolume,
-            //   volumeThreshold: 1.5,
-            //   meetsVolumeReq: currentVolume >= avgVolume * 1.5
-            // });
-          } catch (debugError) {
-            console.error('[Worker] Debug error:', debugError);
-          }
-        }
+        // Debug logging can be added here if needed for specific traders
         
         if (matches) {
           // console.log(`[Worker] ✅ Trader ${traderId} matched symbol ${symbol}`, {
@@ -231,7 +209,8 @@ function runMultiTraderScreener(
     const result = runTraderFilter(
       trader.traderId,
       trader.filterCode,
-      trader.interval || '1m' as KlineInterval,
+      trader.refreshInterval || '1m' as KlineInterval,
+      trader.requiredTimeframes || [trader.refreshInterval || '1m'] as KlineInterval[],
       symbols,
       tickers,
       historicalData

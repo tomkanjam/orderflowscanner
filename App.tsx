@@ -761,7 +761,9 @@ const AppContent: React.FC = () => {
     const activeIntervals = new Set<KlineInterval>();
     traders.forEach(trader => {
       if (trader.enabled) {
-        activeIntervals.add(trader.filter?.interval || KlineInterval.ONE_MINUTE);
+        // Add all required timeframes for this trader
+        const requiredTimeframes = trader.filter?.requiredTimeframes || [trader.filter?.refreshInterval || KlineInterval.ONE_MINUTE];
+        requiredTimeframes.forEach(tf => activeIntervals.add(tf));
       }
     });
     

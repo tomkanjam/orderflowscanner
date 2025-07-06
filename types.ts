@@ -59,6 +59,7 @@ export interface AiFilterResponse {
   description: string[];
   screenerCode: string;
   indicators: CustomIndicatorConfig[]; // Renamed from chartConfig for clarity
+  requiredTimeframes?: string[]; // Timeframes required by the filter
 }
 
 export interface GeminiContent {

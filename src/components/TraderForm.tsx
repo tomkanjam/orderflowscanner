@@ -185,7 +185,7 @@ export function TraderForm({
             code: finalFilterCode,
             description: validConditions,
             indicators: generatedTrader?.indicators || editingTrader.filter.indicators,
-            interval: filterInterval
+            refreshInterval: filterInterval
           },
           strategy: {
             instructions: manualStrategy,
@@ -208,7 +208,7 @@ export function TraderForm({
             code: finalFilterCode,
             description: validConditions,
             indicators: generatedTrader?.indicators,
-            interval: filterInterval
+            refreshInterval: filterInterval
           },
           strategy: {
             instructions: manualStrategy,

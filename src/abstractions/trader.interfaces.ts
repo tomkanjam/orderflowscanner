@@ -27,7 +27,8 @@ export interface TraderFilter {
   code: string;
   description: string[];
   indicators?: CustomIndicatorConfig[];
-  interval?: KlineInterval; // The candle interval this trader uses (e.g., '1m', '5m', '15m', etc.)
+  refreshInterval?: KlineInterval; // How often to check for new signals (renamed from interval)
+  requiredTimeframes?: KlineInterval[]; // Timeframes needed by the filter code (LLM-determined)
 }
 
 export interface TraderStrategy {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { Ticker, Kline } from '../types';
+import { Ticker, Kline, KlineInterval } from '../types';
 import { Trader } from '../src/abstractions/trader.interfaces';
 import { 
   MultiTraderScreenerMessage, 
@@ -140,7 +140,8 @@ export function useMultiTraderScreener({
         traders: enabledTraders.map(t => ({
           traderId: t.id,
           filterCode: t.filter?.code || '',
-          interval: t.filter?.interval
+          refreshInterval: t.filter?.refreshInterval,
+          requiredTimeframes: t.filter?.requiredTimeframes
         }))
       }
     };

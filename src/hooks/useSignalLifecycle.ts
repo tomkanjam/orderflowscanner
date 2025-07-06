@@ -97,6 +97,13 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     const signal = signalManager.createSignal(filterResult, strategyId, traderId, interval);
     
     if (autoAnalyze) {
+      // Check if signal is already queued or being analyzed to prevent duplicates
+      const existingSignal = signalManager.getSignal(signal.id);
+      if (existingSignal?.isAnalyzing || analysisQueue.current.includes(signal.id)) {
+        console.log(`[SIGNAL_DEBUG] Signal ${signal.id} already queued or analyzing, skipping duplicate`);
+        return signal;
+      }
+      
       // Queue all signals for analysis (including trader signals)
       console.log(`[SIGNAL_DEBUG] Queueing signal ${signal.id} for analysis, queue length before: ${analysisQueue.current.length}`);
       analysisQueue.current.push(signal.id);
@@ -111,6 +118,12 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   const analyzeSignal = useCallback(async (signalId: string, customModel?: string) => {
     const signal = signalManager.getSignal(signalId);
     if (!signal) return;
+    
+    // Check if already analyzing to prevent duplicates
+    if (signal.isAnalyzing) {
+      console.log(`[SIGNAL_DEBUG] Signal ${signalId} is already being analyzed, skipping duplicate`);
+      return;
+    }
     
     // For trader signals, fetch trader's strategy
     let strategyToUse: Strategy | null = activeStrategy;
@@ -142,7 +155,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       return;
     }
     
-    // Update status to analyzing
+    // Update status to analyzing (flag already set in processAnalysisQueue)
     signal.status = 'analyzing';
     signalManager['notifyUpdate'](); // Force update
     
@@ -260,6 +273,10 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       console.log(`[SIGNAL_DEBUG] Analysis complete for signal ${signalId}, calling updateWithAnalysis`);
       signalManager.updateWithAnalysis(signalId, result);
       
+      // Clear analyzing flag
+      signal.isAnalyzing = false;
+      signalManager['notifyUpdate']();
+      
       // Call the onAnalysisComplete callback if provided
       if (onAnalysisComplete) {
         onAnalysisComplete(signalId, result);
@@ -273,8 +290,9 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       return result;
     } catch (error) {
       console.error('Analysis failed:', error);
-      // Reset status on error
+      // Reset status and clear flag on error
       signal.status = 'new';
+      signal.isAnalyzing = false;
       signalManager['notifyUpdate']();
       throw error;
     }
@@ -289,6 +307,13 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       const signal = signalManager.getSignal(nextSignalId);
       
       if (!signal) {
+        analysisQueue.current.shift();
+        continue;
+      }
+      
+      // Skip if already analyzing (handles race conditions)
+      if (signal.isAnalyzing) {
+        console.log(`[SIGNAL_DEBUG] Signal ${nextSignalId} already analyzing, removing from queue`);
         analysisQueue.current.shift();
         continue;
       }
@@ -321,6 +346,10 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       
       // Remove from queue and start analysis
       analysisQueue.current.shift();
+      
+      // Set isAnalyzing flag BEFORE calling analyzeSignal to prevent race condition
+      signal.isAnalyzing = true;
+      signalManager['notifyUpdate']();
       
       // Increment trader's concurrent count
       const traderId = signal.traderId || 'global';

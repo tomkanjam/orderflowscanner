@@ -124,6 +124,7 @@ export interface SignalLifecycle {
   status: SignalStatus;
   currentPrice: number;
   priceChange: number; // % from initial
+  isAnalyzing?: boolean; // Prevents duplicate analysis in React StrictMode
   
   // Analysis results
   analysis?: AnalysisResult; // Latest analysis

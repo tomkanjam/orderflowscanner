@@ -37,8 +37,9 @@ export function TraderForm({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [regeneratingCode, setRegeneratingCode] = useState(false);
   
-  // Track the original conditions to detect changes
+  // Track the original conditions and interval to detect changes
   const originalConditionsRef = useRef<string[]>(editingTrader?.filter?.description || []);
+  const originalIntervalRef = useRef<KlineInterval>(editingTrader?.filter?.interval || KlineInterval.ONE_MINUTE);
   
 
   // Update form fields when editingTrader changes
@@ -55,68 +56,10 @@ export function TraderForm({
       setFilterInterval(editingTrader.filter?.interval || KlineInterval.ONE_MINUTE);
       setMaxConcurrentAnalysis(editingTrader.strategy?.maxConcurrentAnalysis || 3);
       originalConditionsRef.current = editingTrader.filter?.description || [];
+      originalIntervalRef.current = editingTrader.filter?.interval || KlineInterval.ONE_MINUTE;
     }
   }, [editingTrader]);
   
-  // Automatically regenerate filter code when conditions change
-  React.useEffect(() => {
-    // Skip if we're in AI generation mode or if conditions haven't been initialized
-    if (mode === 'ai' || generating) return;
-    
-    // Check if conditions have changed from original
-    const hasChanged = JSON.stringify(filterConditions) !== JSON.stringify(originalConditionsRef.current);
-    if (!hasChanged) return;
-    
-    // Check if we have valid conditions
-    const validConditions = filterConditions.filter(c => c.trim().length > 0);
-    if (validConditions.length === 0) return;
-    
-    // Debounce the regeneration
-    const timeoutId = setTimeout(async () => {
-      setRegeneratingCode(true);
-      setError('');
-      
-      try {
-        const { filterCode } = await regenerateFilterCode(validConditions, 'gemini-2.5-pro', filterInterval);
-        setManualFilterCode(filterCode);
-        originalConditionsRef.current = [...filterConditions];
-      } catch (error) {
-        console.error('Failed to regenerate filter code:', error);
-        setError('Failed to regenerate filter code. Please check your conditions.');
-      } finally {
-        setRegeneratingCode(false);
-      }
-    }, 1500); // 1.5 second debounce
-    
-    return () => clearTimeout(timeoutId);
-  }, [filterConditions, mode, generating, filterInterval]);
-  
-  // Regenerate filter code when interval changes (only if we have conditions)
-  React.useEffect(() => {
-    // Skip if we're in AI generation mode or no conditions
-    if (mode === 'ai' || generating) return;
-    
-    const validConditions = filterConditions.filter(c => c.trim().length > 0);
-    if (validConditions.length === 0) return;
-    
-    // Skip on initial mount
-    if (!manualFilterCode) return;
-    
-    setRegeneratingCode(true);
-    setError('');
-    
-    regenerateFilterCode(validConditions, 'gemini-2.5-pro', filterInterval)
-      .then(({ filterCode }) => {
-        setManualFilterCode(filterCode);
-      })
-      .catch((error) => {
-        console.error('Failed to regenerate filter code for interval change:', error);
-        setError('Failed to regenerate filter code. Please check your conditions.');
-      })
-      .finally(() => {
-        setRegeneratingCode(false);
-      });
-  }, [filterInterval]);
   
 
   const resetForm = () => {
@@ -136,6 +79,7 @@ export function TraderForm({
     setError('');
     setGeneratedTrader(null);
     originalConditionsRef.current = [];
+    originalIntervalRef.current = KlineInterval.ONE_MINUTE;
   };
 
   const handleCancel = () => {
@@ -164,6 +108,7 @@ export function TraderForm({
       setManualStrategy(generated.strategyInstructions);
       setFilterConditions(generated.filterDescription || []);
       originalConditionsRef.current = generated.filterDescription || [];
+      originalIntervalRef.current = filterInterval;
     } catch (error) {
       console.error('Failed to generate trader:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate trader');
@@ -192,8 +137,30 @@ export function TraderForm({
       return;
     }
     
+    // Check if we need to regenerate code for edited traders
+    let finalFilterCode = manualFilterCode;
+    if (editingTrader) {
+      // Check if conditions have changed
+      const conditionsChanged = JSON.stringify(validConditions) !== JSON.stringify(originalConditionsRef.current) ||
+                              filterInterval !== originalIntervalRef.current;
+      
+      if (conditionsChanged) {
+        // Regenerate filter code
+        setRegeneratingCode(true);
+        try {
+          const { filterCode } = await regenerateFilterCode(validConditions, 'gemini-2.5-pro', filterInterval);
+          finalFilterCode = filterCode;
+        } catch (error) {
+          console.error('Failed to regenerate filter code:', error);
+          setError('Failed to regenerate filter code. Please try again.');
+          setRegeneratingCode(false);
+          return;
+        }
+        setRegeneratingCode(false);
+      }
+    }
 
-    if (!manualFilterCode.trim()) {
+    if (!finalFilterCode.trim()) {
       setError('Filter code is required');
       return;
     }
@@ -215,7 +182,7 @@ export function TraderForm({
           name: manualName,
           description: manualDescription || manualName,
           filter: {
-            code: manualFilterCode,
+            code: finalFilterCode,
             description: validConditions,
             indicators: generatedTrader?.indicators || editingTrader.filter.indicators,
             interval: filterInterval
@@ -238,7 +205,7 @@ export function TraderForm({
           enabled: true,
           mode: 'demo', // Always start in demo mode
           filter: {
-            code: manualFilterCode,
+            code: finalFilterCode,
             description: validConditions,
             indicators: generatedTrader?.indicators,
             interval: filterInterval

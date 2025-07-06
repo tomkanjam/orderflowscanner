@@ -6,6 +6,8 @@ import { Trader, TraderGeneration } from '../abstractions/trader.interfaces';
 import { MODEL_TIERS, type ModelTier } from '../constants/models';
 import { KlineInterval } from '../../types';
 import { KLINE_INTERVALS } from '../../constants';
+import { useAuth } from '../hooks/useAuth';
+import { EmailAuthModal } from './auth/EmailAuthModal';
 
 interface TraderFormProps {
   onTraderCreated?: (trader: Trader) => void;
@@ -20,6 +22,7 @@ export function TraderForm({
   editingTrader,
   onCancel
 }: TraderFormProps) {
+  const { user } = useAuth();
   const [mode, setMode] = useState<CreationMode>(editingTrader ? 'manual' : 'ai');
   const [aiPrompt, setAiPrompt] = useState('');
   const [manualName, setManualName] = useState(editingTrader?.name || '');
@@ -36,6 +39,8 @@ export function TraderForm({
   const [generatedTrader, setGeneratedTrader] = useState<TraderGeneration | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [regeneratingCode, setRegeneratingCode] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [pendingTraderData, setPendingTraderData] = useState<any>(null);
   
   // Track the original conditions and interval to detect changes
   const originalConditionsRef = useRef<string[]>(editingTrader?.filter?.description || []);
@@ -59,6 +64,33 @@ export function TraderForm({
       originalIntervalRef.current = editingTrader.filter?.interval || KlineInterval.ONE_MINUTE;
     }
   }, [editingTrader]);
+
+  // Handle auth success - resume pending operation
+  const handleAuthSuccess = React.useCallback(() => {
+    setShowAuthModal(false);
+    
+    if (pendingTraderData) {
+      if (pendingTraderData.aiPrompt) {
+        // Resume AI generation
+        setAiPrompt(pendingTraderData.aiPrompt);
+        // We'll trigger the generation after the component re-renders
+      } else if (pendingTraderData.mode === 'manual') {
+        // Resume manual creation after the component re-renders
+      }
+    }
+  }, [pendingTraderData]);
+
+  // Effect to resume operations after auth success
+  React.useEffect(() => {
+    if (user && pendingTraderData && !showAuthModal) {
+      if (pendingTraderData.aiPrompt) {
+        handleGenerateTrader();
+      } else if (pendingTraderData.mode === 'manual') {
+        handleCreateTrader();
+      }
+      setPendingTraderData(null);
+    }
+  }, [user, pendingTraderData, showAuthModal]);
   
   
 
@@ -93,6 +125,14 @@ export function TraderForm({
       return;
     }
 
+    // Check if user is authenticated
+    if (!user) {
+      // Store the AI prompt and show auth modal
+      setPendingTraderData({ aiPrompt });
+      setShowAuthModal(true);
+      return;
+    }
+
     setGenerating(true);
     setError('');
 
@@ -119,6 +159,27 @@ export function TraderForm({
   
 
   const handleCreateTrader = async () => {
+    // Check if user is authenticated
+    if (!user) {
+      // Store the current form data
+      setPendingTraderData({
+        mode: 'manual',
+        name: manualName,
+        description: manualDescription,
+        filterCode: manualFilterCode,
+        strategy: manualStrategy,
+        filterConditions,
+        aiAnalysisLimit,
+        modelTier,
+        filterInterval,
+        maxConcurrentAnalysis,
+        generatedTrader,
+        editingTrader
+      });
+      setShowAuthModal(true);
+      return;
+    }
+
     // Validate fields
     if (!manualName.trim()) {
       setError('Trader name is required');
@@ -131,7 +192,7 @@ export function TraderForm({
     }
 
     // Validate filter conditions
-    const validConditions = filterConditions.filter(c => c.trim().length > 0);
+    const validConditions = filterConditions.filter((c: string) => c.trim().length > 0);
     if (validConditions.length === 0) {
       setError('At least one filter condition is required');
       return;
@@ -636,6 +697,15 @@ export function TraderForm({
           </div>
         </div>
       )}
+
+      {/* Email Auth Modal */}
+      <EmailAuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={handleAuthSuccess}
+        pendingPrompt={pendingTraderData?.aiPrompt || 
+          (pendingTraderData?.mode === 'manual' ? `Create trader: ${pendingTraderData.name || 'New Trader'}` : undefined)}
+      />
     </div>
   );
 }

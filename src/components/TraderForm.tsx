@@ -25,7 +25,7 @@ export function TraderForm({
   onCancel
 }: TraderFormProps) {
   const { user } = useAuth();
-  const { profile } = useSubscription();
+  const { profile, canCreateSignal, currentTier } = useSubscription();
   const [mode, setMode] = useState<CreationMode>(editingTrader ? 'manual' : 'ai');
   const [aiPrompt, setAiPrompt] = useState('');
   const [manualName, setManualName] = useState(editingTrader?.name || '');
@@ -216,6 +216,12 @@ export function TraderForm({
       return;
     }
 
+    // Check if user has permission to create signals (Pro or Elite tier)
+    if (!editingTrader && !canCreateSignal()) {
+      setError('Upgrade to Pro to create custom signals');
+      return;
+    }
+
     // Validate fields
     if (!manualName.trim()) {
       setError('Trader name is required');
@@ -378,6 +384,18 @@ export function TraderForm({
         </h3>
       </div>
 
+      {/* Show upgrade prompt for Free users and stop here */}
+      {!editingTrader && user && currentTier === 'free' && (
+        <UpgradePrompt 
+          feature="custom signal creation" 
+          requiredTier={SubscriptionTier.PRO}
+          compact={false}
+        />
+      )}
+
+      {/* Only show form content if user can create signals or is editing */}
+      {(editingTrader || !user || (user && canCreateSignal())) ? (
+        <>
       {/* Mode Selection (only for new traders) */}
       {!editingTrader && (
         <div className="flex gap-2">
@@ -853,6 +871,8 @@ export function TraderForm({
           </div>
         </div>
       )}
+        </>
+      ) : null}
 
       {/* Email Auth Modal */}
       <EmailAuthModal

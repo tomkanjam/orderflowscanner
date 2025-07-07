@@ -9,7 +9,8 @@ import { KLINE_INTERVALS } from '../../constants';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { EmailAuthModal } from './auth/EmailAuthModal';
-import { AccessTier } from '../types/subscription.types';
+import { AccessTier, SubscriptionTier } from '../types/subscription.types';
+import { UpgradePrompt } from './UpgradePrompt';
 
 interface TraderFormProps {
   onTraderCreated?: (trader: Trader) => void;
@@ -385,16 +386,14 @@ export function TraderForm({
       </div>
 
       {/* Show upgrade prompt for Free users and stop here */}
-      {!editingTrader && user && currentTier === 'free' && (
+      {!editingTrader && user && currentTier === 'free' ? (
         <UpgradePrompt 
           feature="custom signal creation" 
           requiredTier={SubscriptionTier.PRO}
           compact={false}
         />
-      )}
-
-      {/* Only show form content if user can create signals or is editing */}
-      {(editingTrader || !user || (user && canCreateSignal())) ? (
+      ) : (
+      /* Only show form content if user can create signals or is editing */
         <>
       {/* Mode Selection (only for new traders) */}
       {!editingTrader && (
@@ -872,7 +871,7 @@ export function TraderForm({
         </div>
       )}
         </>
-      ) : null}
+      )}
 
       {/* Email Auth Modal */}
       <EmailAuthModal

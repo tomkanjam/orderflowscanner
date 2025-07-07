@@ -64,8 +64,26 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         .eq('id', user.id)
         .single();
 
-      if (profileError) throw profileError;
-      setProfile(profileData);
+      if (profileError && profileError.code === 'PGRST116') {
+        // Profile doesn't exist, create it
+        console.log('Creating user profile...');
+        const { data: newProfile, error: createError } = await supabase
+          .from('user_profiles')
+          .insert({ 
+            id: user.id, 
+            email: user.email || '',
+            is_admin: false 
+          })
+          .select()
+          .single();
+        
+        if (createError) throw createError;
+        setProfile(newProfile);
+      } else if (profileError) {
+        throw profileError;
+      } else {
+        setProfile(profileData);
+      }
 
       // Fetch subscription
       const { data: subData, error: subError } = await supabase
@@ -74,8 +92,26 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         .eq('user_id', user.id)
         .single();
 
-      if (subError) throw subError;
-      setSubscription(subData);
+      if (subError && subError.code === 'PGRST116') {
+        // Subscription doesn't exist, create it
+        console.log('Creating user subscription...');
+        const { data: newSub, error: createError } = await supabase
+          .from('user_subscriptions')
+          .insert({ 
+            user_id: user.id,
+            tier: 'free',
+            status: 'active'
+          })
+          .select()
+          .single();
+        
+        if (createError) throw createError;
+        setSubscription(newSub);
+      } else if (subError) {
+        throw subError;
+      } else {
+        setSubscription(subData);
+      }
 
       // Fetch preferences
       const { data: prefData, error: prefError } = await supabase
@@ -84,8 +120,22 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         .eq('user_id', user.id)
         .single();
 
-      if (prefError) throw prefError;
-      setPreferences(prefData);
+      if (prefError && prefError.code === 'PGRST116') {
+        // Preferences don't exist, create them
+        console.log('Creating user preferences...');
+        const { data: newPref, error: createError } = await supabase
+          .from('user_preferences')
+          .insert({ user_id: user.id })
+          .select()
+          .single();
+        
+        if (createError) throw createError;
+        setPreferences(newPref);
+      } else if (prefError) {
+        throw prefError;
+      } else {
+        setPreferences(prefData);
+      }
 
     } catch (err) {
       console.error('Error fetching user data:', err);

@@ -10,6 +10,7 @@ import { useAuthContext } from '../src/contexts/AuthContext';
 import { User, LogOut, Settings, ChevronDown, LogIn } from 'lucide-react';
 import { useSubscription } from '../src/contexts/SubscriptionContext';
 import { getTierDisplayName, getTierColor } from '../src/utils/tierAccess';
+import { EmailAuthModal } from '../src/components/auth/EmailAuthModal';
 
 interface SidebarProps {
   onSelectedTraderChange?: (traderId: string | null) => void;
@@ -24,6 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [editingTrader, setEditingTrader] = useState<Trader | null>(null);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   
   // Check if user is admin
@@ -49,8 +51,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleSignIn = () => {
-    // Open the create form which will trigger the auth modal for anonymous users
-    setShowCreateForm(true);
+    setShowAuthModal(true);
+  };
+
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false);
   };
 
   return (
@@ -179,6 +184,13 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </>
       )}
+      
+      {/* Email Auth Modal */}
+      <EmailAuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={handleAuthSuccess}
+      />
     </aside>
   );
 };

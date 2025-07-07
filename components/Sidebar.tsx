@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { TraderList } from '../src/components/TraderList';
 import { TraderForm } from '../src/components/TraderForm';
 import { PortfolioMetrics } from '../src/components/PortfolioMetrics';
@@ -7,7 +7,7 @@ import { TradingModeSelector } from '../src/components/TradingModeSelector';
 import { PositionsPanel } from '../src/components/PositionsPanel';
 import { Trader } from '../src/abstractions/trader.interfaces';
 import { useAuthContext } from '../src/contexts/AuthContext';
-import { User, LogOut, Settings } from 'lucide-react';
+import { User, LogOut, Settings, ChevronDown, LogIn } from 'lucide-react';
 import { useSubscription } from '../src/contexts/SubscriptionContext';
 import { getTierDisplayName, getTierColor } from '../src/utils/tierAccess';
 
@@ -23,15 +23,34 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTrader, setEditingTrader] = useState<Trader | null>(null);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   
   // Check if user is admin
   const isAdmin = user?.email === 'tom@tomk.ca';
+
+  // Handle clicks outside of user menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleTraderCreated = (trader: Trader) => {
     setSelectedTraderId(trader.id);
     onSelectedTraderChange?.(trader.id);
     setShowCreateForm(false);
     setEditingTrader(null);
+  };
+
+  const handleSignIn = () => {
+    // Open the create form which will trigger the auth modal for anonymous users
+    setShowCreateForm(true);
   };
 
   return (
@@ -103,14 +122,17 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
           
-          {/* User Menu - Show when logged in */}
-          {user && (
-            <div className="mt-6 pt-6 border-t border-[var(--tm-border)]">
-              <div className="space-y-2">
-                {/* User Info */}
-                <div className="flex items-center gap-3 px-4 py-2 bg-[var(--tm-bg-primary)] rounded-lg">
+          {/* User Menu */}
+          <div className="mt-6 pt-6 border-t border-[var(--tm-border)]">
+            {user ? (
+              <div className="relative" ref={userMenuRef}>
+                {/* User Button */}
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="w-full flex items-center gap-3 px-4 py-2 bg-[var(--tm-bg-primary)] hover:bg-[var(--tm-bg-hover)] rounded-lg transition-all duration-200"
+                >
                   <User className="w-5 h-5 text-[var(--tm-text-secondary)]" />
-                  <div className="flex-1">
+                  <div className="flex-1 text-left">
                     <div className="text-sm font-medium text-[var(--tm-text-primary)]">
                       {user.email}
                     </div>
@@ -118,28 +140,43 @@ const Sidebar: React.FC<SidebarProps> = ({
                       {getTierDisplayName(currentTier)} Tier
                     </div>
                   </div>
-                </div>
-                
-                {/* Account Dashboard Link */}
-                <a
-                  href="/account"
-                  className="flex items-center gap-3 px-4 py-2 text-[var(--tm-text-secondary)] hover:text-[var(--tm-accent)] hover:bg-[var(--tm-bg-hover)] rounded-lg transition-all duration-200"
-                >
-                  <Settings className="w-5 h-5" />
-                  <span className="font-medium">Account Dashboard</span>
-                </a>
-                
-                {/* Logout Button */}
-                <button
-                  onClick={() => signOut()}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-[var(--tm-text-secondary)] hover:text-[var(--tm-error)] hover:bg-[var(--tm-error)]/10 rounded-lg transition-all duration-200"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="font-medium">Logout</span>
+                  <ChevronDown className={`w-4 h-4 text-[var(--tm-text-secondary)] transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
                 </button>
+                
+                {/* Dropdown Menu */}
+                {showUserMenu && (
+                  <div className="absolute bottom-full left-0 right-0 mb-2 bg-[var(--tm-bg-primary)] border border-[var(--tm-border)] rounded-lg shadow-lg overflow-hidden">
+                    <a
+                      href="/account"
+                      className="flex items-center gap-3 px-4 py-3 text-[var(--tm-text-secondary)] hover:text-[var(--tm-accent)] hover:bg-[var(--tm-bg-hover)] transition-all duration-200"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <Settings className="w-5 h-5" />
+                      <span className="font-medium">Account Dashboard</span>
+                    </a>
+                    <button
+                      onClick={() => {
+                        signOut();
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-[var(--tm-text-secondary)] hover:text-[var(--tm-error)] hover:bg-[var(--tm-error)]/10 transition-all duration-200 border-t border-[var(--tm-border)]"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      <span className="font-medium">Logout</span>
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            ) : (
+              <button
+                onClick={handleSignIn}
+                className="w-full flex items-center gap-3 px-4 py-2 bg-[var(--tm-accent)] hover:bg-[var(--tm-accent-dark)] text-[var(--tm-bg-primary)] rounded-lg transition-all duration-200 font-medium"
+              >
+                <LogIn className="w-5 h-5" />
+                <span>Sign In</span>
+              </button>
+            )}
+          </div>
         </>
       )}
     </aside>

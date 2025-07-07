@@ -69,6 +69,37 @@ Work with the PM on debugging
 ### Model Constraints
 - We will only ever use these models: gemini-2.5-flash, gemini-2.5-pro, and gemini-2.5-flash-lite-preview-06-17
 
+## Core Flows
+
+### Authentication & Signal Creation Flow
+When an anonymous user tries to create a signal:
+
+1. **User clicks "Create"** → TraderForm opens
+2. **User enters strategy description** → Stored in component state
+3. **User clicks "Generate Signal"** → Auth check happens:
+   - If not authenticated: Shows EmailAuthModal
+   - Strategy description is saved to localStorage as 'pendingScreenerPrompt'
+4. **User enters email** → Receives magic link
+5. **User clicks magic link** → Returns to app as FREE tier user
+6. **TraderForm automatically restores**:
+   - Checks localStorage for 'pendingScreenerPrompt' on mount
+   - Pre-fills the strategy description
+   - Clears localStorage after use
+7. **User sees tier restriction**:
+   - FREE users see "Upgrade to Pro" message
+   - Cannot actually create signal until Pro/Elite tier
+
+### Tier Access Rules
+- **Anonymous**: View basic signals, charts, real-time triggers only
+- **Free**: + More signals, history, favorites (NO custom signals)
+- **Pro**: + Create up to 10 custom signals, notifications
+- **Elite**: + Unlimited signals, AI analysis/monitoring/trading
+
+### Important: Authentication Gates
+- TraderForm must check authentication BEFORE any database operations
+- Free tier users must be blocked from creating signals (only Pro+)
+- Strategy descriptions must persist across login redirects
+
 ## Git Commits
 - Create a commit after every task is complete.
 - Do frequent commits so that we can roll back changes easily.

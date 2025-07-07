@@ -7,6 +7,9 @@ import { TradingModeSelector } from '../src/components/TradingModeSelector';
 import { PositionsPanel } from '../src/components/PositionsPanel';
 import { Trader } from '../src/abstractions/trader.interfaces';
 import { useAuthContext } from '../src/contexts/AuthContext';
+import { User, LogOut, Settings } from 'lucide-react';
+import { useSubscription } from '../src/contexts/SubscriptionContext';
+import { getTierDisplayName, getTierColor } from '../src/utils/tierAccess';
 
 interface SidebarProps {
   onSelectedTraderChange?: (traderId: string | null) => void;
@@ -15,7 +18,8 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({
   onSelectedTraderChange,
 }) => {
-  const { user } = useAuthContext();
+  const { user, signOut } = useAuthContext();
+  const { currentTier } = useSubscription();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTrader, setEditingTrader] = useState<Trader | null>(null);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
@@ -96,6 +100,44 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </svg>
                 <span className="font-medium">Admin Dashboard</span>
               </a>
+            </div>
+          )}
+          
+          {/* User Menu - Show when logged in */}
+          {user && (
+            <div className="mt-6 pt-6 border-t border-[var(--tm-border)]">
+              <div className="space-y-2">
+                {/* User Info */}
+                <div className="flex items-center gap-3 px-4 py-2 bg-[var(--tm-bg-primary)] rounded-lg">
+                  <User className="w-5 h-5 text-[var(--tm-text-secondary)]" />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-[var(--tm-text-primary)]">
+                      {user.email}
+                    </div>
+                    <div className="text-xs" style={{ color: getTierColor(currentTier) }}>
+                      {getTierDisplayName(currentTier)} Tier
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Account Dashboard Link */}
+                <a
+                  href="/account"
+                  className="flex items-center gap-3 px-4 py-2 text-[var(--tm-text-secondary)] hover:text-[var(--tm-accent)] hover:bg-[var(--tm-bg-hover)] rounded-lg transition-all duration-200"
+                >
+                  <Settings className="w-5 h-5" />
+                  <span className="font-medium">Account Dashboard</span>
+                </a>
+                
+                {/* Logout Button */}
+                <button
+                  onClick={() => signOut()}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-[var(--tm-text-secondary)] hover:text-[var(--tm-error)] hover:bg-[var(--tm-error)]/10 rounded-lg transition-all duration-200"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="font-medium">Logout</span>
+                </button>
+              </div>
             </div>
           )}
         </>

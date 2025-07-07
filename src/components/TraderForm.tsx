@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Wand2, Code, AlertCircle, Loader2, ChevronLeft } from 'lucide-react';
+import { X, Wand2, Code, AlertCircle, Loader2, ChevronLeft, Shield } from 'lucide-react';
 import { generateTrader, regenerateFilterCode } from '../../services/geminiService';
 import { traderManager } from '../services/traderManager';
 import { Trader, TraderGeneration } from '../abstractions/trader.interfaces';
@@ -7,7 +7,9 @@ import { MODEL_TIERS, type ModelTier } from '../constants/models';
 import { KlineInterval } from '../../types';
 import { KLINE_INTERVALS } from '../../constants';
 import { useAuth } from '../hooks/useAuth';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { EmailAuthModal } from './auth/EmailAuthModal';
+import { AccessTier } from '../types/subscription.types';
 
 interface TraderFormProps {
   onTraderCreated?: (trader: Trader) => void;
@@ -23,6 +25,7 @@ export function TraderForm({
   onCancel
 }: TraderFormProps) {
   const { user } = useAuth();
+  const { profile } = useSubscription();
   const [mode, setMode] = useState<CreationMode>(editingTrader ? 'manual' : 'ai');
   const [aiPrompt, setAiPrompt] = useState('');
   const [manualName, setManualName] = useState(editingTrader?.name || '');
@@ -41,6 +44,13 @@ export function TraderForm({
   const [regeneratingCode, setRegeneratingCode] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingTraderData, setPendingTraderData] = useState<any>(null);
+  
+  // Admin fields for built-in signals
+  const [isBuiltIn, setIsBuiltIn] = useState(editingTrader?.isBuiltIn || false);
+  const [accessTier, setAccessTier] = useState<AccessTier>(editingTrader?.accessTier || AccessTier.ELITE);
+  const [category, setCategory] = useState(editingTrader?.category || '');
+  const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>(editingTrader?.difficulty || 'beginner');
+  const [adminNotes, setAdminNotes] = useState(editingTrader?.adminNotes || '');
   
   // Track the original conditions and interval to detect changes
   const originalConditionsRef = useRef<string[]>(editingTrader?.filter?.description || []);
@@ -288,7 +298,15 @@ export function TraderForm({
             aiAnalysisLimit: aiAnalysisLimit,
             modelTier: modelTier,
             maxConcurrentAnalysis: maxConcurrentAnalysis
-          }
+          },
+          // Admin fields
+          ...(profile?.is_admin && {
+            isBuiltIn,
+            accessTier,
+            category: isBuiltIn ? category : undefined,
+            difficulty: isBuiltIn ? difficulty : undefined,
+            adminNotes: isBuiltIn ? adminNotes : undefined
+          })
         });
         
         onTraderCreated?.(updated);
@@ -317,7 +335,16 @@ export function TraderForm({
             aiAnalysisLimit: aiAnalysisLimit,
             modelTier: modelTier,
             maxConcurrentAnalysis: maxConcurrentAnalysis
-          }
+          },
+          // Admin fields for new traders
+          ...(profile?.is_admin && {
+            isBuiltIn,
+            ownershipType: isBuiltIn ? 'system' : 'user',
+            accessTier,
+            category: isBuiltIn ? category : undefined,
+            difficulty: isBuiltIn ? difficulty : undefined,
+            adminNotes: isBuiltIn ? adminNotes : undefined
+          })
         });
         
         onTraderCreated?.(trader);
@@ -347,7 +374,7 @@ export function TraderForm({
           </button>
         )}
         <h3 className="text-lg font-semibold text-[var(--tm-text-primary)]">
-          {editingTrader ? 'Edit Trader' : 'Create New Trader'}
+          {editingTrader ? 'Edit Signal' : 'Create New Signal'}
         </h3>
       </div>
 
@@ -394,7 +421,7 @@ export function TraderForm({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-2">
-              Describe Your Trading Strategy
+              Describe Your Signal
             </label>
             <textarea
               value={aiPrompt}
@@ -418,7 +445,7 @@ export function TraderForm({
             ) : (
               <>
                 <Wand2 className="h-4 w-4" />
-                Generate Trader
+                Generate Signal
               </>
             )}
           </button>
@@ -434,13 +461,13 @@ export function TraderForm({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
-              Trader Name
+              Signal Name
             </label>
             <input
               type="text"
               value={manualName}
               onChange={(e) => setManualName(e.target.value)}
-              placeholder="e.g., RSI Bounce Trader"
+              placeholder="e.g., RSI Bounce Signal"
               className="w-full p-2 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg text-[var(--tm-text-primary)] placeholder-[var(--tm-text-muted)] focus:border-[var(--tm-accent)] focus:outline-none"
             />
           </div>
@@ -688,6 +715,105 @@ export function TraderForm({
             </p>
           </div>
 
+          {/* Admin-only fields for built-in signals */}
+          {profile?.is_admin && (
+            <div className="space-y-4 p-4 bg-[var(--tm-bg-tertiary)] rounded-lg border border-[var(--tm-border-light)]">
+              <div className="flex items-center gap-2 text-[var(--tm-warning)] mb-2">
+                <Shield className="h-4 w-4" />
+                <span className="font-medium text-sm">Admin Configuration</span>
+              </div>
+
+              {/* Built-in Signal Toggle */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="isBuiltIn"
+                  checked={isBuiltIn}
+                  onChange={(e) => setIsBuiltIn(e.target.checked)}
+                  className="h-4 w-4 rounded border-[var(--tm-border)] bg-[var(--tm-bg-secondary)] 
+                    text-[var(--tm-accent)] focus:ring-[var(--tm-accent)] focus:ring-offset-0"
+                />
+                <label htmlFor="isBuiltIn" className="text-sm text-[var(--tm-text-primary)]">
+                  Mark as Built-in Signal
+                </label>
+              </div>
+
+              {isBuiltIn && (
+                <>
+                  {/* Access Tier */}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                      Access Tier
+                    </label>
+                    <select
+                      value={accessTier}
+                      onChange={(e) => setAccessTier(e.target.value as AccessTier)}
+                      className="w-full tm-input"
+                    >
+                      <option value={AccessTier.ANONYMOUS}>Anonymous (No login required)</option>
+                      <option value={AccessTier.FREE}>Free (Login required)</option>
+                      <option value={AccessTier.PRO}>Pro</option>
+                      <option value={AccessTier.ELITE}>Elite</option>
+                    </select>
+                    <p className="text-xs text-[var(--tm-text-muted)] mt-1">
+                      Minimum tier required to access this signal
+                    </p>
+                  </div>
+
+                  {/* Category */}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                      Category
+                    </label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full tm-input"
+                    >
+                      <option value="">Select category</option>
+                      <option value="momentum">Momentum</option>
+                      <option value="reversal">Reversal</option>
+                      <option value="trend">Trend Following</option>
+                      <option value="volume">Volume Analysis</option>
+                      <option value="volatility">Volatility</option>
+                      <option value="pattern">Pattern Recognition</option>
+                    </select>
+                  </div>
+
+                  {/* Difficulty */}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                      Difficulty
+                    </label>
+                    <select
+                      value={difficulty}
+                      onChange={(e) => setDifficulty(e.target.value as 'beginner' | 'intermediate' | 'advanced')}
+                      className="w-full tm-input"
+                    >
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </div>
+
+                  {/* Admin Notes */}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--tm-text-primary)] mb-1">
+                      Admin Notes
+                    </label>
+                    <textarea
+                      value={adminNotes}
+                      onChange={(e) => setAdminNotes(e.target.value)}
+                      placeholder="Internal notes about this signal..."
+                      className="w-full tm-input resize-none"
+                      rows={2}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {generatedTrader && (
             <div className="p-3 bg-[var(--tm-accent)]/10 border border-[var(--tm-accent)] rounded-lg text-sm">
               <div className="flex items-center gap-2 text-[var(--tm-accent)] mb-2">
@@ -721,7 +847,7 @@ export function TraderForm({
                   Regenerating Code...
                 </>
               ) : (
-                editingTrader ? 'Update Trader' : 'Create Trader'
+                editingTrader ? 'Update Signal' : 'Create Signal'
               )}
             </button>
           </div>
@@ -734,7 +860,7 @@ export function TraderForm({
         onClose={() => setShowAuthModal(false)}
         onAuthSuccess={handleAuthSuccess}
         pendingPrompt={pendingTraderData?.aiPrompt || 
-          (pendingTraderData?.mode === 'manual' ? `Create trader: ${pendingTraderData.name || 'New Trader'}` : undefined)}
+          (pendingTraderData?.mode === 'manual' ? `Create signal: ${pendingTraderData.name || 'New Signal'}` : undefined)}
       />
     </div>
   );

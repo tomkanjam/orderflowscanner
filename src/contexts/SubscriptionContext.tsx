@@ -1,0 +1,198 @@
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '../config/supabase';
+import { useAuth } from '../hooks/useAuth';
+import { 
+  UserProfile, 
+  UserSubscription, 
+  UserPreferences, 
+  SubscriptionTier,
+  TierFeatures,
+  TIER_FEATURES,
+  AccessTier
+} from '../types/subscription.types';
+
+interface SubscriptionContextType {
+  profile: UserProfile | null;
+  subscription: UserSubscription | null;
+  preferences: UserPreferences | null;
+  loading: boolean;
+  error: string | null;
+  currentTier: SubscriptionTier | 'anonymous';
+  features: TierFeatures;
+  canAccessTier: (requiredTier: AccessTier) => boolean;
+  canCreateSignal: () => boolean;
+  remainingSignals: number;
+  toggleFavoriteSignal: (signalId: string) => Promise<void>;
+  updateNotificationPreferences: (enabled: boolean, channels: string[]) => Promise<void>;
+  refreshSubscription: () => Promise<void>;
+}
+
+const SubscriptionContext = createContext<SubscriptionContextType | null>(null);
+
+export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch user data when authenticated
+  useEffect(() => {
+    if (user) {
+      fetchUserData();
+    } else {
+      // Clear data when logged out
+      setProfile(null);
+      setSubscription(null);
+      setPreferences(null);
+      setLoading(false);
+    }
+  }, [user]);
+
+  const fetchUserData = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+      setProfile(profileData);
+
+      // Fetch subscription
+      const { data: subData, error: subError } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (subError) throw subError;
+      setSubscription(subData);
+
+      // Fetch preferences
+      const { data: prefData, error: prefError } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (prefError) throw prefError;
+      setPreferences(prefData);
+
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch user data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshSubscription = async () => {
+    await fetchUserData();
+  };
+
+  // Determine current tier
+  const currentTier = subscription?.tier || 'anonymous';
+  const features = TIER_FEATURES[currentTier];
+
+  // Access control functions
+  const canAccessTier = (requiredTier: AccessTier): boolean => {
+    const tierOrder = ['anonymous', 'free', 'pro', 'elite'];
+    const userTierIndex = tierOrder.indexOf(currentTier);
+    const requiredTierIndex = tierOrder.indexOf(requiredTier);
+    return userTierIndex >= requiredTierIndex;
+  };
+
+  const canCreateSignal = (): boolean => {
+    if (!features.customSignals) return false;
+    if (features.maxCustomSignals === -1) return true; // Unlimited
+    return (subscription?.custom_signals_count || 0) < features.maxCustomSignals;
+  };
+
+  const remainingSignals = features.maxCustomSignals === -1 
+    ? Infinity 
+    : Math.max(0, features.maxCustomSignals - (subscription?.custom_signals_count || 0));
+
+  // Preference management
+  const toggleFavoriteSignal = async (signalId: string) => {
+    if (!user || !preferences) return;
+
+    const currentFavorites = preferences.favorite_signals || [];
+    const newFavorites = currentFavorites.includes(signalId)
+      ? currentFavorites.filter(id => id !== signalId)
+      : [...currentFavorites, signalId];
+
+    const { error } = await supabase
+      .from('user_preferences')
+      .update({ favorite_signals: newFavorites })
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error updating favorites:', error);
+      throw error;
+    }
+
+    setPreferences({ ...preferences, favorite_signals: newFavorites });
+  };
+
+  const updateNotificationPreferences = async (enabled: boolean, channels: string[]) => {
+    if (!user || !preferences) return;
+
+    const { error } = await supabase
+      .from('user_preferences')
+      .update({ 
+        notification_enabled: enabled,
+        notification_channels: channels 
+      })
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error updating notification preferences:', error);
+      throw error;
+    }
+
+    setPreferences({ 
+      ...preferences, 
+      notification_enabled: enabled,
+      notification_channels: channels as any 
+    });
+  };
+
+  const value: SubscriptionContextType = {
+    profile,
+    subscription,
+    preferences,
+    loading,
+    error,
+    currentTier,
+    features,
+    canAccessTier,
+    canCreateSignal,
+    remainingSignals,
+    toggleFavoriteSignal,
+    updateNotificationPreferences,
+    refreshSubscription
+  };
+
+  return (
+    <SubscriptionContext.Provider value={value}>
+      {children}
+    </SubscriptionContext.Provider>
+  );
+}
+
+export function useSubscription() {
+  const context = useContext(SubscriptionContext);
+  if (!context) {
+    throw new Error('useSubscription must be used within a SubscriptionProvider');
+  }
+  return context;
+}

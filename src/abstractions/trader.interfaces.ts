@@ -1,4 +1,5 @@
 import { CustomIndicatorConfig, KlineInterval } from '../../types';
+import { AccessTier } from '../types/subscription.types';
 
 // Core Trader interfaces
 export interface Trader {
@@ -17,6 +18,15 @@ export interface Trader {
   
   // Performance metrics
   metrics: TraderMetrics;
+  
+  // Ownership and access
+  userId?: string;
+  ownershipType: 'system' | 'user';
+  accessTier: AccessTier;
+  isBuiltIn: boolean;
+  category?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  adminNotes?: string;
   
   // Metadata
   createdAt: Date;

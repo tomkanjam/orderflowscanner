@@ -207,7 +207,7 @@ export function TraderSignalsTable({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-4">
           <h2 className="text-lg md:text-xl font-semibold text-[var(--tm-accent)] tm-heading-md">
-            Trader Signals
+            Signal Triggers
           </h2>
           {selectedTrader && (
             <div className="flex items-center gap-2 px-3 py-1 bg-[var(--tm-accent)]/10 border border-[var(--tm-accent)] rounded-md">
@@ -215,7 +215,7 @@ export function TraderSignalsTable({
               <button
                 onClick={() => onSelectTrader?.(null)}
                 className="text-[var(--tm-accent)] hover:text-[var(--tm-accent-dark)] transition-colors"
-                title="Clear trader filter"
+                title="Clear signal filter"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -349,7 +349,7 @@ export function TraderSignalsTable({
             <tr className="text-left text-xs md:text-sm text-[var(--tm-text-muted)]">
               <th className="p-2 md:px-4 md:py-2">Time</th>
               <th className="p-2 md:px-4 md:py-2">Symbol</th>
-              <th className="p-2 md:px-4 md:py-2">Trader</th>
+              <th className="p-2 md:px-4 md:py-2">Signal</th>
               <th className="p-2 md:px-4 md:py-2">Status</th>
               <th className="p-2 md:px-4 md:py-2 text-right">Entry Price</th>
               <th className="p-2 md:px-4 md:py-2 text-right">Current</th>

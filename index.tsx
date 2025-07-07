@@ -3,6 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { StrategyProvider } from './src/contexts/StrategyContext';
+import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
 import { AppRouter } from './src/routes/AppRouter';
 
 const rootElement = document.getElementById('root');
@@ -14,9 +15,11 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <AuthProvider>
-      <StrategyProvider>
-        <AppRouter />
-      </StrategyProvider>
+      <SubscriptionProvider>
+        <StrategyProvider>
+          <AppRouter />
+        </StrategyProvider>
+      </SubscriptionProvider>
     </AuthProvider>
   </React.StrictMode>
 );

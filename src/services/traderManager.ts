@@ -266,6 +266,14 @@ export class TraderManager implements ITraderManager {
       metrics: JSON.stringify(trader.metrics),
       created_at: trader.createdAt.toISOString(),
       updated_at: trader.updatedAt.toISOString(),
+      // Subscription fields
+      user_id: trader.userId,
+      ownership_type: trader.ownershipType,
+      access_tier: trader.accessTier,
+      is_built_in: trader.isBuiltIn,
+      category: trader.category,
+      difficulty: trader.difficulty,
+      admin_notes: trader.adminNotes,
     };
   }
 
@@ -287,6 +295,14 @@ export class TraderManager implements ITraderManager {
         metrics: metrics,
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at),
+        // Subscription fields
+        userId: data.user_id,
+        ownershipType: data.ownership_type || 'user',
+        accessTier: data.access_tier || 'elite',
+        isBuiltIn: data.is_built_in || false,
+        category: data.category,
+        difficulty: data.difficulty,
+        adminNotes: data.admin_notes,
       };
     } catch (error) {
       console.error('[TraderManager] Error deserializing trader', data.name, error);

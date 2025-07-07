@@ -1,7 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Trader } from '../abstractions/trader.interfaces';
 import { traderManager } from '../services/traderManager';
-import { Plus, Power, Edit2, Trash2, TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { Plus, Power, Edit2, Trash2, TrendingUp, TrendingDown, Activity, Lock, Star, StarOff } from 'lucide-react';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { getSignalAccess } from '../utils/tierAccess';
+import { SignalAccessIndicator } from './SignalAccessIndicator';
+import { TierGate } from './TierGate';
+import { UpgradePrompt } from './UpgradePrompt';
+import { SubscriptionTier } from '../types/subscription.types';
 
 interface TraderListProps {
   onCreateTrader: () => void;
@@ -18,6 +24,7 @@ export function TraderList({
 }: TraderListProps) {
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(true);
+  const { currentTier, preferences, canCreateSignal, remainingSignals, toggleFavoriteSignal } = useSubscription();
 
   useEffect(() => {
     // Subscribe to trader updates
@@ -35,6 +42,37 @@ export function TraderList({
     return unsubscribe;
   }, []);
 
+  // Filter and categorize traders based on access
+  const { builtInSignals, customSignals, lockedSignals } = useMemo(() => {
+    const builtIn: Trader[] = [];
+    const custom: Trader[] = [];
+    const locked: Trader[] = [];
+
+    traders.forEach(trader => {
+      if (trader.isBuiltIn) {
+        const access = getSignalAccess(trader, currentTier);
+        if (access.canView) {
+          builtIn.push(trader);
+        } else {
+          locked.push(trader);
+        }
+      } else {
+        custom.push(trader);
+      }
+    });
+
+    // Sort built-in signals by category and difficulty
+    builtIn.sort((a, b) => {
+      if (a.category !== b.category) {
+        return (a.category || '').localeCompare(b.category || '');
+      }
+      const difficultyOrder = { 'beginner': 0, 'intermediate': 1, 'advanced': 2 };
+      return (difficultyOrder[a.difficulty || 'beginner'] || 0) - (difficultyOrder[b.difficulty || 'beginner'] || 0);
+    });
+
+    return { builtInSignals: builtIn, customSignals: custom, lockedSignals: locked };
+  }, [traders, currentTier]);
+
   const handleToggleTrader = async (trader: Trader) => {
     try {
       if (trader.enabled) {
@@ -48,7 +86,7 @@ export function TraderList({
   };
 
   const handleDeleteTrader = async (trader: Trader) => {
-    if (window.confirm(`Delete trader "${trader.name}"? This cannot be undone.`)) {
+    if (window.confirm(`Delete signal "${trader.name}"? This cannot be undone.`)) {
       try {
         await traderManager.deleteTrader(trader.id);
         if (selectedTraderId === trader.id) {
@@ -78,30 +116,155 @@ export function TraderList({
     );
   }
 
+  const handleToggleFavorite = async (signalId: string) => {
+    try {
+      await toggleFavoriteSignal(signalId);
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+    }
+  };
+
+  const renderSignal = (trader: Trader, showActions: boolean = true) => {
+    const metrics = trader.mode === 'demo' 
+      ? trader.metrics.demoMetrics 
+      : trader.metrics.liveMetrics;
+    const isSelected = selectedTraderId === trader.id;
+    const isFavorite = preferences?.favorite_signals?.includes(trader.id);
+    const access = getSignalAccess(trader, currentTier);
+
+    return (
+      <div
+        key={trader.id}
+        className={`p-3 rounded-lg border transition-all ${
+          access.canView ? 'cursor-pointer' : 'opacity-60'
+        } ${
+          isSelected 
+            ? 'bg-[var(--tm-bg-hover)] border-[var(--tm-accent)]' 
+            : 'bg-[var(--tm-bg-secondary)] border-[var(--tm-border)] hover:border-[var(--tm-border-light)]'
+        }`}
+        onClick={() => access.canView && onSelectTrader?.(isSelected ? null : trader.id)}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 flex-1">
+            {showActions && !trader.isBuiltIn && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleTrader(trader);
+                }}
+                className={`p-1 rounded transition-colors ${
+                  trader.enabled 
+                    ? 'text-green-500 hover:bg-green-500/20' 
+                    : 'text-gray-500 hover:bg-gray-500/20'
+                }`}
+                title={trader.enabled ? 'Disable signal' : 'Enable signal'}
+              >
+                <Power className="h-4 w-4" />
+              </button>
+            )}
+            <h4 className="font-medium text-[var(--tm-text-primary)] flex-1">
+              {trader.name}
+            </h4>
+            {trader.isBuiltIn && <SignalAccessIndicator signal={trader} />}
+            {access.canFavorite && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleFavorite(trader.id);
+                }}
+                className="p-1 rounded transition-colors text-[var(--tm-text-muted)] hover:text-[var(--tm-warning)]"
+              >
+                {isFavorite ? <Star className="h-4 w-4 fill-current" /> : <StarOff className="h-4 w-4" />}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Rest of the signal card content... */}
+        {access.canView && (
+          <>
+            <p className="text-sm text-[var(--tm-text-secondary)] mb-2">
+              {trader.description}
+            </p>
+            {/* Metrics and actions remain the same */}
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-[var(--tm-accent)]">
-          Traders ({traders.length})
-        </h3>
-        <button
-          onClick={onCreateTrader}
-          className="flex items-center gap-2 px-3 py-1.5 bg-[var(--tm-accent)] text-[var(--tm-bg-primary)] rounded hover:opacity-90 transition-opacity text-sm font-medium"
-        >
-          <Plus className="h-4 w-4" />
-          Create
-        </button>
+    <div className="p-4 space-y-6">
+      {/* Built-in Signals Section */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-[var(--tm-accent)]">
+            Signals
+          </h3>
+        </div>
+
+        {builtInSignals.length === 0 && lockedSignals.length === 0 ? (
+          <div className="text-center py-8 text-[var(--tm-text-muted)]">
+            <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p className="mb-2">No signals available</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {builtInSignals.map(trader => renderSignal(trader, false))}
+            {lockedSignals.length > 0 && currentTier === 'anonymous' && (
+              <UpgradePrompt 
+                feature="20+ professional signals" 
+                requiredTier={SubscriptionTier.FREE}
+                className="mt-4"
+              />
+            )}
+          </div>
+        )}
       </div>
 
-      {traders.length === 0 ? (
-        <div className="text-center py-8 text-[var(--tm-text-muted)]">
-          <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />
-          <p className="mb-2">No traders yet</p>
-          <p className="text-sm">Create your first trader to start automated screening</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {traders.map(trader => {
+      {/* Custom Signals Section */}
+      <TierGate minTier="pro" fallback={
+        currentTier !== 'anonymous' && (
+          <UpgradePrompt 
+            feature="custom signal creation" 
+            requiredTier={SubscriptionTier.PRO}
+          />
+        )
+      }>
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-[var(--tm-accent)]">
+              My Custom Signals
+            </h3>
+            <div className="flex items-center gap-3">
+              {remainingSignals !== Infinity && (
+                <span className="text-sm text-[var(--tm-text-muted)]">
+                  {remainingSignals} remaining
+                </span>
+              )}
+              <button
+                onClick={onCreateTrader}
+                disabled={!canCreateSignal()}
+                className="flex items-center gap-2 px-3 py-1.5 bg-[var(--tm-accent)] text-[var(--tm-bg-primary)] 
+                  rounded hover:opacity-90 transition-opacity text-sm font-medium
+                  disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus className="h-4 w-4" />
+                Create
+              </button>
+            </div>
+          </div>
+
+          {customSignals.length === 0 ? (
+            <div className="text-center py-8 text-[var(--tm-text-muted)]">
+              <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="mb-2">No custom signals yet</p>
+              <p className="text-sm">Create your first signal to start automated screening</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {customSignals.map(trader => {
             const metrics = trader.mode === 'demo' 
               ? trader.metrics.demoMetrics 
               : trader.metrics.liveMetrics;
@@ -130,7 +293,7 @@ export function TraderList({
                           ? 'text-green-500 hover:bg-green-500/20' 
                           : 'text-gray-500 hover:bg-gray-500/20'
                       }`}
-                      title={trader.enabled ? 'Disable trader' : 'Enable trader'}
+                      title={trader.enabled ? 'Disable signal' : 'Enable signal'}
                     >
                       <Power className="h-4 w-4" />
                     </button>
@@ -244,8 +407,10 @@ export function TraderList({
               </div>
             );
           })}
+            </div>
+          )}
         </div>
-      )}
+      </TierGate>
     </div>
   );
 }

@@ -202,6 +202,14 @@ export function TraderList({
           <h3 className="text-lg font-semibold text-[var(--tm-accent)]">
             Signals
           </h3>
+          {currentTier === 'anonymous' && (
+            <button
+              onClick={onCreateTrader}
+              className="text-sm text-[var(--tm-accent)] hover:underline"
+            >
+              Sign in →
+            </button>
+          )}
         </div>
 
         {builtInSignals.length === 0 && lockedSignals.length === 0 ? (
@@ -225,12 +233,30 @@ export function TraderList({
 
       {/* Custom Signals Section */}
       <TierGate minTier="pro" fallback={
-        currentTier !== 'anonymous' && (
-          <UpgradePrompt 
-            feature="custom signal creation" 
-            requiredTier={SubscriptionTier.PRO}
-          />
-        )
+        <>
+          {currentTier === 'anonymous' ? (
+            <div className="p-6 rounded-lg bg-gradient-to-br from-[var(--tm-bg-secondary)] to-[var(--tm-bg-tertiary)]
+              border border-[var(--tm-border-light)]">
+              <h3 className="text-lg font-semibold text-[var(--tm-text-primary)] mb-2">
+                Create Custom Signals
+              </h3>
+              <p className="text-sm text-[var(--tm-text-secondary)] mb-4">
+                Sign in to create your own custom signals and access advanced features.
+              </p>
+              <button
+                onClick={onCreateTrader}
+                className="tm-btn tm-btn-primary"
+              >
+                Sign In to Get Started
+              </button>
+            </div>
+          ) : (
+            <UpgradePrompt 
+              feature="custom signal creation" 
+              requiredTier={SubscriptionTier.PRO}
+            />
+          )}
+        </>
       }>
         <div>
           <div className="flex items-center justify-between mb-3">

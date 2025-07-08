@@ -29,6 +29,7 @@ import { tradingManager } from './src/services/tradingManager';
 import { memoryMonitor } from './src/utils/memoryMonitor';
 import { webSocketManager } from './src/utils/webSocketManager';
 import { useOptimizedMap, BatchedUpdater, LimitedMap } from './src/utils/stateOptimizer';
+import { AdminDebug } from './src/components/AdminDebug';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -1136,6 +1137,9 @@ const AppContent: React.FC = () => {
       >
         {modalContent}
       </Modal>
+      
+      {/* Admin Debug Panel - Temporary for debugging */}
+      {user?.email === 'tom@tomk.ca' && <AdminDebug />}
     </div>
   );
 };

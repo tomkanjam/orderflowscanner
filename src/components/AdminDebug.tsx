@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { RefreshCw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
@@ -7,8 +8,22 @@ export function AdminDebug() {
   const { user } = useAuthContext();
   const { profile, refreshSubscription, loading, error } = useSubscription();
 
+  console.log('[AdminDebug] Current state:', {
+    userId: user?.id,
+    email: user?.email,
+    profile: profile ? {
+      id: profile.id,
+      email: profile.email,
+      is_admin: profile.is_admin
+    } : null,
+    loading,
+    error
+  });
+
   const handleRefresh = async () => {
+    console.log('[AdminDebug] Refreshing subscription...');
     await refreshSubscription();
+    console.log('[AdminDebug] Refresh complete, reloading page...');
     // Force a hard refresh after data is updated
     setTimeout(() => {
       window.location.reload();

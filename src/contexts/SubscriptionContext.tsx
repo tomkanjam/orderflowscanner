@@ -36,23 +36,31 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Fetch user data when authenticated
   useEffect(() => {
     if (user) {
+      // User is logged in, fetch their data
+      setLoading(true);
       fetchUserData();
-    } else {
-      // Clear data when logged out
+    } else if (hasInitialized) {
+      // User logged out after initialization
       setProfile(null);
       setSubscription(null);
       setPreferences(null);
       setLoading(false);
+    } else {
+      // Initial load with no user
+      setLoading(false);
+      setHasInitialized(true);
     }
-  }, [user]);
+  }, [user, hasInitialized]);
 
   const fetchUserData = async () => {
     if (!user) return;
 
+    console.log('[SubscriptionContext] Starting fetchUserData for user:', user.id);
     setLoading(true);
     setError(null);
 
@@ -82,6 +90,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       } else if (profileError) {
         throw profileError;
       } else {
+        console.log('[SubscriptionContext] Profile fetched:', {
+          id: profileData.id,
+          email: profileData.email,
+          is_admin: profileData.is_admin
+        });
         setProfile(profileData);
       }
 
@@ -141,7 +154,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       console.error('Error fetching user data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch user data');
     } finally {
+      console.log('[SubscriptionContext] Completed fetchUserData, setting loading to false');
       setLoading(false);
+      setHasInitialized(true);
     }
   };
 

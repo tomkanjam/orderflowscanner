@@ -3,7 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import App from '../../App';
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { PromptManager } from '../components/admin/PromptManager';
+import { UserManager } from '../components/admin/UserManager';
 import { useAuthContext } from '../contexts/AuthContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 // Placeholder components for other admin pages
 const PromptEvaluation: React.FC = () => (
@@ -23,6 +25,7 @@ const TraderStats: React.FC = () => (
 // Protected route wrapper
 const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuthContext();
+  const { profile } = useSubscription();
   
   if (loading) {
     return (
@@ -32,7 +35,7 @@ const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children
     );
   }
   
-  const isAuthorized = user?.email === 'tom@tomk.ca';
+  const isAuthorized = profile?.is_admin === true;
   
   if (!isAuthorized) {
     return <Navigate to="/" replace />;
@@ -57,7 +60,8 @@ export const AppRouter: React.FC = () => {
             </ProtectedAdminRoute>
           }
         >
-          <Route index element={<Navigate to="/admin/prompts" replace />} />
+          <Route index element={<Navigate to="/admin/users" replace />} />
+          <Route path="users" element={<UserManager />} />
           <Route path="prompts" element={<PromptManager />} />
           <Route path="evaluation" element={<PromptEvaluation />} />
           <Route path="trader-stats" element={<TraderStats />} />

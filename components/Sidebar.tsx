@@ -20,7 +20,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectedTraderChange,
 }) => {
   const { user, signOut } = useAuthContext();
-  const { currentTier, canAccessTier } = useSubscription();
+  const { currentTier, canAccessTier, profile } = useSubscription();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTrader, setEditingTrader] = useState<Trader | null>(null);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
@@ -29,7 +29,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const userMenuRef = useRef<HTMLDivElement>(null);
   
   // Check if user is admin
-  const isAdmin = user?.email === 'tom@tomk.ca';
+  const isAdmin = profile?.is_admin === true;
 
   // Handle clicks outside of user menu
   useEffect(() => {

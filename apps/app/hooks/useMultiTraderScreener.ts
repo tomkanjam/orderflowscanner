@@ -188,10 +188,23 @@ export function useMultiTraderScreener({
     }
   }, []);
 
+  // Clear cache for a specific trader (useful when deleting)
+  const clearTraderCache = useCallback((traderId: string) => {
+    if (workerRef.current) {
+      const message: MultiTraderScreenerMessage = {
+        id: 'clear-trader-' + traderId,
+        type: 'CLEAR_TRADER_CACHE',
+        traderId
+      };
+      workerRef.current.postMessage(message);
+    }
+  }, []);
+
   return {
     isRunning,
     lastExecutionTime,
     runScreener,
-    resetCache
+    resetCache,
+    clearTraderCache
   };
 }

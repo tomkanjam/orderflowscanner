@@ -960,7 +960,11 @@ const AppContent: React.FC = () => {
   //   traders: traders.map(t => ({ id: t.id, name: t.name, enabled: t.enabled }))
   // });
   
-  const { isRunning: isMultiTraderRunning, resetCache: resetMultiTraderCache } = useMultiTraderScreener({
+  const { 
+    isRunning: isMultiTraderRunning, 
+    resetCache: resetMultiTraderCache,
+    clearTraderCache 
+  } = useMultiTraderScreener({
     traders,
     symbols: allSymbols,
     tickers,
@@ -970,11 +974,15 @@ const AppContent: React.FC = () => {
     interval: 5000 // Run every 5 seconds
   });
 
-  // Reset worker cache when traders list changes (especially on deletion)
+  // Subscribe to trader deletions to clean up worker cache
   useEffect(() => {
-    // Reset cache to clear any references to deleted traders
-    resetMultiTraderCache();
-  }, [traders.length, resetMultiTraderCache]);
+    const unsubscribe = traderManager.subscribeToDeletes((traderId) => {
+      console.log(`[App] Trader ${traderId} deleted, clearing worker cache`);
+      clearTraderCache(traderId);
+    });
+
+    return unsubscribe;
+  }, [clearTraderCache]);
 
   const handleRunHistoricalScan = () => {
     // Only run historical scan when a trader is selected

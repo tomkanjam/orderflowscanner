@@ -10,6 +10,7 @@ import { supabase } from '../config/supabase';
 export class TraderManager implements ITraderManager {
   private traders: Map<string, Trader> = new Map();
   private subscribers: Set<(traders: Trader[]) => void> = new Set();
+  private deleteSubscribers: Set<(traderId: string) => void> = new Set();
   private initialized = false;
 
   constructor() {
@@ -153,6 +154,7 @@ export class TraderManager implements ITraderManager {
       }
 
       this.traders.delete(id);
+      this.notifyDeleteSubscribers(id); // Notify deletion listeners first
       this.notifySubscribers();
     } catch (error) {
       console.error('Failed to delete trader:', error);
@@ -215,10 +217,24 @@ export class TraderManager implements ITraderManager {
     };
   }
 
+  // Subscribe to deletion events
+  subscribeToDeletes(callback: (traderId: string) => void): () => void {
+    this.deleteSubscribers.add(callback);
+    
+    // Return unsubscribe function
+    return () => {
+      this.deleteSubscribers.delete(callback);
+    };
+  }
+
   // Helper methods
   private notifySubscribers() {
     const traders = this.getTradersList();
     this.subscribers.forEach(callback => callback(traders));
+  }
+
+  private notifyDeleteSubscribers(traderId: string) {
+    this.deleteSubscribers.forEach(callback => callback(traderId));
   }
 
   private getTradersList(): Trader[] {

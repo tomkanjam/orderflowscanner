@@ -11,13 +11,14 @@ export interface TraderFilter {
 
 export interface MultiTraderScreenerMessage {
   id: string;
-  type: 'RUN_MULTI_SCREENER' | 'RESET_CACHE';
+  type: 'RUN_MULTI_SCREENER' | 'RESET_CACHE' | 'CLEAR_TRADER_CACHE';
   data?: {
     symbols: string[];
     tickers: Record<string, Ticker>; // Convert Map to object for serialization
     historicalData: Record<string, Record<string, Kline[]>>; // symbol -> interval -> klines
     traders: TraderFilter[]; // Multiple trader filters to run
   };
+  traderId?: string; // For CLEAR_TRADER_CACHE
 }
 
 export interface TraderResult {
@@ -263,6 +264,11 @@ self.addEventListener('message', (event: MessageEvent<MultiTraderScreenerMessage
   } else if (type === 'RESET_CACHE') {
     // Clear all trader caches
     previousMatchesByTrader.clear();
+    console.log('[Worker] Reset all trader caches');
+  } else if (type === 'CLEAR_TRADER_CACHE' && event.data.traderId) {
+    // Clear cache for a specific trader
+    previousMatchesByTrader.delete(event.data.traderId);
+    console.log(`[Worker] Cleared cache for trader ${event.data.traderId}`);
   }
 });
 

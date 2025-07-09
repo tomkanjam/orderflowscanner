@@ -2,7 +2,8 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
+    // Load env vars from the root directory
+    const env = loadEnv(mode, path.resolve(__dirname, '../..'), '');
     return {
       define: {
         // Firebase AI Logic handles API keys securely on the server side

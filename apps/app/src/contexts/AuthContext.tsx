@@ -66,14 +66,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      const { error } = await supabase!.auth.signInWithOtp({
+      console.log('[Auth Debug] Attempting to send magic link');
+      console.log('[Auth Debug] Email:', email);
+      console.log('[Auth Debug] Redirect URL:', getAppUrl());
+      console.log('[Auth Debug] Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+      console.log('[Auth Debug] Supabase configured:', isSupabaseConfigured());
+      
+      const { error, data } = await supabase!.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: `${getAppUrl()}`,
         },
       });
-
-      if (error) throw error;
+      
+      console.log('[Auth Debug] OTP Response:', { data, error });
+      
+      if (error) {
+        console.error('[Auth Debug] Error details:', error);
+        throw error;
+      }
 
       setAuthState(prev => ({
         ...prev,

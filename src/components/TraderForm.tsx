@@ -324,6 +324,7 @@ export function TraderForm({
           description: manualDescription || manualName,
           enabled: true,
           mode: 'demo', // Always start in demo mode
+          userId: user?.id, // Associate with the current user
           filter: {
             code: finalFilterCode,
             description: validConditions,

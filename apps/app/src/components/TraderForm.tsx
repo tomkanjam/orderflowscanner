@@ -284,8 +284,13 @@ export function TraderForm({
       console.log(`[DEBUG] TraderForm saving trader with indicators:`, {
         mode: editingTrader ? 'update' : 'create',
         indicatorCount: indicatorsToSave?.length || 0,
-        indicators: indicatorsToSave?.map(ind => ({ id: ind.id, name: ind.name })) || []
+        indicators: indicatorsToSave
       });
+      
+      // Log the full generatedTrader if available
+      if (generatedTrader) {
+        console.log('[TRADER_FORM] Generated trader being saved:', JSON.stringify(generatedTrader, null, 2));
+      }
       
       if (editingTrader) {
         // Update existing trader

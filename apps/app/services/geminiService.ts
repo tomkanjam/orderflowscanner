@@ -973,6 +973,10 @@ Remember to:
         const response = result.response;
         const text = response.text();
         
+        // Log the full Gemini response for debugging
+        console.log('[TRADER_GENERATION] Full Gemini response:', text);
+        console.log('[TRADER_GENERATION] Response length:', text.length);
+        
         // Track the generation
         await observability.trackGeneration(
             prompt,
@@ -1012,10 +1016,15 @@ function parseAndValidateTraderGeneration(responseText: string): TraderGeneratio
         // Extract JSON from the response
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
+            console.error('[TRADER_GENERATION] No JSON found in response:', responseText);
             throw new Error('No JSON found in response');
         }
         
+        console.log('[TRADER_GENERATION] Extracted JSON string:', jsonMatch[0]);
+        
         const parsed = JSON.parse(jsonMatch[0]);
+        
+        console.log('[TRADER_GENERATION] Parsed JSON object:', JSON.stringify(parsed, null, 2));
         
         // Validate required fields
         if (!parsed.suggestedName || typeof parsed.suggestedName !== 'string') {
@@ -1059,7 +1068,7 @@ function parseAndValidateTraderGeneration(responseText: string): TraderGeneratio
             ...(parsed.riskParameters || {})
         };
         
-        return {
+        const finalTrader = {
             suggestedName: parsed.suggestedName,
             description: parsed.description || parsed.suggestedName,
             filterCode: parsed.filterCode,
@@ -1069,6 +1078,10 @@ function parseAndValidateTraderGeneration(responseText: string): TraderGeneratio
             riskParameters: parsed.riskParameters,
             requiredTimeframes: parsed.requiredTimeframes
         };
+        
+        console.log('[TRADER_GENERATION] Final validated trader object:', JSON.stringify(finalTrader, null, 2));
+        
+        return finalTrader;
     } catch (error) {
         console.error('Failed to parse trader generation:', error);
         throw new Error(`Invalid trader generation response: ${error instanceof Error ? error.message : 'Unknown error'}`);

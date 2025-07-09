@@ -42,4 +42,9 @@ coverage/
 *.pid
 *.seed
 *.pid.lock
-EOF < /dev/null
+
+# Vercel
+.vercel/
+
+# Astro
+.astro/

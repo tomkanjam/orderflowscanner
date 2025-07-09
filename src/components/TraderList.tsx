@@ -24,7 +24,7 @@ export function TraderList({
 }: TraderListProps) {
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(true);
-  const { currentTier, preferences, canCreateSignal, remainingSignals, toggleFavoriteSignal } = useSubscription();
+  const { currentTier, preferences, canCreateSignal, remainingSignals, toggleFavoriteSignal, profile } = useSubscription();
 
   useEffect(() => {
     // Subscribe to trader updates
@@ -179,6 +179,29 @@ export function TraderList({
               </button>
             )}
           </div>
+          {/* Admin controls for all traders */}
+          {profile?.is_admin && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditTrader(trader);
+                }}
+                className="p-1 text-[var(--tm-text-muted)] hover:text-[var(--tm-text-primary)] transition-colors"
+              >
+                <Edit2 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteTrader(trader);
+                }}
+                className="p-1 text-[var(--tm-text-muted)] hover:text-red-500 transition-colors"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Rest of the signal card content... */}
@@ -314,26 +337,29 @@ export function TraderList({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditTrader(trader);
-                      }}
-                      className="p-1 text-[var(--tm-text-muted)] hover:text-[var(--tm-text-primary)] transition-colors"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTrader(trader);
-                      }}
-                      className="p-1 text-[var(--tm-text-muted)] hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                  {/* Show controls for admins or the owner of the custom signal */}
+                  {(profile?.is_admin || trader.createdBy === profile?.id) && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditTrader(trader);
+                        }}
+                        className="p-1 text-[var(--tm-text-muted)] hover:text-[var(--tm-text-primary)] transition-colors"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTrader(trader);
+                        }}
+                        className="p-1 text-[var(--tm-text-muted)] hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Description */}

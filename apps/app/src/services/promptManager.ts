@@ -504,14 +504,18 @@ Return a JSON object with this structure:
   "filterCode": "JavaScript function body that returns boolean",
   "strategyInstructions": "Instructions for the AI analyzer. For simple filters, keep this brief.",
   "indicators": [
-    // Array of indicator configurations with proper structure:
+    // Array of indicator configurations. Each indicator MUST return an array of data points:
+    // - Single line: [{x: timestamp, y: value}, ...]
+    // - Multi-line (up to 4 lines): [{x: timestamp, y: value1, y2: value2, y3: value3}, ...]
+    // - Colored bars: [{x: timestamp, y: value, color: "#hex"}, ...]
+    // - Use \`null\` for y values when data is insufficient
     {
       "id": "unique_id",
       "name": "Indicator Name",
       "panel": true/false,
       "calculateFunction": "// Function body that returns data points",
       "chartType": "line" | "bar",
-      "style": { "color": "#hex" }
+      "style": { "color": "#hex" or ["#hex1", "#hex2"] for multi-line }
     }
   ],
   "riskParameters": {
@@ -527,7 +531,42 @@ ${FILTER_CODE_INSTRUCTIONS}
 
 The strategy should be complete and actionable, with clear rules for entry, exit, and risk management.
 
-For indicators, only include indicators that are relevant to the conditions being screened for. For simple conditions, 1-2 indicators may be sufficient.`,
+For indicators, only include indicators that are relevant to the conditions being screened for. For simple conditions, 1-2 indicators may be sufficient.
+
+IMPORTANT Indicator Examples:
+
+// Bollinger Bands (3 lines overlay)
+{
+  "id": "bb_20_2",
+  "name": "BB(20,2)",
+  "panel": false,
+  "calculateFunction": "const bands = helpers.calculateBollingerBands(klines, 20, 2); return klines.map((k, i) => ({x: k[0], y: bands.middle[i], y2: bands.upper[i], y3: bands.lower[i]}));",
+  "chartType": "line",
+  "style": { "color": ["#facc15", "#ef4444", "#10b981"] }
+}
+
+// StochRSI (2 lines in separate panel)
+{
+  "id": "stochrsi_14",
+  "name": "StochRSI(14)",
+  "panel": true,
+  "calculateFunction": "const stoch = helpers.calculateStochRSI(klines, 14, 14, 3, 3); return stoch.map((val, i) => ({x: klines[i][0], y: val.k, y2: val.d}));",
+  "chartType": "line",
+  "style": { "color": ["#8b5cf6", "#f59e0b"], "lineWidth": 1.5 },
+  "yAxisConfig": { "min": 0, "max": 100, "label": "StochRSI" }
+}
+
+// Simple Moving Average (overlay on price)
+{
+  "id": "sma_20",
+  "name": "SMA(20)",
+  "panel": false,
+  "calculateFunction": "const ma = helpers.calculateMASeries(klines, 20); return ma.map((val, i) => ({x: klines[i][0], y: val}));",
+  "chartType": "line",
+  "style": { "color": "#8efbba", "lineWidth": 1.5 }
+}
+
+NOTE: Always transform helper function results to the expected array format!`,
     parameters: ['userPrompt', 'modelName', 'klineInterval'],
     placeholders: {
       helperFunctions: `1. helpers.calculateMA(klines, period)

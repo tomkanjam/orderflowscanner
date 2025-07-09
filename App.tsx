@@ -275,9 +275,7 @@ const AppContent: React.FC = () => {
       // If traderId provided, use trader's interval
       if (traderId) {
         const trader = tradersRef.current.find(t => t.id === traderId);
-        if (!trader) {
-          console.warn(`[DEBUG] getMarketData - trader ${traderId} not found in ${tradersRef.current.length} traders`);
-        } else if (trader?.filter?.interval) {
+        if (trader?.filter?.interval) {
           interval = trader.filter.interval as KlineInterval;
         }
       }
@@ -285,7 +283,6 @@ const AppContent: React.FC = () => {
       // Get klines for the appropriate interval
       const klines = intervalMap.get(interval) || intervalMap.get(KlineInterval.ONE_MINUTE);
       if (!klines) {
-        console.warn(`[DEBUG] getMarketData - No klines found for ${symbol} at interval ${interval}, available intervals:`, Array.from(intervalMap.keys()));
         return null;
       }
       return { ticker, klines };
@@ -1055,16 +1052,6 @@ const AppContent: React.FC = () => {
     if (selectedSignalTraderId) {
       const signalTrader = traders.find(t => t.id === selectedSignalTraderId);
       if (signalTrader?.filter?.indicators) {
-        console.log('[APP_DEBUG] Using signal trader indicators:', {
-          traderId: selectedSignalTraderId,
-          indicatorCount: signalTrader.filter.indicators.length,
-          indicators: signalTrader.filter.indicators.map(ind => ({
-            id: ind.id,
-            name: ind.name,
-            hasCalculateFunction: !!ind.calculateFunction,
-            calculateFunctionLength: ind.calculateFunction?.length
-          }))
-        });
         return signalTrader.filter.indicators;
       }
     }
@@ -1074,22 +1061,11 @@ const AppContent: React.FC = () => {
       const selectedTrader = traders.find(t => t.id === selectedTraderId);
       // Selected trader indicators check
       if (selectedTrader?.filter?.indicators) {
-        console.log('[APP_DEBUG] Using selected trader indicators:', {
-          traderId: selectedTraderId,
-          indicatorCount: selectedTrader.filter.indicators.length,
-          indicators: selectedTrader.filter.indicators.map(ind => ({
-            id: ind.id,
-            name: ind.name,
-            hasCalculateFunction: !!ind.calculateFunction,
-            calculateFunctionLength: ind.calculateFunction?.length
-          }))
-        });
         return selectedTrader.filter.indicators;
       }
     }
     
     // No indicators configured
-    console.log('[APP_DEBUG] No indicators configured for display');
     return null;
   }, [selectedSymbolForChart, selectedSignalTraderId, selectedTraderId, traders]);
 

@@ -142,6 +142,8 @@ indicators: An array of custom indicator configurations for charting. Each indic
     - Multi-line (up to 4 lines): [{x: timestamp, y: value1, y2: value2, y3: value3}, ...]
     - Colored bars: [{x: timestamp, y: value, color: "#hex"}, ...]
     - Use \`null\` for y values when data is insufficient
+    - CRITICAL: 'klines' is already provided as a parameter - NEVER declare it in your function!
+    - DO NOT use: const klines = timeframes['1m']; - this will cause an error!
 
     IMPORTANT: You can create ANY indicator - standard or custom. Examples include:
     - Moving Averages (SMA, EMA, WMA, etc.)
@@ -509,11 +511,13 @@ Return a JSON object with this structure:
     // - Multi-line (up to 4 lines): [{x: timestamp, y: value1, y2: value2, y3: value3}, ...]
     // - Colored bars: [{x: timestamp, y: value, color: "#hex"}, ...]
     // - Use \`null\` for y values when data is insufficient
+    // IMPORTANT: The function receives 'klines' as a parameter - DO NOT declare it!
+    // DO NOT include: const klines = timeframes['1m']; - klines is already provided!
     {
       "id": "unique_id",
       "name": "Indicator Name",
       "panel": true/false,
-      "calculateFunction": "// Function body that returns data points",
+      "calculateFunction": "// Function body that returns data points - klines is already provided as parameter",
       "chartType": "line" | "bar",
       "style": { "color": "#hex" or ["#hex1", "#hex2"] for multi-line }
     }
@@ -535,7 +539,11 @@ For indicators, only include indicators that are relevant to the conditions bein
 
 IMPORTANT Indicator Examples:
 
-// Bollinger Bands (3 lines overlay)
+CRITICAL: Indicator functions receive 'klines' as a parameter. NEVER declare it in your function!
+DO NOT use: const klines = timeframes['1m']; 
+The klines for the appropriate timeframe are already provided to your function.
+
+// Bollinger Bands (3 lines overlay) - Note: klines is already provided as parameter
 {
   "id": "bb_20_2",
   "name": "BB(20,2)",

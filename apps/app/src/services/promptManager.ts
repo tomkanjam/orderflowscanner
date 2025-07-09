@@ -664,8 +664,8 @@ class PromptManager {
         .eq('is_active', true);
 
       if (error) {
-        // Only log if it's not a "table doesn't exist" error
-        if (error.code !== '42P01') {
+        // Only log if it's not a "table doesn't exist" error (42P01) or 404 not found
+        if (error.code !== '42P01' && error.code !== 'PGRST116') {
           console.error('Failed to load prompt overrides:', error);
         }
         return;
@@ -750,7 +750,23 @@ class PromptManager {
         .single();
 
       if (error) {
-        console.error('Failed to save prompt override:', error);
+        // Only log if it's not a "table doesn't exist" error
+        if (error.code !== '42P01' && error.code !== 'PGRST116') {
+          console.error('Failed to save prompt override:', error);
+        }
+        // Fall back to local storage
+        const prompt = this.promptCache.get(promptId);
+        if (prompt) {
+          prompt.systemInstruction = content;
+          prompt.version += 1;
+          prompt.lastModified = new Date();
+          localStorage.setItem(`prompt_override_${promptId}`, JSON.stringify({
+            content,
+            version: prompt.version,
+            lastModified: prompt.lastModified
+          }));
+          return true;
+        }
         return false;
       }
 
@@ -785,7 +801,10 @@ class PromptManager {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Failed to load prompt history:', error);
+        // Only log if it's not a "table doesn't exist" error
+        if (error.code !== '42P01' && error.code !== 'PGRST116') {
+          console.error('Failed to load prompt history:', error);
+        }
         return [];
       }
 

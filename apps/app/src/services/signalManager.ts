@@ -1,5 +1,6 @@
 import { SignalLifecycle, SignalStatus, FilterResult, AnalysisResult, Strategy, MonitoringUpdate, Trade } from '../abstractions/interfaces';
 import { ServiceFactory } from './serviceFactory';
+import { v4 as uuidv4 } from 'uuid';
 
 export class SignalManager {
   private signals: Map<string, SignalLifecycle> = new Map();
@@ -8,7 +9,7 @@ export class SignalManager {
   // Create a new signal from a filter result
   createSignal(filterResult: FilterResult, strategyId: string, traderId?: string, interval?: string): SignalLifecycle {
     const signal: SignalLifecycle = {
-      id: `${filterResult.symbol}-${Date.now()}`,
+      id: uuidv4(),
       symbol: filterResult.symbol,
       strategyId,
       traderId, // Add trader attribution

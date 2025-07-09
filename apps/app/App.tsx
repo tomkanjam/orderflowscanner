@@ -28,7 +28,8 @@ import { workflowManager } from './src/services/workflowManager';
 import { tradingManager } from './src/services/tradingManager';
 import { memoryMonitor } from './src/utils/memoryMonitor';
 import { webSocketManager } from './src/utils/webSocketManager';
-import { useOptimizedMap, BatchedUpdater, LimitedMap } from './src/utils/stateOptimizer';
+import { useOptimizedMap, BatchedUpdater, LimitedMap, pruneMapByAge } from './src/utils/stateOptimizer';
+import { startMemoryCleanup, getActiveSymbols } from './src/utils/memoryCleanup';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -161,7 +162,12 @@ const AppContent: React.FC = () => {
         setTickers(prevTickers => {
           const newTickers = new Map(prevTickers);
           updates.forEach(ticker => {
-            newTickers.set(ticker.s, ticker);
+            // Add timestamp for memory cleanup tracking
+            const tickerWithTimestamp = {
+              ...ticker,
+              _lastUpdate: Date.now()
+            };
+            newTickers.set(ticker.s, tickerWithTimestamp);
           });
           return newTickers;
         });
@@ -394,6 +400,40 @@ const AppContent: React.FC = () => {
     localStorage.setItem('klineHistoryConfig', JSON.stringify(klineHistoryConfig));
   }, [klineHistoryConfig]);
   
+  // Set up memory cleanup
+  useEffect(() => {
+    const cleanup = startMemoryCleanup(
+      () => {
+        // Get active symbols
+        const recentSignalSymbols = new Set(
+          enhancedSignals.slice(0, 20).map(s => s.symbol)
+        );
+        const selectedSymbols = new Set<string>();
+        if (selectedSymbolForChart) selectedSymbols.add(selectedSymbolForChart);
+        
+        const activeSymbols = getActiveSymbols(
+          tickersRef.current,
+          recentSignalSymbols,
+          selectedSymbols
+        );
+        
+        return {
+          tickers: tickersRef.current,
+          historicalData: historicalDataRef.current,
+          activeSymbols,
+          prioritySymbols: selectedSymbols
+        };
+      },
+      (state) => {
+        if (state.tickers) setTickers(state.tickers);
+        if (state.historicalData) setHistoricalData(state.historicalData);
+      },
+      30000 // Clean up every 30 seconds
+    );
+    
+    return cleanup;
+  }, [enhancedSignals, selectedSymbolForChart]);
+  
   
   const loadInitialData = useCallback(async (klineLimit: number) => {
     setInitialLoading(true);
@@ -602,7 +642,12 @@ const AppContent: React.FC = () => {
         }
         // Value changed, create new Map
         const newTickers = new Map(prevTickers);
-        newTickers.set(tickerUpdate.s, tickerUpdate);
+        // Add timestamp for memory cleanup tracking
+        const tickerWithTimestamp = {
+          ...tickerUpdate,
+          _lastUpdate: Date.now()
+        };
+        newTickers.set(tickerUpdate.s, tickerWithTimestamp);
         return newTickers;
       });
     }

@@ -8,6 +8,7 @@ import { observability } from './observabilityService';
 import { TraderGeneration } from '../src/abstractions/trader.interfaces';
 import { enhancePromptWithPersona } from '../src/constants/traderPersona';
 import { promptManager } from '../src/services/promptManager';
+import { aiRateLimiter } from '../src/utils/aiRateLimiter';
 
 // Simple indicator executor for analysis (full version is in worker)
 function executeIndicatorFunction(
@@ -116,9 +117,13 @@ export async function generateFilterAndChartConfig(
         }
       });
 
-      // Generate content using Firebase AI Logic
+      // Generate content using Firebase AI Logic with rate limiting
       // Firebase AI Logic expects a simple string or parts array, not the full content structure
-      const result = await model.generateContent(currentSystemInstruction + promptText);
+      const result = await aiRateLimiter.execute(
+        () => model.generateContent(currentSystemInstruction + promptText),
+        modelName,
+        1 // Priority 1 for filter generation
+      );
       const response = result.response;
       rawTextFromGemini = response.text();
       const parsedResponse = JSON.parse(rawTextFromGemini) as AiFilterResponse;
@@ -284,8 +289,12 @@ export async function generateFilterAndChartConfigStream(
     // Apply trader persona to system instruction
     const enhancedSystemInstruction = enhancePromptWithPersona(baseSystemInstruction);
     
-    // Generate streaming content
-    const result = await model.generateContentStream(enhancedSystemInstruction + "\n\nUser Request: " + userPrompt);
+    // Generate streaming content with rate limiting
+    const result = await aiRateLimiter.execute(
+      () => model.generateContentStream(enhancedSystemInstruction + "\n\nUser Request: " + userPrompt),
+      modelName,
+      1 // Priority 1 for streaming filter generation
+    );
     
     let buffer = '';
     let tokenCount = 0;
@@ -529,8 +538,12 @@ Consider overall market sentiment if inferable from this limited data.
         // Create a model instance
         const model = getGenerativeModel(ai, { model: modelName });
         
-        // Generate content using Firebase AI Logic
-        const result = await model.generateContent(prompt);
+        // Generate content using Firebase AI Logic with rate limiting
+        const result = await aiRateLimiter.execute(
+            () => model.generateContent(prompt),
+            modelName,
+            4 // Priority 4 for market analysis
+        );
         const response = result.response;
         const text = response.text();
         
@@ -650,7 +663,11 @@ Note:
             }
         });
         
-        const result = await model.generateContent(enhancedPrompt);
+        const result = await aiRateLimiter.execute(
+            () => model.generateContent(enhancedPrompt),
+            modelName,
+            2 // Priority 2 for structured analysis
+        );
         const response = result.response;
         const text = response.text();
         
@@ -820,8 +837,12 @@ export async function getSymbolAnalysis(
         // Create a model instance
         const model = getGenerativeModel(ai, { model: modelName });
         
-        // Generate content using Firebase AI Logic
-        const result = await model.generateContent(enhancedPrompt);
+        // Generate content using Firebase AI Logic with rate limiting
+        const result = await aiRateLimiter.execute(
+            () => model.generateContent(enhancedPrompt),
+            modelName,
+            3 // Priority 3 for symbol analysis
+        );
         const response = result.response;
         const text = response.text();
         
@@ -893,7 +914,11 @@ Kline interval: ${klineInterval}`;
             }
         });
 
-        const result = await model.generateContent(enhancedSystemInstruction);
+        const result = await aiRateLimiter.execute(
+            () => model.generateContent(enhancedSystemInstruction),
+            modelName,
+            2 // Priority 2 for filter regeneration
+        );
         const response = result.response;
         const responseText = response.text().trim();
         
@@ -965,10 +990,14 @@ Remember to:
         const enhancedSystemInstruction = enhancePromptWithPersona(baseSystemInstruction);
         
         const model = getGenerativeModel(ai, { model: modelName });
-        const result = await model.generateContent({
-            systemInstruction: enhancedSystemInstruction,
-            contents: [{ role: 'user', parts: [{ text: prompt }] }]
-        });
+        const result = await aiRateLimiter.execute(
+            () => model.generateContent({
+                systemInstruction: enhancedSystemInstruction,
+                contents: [{ role: 'user', parts: [{ text: prompt }] }]
+            }),
+            modelName,
+            1 // Priority 1 for trader generation
+        );
         
         const response = result.response;
         const text = response.text();

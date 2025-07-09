@@ -279,8 +279,24 @@ export function TraderForm({
     try {
       setError('');
       
-      // Debug log indicators being saved
-      const indicatorsToSave = generatedTrader?.indicators || (editingTrader?.filter?.indicators);
+      // Fix and debug log indicators being saved
+      let indicatorsToSave = generatedTrader?.indicators || (editingTrader?.filter?.indicators);
+      
+      // Fix any indicators that have klines redeclaration issues
+      if (indicatorsToSave && indicatorsToSave.length > 0) {
+        const { fixIndicatorArray, hasKlinesRedeclaration } = await import('../utils/fixIndicatorFunctions');
+        
+        // Check if any indicators need fixing
+        const needsFix = indicatorsToSave.some(ind => 
+          ind.calculateFunction && hasKlinesRedeclaration(ind.calculateFunction)
+        );
+        
+        if (needsFix) {
+          console.log('[TRADER_FORM] Fixing indicators with klines redeclaration...');
+          indicatorsToSave = fixIndicatorArray(indicatorsToSave);
+        }
+      }
+      
       console.log(`[DEBUG] TraderForm saving trader with indicators:`, {
         mode: editingTrader ? 'update' : 'create',
         indicatorCount: indicatorsToSave?.length || 0,
@@ -300,7 +316,7 @@ export function TraderForm({
           filter: {
             code: finalFilterCode,
             description: validConditions,
-            indicators: generatedTrader?.indicators || editingTrader.filter.indicators,
+            indicators: indicatorsToSave || editingTrader.filter.indicators,
             refreshInterval: filterInterval,
             requiredTimeframes: generatedTrader?.requiredTimeframes || editingTrader.filter.requiredTimeframes || [filterInterval]
           },
@@ -333,7 +349,7 @@ export function TraderForm({
           filter: {
             code: finalFilterCode,
             description: validConditions,
-            indicators: generatedTrader?.indicators,
+            indicators: indicatorsToSave || [],
             refreshInterval: filterInterval,
             requiredTimeframes: generatedTrader?.requiredTimeframes || [filterInterval]
           },

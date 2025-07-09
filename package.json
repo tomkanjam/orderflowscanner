@@ -1,31 +1,16 @@
 {
-  "name": "ai-powered-binance-crypto-screener",
+  "name": "trademind",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.50.2",
-    "@types/uuid": "^10.0.0",
-    "chart.js": "^4.5.0",
-    "chartjs-adapter-date-fns": "^3.0.0",
-    "chartjs-chart-financial": "^0.2.1",
-    "date-fns": "^4.1.0",
-    "firebase": "^11.9.1",
-    "lucide-react": "^0.523.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-router-dom": "^7.1.1",
-    "uuid": "^11.1.0"
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "dev:app": "pnpm --filter app dev",
+    "dev:web": "pnpm --filter web dev",
+    "build:app": "pnpm --filter app build",
+    "build:web": "pnpm --filter web build"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@types/react-router-dom": "^5.3.3",
-    "typescript": "~5.7.2",
-    "vite": "^6.2.0"
+    "typescript": "~5.7.2"
   }
 }

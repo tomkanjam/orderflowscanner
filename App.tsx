@@ -860,10 +860,10 @@ const AppContent: React.FC = () => {
 
   // Multi-trader screener hook
   const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
-    // console.log('[App] Multi-trader results received:', results.length, 'results');
+    console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Multi-trader results received:`, results.length, 'results');
     results.forEach(result => {
       
-      // console.log(`[App] Trader ${result.traderId} found ${result.signalSymbols.length} signals`);
+      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Trader ${result.traderId} found ${result.signalSymbols.length} signals:`, result.signalSymbols);
       result.signalSymbols.forEach(symbol => {
         const ticker = tickers.get(symbol);
         if (!ticker) {
@@ -894,9 +894,13 @@ const AppContent: React.FC = () => {
                                      timeSinceLastSignal >= minTimeBetweenSignals;
         
         // Deduplication check performed
-        if (process.env.NODE_ENV === 'development') {
-          // console.log(`[App] Signal dedup check for ${symbol}: shouldCreate=${shouldCreateNewSignal}, historyEntry=${!!historyEntry}, barCount=${historyEntry?.barCount || 0}, timeSince=${timeSinceLastSignal}ms`);
-        }
+        console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Signal dedup check for ${symbol}:`, {
+          shouldCreate: shouldCreateNewSignal,
+          historyEntry: !!historyEntry,
+          barCount: historyEntry?.barCount || 0,
+          timeSince: timeSinceLastSignal,
+          threshold: signalDedupeThreshold
+        });
         
         if (shouldCreateNewSignal) {
           // Create signal with trader attribution
@@ -911,7 +915,7 @@ const AppContent: React.FC = () => {
           
           // Creating signal with interval info from trader
           const interval = trader?.filter?.interval || KlineInterval.ONE_MINUTE;
-          console.log(`[SIGNAL_DEBUG] Creating signal for ${symbol} from trader ${result.traderId} at ${new Date().toISOString()}`);
+          console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Creating signal for ${symbol} from trader ${result.traderId}`);
           const signal = createSignalFromFilter(filterResult, result.traderId, interval);
           
           // Update signal history - reset bar count for new signal
@@ -952,7 +956,13 @@ const AppContent: React.FC = () => {
   }, [traders, tickers, activeStrategy, klineInterval, signalHistory, signalDedupeThreshold, createSignalFromFilter]);
 
   const screenerEnabled = multiTraderEnabled && traders.some(t => t.enabled);
-  // console.log('[App] Multi-trader screener enabled:', screenerEnabled, 'multiTraderEnabled:', multiTraderEnabled, 'enabled traders:', traders.filter(t => t.enabled).length);
+  console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Multi-trader screener status:`, {
+    screenerEnabled,
+    multiTraderEnabled,
+    totalTraders: traders.length,
+    enabledTraders: traders.filter(t => t.enabled).length,
+    traders: traders.map(t => ({ id: t.id, name: t.name, enabled: t.enabled }))
+  });
   
   const { isRunning: isMultiTraderRunning, resetCache: resetMultiTraderCache } = useMultiTraderScreener({
     traders,

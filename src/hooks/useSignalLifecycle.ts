@@ -86,6 +86,14 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   
   // Create signal from filter result
   const createSignalFromFilter = useCallback((filterResult: FilterResult, traderId?: string, interval?: string) => {
+    console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] createSignalFromFilter called:`, {
+      symbol: filterResult.symbol,
+      traderId,
+      interval,
+      activeStrategy: activeStrategy ? 'exists' : 'null',
+      autoAnalyze
+    });
+    
     // Allow trader signals without active strategy
     if (!activeStrategy && !traderId) {
       console.warn('No active strategy and no trader ID provided for signal creation');
@@ -95,6 +103,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     // Use trader ID as strategy ID when no active strategy
     const strategyId = activeStrategy?.id || `trader-${traderId}`;
     const signal = signalManager.createSignal(filterResult, strategyId, traderId, interval);
+    console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Signal created:`, signal.id);
     
     if (autoAnalyze) {
       // Check if signal is already queued or being analyzed to prevent duplicates
@@ -105,10 +114,13 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       }
       
       // Queue all signals for analysis (including trader signals)
-      console.log(`[SIGNAL_DEBUG] Queueing signal ${signal.id} for analysis, queue length before: ${analysisQueue.current.length}`);
+      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Queueing signal ${signal.id} for analysis, queue length before: ${analysisQueue.current.length}`);
       analysisQueue.current.push(signal.id);
       signalManager.updateSignalStatus(signal.id, 'analysis_queued');
+      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Signal queued, calling processAnalysisQueue`);
       processAnalysisQueue();
+    } else {
+      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] autoAnalyze is false, not queueing signal`);
     }
     
     return signal;
@@ -118,6 +130,8 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   const analyzeSignal = useCallback(async (signalId: string, customModel?: string) => {
     const signal = signalManager.getSignal(signalId);
     if (!signal) return;
+    
+    console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] analyzeSignal called for ${signalId}, activeStrategy: ${activeStrategy ? 'exists' : 'null'}, traderId: ${signal.traderId || 'none'}`);
     
     // Check if already analyzing to prevent duplicates
     if (signal.isAnalyzing) {
@@ -129,25 +143,33 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     let strategyToUse: Strategy | null = activeStrategy;
     
     if (!activeStrategy && signal.traderId) {
-      // Get trader from traderManager to access their strategy
-      const trader = await traderManager.getTrader(signal.traderId);
-      
-      if (!trader) {
-        console.error('Trader not found for signal:', signalId);
+      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] No active strategy, fetching trader ${signal.traderId} for signal ${signalId}`);
+      try {
+        // Get trader from traderManager to access their strategy
+        const trader = await traderManager.getTrader(signal.traderId);
+        
+        if (!trader) {
+          console.error(`[SIGNAL_DEBUG ${new Date().toISOString()}] Trader not found for signal:`, signalId);
+          return;
+        }
+        
+        console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Found trader ${trader.name} with strategy`);
+        
+        // Create a Strategy object from trader data
+        strategyToUse = {
+          id: `trader-${trader.id}`,
+          userId: 'system',
+          name: trader.name,
+          description: trader.strategy.instructions, // Use trader's strategy instructions
+          filterCode: trader.filter.code,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+      } catch (error) {
+        console.error(`[SIGNAL_DEBUG ${new Date().toISOString()}] Error fetching trader for signal ${signalId}:`, error);
         return;
       }
-      
-      // Create a Strategy object from trader data
-      strategyToUse = {
-        id: `trader-${trader.id}`,
-        userId: 'system',
-        name: trader.name,
-        description: trader.strategy.instructions, // Use trader's strategy instructions
-        filterCode: trader.filter.code,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
     }
     
     if (!strategyToUse) {
@@ -289,7 +311,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       
       return result;
     } catch (error) {
-      console.error('Analysis failed:', error);
+      console.error(`[SIGNAL_DEBUG ${new Date().toISOString()}] Analysis failed for signal ${signalId}:`, error);
       // Reset status and clear flag on error
       signal.status = 'new';
       signal.isAnalyzing = false;
@@ -300,13 +322,17 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   
   // Process analysis queue with concurrent limit
   const processAnalysisQueue = useCallback(async () => {
-    console.log(`[SIGNAL_DEBUG] processAnalysisQueue called, queue length: ${analysisQueue.current.length}, queue contents: ${analysisQueue.current.join(', ')}`);
+    console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] processAnalysisQueue called, queue length: ${analysisQueue.current.length}, queue contents: ${analysisQueue.current.join(', ')}`);
+    console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Active analyses count: ${activeAnalyses.current.size}`);
+    console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Trader analysis counts:`, Object.fromEntries(traderAnalysisCounts.current));
+    
     // Process queue while respecting concurrent limits
     while (analysisQueue.current.length > 0) {
       const nextSignalId = analysisQueue.current[0];
       const signal = signalManager.getSignal(nextSignalId);
       
       if (!signal) {
+        console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Signal ${nextSignalId} not found, removing from queue`);
         analysisQueue.current.shift();
         continue;
       }
@@ -321,14 +347,17 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       // Get trader's max concurrent analysis limit
       let maxConcurrent = 3; // Default global limit
       if (signal.traderId) {
+        console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Fetching trader ${signal.traderId} for concurrent limit`);
         const trader = await traderManager.getTrader(signal.traderId);
         if (trader?.strategy?.maxConcurrentAnalysis) {
           maxConcurrent = trader.strategy.maxConcurrentAnalysis;
         }
+        console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Trader ${signal.traderId} max concurrent: ${maxConcurrent}`);
       }
       
       // Check if trader has reached concurrent limit
       const currentCount = traderAnalysisCounts.current.get(signal.traderId || 'global') || 0;
+      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Current analysis count for ${signal.traderId || 'global'}: ${currentCount}/${maxConcurrent}`);
       if (currentCount >= maxConcurrent) {
         // Check if any active analyses are complete
         for (const [id, promise] of activeAnalyses.current.entries()) {
@@ -356,7 +385,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       traderAnalysisCounts.current.set(traderId, currentCount + 1);
       
       // Start analysis and track promise
-      console.log(`[SIGNAL_DEBUG] Starting analysis promise for signal ${nextSignalId}`);
+      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Starting analysis promise for signal ${nextSignalId} (symbol: ${signal.symbol}, trader: ${signal.traderId || 'none'})`);
       const analysisPromise = analyzeSignal(nextSignalId)
         .finally(() => {
           console.log(`[SIGNAL_DEBUG] Analysis promise completed for signal ${nextSignalId}, calling processAnalysisQueue again`);

@@ -229,6 +229,7 @@ Example Indicators:
 // IMPORTANT: Daily VWAP resets at 00:00 UTC (Binance server time)
 // For other reset times, user should specify in their prompt
 // Basic VWAP without bands (default):
+// REMINDER: klines is already provided as a parameter!
 {
   "id": "vwap_daily",
   "name": "VWAP (Daily)",

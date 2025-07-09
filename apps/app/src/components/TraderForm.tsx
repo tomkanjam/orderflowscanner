@@ -279,31 +279,12 @@ export function TraderForm({
     try {
       setError('');
       
-      // Fix and debug log indicators being saved
-      let indicatorsToSave = generatedTrader?.indicators || (editingTrader?.filter?.indicators);
-      let fixApplied = false;
-      
-      // Fix any indicators that have klines redeclaration issues
-      if (indicatorsToSave && indicatorsToSave.length > 0) {
-        const { fixIndicatorArray, hasKlinesRedeclaration } = await import('../utils/fixIndicatorFunctions');
-        
-        // Check if any indicators need fixing
-        const needsFix = indicatorsToSave.some(ind => 
-          ind.calculateFunction && hasKlinesRedeclaration(ind.calculateFunction)
-        );
-        
-        if (needsFix) {
-          console.log('[TRADER_FORM] Fixing indicators with klines redeclaration...');
-          indicatorsToSave = fixIndicatorArray(indicatorsToSave);
-          fixApplied = true;
-        }
-      }
-      
+      // Debug log indicators being saved
+      const indicatorsToSave = generatedTrader?.indicators || (editingTrader?.filter?.indicators);
       console.log(`[DEBUG] TraderForm saving trader with indicators:`, {
         mode: editingTrader ? 'update' : 'create',
         indicatorCount: indicatorsToSave?.length || 0,
-        indicators: indicatorsToSave,
-        fixApplied
+        indicators: indicatorsToSave
       });
       
       // Log the full generatedTrader if available

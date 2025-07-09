@@ -87,13 +87,13 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   
   // Create signal from filter result
   const createSignalFromFilter = useCallback((filterResult: FilterResult, traderId?: string, interval?: string) => {
-    console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] createSignalFromFilter called:`, {
-      symbol: filterResult.symbol,
-      traderId,
-      interval,
-      activeStrategy: activeStrategy ? 'exists' : 'null',
-      autoAnalyze
-    });
+    // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] createSignalFromFilter called:`, {
+    //   symbol: filterResult.symbol,
+    //   traderId,
+    //   interval,
+    //   activeStrategy: activeStrategy ? 'exists' : 'null',
+    //   autoAnalyze
+    // });
     
     // Allow trader signals without active strategy
     if (!activeStrategy && !traderId) {
@@ -117,7 +117,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       signalManager.updateSignalStatus(signal.id, 'analysis_queued');
       processAnalysisQueue();
     } else {
-      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] autoAnalyze is false, not queueing signal`);
+      // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] autoAnalyze is false, not queueing signal`);
     }
     
     return signal;
@@ -128,7 +128,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     const signal = signalManager.getSignal(signalId);
     if (!signal) return;
     
-    console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] analyzeSignal called for ${signalId}, activeStrategy: ${activeStrategy ? 'exists' : 'null'}, traderId: ${signal.traderId || 'none'}`);
+    // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] analyzeSignal called for ${signalId}, activeStrategy: ${activeStrategy ? 'exists' : 'null'}, traderId: ${signal.traderId || 'none'}`);
     
     // Note: isAnalyzing check removed here - it's already handled by processAnalysisQueue
     
@@ -136,7 +136,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     let strategyToUse: Strategy | null = activeStrategy;
     
     if (!activeStrategy && signal.traderId) {
-      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] No active strategy, fetching trader ${signal.traderId} for signal ${signalId}`);
+      // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] No active strategy, fetching trader ${signal.traderId} for signal ${signalId}`);
       try {
         // Get trader from traderManager to access their strategy
         const trader = await traderManager.getTrader(signal.traderId);
@@ -146,7 +146,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
           return;
         }
         
-        console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Found trader ${trader.name} with strategy`);
+        // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Found trader ${trader.name} with strategy`);
         
         // Create a Strategy object from trader data
         strategyToUse = {
@@ -174,7 +174,7 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
     signal.status = 'analyzing';
     signalManager['notifyUpdate'](); // Force update
     
-    console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Actually starting analysis for signal ${signalId}, status set to: analyzing`);
+    // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Actually starting analysis for signal ${signalId}, status set to: analyzing`);
     
     try {
       const analysisEngine = ServiceFactory.getAnalysis();
@@ -317,16 +317,16 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
   const processAnalysisQueue = useCallback(async () => {
     // Prevent concurrent queue processing
     if (isProcessingQueue.current) {
-      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Queue processor already running, skipping`);
+      // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Queue processor already running, skipping`);
       return;
     }
     
     isProcessingQueue.current = true;
     
     try {
-      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] processAnalysisQueue called, queue length: ${analysisQueue.current.length}, queue contents: ${analysisQueue.current.join(', ')}`);
-      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Active analyses count: ${activeAnalyses.current.size}`);
-      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Trader analysis counts:`, Object.fromEntries(traderAnalysisCounts.current));
+      // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] processAnalysisQueue called, queue length: ${analysisQueue.current.length}, queue contents: ${analysisQueue.current.join(', ')}`);
+      // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Active analyses count: ${activeAnalyses.current.size}`);
+      // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Trader analysis counts:`, Object.fromEntries(traderAnalysisCounts.current));
       
       // Process queue while respecting concurrent limits
       while (analysisQueue.current.length > 0) {
@@ -334,14 +334,14 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       const signal = signalManager.getSignal(nextSignalId);
       
       if (!signal) {
-        console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Signal ${nextSignalId} not found, removing from queue`);
+        // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Signal ${nextSignalId} not found, removing from queue`);
         analysisQueue.current.shift();
         continue;
       }
       
       // Skip if already analyzing (handles race conditions)
       if (signal.isAnalyzing || activeAnalyses.current.has(nextSignalId)) {
-        console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Signal ${nextSignalId} already analyzing or active, removing from queue`);
+        // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Signal ${nextSignalId} already analyzing or active, removing from queue`);
         analysisQueue.current.shift();
         continue;
       }
@@ -349,17 +349,17 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       // Get trader's max concurrent analysis limit
       let maxConcurrent = 3; // Default global limit
       if (signal.traderId) {
-        console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Fetching trader ${signal.traderId} for concurrent limit`);
+        // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Fetching trader ${signal.traderId} for concurrent limit`);
         const trader = await traderManager.getTrader(signal.traderId);
         if (trader?.strategy?.maxConcurrentAnalysis) {
           maxConcurrent = trader.strategy.maxConcurrentAnalysis;
         }
-        console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Trader ${signal.traderId} max concurrent: ${maxConcurrent}`);
+        // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Trader ${signal.traderId} max concurrent: ${maxConcurrent}`);
       }
       
       // Check if trader has reached concurrent limit
       const currentCount = traderAnalysisCounts.current.get(signal.traderId || 'global') || 0;
-      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Current analysis count for ${signal.traderId || 'global'}: ${currentCount}/${maxConcurrent}`);
+      // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Current analysis count for ${signal.traderId || 'global'}: ${currentCount}/${maxConcurrent}`);
       if (currentCount >= maxConcurrent) {
         // Check if any active analyses are complete
         for (const [id, promise] of activeAnalyses.current.entries()) {
@@ -387,10 +387,10 @@ export function useSignalLifecycle(options: UseSignalLifecycleOptions) {
       traderAnalysisCounts.current.set(traderId, currentCount + 1);
       
       // Start analysis and track promise
-      console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Starting analysis promise for signal ${nextSignalId} (symbol: ${signal.symbol}, trader: ${signal.traderId || 'none'})`);
+      // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Starting analysis promise for signal ${nextSignalId} (symbol: ${signal.symbol}, trader: ${signal.traderId || 'none'}`);
       const analysisPromise = analyzeSignal(nextSignalId)
         .finally(() => {
-          console.log(`[SIGNAL_DEBUG] Analysis promise completed for signal ${nextSignalId}, calling processAnalysisQueue again`);
+          // console.log(`[SIGNAL_DEBUG] Analysis promise completed for signal ${nextSignalId}, calling processAnalysisQueue again`);
           // Decrement count and remove from active analyses
           const count = traderAnalysisCounts.current.get(traderId) || 0;
           traderAnalysisCounts.current.set(traderId, Math.max(0, count - 1));

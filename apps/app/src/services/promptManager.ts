@@ -540,7 +540,7 @@ IMPORTANT Indicator Examples:
   "id": "bb_20_2",
   "name": "BB(20,2)",
   "panel": false,
-  "calculateFunction": "const bands = helpers.calculateBollingerBands(klines, 20, 2); return klines.map((k, i) => ({x: k[0], y: bands.middle[i], y2: bands.upper[i], y3: bands.lower[i]}));",
+  "calculateFunction": "if (!klines || klines.length < 20) return []; const bands = helpers.calculateBollingerBands(klines, 20, 2); return klines.map((k, i) => ({x: k[0], y: bands.middle[i], y2: bands.upper[i], y3: bands.lower[i]}));",
   "chartType": "line",
   "style": { "color": ["#facc15", "#ef4444", "#10b981"] }
 }
@@ -550,7 +550,7 @@ IMPORTANT Indicator Examples:
   "id": "stochrsi_14",
   "name": "StochRSI(14)",
   "panel": true,
-  "calculateFunction": "const stoch = helpers.calculateStochRSI(klines, 14, 14, 3, 3); return stoch.map((val, i) => ({x: klines[i][0], y: val.k, y2: val.d}));",
+  "calculateFunction": "if (!klines || klines.length < 14) return []; const stoch = helpers.calculateStochRSI(klines, 14, 14, 3, 3); return stoch.map((val, i) => ({x: klines[i][0], y: val.k, y2: val.d}));",
   "chartType": "line",
   "style": { "color": ["#8b5cf6", "#f59e0b"], "lineWidth": 1.5 },
   "yAxisConfig": { "min": 0, "max": 100, "label": "StochRSI" }
@@ -561,9 +561,24 @@ IMPORTANT Indicator Examples:
   "id": "sma_20",
   "name": "SMA(20)",
   "panel": false,
-  "calculateFunction": "const ma = helpers.calculateMASeries(klines, 20); return ma.map((val, i) => ({x: klines[i][0], y: val}));",
+  "calculateFunction": "if (!klines || klines.length < 20) return []; const ma = helpers.calculateMASeries(klines, 20); return ma.map((val, i) => ({x: klines[i][0], y: val}));",
   "chartType": "line",
   "style": { "color": "#8efbba", "lineWidth": 1.5 }
+}
+
+// RSI with horizontal reference lines
+{
+  "id": "rsi_14",
+  "name": "RSI(14)",
+  "panel": true,
+  "calculateFunction": "if (!klines || klines.length < 14) return []; const rsiSeries = helpers.calculateRSI(klines, 14); return rsiSeries.map((val, i) => ({x: klines[i][0], y: val}));",
+  "chartType": "line",
+  "style": { "color": "#c084fc" },
+  "yAxisConfig": {
+    "min": 0,
+    "max": 100,
+    "label": "RSI"
+  }
 }
 
 NOTE: Always transform helper function results to the expected array format!`,

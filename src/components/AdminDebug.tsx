@@ -8,22 +8,22 @@ export function AdminDebug() {
   const { user } = useAuthContext();
   const { profile, refreshSubscription, loading, error } = useSubscription();
 
-  console.log('[AdminDebug] Current state:', {
-    userId: user?.id,
-    email: user?.email,
-    profile: profile ? {
-      id: profile.id,
-      email: profile.email,
-      is_admin: profile.is_admin
-    } : null,
-    loading,
-    error
-  });
+  // console.log('[AdminDebug] Current state:', {
+  //   userId: user?.id,
+  //   email: user?.email,
+  //   profile: profile ? {
+  //     id: profile.id,
+  //     email: profile.email,
+  //     is_admin: profile.is_admin
+  //   } : null,
+  //   loading,
+  //   error
+  // });
 
   const handleRefresh = async () => {
-    console.log('[AdminDebug] Refreshing subscription...');
+    // console.log('[AdminDebug] Refreshing subscription...');
     await refreshSubscription();
-    console.log('[AdminDebug] Refresh complete, reloading page...');
+    // console.log('[AdminDebug] Refresh complete, reloading page...');
     // Force a hard refresh after data is updated
     setTimeout(() => {
       window.location.reload();

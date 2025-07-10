@@ -24,35 +24,18 @@ export interface PromptOverride {
   version: number;
 }
 
-interface EmergencyPrompt {
-  systemInstruction: string;
-  parameters?: string[];
-  placeholders?: Record<string, any>;
-}
-
 class PromptManager {
   private promptCache: Map<string, PromptTemplate> = new Map();
   private initialized = false;
-  private emergencyPrompts: Map<string, EmergencyPrompt> = new Map();
-  private loadingError: Error | null = null;
 
   async initialize() {
     if (this.initialized) return;
     
-    try {
-      // First, try to load from database
-      if (isSupabaseConfigured()) {
-        await this.loadFromDatabase();
-      } else {
-        throw new Error('Database not configured');
-      }
-    } catch (error) {
-      console.error('[PromptManager] Failed to load from database:', error);
-      this.loadingError = error as Error;
-      // Fall back to emergency prompts
-      await this.loadEmergencyPrompts();
+    if (!isSupabaseConfigured()) {
+      throw new Error('[PromptManager] Database not configured - cannot load prompts');
     }
 
+    await this.loadFromDatabase();
     this.initialized = true;
   }
 
@@ -68,44 +51,20 @@ class PromptManager {
         .select('*')
         .eq('is_active', true);
 
-      if (error) {
-        console.error('[PromptManager] Database query error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       if (!prompts || prompts.length === 0) {
-        // Check if table exists but is empty
-        const { count, error: countError } = await supabase
-          .from('prompts')
-          .select('*', { count: 'exact', head: true });
-        
-        if (countError) {
-          console.error('[PromptManager] Count query error:', countError);
-          throw countError;
-        }
-
-        if (count === 0) {
-          console.warn('[PromptManager] Prompts table exists but is empty. Run seed migrations.');
-          throw new Error('Prompts table is empty. Please run database seed migrations.');
-        } else {
-          throw new Error('No active prompts found in database');
-        }
+        throw new Error('No prompts found in database');
       }
 
-      // Cache prompts with proper type conversion
+      // Cache prompts
       prompts.forEach(prompt => {
         this.promptCache.set(prompt.id, {
-          id: prompt.id,
-          name: prompt.name,
-          category: prompt.category,
-          description: prompt.description,
-          systemInstruction: prompt.system_instruction,
-          userPromptTemplate: prompt.user_prompt_template,
+          ...prompt,
           lastModified: new Date(prompt.updated_at),
           placeholders: prompt.placeholders || {},
           parameters: prompt.parameters || [],
-          version: 1, // Default version, will be updated by loadActiveVersions
-          isActive: prompt.is_active
+          version: 1 // Default version, will be updated if active versions exist
         });
       });
 
@@ -129,17 +88,14 @@ class PromptManager {
         .eq('is_active', true);
 
       if (error) {
-        // Log all errors for debugging
-        console.error('[PromptManager] Failed to load prompt versions:', error);
-        
-        // Check if it's a table doesn't exist error
-        if (error.code === '42P01' || error.code === 'PGRST116') {
-          console.warn('[PromptManager] prompt_versions table does not exist. Using base prompts only.');
+        // Only log if it's not a "table doesn't exist" error
+        if (error.code !== '42P01' && error.code !== 'PGRST116') {
+          console.error('[PromptManager] Failed to load prompt versions:', error);
         }
         return;
       }
 
-      if (versions && versions.length > 0) {
+      if (versions) {
         versions.forEach(version => {
           const prompt = this.promptCache.get(version.prompt_id);
           if (prompt) {
@@ -150,56 +106,10 @@ class PromptManager {
           }
         });
         console.log(`[PromptManager] Applied ${versions.length} active versions`);
-      } else {
-        console.log('[PromptManager] No active versions found, using base prompts');
       }
     } catch (error) {
       console.error('[PromptManager] Failed to load versions:', error);
     }
-  }
-
-  private async loadEmergencyPrompts() {
-    console.warn('[PromptManager] Loading emergency prompts as fallback');
-    
-    try {
-      const response = await fetch('/emergency-prompts.json');
-      if (!response.ok) {
-        throw new Error(`Failed to load emergency prompts: ${response.statusText}`);
-      }
-
-      const emergencyData = await response.json();
-      
-      // Convert emergency prompts to full prompt templates
-      Object.entries(emergencyData).forEach(([id, data]: [string, any]) => {
-        const prompt: PromptTemplate = {
-          id,
-          name: id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-          category: this.inferCategory(id),
-          description: `Emergency fallback for ${id}`,
-          systemInstruction: data.systemInstruction,
-          parameters: data.parameters || [],
-          placeholders: data.placeholders || {},
-          lastModified: new Date(),
-          version: 1,
-          isActive: true
-        };
-        
-        this.promptCache.set(id, prompt);
-        this.emergencyPrompts.set(id, data);
-      });
-
-      console.log(`[PromptManager] Loaded ${this.promptCache.size} emergency prompts`);
-    } catch (error) {
-      console.error('[PromptManager] CRITICAL: Failed to load emergency prompts:', error);
-      throw new Error('Unable to load any prompts. Application cannot function.');
-    }
-  }
-
-  private inferCategory(promptId: string): 'screener' | 'analysis' | 'trader' {
-    if (promptId.includes('filter') || promptId.includes('regenerate')) return 'screener';
-    if (promptId.includes('analysis')) return 'analysis';
-    if (promptId.includes('trader')) return 'trader';
-    return 'screener';
   }
 
   async getAllPrompts(): Promise<PromptTemplate[]> {
@@ -253,21 +163,7 @@ class PromptManager {
         return false;
       }
 
-      // First, update the base prompt's system_instruction
-      const { error: updateError } = await supabase
-        .from('prompts')
-        .update({ 
-          system_instruction: content,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', promptId);
-
-      if (updateError) {
-        console.error('[PromptManager] Failed to update base prompt:', updateError);
-        throw updateError;
-      }
-
-      // Then, deactivate previous versions
+      // Deactivate previous versions
       await supabase
         .from('prompt_versions')
         .update({ is_active: false })
@@ -343,17 +239,6 @@ class PromptManager {
         return false;
       }
 
-      // Update base prompt
-      const { error: updateError } = await supabase
-        .from('prompts')
-        .update({ 
-          system_instruction: version.system_instruction,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', promptId);
-
-      if (updateError) throw updateError;
-
       // Deactivate all versions
       await supabase
         .from('prompt_versions')
@@ -361,12 +246,12 @@ class PromptManager {
         .eq('prompt_id', promptId);
 
       // Activate the selected version
-      const { error: activateError } = await supabase
+      const { error: updateError } = await supabase
         .from('prompt_versions')
         .update({ is_active: true })
         .eq('id', versionId);
 
-      if (activateError) throw activateError;
+      if (updateError) throw updateError;
 
       // Update cache
       const prompt = this.promptCache.get(promptId);
@@ -405,25 +290,7 @@ class PromptManager {
   async reload() {
     this.initialized = false;
     this.promptCache.clear();
-    this.loadingError = null;
     await this.initialize();
-  }
-
-  // Get loading status
-  getLoadingStatus(): { isUsingEmergency: boolean; error: Error | null } {
-    return {
-      isUsingEmergency: this.emergencyPrompts.size > 0 && this.loadingError !== null,
-      error: this.loadingError
-    };
-  }
-
-  // Alias for compatibility
-  getStatus(): { isUsingEmergency: boolean; error: string | null } {
-    const status = this.getLoadingStatus();
-    return {
-      isUsingEmergency: status.isUsingEmergency,
-      error: status.error ? status.error.message : null
-    };
   }
 }
 

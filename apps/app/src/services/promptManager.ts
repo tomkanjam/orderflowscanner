@@ -34,6 +34,7 @@ class PromptManager {
   private promptCache: Map<string, PromptTemplate> = new Map();
   private initialized = false;
   private emergencyPrompts: Map<string, EmergencyPrompt> = new Map();
+  private loadingError: Error | null = null;
 
   async initialize() {
     if (this.initialized) return;
@@ -47,6 +48,7 @@ class PromptManager {
       }
     } catch (error) {
       console.error('[PromptManager] Failed to load from database:', error);
+      this.loadingError = error as Error;
       // Fall back to emergency prompts
       await this.loadEmergencyPrompts();
     }
@@ -66,19 +68,44 @@ class PromptManager {
         .select('*')
         .eq('is_active', true);
 
-      if (error) throw error;
-
-      if (!prompts || prompts.length === 0) {
-        throw new Error('No prompts found in database');
+      if (error) {
+        console.error('[PromptManager] Database query error:', error);
+        throw error;
       }
 
-      // Cache prompts
+      if (!prompts || prompts.length === 0) {
+        // Check if table exists but is empty
+        const { count, error: countError } = await supabase
+          .from('prompts')
+          .select('*', { count: 'exact', head: true });
+        
+        if (countError) {
+          console.error('[PromptManager] Count query error:', countError);
+          throw countError;
+        }
+
+        if (count === 0) {
+          console.warn('[PromptManager] Prompts table exists but is empty. Run seed migrations.');
+          throw new Error('Prompts table is empty. Please run database seed migrations.');
+        } else {
+          throw new Error('No active prompts found in database');
+        }
+      }
+
+      // Cache prompts with proper type conversion
       prompts.forEach(prompt => {
         this.promptCache.set(prompt.id, {
-          ...prompt,
+          id: prompt.id,
+          name: prompt.name,
+          category: prompt.category,
+          description: prompt.description,
+          systemInstruction: prompt.system_instruction,
+          userPromptTemplate: prompt.user_prompt_template,
           lastModified: new Date(prompt.updated_at),
           placeholders: prompt.placeholders || {},
-          parameters: prompt.parameters || []
+          parameters: prompt.parameters || [],
+          version: 1, // Default version, will be updated by loadActiveVersions
+          isActive: prompt.is_active
         });
       });
 
@@ -102,14 +129,17 @@ class PromptManager {
         .eq('is_active', true);
 
       if (error) {
-        // Only log if it's not a "table doesn't exist" error
-        if (error.code !== '42P01' && error.code !== 'PGRST116') {
-          console.error('[PromptManager] Failed to load prompt versions:', error);
+        // Log all errors for debugging
+        console.error('[PromptManager] Failed to load prompt versions:', error);
+        
+        // Check if it's a table doesn't exist error
+        if (error.code === '42P01' || error.code === 'PGRST116') {
+          console.warn('[PromptManager] prompt_versions table does not exist. Using base prompts only.');
         }
         return;
       }
 
-      if (versions) {
+      if (versions && versions.length > 0) {
         versions.forEach(version => {
           const prompt = this.promptCache.get(version.prompt_id);
           if (prompt) {
@@ -120,6 +150,8 @@ class PromptManager {
           }
         });
         console.log(`[PromptManager] Applied ${versions.length} active versions`);
+      } else {
+        console.log('[PromptManager] No active versions found, using base prompts');
       }
     } catch (error) {
       console.error('[PromptManager] Failed to load versions:', error);
@@ -221,7 +253,21 @@ class PromptManager {
         return false;
       }
 
-      // Deactivate previous versions
+      // First, update the base prompt's system_instruction
+      const { error: updateError } = await supabase
+        .from('prompts')
+        .update({ 
+          system_instruction: content,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', promptId);
+
+      if (updateError) {
+        console.error('[PromptManager] Failed to update base prompt:', updateError);
+        throw updateError;
+      }
+
+      // Then, deactivate previous versions
       await supabase
         .from('prompt_versions')
         .update({ is_active: false })
@@ -297,6 +343,17 @@ class PromptManager {
         return false;
       }
 
+      // Update base prompt
+      const { error: updateError } = await supabase
+        .from('prompts')
+        .update({ 
+          system_instruction: version.system_instruction,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', promptId);
+
+      if (updateError) throw updateError;
+
       // Deactivate all versions
       await supabase
         .from('prompt_versions')
@@ -304,12 +361,12 @@ class PromptManager {
         .eq('prompt_id', promptId);
 
       // Activate the selected version
-      const { error: updateError } = await supabase
+      const { error: activateError } = await supabase
         .from('prompt_versions')
         .update({ is_active: true })
         .eq('id', versionId);
 
-      if (updateError) throw updateError;
+      if (activateError) throw activateError;
 
       // Update cache
       const prompt = this.promptCache.get(promptId);
@@ -348,7 +405,25 @@ class PromptManager {
   async reload() {
     this.initialized = false;
     this.promptCache.clear();
+    this.loadingError = null;
     await this.initialize();
+  }
+
+  // Get loading status
+  getLoadingStatus(): { isUsingEmergency: boolean; error: Error | null } {
+    return {
+      isUsingEmergency: this.emergencyPrompts.size > 0 && this.loadingError !== null,
+      error: this.loadingError
+    };
+  }
+
+  // Alias for compatibility
+  getStatus(): { isUsingEmergency: boolean; error: string | null } {
+    const status = this.getLoadingStatus();
+    return {
+      isUsingEmergency: status.isUsingEmergency,
+      error: status.error ? status.error.message : null
+    };
   }
 }
 

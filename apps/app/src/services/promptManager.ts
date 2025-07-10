@@ -57,14 +57,20 @@ class PromptManager {
         throw new Error('No prompts found in database');
       }
 
-      // Cache prompts
+      // Cache prompts with proper field mapping
       prompts.forEach(prompt => {
         this.promptCache.set(prompt.id, {
-          ...prompt,
-          lastModified: new Date(prompt.updated_at),
-          placeholders: prompt.placeholders || {},
+          id: prompt.id,
+          name: prompt.name,
+          category: prompt.category,
+          description: prompt.description,
+          systemInstruction: prompt.system_instruction, // Map snake_case to camelCase
+          userPromptTemplate: prompt.user_prompt_template,
           parameters: prompt.parameters || [],
-          version: 1 // Default version, will be updated if active versions exist
+          placeholders: prompt.placeholders || {},
+          lastModified: new Date(prompt.updated_at),
+          version: 1, // Default version, will be updated if active versions exist
+          isActive: prompt.is_active
         });
       });
 
@@ -132,7 +138,15 @@ class PromptManager {
     placeholderValues?: Record<string, any>
   ): Promise<string | null> {
     const prompt = await this.getPrompt(id);
-    if (!prompt) return null;
+    if (!prompt) {
+      console.error(`[PromptManager] Prompt not found: ${id}`);
+      return null;
+    }
+
+    if (!prompt.systemInstruction) {
+      console.error(`[PromptManager] Prompt ${id} has no system instruction`);
+      return null;
+    }
 
     let content = prompt.systemInstruction;
 
@@ -191,6 +205,15 @@ class PromptManager {
         prompt.version = data.version;
         prompt.lastModified = new Date(data.created_at);
       }
+
+      // Also update the base prompt in database
+      await supabase
+        .from('prompts')
+        .update({ 
+          system_instruction: content,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', promptId);
 
       console.log(`[PromptManager] Saved override for ${promptId}, version ${data.version}`);
       return true;
@@ -271,6 +294,12 @@ class PromptManager {
 
   // Replace placeholders in prompt content
   private replacePlaceholders(content: string, values: Record<string, any>): string {
+    // Guard against undefined content
+    if (!content) {
+      console.warn('[PromptManager] replacePlaceholders called with undefined content');
+      return '';
+    }
+
     // Replace {{key}} style placeholders
     Object.entries(values).forEach(([key, value]) => {
       const regex = new RegExp(`{{${key}}}`, 'g');

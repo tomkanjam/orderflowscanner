@@ -473,40 +473,36 @@ Multi-timeframe example output:
     name: 'Generate Trader',
     category: 'trader',
     description: 'Creates complete trading systems with filters and strategy',
-    systemInstruction: `You are an AI assistant that creates cryptocurrency trading systems. Based on the user's requirements, generate a trading system that EXACTLY matches what they ask for - no more, no less.
+    systemInstruction: `You are an AI assistant that creates cryptocurrency trading systems.
+
+CRITICAL: You MUST return ONLY a valid JSON object. Do not include ANY text, explanation, markdown, or comments before or after the JSON. The response must start with { and end with }.
+
+Based on the user's requirements, generate a trading system that EXACTLY matches what they ask for - no more, no less.
 
 IMPORTANT: 
 - If the user asks for simple conditions (e.g., "StochRSI below 40"), only implement those conditions
 - Do NOT add extra filters (trend, volume, etc.) unless specifically requested
 - Analyze the user's prompt to determine which timeframes are mentioned
 
-Return a JSON object with this structure:
+Return a JSON object with EXACTLY this structure:
 {
   "suggestedName": "Short descriptive name (max 30 chars)",
   "description": "1-2 sentence summary of the trading strategy",
   "filterDescription": [
     "Human-readable condition 1",
-    "Human-readable condition 2",
-    "..."
+    "Human-readable condition 2"
   ],
-  "requiredTimeframes": ["1m", "5m", ...], // Array of timeframes needed by the filter
+  "requiredTimeframes": ["1m", "5m"], // Array of timeframes. Valid values: "1m", "5m", "15m", "1h", "4h", "1d"
   "filterCode": "JavaScript function body that returns boolean",
   "strategyInstructions": "Instructions for the AI analyzer. For simple filters, keep this brief.",
   "indicators": [
-    // Array of indicator configurations. Each indicator MUST return an array of data points:
-    // - Single line: [{x: timestamp, y: value}, ...]
-    // - Multi-line (up to 4 lines): [{x: timestamp, y: value1, y2: value2, y3: value3}, ...]
-    // - Colored bars: [{x: timestamp, y: value, color: "#hex"}, ...]
-    // - Use \`null\` for y values when data is insufficient
-    // IMPORTANT: The function receives 'klines' as a parameter - DO NOT declare it!
-    // DO NOT include: const klines = timeframes['1m']; - klines is already provided!
     {
       "id": "unique_id",
       "name": "Indicator Name",
-      "panel": true/false,
+      "panel": true,
       "calculateFunction": "// Function body that returns data points - klines is already provided as parameter",
-      "chartType": "line" | "bar",
-      "style": { "color": "#hex" or ["#hex1", "#hex2"] for multi-line }
+      "chartType": "line",
+      "style": { "color": "#8efbba" }
     }
   ],
   "riskParameters": {
@@ -576,7 +572,44 @@ The klines for the appropriate timeframe are already provided to your function.
   }
 }
 
-NOTE: Always transform helper function results to the expected array format!`,
+NOTE: Always transform helper function results to the expected array format!
+
+COMPLETE EXAMPLE - Your response should look EXACTLY like this (with your own values):
+{
+  "suggestedName": "30 Candle Breakout",
+  "description": "Captures momentum breakouts from 30-candle consolidation ranges on the 1-minute timeframe.",
+  "filterDescription": [
+    "Price breaks above the highest high of the last 30 candles",
+    "Volume is 50% above the 20-period average"
+  ],
+  "requiredTimeframes": ["1m"],
+  "filterCode": "const klines = timeframes['1m'];\\nif (!klines || klines.length < 30) return false;\\n\\nconst highestHigh = helpers.getHighestHigh(klines, 30);\\nconst currentPrice = parseFloat(klines[klines.length - 1][4]);\\nconst avgVolume = helpers.calculateAvgVolume(klines, 20);\\nconst currentVolume = parseFloat(klines[klines.length - 1][5]);\\n\\nreturn currentPrice > highestHigh && currentVolume > avgVolume * 1.5;",
+  "strategyInstructions": "Enter long when price breaks above 30-candle high with volume confirmation. Set stop loss at the 30-candle low. Take profit at 2:1 risk/reward ratio.",
+  "indicators": [
+    {
+      "id": "highest_high_30",
+      "name": "30 Candle High",
+      "panel": false,
+      "calculateFunction": "const high30 = helpers.getHighestHigh(klines, 30); return klines.map(k => ({x: k[0], y: high30}));",
+      "chartType": "line",
+      "style": { "color": "#ef4444", "lineWidth": 1 }
+    },
+    {
+      "id": "volume_ma",
+      "name": "Volume MA(20)",
+      "panel": true,
+      "calculateFunction": "const volMA = helpers.calculateAvgVolume(klines, 20); return klines.map(k => ({x: k[0], y: parseFloat(k[5]), y2: volMA}));",
+      "chartType": "bar",
+      "style": { "color": ["#10b981", "#facc15"] }
+    }
+  ],
+  "riskParameters": {
+    "stopLossPercent": 1.5,
+    "takeProfitPercent": 3.0,
+    "positionSizePercent": 5.0,
+    "maxConcurrentTrades": 2
+  }
+}`,
     parameters: ['userPrompt', 'modelName', 'klineInterval'],
     placeholders: {
       helperFunctions: HELPER_FUNCTIONS_LIST

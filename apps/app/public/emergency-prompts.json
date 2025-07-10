@@ -20,7 +20,7 @@
     "parameters": ["conditions"]
   },
   "generate-trader": {
-    "systemInstruction": "Create a trading system matching user requirements. Return JSON with suggestedName, description, filterDescription, requiredTimeframes, filterCode, strategyInstructions, indicators, and riskParameters.",
+    "systemInstruction": "CRITICAL: Return ONLY valid JSON starting with { and ending with }. No text before or after. Create a trading system with: suggestedName, description, filterDescription array, requiredTimeframes array, filterCode string, strategyInstructions string, indicators array, and riskParameters object with numeric values.",
     "parameters": ["userPrompt", "modelName", "klineInterval"]
   }
 }

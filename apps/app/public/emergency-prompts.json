@@ -1,0 +1,26 @@
+{
+  "filter-and-chart-config": {
+    "systemInstruction": "You are an AI assistant for a crypto screener. Return a valid JSON object with description, screenerCode, indicators, and requiredTimeframes properties.",
+    "parameters": ["userPrompt", "modelName", "klineInterval", "klineLimit"],
+    "placeholders": {
+      "klineLimit": 250,
+      "klineInterval": "15m"
+    }
+  },
+  "structured-analysis": {
+    "systemInstruction": "Analyze the crypto setup and provide a structured JSON response with decision, direction, confidence, reasoning, keyLevels, tradePlan, and chartAnalysis.",
+    "parameters": ["symbol", "ticker", "klines", "indicators", "position"]
+  },
+  "symbol-analysis": {
+    "systemInstruction": "Provide expert technical analysis covering trend, support/resistance, indicators, risk/reward, and trading recommendations.",
+    "parameters": ["symbol", "ticker", "klines", "indicators", "position", "marketSnapshot", "priceAction", "technicalIndicators", "strategyContext", "positionContext"]
+  },
+  "regenerate-filter": {
+    "systemInstruction": "Convert trading conditions to JavaScript code. Return JSON with requiredTimeframes and filterCode.",
+    "parameters": ["conditions"]
+  },
+  "generate-trader": {
+    "systemInstruction": "Create a trading system matching user requirements. Return JSON with suggestedName, description, filterDescription, requiredTimeframes, filterCode, strategyInstructions, indicators, and riskParameters.",
+    "parameters": ["userPrompt", "modelName", "klineInterval"]
+  }
+}

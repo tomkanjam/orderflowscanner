@@ -12,8 +12,7 @@ export const PromptManager: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<'all' | 'screener' | 'analysis' | 'trader'>('all');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [loading, setLoading] = useState(true);
-  const [isUsingEmergencyPrompts, setIsUsingEmergencyPrompts] = useState(false);
-  const [promptStatus, setPromptStatus] = useState<{ error?: string | null }>({});
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Check if user is authorized admin
   const isAuthorized = user?.email === 'tom@tomk.ca';
@@ -24,13 +23,10 @@ export const PromptManager: React.FC = () => {
       try {
         const allPrompts = await promptManager.getAllPrompts();
         setPrompts(allPrompts);
-        
-        // Get status from promptManager
-        const status = promptManager.getStatus();
-        setIsUsingEmergencyPrompts(status.isUsingEmergency || false);
-        setPromptStatus({ error: status.error });
+        setLoadError(null);
       } catch (error) {
         console.error('Failed to load prompts:', error);
+        setLoadError(error instanceof Error ? error.message : 'Failed to load prompts');
       } finally {
         setLoading(false);
       }
@@ -123,33 +119,36 @@ export const PromptManager: React.FC = () => {
         <div className="p-4">
           <h2 className="text-2xl font-bold mb-4 text-gray-100">Prompt Manager</h2>
           
-          {/* Warning if using emergency prompts */}
-          {isUsingEmergencyPrompts && (
-            <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-600 rounded-lg">
+          {/* Error message if prompts failed to load */}
+          {loadError && (
+            <div className="mb-4 p-3 bg-red-900/20 border border-red-600 rounded-lg">
               <div className="flex items-start gap-2">
-                <svg className="w-5 h-5 text-yellow-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <svg className="w-5 h-5 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-yellow-500">Using Emergency Prompts</p>
-                  <p className="text-xs text-yellow-400 mt-1">
-                    Database prompts could not be loaded. Changes will not be persisted.
+                  <p className="text-sm font-medium text-red-500">Failed to Load Prompts</p>
+                  <p className="text-xs text-red-400 mt-1">
+                    {loadError}
                   </p>
-                  {promptStatus.error && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      Error: {promptStatus.error}
-                    </p>
-                  )}
                   <div className="mt-2">
                     <button
                       onClick={async () => {
                         setLoading(true);
-                        await promptManager.reload();
-                        window.location.reload(); // Reload to get fresh state
+                        setLoadError(null);
+                        try {
+                          await promptManager.reload();
+                          const allPrompts = await promptManager.getAllPrompts();
+                          setPrompts(allPrompts);
+                        } catch (error) {
+                          setLoadError(error instanceof Error ? error.message : 'Failed to load prompts');
+                        } finally {
+                          setLoading(false);
+                        }
                       }}
-                      className="text-xs px-2 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded transition-colors"
+                      className="text-xs px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
                     >
-                      Retry Database Connection
+                      Retry
                     </button>
                   </div>
                 </div>

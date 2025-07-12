@@ -13,6 +13,12 @@ export class AIRateLimiter {
   
   // Rate limits per model tier (requests per minute)
   private readonly rateLimits: Record<string, number> = {
+    // Gemini 2.5 models (current)
+    'gemini-2.5-flash-lite-preview-06-17': 100, // 100 RPM
+    'gemini-2.5-flash': 60, // 60 RPM
+    'gemini-2.5-pro': 30, // 30 RPM
+    
+    // Legacy models (kept for backwards compatibility)
     'gemini-2.0-flash-lite-preview-06-17': 1500, // 1500 RPM
     'gemini-2.0-flash-exp': 1000, // 1000 RPM  
     'gemini-1.5-pro': 360, // 360 RPM
@@ -20,8 +26,8 @@ export class AIRateLimiter {
     'gemini-1.5-flash-8b': 4000 // 4000 RPM
   };
   
-  // Default conservative rate limit
-  private defaultRateLimit = 300; // 300 RPM
+  // Default conservative rate limit (based on lowest Gemini 2.5 tier)
+  private defaultRateLimit = 30; // 30 RPM (matches Gemini 2.5 Pro limit)
   
   // Minimum delay between requests (ms)
   private getMinDelay(modelName: string): number {
@@ -45,10 +51,18 @@ export class AIRateLimiter {
             const result = await fn();
             return result;
           } catch (error: any) {
-            // Handle rate limit errors with retry
-            if (error?.status === 429 || error?.message?.includes('429')) {
+            // Handle rate limit and service unavailable errors with retry
+            const isRetryableError = 
+              error?.status === 429 || 
+              error?.status === 503 ||
+              error?.message?.includes('429') ||
+              error?.message?.includes('503') ||
+              error?.message?.toLowerCase().includes('service unavailable');
+              
+            if (isRetryableError) {
               if (retryCount < this.retryDelays.length) {
-                console.warn(`[AIRateLimiter] Rate limited, retrying in ${this.retryDelays[retryCount]}ms...`);
+                const errorType = error?.status === 429 ? 'Rate limited' : 'Service unavailable';
+                console.warn(`[AIRateLimiter] ${errorType}, retrying in ${this.retryDelays[retryCount]}ms... (attempt ${retryCount + 1}/${this.retryDelays.length})`);
                 await new Promise(r => setTimeout(r, this.retryDelays[retryCount]));
                 return this.execute(fn, modelName, priority, retryCount + 1);
               }

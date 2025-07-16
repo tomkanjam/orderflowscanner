@@ -30,7 +30,8 @@ function runTraderOnHistoricalData(
   symbol: string,
   klines: Kline[],
   ticker: Ticker,
-  config: HistoricalScanConfig
+  config: HistoricalScanConfig,
+  symbolData: Record<string, Kline[]>
 ): TraderHistoricalSignal[] {
   const signals: TraderHistoricalSignal[] = [];
   
@@ -64,14 +65,15 @@ function runTraderOnHistoricalData(
       }
     });
     
-    // Create the filter function
+    // Create the filter function with timeframes support
     const filterFunction = new Function(
       'ticker', 
       'klines', 
       'helpers',
       'hvnNodes',
+      'timeframes',
       `try { ${trader.filterCode} } catch(e) { console.error('Trader ${trader.id} filter error:', e); return false; }`
-    ) as (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: any[]) => boolean;
+    ) as (ticker: Ticker, klines: Kline[], helpers: typeof helpers, hvnNodes: any[], timeframes: Record<string, Kline[]>) => boolean;
     
     const { lookbackBars, maxSignalsPerSymbol } = config;
     const startIndex = Math.max(0, klines.length - lookbackBars);
@@ -91,8 +93,21 @@ function runTraderOnHistoricalData(
           lookback: Math.min(historicalSlice.length, 100) 
         });
         
-        // Run the filter with wrapped helpers
-        const matches = filterFunction(ticker, historicalSlice, wrappedHelpers, hvnNodes);
+        // Create timeframes object with historical slices for each interval
+        const timeframes: Record<string, Kline[]> = {};
+        for (const [interval, fullKlines] of Object.entries(symbolData)) {
+          // Create historical slice for each timeframe up to the current point
+          if (fullKlines && fullKlines.length > 0) {
+            // Find the corresponding historical point for this interval
+            const currentTimestamp = historicalSlice[historicalSlice.length - 1][0];
+            let sliceEndIndex = fullKlines.findIndex(k => k[0] > currentTimestamp);
+            if (sliceEndIndex === -1) sliceEndIndex = fullKlines.length;
+            timeframes[interval] = fullKlines.slice(0, sliceEndIndex);
+          }
+        }
+        
+        // Run the filter with wrapped helpers and timeframes
+        const matches = filterFunction(ticker, historicalSlice, wrappedHelpers, hvnNodes, timeframes);
         
         if (matches) {
           const kline = klines[i];
@@ -161,7 +176,7 @@ self.addEventListener('message', (event: MessageEvent<ScanMessage>) => {
         }
         
         // Run the trader's filter on this symbol's historical data
-        const signals = runTraderOnHistoricalData(trader, symbol, klines, ticker, config);
+        const signals = runTraderOnHistoricalData(trader, symbol, klines, ticker, config, symbolData);
         allSignals.push(...signals);
         
         completedOperations++;

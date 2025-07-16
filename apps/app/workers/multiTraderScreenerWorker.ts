@@ -51,7 +51,7 @@ function runTraderFilter(
   tickers: Record<string, Ticker>,
   historicalData: Record<string, Record<string, Kline[]>>
 ): TraderResult {
-  // console.log(`[Worker] Running filter for trader ${traderId}, checking ${symbols.length} symbols, refresh: ${refreshInterval}, timeframes: ${requiredTimeframes.join(',')}`);
+  console.log(`[Worker] Running filter for trader ${traderId}, checking ${symbols.length} symbols, refresh: ${refreshInterval}, timeframes: ${requiredTimeframes.join(',')}`);
   const previousMatches = previousMatchesByTrader.get(traderId) || new Set<string>();
   
   try {
@@ -60,7 +60,7 @@ function runTraderFilter(
     
     try {
       // Log the first 500 chars of filter code
-      // console.log(`[Worker] Trader ${traderId} filter code preview: ${filterCode.substring(0, 500)}...`);
+      console.log(`[Worker] Trader ${traderId} filter code preview: ${filterCode.substring(0, 500)}...`);
       
       filterFunction = new Function(
         'ticker', 
@@ -75,7 +75,7 @@ function runTraderFilter(
         }`
       ) as (ticker: Ticker, timeframes: Record<string, Kline[]>, helpers: typeof helpers, hvnNodes: any[]) => boolean;
       
-      // console.log(`[Worker] Successfully created filter function for trader ${traderId}`);
+      console.log(`[Worker] Successfully created filter function for trader ${traderId}`);
     } catch (syntaxError) {
       console.error(`[Worker] Trader ${traderId} has invalid filter code syntax:`, syntaxError);
       return { traderId, filteredSymbols: [], signalSymbols: [] };
@@ -122,13 +122,13 @@ function runTraderFilter(
       // Log sample data for first valid symbol
       if (!loggedSample) {
         loggedSample = true;
-        // console.log(`[Worker] Sample data for ${symbol}:`, {
-        //   tickerPrice: ticker.c,
-        //   tickerVolume: ticker.v,
-        //   tickerChange: ticker.P,
-        //   timeframes: Object.keys(timeframes).map(tf => ({ tf, klines: timeframes[tf].length })),
-        //   refreshInterval: refreshInterval
-        // });
+        console.log(`[Worker] Sample data for ${symbol}:`, {
+          tickerPrice: ticker.c,
+          tickerVolume: ticker.v,
+          tickerChange: ticker.P,
+          timeframes: Object.keys(timeframes).map(tf => ({ tf, klines: timeframes[tf].length })),
+          refreshInterval: refreshInterval
+        });
       }
       
       checkedCount++;
@@ -147,11 +147,11 @@ function runTraderFilter(
         // Debug logging can be added here if needed for specific traders
         
         if (matches) {
-          // console.log(`[Worker] ✅ Trader ${traderId} matched symbol ${symbol}`, {
-          //   price: ticker.c,
-          //   change: ticker.P,
-          //   volume: ticker.v
-          // });
+          console.log(`[Worker] ✅ Trader ${traderId} matched symbol ${symbol}`, {
+            price: ticker.c,
+            change: ticker.P,
+            volume: ticker.v
+          });
           filteredSymbols.push(symbol);
           currentMatches.add(symbol);
           
@@ -174,15 +174,15 @@ function runTraderFilter(
     }
     
     // Trader filter complete with summary
-    // console.log(`[Worker] Trader ${traderId} filter complete:`, {
-    //   totalSymbols: symbols.length,
-    //   skippedNoData,
-    //   skippedInsufficientData,
-    //   checkedSymbols: checkedCount,
-    //   matchedSymbols: filteredSymbols.length,
-    //   newSignals: signalSymbols.length,
-    //   matches: filteredSymbols.slice(0, 10) // Show first 10 matches
-    // });
+    console.log(`[Worker] Trader ${traderId} filter complete:`, {
+      totalSymbols: symbols.length,
+      skippedNoData,
+      skippedInsufficientData,
+      checkedSymbols: checkedCount,
+      matchedSymbols: filteredSymbols.length,
+      newSignals: signalSymbols.length,
+      matches: filteredSymbols.slice(0, 10) // Show first 10 matches
+    });
     
     // Update the cache for next run
     previousMatchesByTrader.set(traderId, currentMatches);

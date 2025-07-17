@@ -904,9 +904,7 @@ ${conditionsList}
 Kline interval: ${klineInterval}`;
 
     try {
-        // Apply trader persona to system instruction
-        const enhancedSystemInstruction = enhancePromptWithPersona(baseSystemInstruction);
-        
+        // DO NOT use persona for filter code - we want clean, concise code
         const model = getGenerativeModel(ai, {
             model: modelName,
             generationConfig: {
@@ -915,7 +913,7 @@ Kline interval: ${klineInterval}`;
         });
 
         const result = await aiRateLimiter.execute(
-            () => model.generateContent(enhancedSystemInstruction),
+            () => model.generateContent(baseSystemInstruction),
             modelName,
             2 // Priority 2 for filter regeneration
         );

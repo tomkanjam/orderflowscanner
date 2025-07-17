@@ -421,7 +421,13 @@ Keep your analysis focused and actionable for traders.`,
 
 You will receive an array of conditions that describe a trading filter. Your task is to:
 1. Analyze the conditions to determine which timeframes are needed
-2. Generate the JavaScript function body that implements these conditions
+2. Generate CLEAN, CONCISE JavaScript function body that implements these conditions
+
+CRITICAL RULES:
+1. Generate ONLY the necessary code - NO personal commentary, NO trading philosophy, NO explanations
+2. Use minimal comments - only for clarifying complex calculations if needed
+3. Keep variable names short and clear
+4. Return the boolean result directly when possible
 
 CRITICAL TIMEFRAME CONSISTENCY RULES:
 - The timeframes in "requiredTimeframes" MUST EXACTLY match the timeframes used in "filterCode"
@@ -452,7 +458,7 @@ Example input:
   "klineInterval": "15m"
 }
 
-Example output:
+Example output (CLEAN CODE - no unnecessary comments):
 {
   "requiredTimeframes": ["15m"],
   "filterCode": "const klines = timeframes['15m'];\\nif (!klines || klines.length < 50) return false;\\n\\nconst rsi = helpers.getLatestRSI(klines, 14);\\nconst sma50 = helpers.calculateMA(klines, 50);\\nconst avgVolume = helpers.calculateAvgVolume(klines, 20);\\nconst currentVolume = parseFloat(klines[klines.length - 1][5]);\\nconst lastClose = parseFloat(klines[klines.length - 1][4]);\\n\\nif (!rsi || !sma50 || !avgVolume) return false;\\n\\nreturn rsi < 30 && lastClose > sma50 && currentVolume > avgVolume * 1.5;"

@@ -423,6 +423,12 @@ You will receive an array of conditions that describe a trading filter. Your tas
 1. Analyze the conditions to determine which timeframes are needed
 2. Generate the JavaScript function body that implements these conditions
 
+CRITICAL TIMEFRAME CONSISTENCY RULES:
+- The timeframes in "requiredTimeframes" MUST EXACTLY match the timeframes used in "filterCode"
+- If you detect "1 hour" or "1h" in conditions, use "1h" in both requiredTimeframes AND timeframes['1h']
+- If you detect "1 minute" or "1m" in conditions, use "1m" in both requiredTimeframes AND timeframes['1m']
+- NEVER mix timeframes - maintain perfect consistency between declaration and usage
+
 Return a JSON object with this structure:
 {
   "requiredTimeframes": ["1m", "5m", ...], // Array of timeframes needed based on the conditions
@@ -483,6 +489,13 @@ IMPORTANT:
 - If the user asks for simple conditions (e.g., "StochRSI below 40"), only implement those conditions
 - Do NOT add extra filters (trend, volume, etc.) unless specifically requested
 - Analyze the user's prompt to determine which timeframes are mentioned
+
+CRITICAL TIMEFRAME CONSISTENCY RULES:
+1. The timeframes you specify in "requiredTimeframes" MUST EXACTLY match the timeframes you use in "filterCode"
+2. If you set requiredTimeframes: ["1h"], then filterCode MUST use: const klines = timeframes['1h'];
+3. If you set requiredTimeframes: ["1m", "5m"], then filterCode MUST use BOTH: timeframes['1m'] AND timeframes['5m']
+4. NEVER mix timeframes - if requiredTimeframes says "1h", do NOT use timeframes['1m'] in the code
+5. When the user mentions a specific timeframe (e.g., "on the 1-hour chart"), use that timeframe consistently throughout
 
 Return a JSON object with EXACTLY this structure:
 {

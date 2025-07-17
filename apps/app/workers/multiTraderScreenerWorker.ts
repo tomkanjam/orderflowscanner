@@ -116,6 +116,15 @@ function runTraderFilter(
       
       if (!hasAllRequiredData) {
         skippedInsufficientData++;
+        if (skippedInsufficientData <= 3) {
+          console.log(`[Worker] Skipping ${symbol} - insufficient data for required timeframes:`, {
+            requiredTimeframes,
+            availableTimeframes: Object.keys(symbolData).map(tf => ({
+              tf,
+              klineCount: symbolData[tf]?.length || 0
+            }))
+          });
+        }
         continue;
       }
       
@@ -127,7 +136,8 @@ function runTraderFilter(
           tickerVolume: ticker.v,
           tickerChange: ticker.P,
           timeframes: Object.keys(timeframes).map(tf => ({ tf, klines: timeframes[tf].length })),
-          refreshInterval: refreshInterval
+          refreshInterval: refreshInterval,
+          requiredTimeframes: requiredTimeframes
         });
       }
       

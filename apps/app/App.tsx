@@ -19,7 +19,8 @@ import { useStrategy } from './src/contexts/StrategyContext';
 import { signalManager } from './src/services/signalManager';
 import { tradeManager } from './src/services/tradeManager';
 import { traderManager } from './src/services/traderManager';
-import { useMultiTraderScreener } from './hooks/useMultiTraderScreener';
+import { Trader } from './src/abstractions/trader.interfaces';
+import { useIndividualTraderIntervals } from './hooks/useIndividualTraderIntervals';
 import { TraderResult } from './workers/multiTraderScreenerWorker';
 import { useIndicatorWorker } from './hooks/useIndicatorWorker';
 import ActivityPanel from './src/components/ActivityPanel';
@@ -48,7 +49,7 @@ const AppContent: React.FC = () => {
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
   const [historicalData, setHistoricalData] = useState<Map<string, Map<KlineInterval, Kline[]>>>(new Map());
-  const [traders, setTraders] = useState<any[]>([]);
+  const [traders, setTraders] = useState<Trader[]>([]);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
   
   // Helper to get klines for a specific interval
@@ -1006,17 +1007,15 @@ const AppContent: React.FC = () => {
   // });
   
   const { 
-    isRunning: isMultiTraderRunning, 
-    resetCache: resetMultiTraderCache,
-    clearTraderCache 
-  } = useMultiTraderScreener({
+    clearTraderCache,
+    getIntervalStatus 
+  } = useIndividualTraderIntervals({
     traders,
     symbols: allSymbols,
     tickers,
     historicalData,
     onResults: handleMultiTraderResults,
-    enabled: screenerEnabled,
-    interval: 5000 // Run every 5 seconds
+    enabled: screenerEnabled
   });
 
   // Subscribe to trader deletions to clean up worker cache

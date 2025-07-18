@@ -39,6 +39,8 @@ type ScreenerHelpersType = typeof screenerHelpers;
 declare global {
   interface Window {
     __tickerDebugLogged?: boolean;
+    __tickerUpdateDebugLogged?: boolean;
+    __noCallbackDebugLogged?: boolean;
   }
 }
 
@@ -182,13 +184,7 @@ const AppContent: React.FC = () => {
           });
           return newTickers;
         });
-        // Notify StatusBar of updates
-        if (dataUpdateCallbackRef.current) {
-          // Call once per update in the batch
-          updates.forEach(() => dataUpdateCallbackRef.current?.());
-        } else if (updates.length > 0) {
-          console.log('[StatusBar Debug] Updates received but no callback registered:', updates.length);
-        }
+        // Don't call here anymore - we call directly in handleTickerUpdateStable
       },
       50 // Batch updates every 50ms
     );
@@ -480,6 +476,7 @@ const AppContent: React.FC = () => {
       
       // First, fetch top pairs and tickers
       const { symbols, tickers: initialTickers, klinesData: oneMinuteData } = await fetchTopPairsAndInitialKlines(KlineInterval.ONE_MINUTE, klineLimit);
+      console.log('[StatusBar Debug] Fetched symbols:', symbols.length, 'tickers:', initialTickers.size);
       setAllSymbols(symbols);
       setTickers(initialTickers);
       
@@ -644,6 +641,14 @@ const AppContent: React.FC = () => {
 
   // Create stable handlers using useCallback
   const handleTickerUpdateStable = useCallback((tickerUpdate: Ticker) => {
+    // Direct callback for immediate tracking
+    if (dataUpdateCallbackRef.current) {
+      dataUpdateCallbackRef.current();
+    } else if (!window.__noCallbackDebugLogged) {
+      console.log('[StatusBar Debug] Ticker update but no callback registered yet');
+      window.__noCallbackDebugLogged = true;
+    }
+    
     // Use batched updater for better performance
     if (tickerBatchUpdater.current) {
       tickerBatchUpdater.current.add(tickerUpdate);
@@ -800,13 +805,20 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     // Only proceed if we have symbols and no error
     if (allSymbols.length === 0) {
+      console.log('[StatusBar Debug] WebSocket connection skipped - no symbols');
       return;
+    } else {
+      console.log('[StatusBar Debug] WebSocket connecting for', allSymbols.length, 'symbols');
     }
 
     let isCleanedUp = false;
 
     const handleTickerUpdate = (tickerUpdate: Ticker) => {
       if (!isCleanedUp) {
+        if (!window.__tickerUpdateDebugLogged) {
+          console.log('[StatusBar Debug] handleTickerUpdate called with:', tickerUpdate.s);
+          window.__tickerUpdateDebugLogged = true;
+        }
         handleTickerUpdateStable(tickerUpdate);
       }
     };
@@ -851,7 +863,7 @@ const AppContent: React.FC = () => {
             if (!isCleanedUp) {
               setStatusText('Live');
               setStatusLightClass('bg-[var(--tm-success)]');
-              // console.log(`[App] WebSocket connected with ${activeIntervals.size} intervals for ${allSymbols.length} symbols`);
+              console.log(`[StatusBar Debug] WebSocket connected with ${allSymbols.length} symbols`);
             }
           },
           onMessage: (event) => {

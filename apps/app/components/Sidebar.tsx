@@ -73,12 +73,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     };
   }, []);
   
-  // Track data updates
+  // Track data updates - monitor ticker and symbol count changes
   useEffect(() => {
-    if (onDataUpdate) {
+    if (tickerCount > 0 || symbolCount > 0) {
       trackUpdate();
     }
-  }, [onDataUpdate, trackUpdate]);
+  }, [tickerCount, symbolCount, trackUpdate]);
 
   const handleTraderCreated = (trader: Trader) => {
     setSelectedTraderId(trader.id);

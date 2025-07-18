@@ -155,6 +155,9 @@ const AppContent: React.FC = () => {
   // Indicator calculation hook
   const { calculateIndicators } = useIndicatorWorker();
   
+  // Data update tracking for StatusBar
+  const [lastDataUpdate, setLastDataUpdate] = useState<number>(Date.now());
+  
   // Batched ticker updater to reduce state updates
   const tickerBatchUpdater = useRef<BatchedUpdater<Ticker>>();
   useEffect(() => {
@@ -172,8 +175,8 @@ const AppContent: React.FC = () => {
           });
           return newTickers;
         });
-        // Trigger data update for StatusBar
-        handleDataUpdate();
+        // Update timestamp for StatusBar
+        setLastDataUpdate(Date.now());
       },
       50 // Batch updates every 50ms
     );
@@ -181,7 +184,7 @@ const AppContent: React.FC = () => {
     return () => {
       tickerBatchUpdater.current?.clear();
     };
-  }, [handleDataUpdate]);
+  }, []);
   
   // Register memory monitoring metrics
   useEffect(() => {
@@ -1129,12 +1132,6 @@ const AppContent: React.FC = () => {
   
   // Calculate active signal count
   const activeSignalCount = allSignals.filter(signal => signal.status === 'active').length;
-  
-  // Data update callback for StatusBar metrics
-  const [dataUpdateTrigger, setDataUpdateTrigger] = useState(0);
-  const handleDataUpdate = useCallback(() => {
-    setDataUpdateTrigger(prev => prev + 1);
-  }, []);
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen relative">
@@ -1143,7 +1140,7 @@ const AppContent: React.FC = () => {
         tickerCount={tickers.size}
         symbolCount={allSymbols.length}
         signalCount={activeSignalCount}
-        onDataUpdate={dataUpdateTrigger > 0 ? handleDataUpdate : undefined}
+        onDataUpdate={lastDataUpdate > 0 ? () => {} : undefined}
       />
       <MainContent
         statusText={statusText}

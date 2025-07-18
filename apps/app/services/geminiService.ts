@@ -1061,15 +1061,11 @@ Remember to:
         
         const metadata = JSON.parse(jsonMatch[0]) as TraderMetadata;
         
-        // Track generation time
-        observability.trackAiCall('generateTraderMetadata', Date.now() - startTime, true);
-        
         // Send completion
         onStream?.({ type: 'complete', metadata });
         
         return metadata;
     } catch (error) {
-        observability.trackAiCall('generateTraderMetadata', Date.now() - startTime, false);
         onStream?.({ type: 'error', error: error as Error });
         throw error;
     }

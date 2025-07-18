@@ -457,6 +457,8 @@ const AppContent: React.FC = () => {
     setSignalLog([]); // Clear signal log on new data load
 
     try {
+      console.log('[StatusBar Debug] loadInitialData starting...');
+      
       // Determine which intervals are needed by active traders
       const activeIntervals = new Set<KlineInterval>();
       const currentTraders = tradersRef.current; // Use ref to get current traders
@@ -509,8 +511,13 @@ const AppContent: React.FC = () => {
       
       setHistoricalData(multiIntervalData);
     } catch (error) {
-      console.error("Error fetching initial data:", error);
+      console.error("[StatusBar Debug] Error fetching initial data:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      console.error("[StatusBar Debug] Error details:", {
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        type: error?.constructor?.name || 'Unknown'
+      });
       setInitialError(`Failed to load initial market data: ${errorMessage}`);
       setAllSymbols([]);
       setTickers(new Map());
@@ -853,8 +860,12 @@ const AppContent: React.FC = () => {
     const allStreams = [...tickerStreams, ...klineStreams].join('/');
     const wsUrl = `wss://stream.binance.com:9443/ws/${allStreams}`;
     
+    console.log('[StatusBar Debug] WebSocket URL length:', wsUrl.length);
+    console.log('[StatusBar Debug] Total streams:', tickerStreams.length + klineStreams.length);
+    
     // Connect using WebSocket manager
     try {
+      console.log('[StatusBar Debug] Calling webSocketManager.connect...');
       webSocketManager.connect(
         'main-connection',
         wsUrl,
@@ -921,7 +932,11 @@ const AppContent: React.FC = () => {
         true // Enable auto-reconnect
       );
     } catch (e) {
-      console.error("Failed to connect WebSocket:", e);
+      console.error("[StatusBar Debug] Failed to connect WebSocket:", e);
+      console.error("[StatusBar Debug] WebSocket error details:", {
+        message: e instanceof Error ? e.message : 'Unknown error',
+        type: e?.constructor?.name || 'Unknown'
+      });
       setStatusText('WS Failed');
       setStatusLightClass('bg-[var(--tm-error)]');
     }

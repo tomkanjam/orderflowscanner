@@ -5,18 +5,26 @@ export async function fetchTopPairsAndInitialKlines(
   interval: KlineInterval,
   klineLimit: number = KLINE_HISTORY_LIMIT
 ): Promise<{ symbols: string[], tickers: Map<string, Ticker>, klinesData: Map<string, Kline[]> }> {
-  const tickerResponse = await fetch(`${API_BASE_URL}/ticker/24hr`);
-  if (!tickerResponse.ok) {
-    throw new Error(`Failed to fetch 24h ticker data. Status: ${tickerResponse.status}`);
-  }
-  const allApiTickers: any[] = await tickerResponse.json();
+  console.log('[StatusBar Debug] Fetching from Binance API:', `${API_BASE_URL}/ticker/24hr`);
+  
+  try {
+    const tickerResponse = await fetch(`${API_BASE_URL}/ticker/24hr`);
+    if (!tickerResponse.ok) {
+      console.error('[StatusBar Debug] Binance API error:', tickerResponse.status, tickerResponse.statusText);
+      throw new Error(`Failed to fetch 24h ticker data. Status: ${tickerResponse.status}`);
+    }
+    const allApiTickers: any[] = await tickerResponse.json();
+    console.log('[StatusBar Debug] Received tickers from Binance:', allApiTickers.length);
 
   const spotTickers = allApiTickers
     .filter(t => t.symbol.endsWith('USDT') && !t.symbol.includes('_') && !t.symbol.includes('UP') && !t.symbol.includes('DOWN') && !t.symbol.includes('BEAR') && !t.symbol.includes('BULL') && parseFloat(t.quoteVolume) > 100000) // Basic filtering for spot USDT pairs with decent volume
     .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
     .slice(0, TOP_N_PAIRS_LIMIT);
 
+  console.log('[StatusBar Debug] Filtered to spot tickers:', spotTickers.length, 'limit:', TOP_N_PAIRS_LIMIT);
+
   if (spotTickers.length === 0) {
+    console.error('[StatusBar Debug] No spot tickers found after filtering!');
     throw new Error("Could not retrieve any top volume USDT pairs from Binance.");
   }
 
@@ -47,6 +55,8 @@ export async function fetchTopPairsAndInitialKlines(
 
   await Promise.all(klinePromises);
   
+  console.log('[StatusBar Debug] Klines fetched for', klinesData.size, 'symbols');
+  
   // Filter out symbols for which klines could not be fetched
   const finalSymbols = symbols.filter(s => klinesData.has(s));
   const finalTickersMap = new Map<string, Ticker>();
@@ -59,6 +69,10 @@ export async function fetchTopPairsAndInitialKlines(
 
 
   return { symbols: finalSymbols, tickers: finalTickersMap, klinesData };
+  } catch (error) {
+    console.error('[StatusBar Debug] fetchTopPairsAndInitialKlines failed:', error);
+    throw error;
+  }
 }
 
 export function connectWebSocket(

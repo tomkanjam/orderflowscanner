@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { X, Wand2, Code, AlertCircle, Loader2, ChevronLeft, Shield } from 'lucide-react';
-import { generateTrader, regenerateFilterCode } from '../../services/geminiService';
+import { generateTrader, generateFilterCode } from '../../services/geminiService';
 import { traderManager } from '../services/traderManager';
 import { Trader, TraderGeneration } from '../abstractions/trader.interfaces';
 import { MODEL_TIERS, type ModelTier } from '../constants/models';
@@ -45,6 +45,12 @@ export function TraderForm({
   const [regeneratingCode, setRegeneratingCode] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingTraderData, setPendingTraderData] = useState<any>(null);
+  
+  // Streaming state
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [streamingConditions, setStreamingConditions] = useState<string[]>([]);
+  const [streamingStrategy, setStreamingStrategy] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
   
   // Admin fields for built-in signals
   const [isBuiltIn, setIsBuiltIn] = useState(editingTrader?.isBuiltIn || false);
@@ -145,6 +151,11 @@ export function TraderForm({
     setPendingTraderData(null);
     originalConditionsRef.current = [];
     originalIntervalRef.current = KlineInterval.ONE_MINUTE;
+    // Clear streaming state
+    setGenerationProgress(0);
+    setStreamingConditions([]);
+    setStreamingStrategy('');
+    setIsStreaming(false);
     // Clear any pending prompt from localStorage
     localStorage.removeItem('pendingScreenerPrompt');
   };
@@ -170,9 +181,43 @@ export function TraderForm({
 
     setGenerating(true);
     setError('');
+    setIsStreaming(true);
+    setGenerationProgress(0);
+    setStreamingConditions([]);
+    setStreamingStrategy('');
 
     try {
-      const generated = await generateTrader(aiPrompt);
+      const generated = await generateTrader(
+        aiPrompt, 
+        modelTier === 'fast' ? 'gemini-2.5-flash' : 'gemini-2.5-pro',
+        filterInterval,
+        // Streaming callback
+        (update) => {
+          switch (update.type) {
+            case 'progress':
+              setGenerationProgress(update.progress || 0);
+              break;
+            case 'condition':
+              if (update.condition) {
+                setStreamingConditions(prev => [...prev, update.condition!]);
+              }
+              break;
+            case 'strategy':
+              if (update.strategyText) {
+                setStreamingStrategy(update.strategyText);
+              }
+              break;
+            case 'complete':
+              setIsStreaming(false);
+              break;
+            case 'error':
+              setIsStreaming(false);
+              setError(update.error?.message || 'Generation failed');
+              break;
+          }
+        }
+      );
+      
       setGeneratedTrader(generated);
       
       // Switch to manual mode and populate fields
@@ -191,6 +236,7 @@ export function TraderForm({
       localStorage.removeItem('pendingScreenerPrompt');
     } finally {
       setGenerating(false);
+      setIsStreaming(false);
     }
   };
   
@@ -252,7 +298,7 @@ export function TraderForm({
         // Regenerate filter code
         setRegeneratingCode(true);
         try {
-          const { filterCode, requiredTimeframes } = await regenerateFilterCode(validConditions, 'gemini-2.5-pro', filterInterval);
+          const { filterCode, requiredTimeframes } = await generateFilterCode(validConditions, 'gemini-2.5-pro', filterInterval);
           finalFilterCode = filterCode;
           // Update the generated trader with new required timeframes if available
           if (requiredTimeframes && generatedTrader) {
@@ -472,6 +518,56 @@ export function TraderForm({
               </>
             )}
           </button>
+
+          {/* Streaming Progress Display */}
+          {isStreaming && (
+            <div className="space-y-3 p-4 bg-[var(--tm-bg-secondary)] border border-[var(--tm-border)] rounded-lg">
+              {/* Progress Bar */}
+              <div>
+                <div className="flex justify-between text-xs text-[var(--tm-text-muted)] mb-1">
+                  <span>Generating trader...</span>
+                  <span>{generationProgress}%</span>
+                </div>
+                <div className="w-full h-2 bg-[var(--tm-bg-primary)] rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[var(--tm-accent)] transition-all duration-300"
+                    style={{ width: `${generationProgress}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Streaming Conditions */}
+              {streamingConditions.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-[var(--tm-text-primary)] mb-2">Filter Conditions:</h4>
+                  <div className="space-y-1">
+                    {streamingConditions.map((condition, index) => (
+                      <div key={index} className="flex items-start gap-2 animate-fadeIn">
+                        <span className="text-[var(--tm-accent)] text-xs mt-0.5">▸</span>
+                        <span className="text-sm text-[var(--tm-text-secondary)]">{condition}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Streaming Strategy */}
+              {streamingStrategy && (
+                <div>
+                  <h4 className="text-sm font-medium text-[var(--tm-text-primary)] mb-2">Strategy Instructions:</h4>
+                  <p className="text-sm text-[var(--tm-text-secondary)] leading-relaxed">{streamingStrategy}</p>
+                </div>
+              )}
+
+              {/* Loading Spinner for current step */}
+              <div className="flex items-center gap-2 text-sm text-[var(--tm-text-muted)]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>
+                  {generationProgress < 90 ? 'Analyzing market patterns...' : 'Generating filter code...'}
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="text-xs text-[var(--tm-text-muted)]">
             The AI will create a complete trader including filter conditions, strategy instructions, and risk parameters based on your description.

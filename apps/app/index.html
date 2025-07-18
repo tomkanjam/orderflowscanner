@@ -34,6 +34,14 @@
             0% { background-color: rgba(239, 68, 68, 0.3); }
             100% { background-color: transparent; }
         }
+        /* Fade in animation for streaming content */
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(4px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-out;
+        }
         /* Custom scrollbar for webkit browsers */
         ::-webkit-scrollbar {
             width: 8px;

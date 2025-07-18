@@ -9,6 +9,7 @@ import { TraderGeneration } from '../src/abstractions/trader.interfaces';
 import { enhancePromptWithPersona } from '../src/constants/traderPersona';
 import { promptManager } from '../src/services/promptManager';
 import { aiRateLimiter } from '../src/utils/aiRateLimiter';
+import { TraderMetadata, StreamingUpdate } from '../src/types/trader-generation.types';
 
 // Simple indicator executor for analysis (full version is in worker)
 function executeIndicatorFunction(
@@ -879,7 +880,7 @@ export async function getSymbolAnalysis(
 }
 
 // Regenerate filter code from human-readable conditions
-export async function regenerateFilterCode(
+export async function generateFilterCode(
     conditions: string[],
     modelName: string = 'gemini-2.5-pro',
     klineInterval: string = '1h'
@@ -957,26 +958,26 @@ Kline interval: ${klineInterval}`;
     }
 }
 
-export async function generateTrader(
+// Generate trader metadata with streaming support (Step 1)
+export async function generateTraderMetadata(
     userPrompt: string,
     modelName: string = 'gemini-2.5-pro',
-    klineInterval: string = '1h'
-): Promise<TraderGeneration> {
+    onStream?: (update: StreamingUpdate) => void
+): Promise<TraderMetadata> {
     // Get the prompt from the prompt manager
-    const baseSystemInstruction = await promptManager.getActivePromptContent('generate-trader', {
+    const baseSystemInstruction = await promptManager.getActivePromptContent('generate-trader-metadata', {
         userPrompt: userPrompt,
-        modelName: modelName,
-        klineInterval: klineInterval
+        modelName: modelName
     });
 
     if (!baseSystemInstruction) {
-        throw new Error('Failed to load generate-trader prompt');
+        throw new Error('Failed to load generate-trader-metadata prompt');
     }
 
-    const prompt = `Create a complete trader based on this strategy: "${userPrompt}"
+    const prompt = `Create trader metadata based on this strategy: "${userPrompt}"
 
 Remember to:
-1. Make the filter and strategy work together
+1. Create clear, testable conditions
 2. Include appropriate risk management
 3. Suggest relevant indicators
 4. Keep the name short and descriptive`;
@@ -987,9 +988,13 @@ Remember to:
         // Apply trader persona to system instruction
         const enhancedSystemInstruction = enhancePromptWithPersona(baseSystemInstruction);
         
-        const model = getGenerativeModel(ai, { model: modelName });
+        const model = getGenerativeModel(ai, { 
+            model: modelName,
+            // No responseMimeType for streaming
+        });
+
         const result = await aiRateLimiter.execute(
-            () => model.generateContent({
+            () => model.generateContentStream({
                 systemInstruction: enhancedSystemInstruction,
                 contents: [{ role: 'user', parts: [{ text: prompt }] }]
             }),
@@ -997,42 +1002,146 @@ Remember to:
             1 // Priority 1 for trader generation
         );
         
-        const response = result.response;
-        const text = response.text();
+        let buffer = '';
+        let partialJson = '';
+        let isJsonStarted = false;
         
-        // Log the full Gemini response for debugging
-        console.log('[TRADER_GENERATION] Full Gemini response:', text);
-        console.log('[TRADER_GENERATION] Response length:', text.length);
+        // Send initial progress
+        onStream?.({ type: 'progress', progress: 0 });
+        
+        // Process the stream
+        for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
+            buffer += chunkText;
+            
+            // Look for JSON start
+            if (!isJsonStarted && buffer.includes('{')) {
+                isJsonStarted = true;
+                const jsonStartIndex = buffer.indexOf('{');
+                partialJson = buffer.substring(jsonStartIndex);
+            } else if (isJsonStarted) {
+                partialJson += chunkText;
+            }
+            
+            // Try to extract and stream conditions as they appear
+            if (isJsonStarted && partialJson.includes('"filterConditions"')) {
+                const conditionsMatch = partialJson.match(/"filterConditions"\s*:\s*\[([\s\S]*?)\]/);
+                if (conditionsMatch) {
+                    try {
+                        const conditionsArray = JSON.parse(`[${conditionsMatch[1]}]`);
+                        conditionsArray.forEach((condition: string) => {
+                            onStream?.({ type: 'condition', condition });
+                        });
+                    } catch (e) {
+                        // Partial JSON, continue buffering
+                    }
+                }
+            }
+            
+            // Try to extract strategy instructions
+            if (isJsonStarted && partialJson.includes('"strategyInstructions"')) {
+                const strategyMatch = partialJson.match(/"strategyInstructions"\s*:\s*"([^"]*)"/);
+                if (strategyMatch) {
+                    onStream?.({ type: 'strategy', strategyText: strategyMatch[1] });
+                }
+            }
+            
+            // Update progress
+            onStream?.({ 
+                type: 'progress', 
+                progress: Math.min(90, Math.floor((partialJson.length / 2000) * 100)) 
+            });
+        }
+        
+        // Parse the complete response
+        const jsonMatch = buffer.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            throw new Error('No JSON found in response');
+        }
+        
+        const metadata = JSON.parse(jsonMatch[0]) as TraderMetadata;
+        
+        // Track generation time
+        observability.trackAiCall('generateTraderMetadata', Date.now() - startTime, true);
+        
+        // Send completion
+        onStream?.({ type: 'complete', metadata });
+        
+        return metadata;
+    } catch (error) {
+        observability.trackAiCall('generateTraderMetadata', Date.now() - startTime, false);
+        onStream?.({ type: 'error', error: error as Error });
+        throw error;
+    }
+}
+
+// Two-step trader generation - for backward compatibility
+export async function generateTrader(
+    userPrompt: string,
+    modelName: string = 'gemini-2.5-pro',
+    klineInterval: string = '1h',
+    onStream?: (update: StreamingUpdate) => void
+): Promise<TraderGeneration> {
+    const startTime = Date.now();
+
+    try {
+        // Step 1: Generate metadata with streaming
+        console.log('[generateTrader] Step 1: Generating metadata...');
+        const metadata = await generateTraderMetadata(userPrompt, modelName, onStream);
+        
+        // Step 2: Generate filter code
+        console.log('[generateTrader] Step 2: Generating filter code...');
+        onStream?.({ type: 'progress', progress: 95 });
+        
+        const { filterCode, requiredTimeframes } = await generateFilterCode(
+            metadata.filterConditions,
+            modelName,
+            klineInterval
+        );
+        
+        // Combine results
+        const traderGeneration: TraderGeneration = {
+            suggestedName: metadata.suggestedName,
+            description: metadata.description,
+            filterCode: filterCode,
+            filterDescription: metadata.filterConditions,
+            strategyInstructions: metadata.strategyInstructions,
+            indicators: metadata.indicators,
+            riskParameters: metadata.riskParameters,
+            requiredTimeframes: requiredTimeframes
+        };
         
         // Track the generation
         await observability.trackGeneration(
-            prompt,
+            userPrompt,
             modelName,
             klineInterval,
             250, // Default kline limit for trader generation
-            text,
-            response.usageMetadata,
+            JSON.stringify(traderGeneration),
+            null, // Usage metadata not available in streaming
             Date.now() - startTime
         );
         
-        // Parse and validate the response
-        const parsed = parseAndValidateTraderGeneration(text);
-        return parsed;
+        console.log('[generateTrader] Successfully generated trader:', traderGeneration.suggestedName);
+        onStream?.({ type: 'complete' });
+        
+        return traderGeneration;
     } catch (error) {
-        console.error('Error generating trader:', error);
+        console.error('[generateTrader] Generation failed:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         
         await observability.trackGeneration(
-            prompt,
+            userPrompt,
             modelName,
             klineInterval,
-            250, // Default kline limit for trader generation
+            250,
             null,
             null,
             Date.now() - startTime,
             errorMessage
         );
         
+        onStream?.({ type: 'error', error: error as Error });
         throw new Error(`Trader generation failed: ${errorMessage}`);
     }
 }

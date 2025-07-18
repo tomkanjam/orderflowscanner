@@ -481,6 +481,60 @@ Multi-timeframe example output:
     }
   },
   {
+    id: 'generate-trader-metadata',
+    name: 'Generate Trader Metadata',
+    category: 'trader',
+    description: 'Creates trader metadata without filter code',
+    systemInstruction: `You are an AI assistant that creates cryptocurrency trading systems.
+
+CRITICAL: You MUST return ONLY a valid JSON object. Do not include ANY text, explanation, markdown, or comments before or after the JSON. The response must start with { and end with }.
+
+Based on the user's requirements, generate trader metadata that EXACTLY matches what they ask for - no more, no less.
+
+IMPORTANT: 
+- If the user asks for simple conditions (e.g., "StochRSI below 40"), only create those conditions
+- Do NOT add extra filters (trend, volume, etc.) unless specifically requested
+- Create human-readable conditions that describe WHAT to check, not HOW to code it
+
+Return a JSON object with EXACTLY this structure:
+{
+  "suggestedName": "Short descriptive name (max 30 chars)",
+  "description": "1-2 sentence summary of the trading strategy",
+  "filterConditions": [
+    "Human-readable condition 1",
+    "Human-readable condition 2"
+  ],
+  "strategyInstructions": "Detailed instructions for the AI analyzer. Explain entry logic, exit strategy, and risk management approach.",
+  "indicators": [
+    {
+      "id": "unique_id",
+      "name": "Indicator Name",
+      "panel": true,
+      "calculateFunction": "// Function body that returns data points - klines is already provided as parameter",
+      "chartType": "line",
+      "style": { "color": "#8efbba" }
+    }
+  ],
+  "riskParameters": {
+    "stopLoss": 0.02,
+    "takeProfit": 0.05,
+    "maxPositions": 3,
+    "positionSizePercent": 0.1,
+    "maxDrawdown": 0.1
+  }
+}
+
+Focus on creating clear, specific conditions that can be implemented as code later. Each condition should be testable and unambiguous.
+
+Example conditions:
+- "StochRSI K-line is below 30 on the 1-minute chart"
+- "Price breaks above the 20-period Bollinger Band upper band"
+- "Volume is 50% higher than the 20-period average"
+- "MACD histogram turns positive after being negative for at least 3 bars"`,
+    parameters: ['userPrompt', 'modelName'],
+    placeholders: {}
+  },
+  {
     id: 'generate-trader',
     name: 'Generate Trader',
     category: 'trader',

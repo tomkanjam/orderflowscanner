@@ -1145,7 +1145,7 @@ const AppContent: React.FC = () => {
         tickerCount={tickers.size}
         symbolCount={allSymbols.length}
         signalCount={activeSignalCount}
-        onDataUpdate={lastDataUpdate > 0 ? () => {} : undefined}
+        onDataUpdate={lastDataUpdate}
       />
       <MainContent
         statusText={statusText}

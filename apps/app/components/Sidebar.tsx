@@ -20,7 +20,7 @@ interface SidebarProps {
   tickerCount?: number;
   symbolCount?: number;
   signalCount?: number;
-  onDataUpdate?: () => void;
+  onDataUpdate?: number;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -84,12 +84,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     };
   }, []);
   
-  // Track data updates - monitor ticker and symbol count changes
+  // Track data updates - monitor when onDataUpdate timestamp changes
   useEffect(() => {
-    if (tickerCount > 0 || symbolCount > 0) {
+    if (onDataUpdate && onDataUpdate > 0) {
       throttledTrackUpdate();
     }
-  }, [tickerCount, symbolCount, throttledTrackUpdate]);
+  }, [onDataUpdate, throttledTrackUpdate]);
 
   const handleTraderCreated = (trader: Trader) => {
     setSelectedTraderId(trader.id);

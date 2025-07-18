@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { Activity, Wifi, WifiOff, TrendingUp, Clock, Zap, Shield, Database } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -10,11 +10,55 @@ interface StatusBarProps {
   tickerCount: number;
   symbolCount: number;
   signalCount: number;
-  lastUpdate: Date | null;
+  lastUpdate: number | null; // Changed from Date to timestamp
   updateFrequency: number; // updates per second
 }
 
-export const StatusBar: React.FC<StatusBarProps> = ({
+// Memoized time display component to prevent re-renders
+const TimeDisplay = memo(({ lastUpdate }: { lastUpdate: number | null }) => {
+  const [displayTime, setDisplayTime] = useState('--');
+  
+  useEffect(() => {
+    if (!lastUpdate) {
+      setDisplayTime('--');
+      return;
+    }
+    
+    const updateDisplay = () => {
+      const seconds = Math.floor((Date.now() - lastUpdate) / 1000);
+      
+      let display: string;
+      if (seconds < 5) {
+        display = 'now';
+      } else if (seconds < 60) {
+        display = `${seconds}s`;
+      } else if (seconds < 3600) {
+        display = `${Math.floor(seconds / 60)}m`;
+      } else {
+        display = `${Math.floor(seconds / 3600)}h`;
+      }
+      
+      setDisplayTime(prev => {
+        // Only update if the display value actually changed
+        return prev !== display ? display : prev;
+      });
+    };
+    
+    // Initial update
+    updateDisplay();
+    
+    // Update only when the display value would change
+    const interval = setInterval(updateDisplay, 1000);
+    
+    return () => clearInterval(interval);
+  }, [lastUpdate]);
+  
+  return <span>{displayTime}</span>;
+});
+
+TimeDisplay.displayName = 'TimeDisplay';
+
+export const StatusBar = memo<StatusBarProps>(({
   connectionStatus,
   tickerCount,
   symbolCount,
@@ -25,7 +69,6 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   const { user } = useAuthContext();
   const { currentTier } = useSubscription();
   const [isDataFlowing, setIsDataFlowing] = useState(false);
-  const [timeAgo, setTimeAgo] = useState('--');
   const dataFlowTimeoutRef = useRef<NodeJS.Timeout>();
   
   // Pulse animation when data is flowing
@@ -47,34 +90,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     };
   }, [updateFrequency]);
   
-  // Update time ago display
-  useEffect(() => {
-    const updateTimeAgo = () => {
-      if (!lastUpdate) {
-        setTimeAgo('--');
-        return;
-      }
-      
-      const seconds = Math.floor((Date.now() - lastUpdate.getTime()) / 1000);
-      if (seconds < 5) {
-        setTimeAgo('now');
-      } else if (seconds < 60) {
-        setTimeAgo(`${seconds}s`);
-      } else if (seconds < 3600) {
-        setTimeAgo(`${Math.floor(seconds / 60)}m`);
-      } else {
-        setTimeAgo(`${Math.floor(seconds / 3600)}h`);
-      }
-    };
-    
-    updateTimeAgo();
-    const interval = setInterval(updateTimeAgo, 1000);
-    
-    return () => clearInterval(interval);
-  }, [lastUpdate]);
-  
-  // Connection status config
-  const connectionConfig = {
+  // Memoize connection config to prevent recreating objects
+  const connectionConfig = useMemo(() => ({
     connected: {
       icon: Wifi,
       color: 'text-green-500',
@@ -96,10 +113,16 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       pulseColor: 'bg-red-500',
       label: 'Offline'
     }
-  };
+  }), []);
   
   const config = connectionConfig[connectionStatus];
   const ConnectionIcon = config.icon;
+  
+  // Memoize tier styles
+  const tierStyles = useMemo(() => ({
+    backgroundColor: `${getTierColor(currentTier)}20`,
+    color: getTierColor(currentTier)
+  }), [currentTier]);
   
   return (
     <div className="absolute bottom-0 left-0 right-0 h-12 bg-[var(--tm-bg-primary)]/95 backdrop-blur-sm border-t border-[var(--tm-border)] px-3 py-2">
@@ -132,7 +155,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           {/* Last Update */}
           <div className="flex items-center gap-1 text-[var(--tm-text-secondary)]">
             <Clock className="w-3.5 h-3.5" />
-            <span>{timeAgo}</span>
+            <TimeDisplay lastUpdate={lastUpdate} />
           </div>
         </div>
         
@@ -150,10 +173,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           {user && (
             <div 
               className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-              style={{ 
-                backgroundColor: `${getTierColor(currentTier)}20`,
-                color: getTierColor(currentTier)
-              }}
+              style={tierStyles}
             >
               <Shield className="w-3.5 h-3.5" />
               <span className="font-medium">{getTierDisplayName(currentTier)}</span>
@@ -163,4 +183,6 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       </div>
     </div>
   );
-};
+});
+
+StatusBar.displayName = 'StatusBar';

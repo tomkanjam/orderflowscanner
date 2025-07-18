@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { TraderList } from '../src/components/TraderList';
 import { TraderForm } from '../src/components/TraderForm';
 import { PortfolioMetrics } from '../src/components/PortfolioMetrics';
@@ -45,6 +45,17 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Data feed metrics
   const { metrics, trackUpdate } = useDataFeedMetrics();
   
+  // Throttle trackUpdate to prevent excessive calls
+  const lastUpdateRef = useRef<number>(0);
+  const throttledTrackUpdate = useCallback(() => {
+    const now = Date.now();
+    // Only track update if at least 100ms have passed
+    if (now - lastUpdateRef.current > 100) {
+      lastUpdateRef.current = now;
+      trackUpdate();
+    }
+  }, [trackUpdate]);
+  
   // Check if user is admin
   const isAdmin = profile?.is_admin === true;
 
@@ -76,9 +87,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Track data updates - monitor ticker and symbol count changes
   useEffect(() => {
     if (tickerCount > 0 || symbolCount > 0) {
-      trackUpdate();
+      throttledTrackUpdate();
     }
-  }, [tickerCount, symbolCount, trackUpdate]);
+  }, [tickerCount, symbolCount, throttledTrackUpdate]);
 
   const handleTraderCreated = (trader: Trader) => {
     setSelectedTraderId(trader.id);

@@ -155,8 +155,9 @@ const AppContent: React.FC = () => {
   // Indicator calculation hook
   const { calculateIndicators } = useIndicatorWorker();
   
-  // Data update tracking for StatusBar
+  // Data update tracking for StatusBar - throttled to prevent excessive updates
   const [lastDataUpdate, setLastDataUpdate] = useState<number>(Date.now());
+  const dataUpdateThrottleRef = useRef<number>(0);
   
   // Batched ticker updater to reduce state updates
   const tickerBatchUpdater = useRef<BatchedUpdater<Ticker>>();
@@ -175,8 +176,12 @@ const AppContent: React.FC = () => {
           });
           return newTickers;
         });
-        // Update timestamp for StatusBar
-        setLastDataUpdate(Date.now());
+        // Update timestamp for StatusBar - throttled
+        const now = Date.now();
+        if (now - dataUpdateThrottleRef.current > 100) {
+          dataUpdateThrottleRef.current = now;
+          setLastDataUpdate(now);
+        }
       },
       50 // Batch updates every 50ms
     );
@@ -184,7 +189,7 @@ const AppContent: React.FC = () => {
     return () => {
       tickerBatchUpdater.current?.clear();
     };
-  }, []);
+  }, [dataUpdateThrottleRef]);
   
   // Register memory monitoring metrics
   useEffect(() => {

@@ -11,13 +11,24 @@ import { User, LogOut, Settings, ChevronDown, LogIn } from 'lucide-react';
 import { useSubscription } from '../src/contexts/SubscriptionContext';
 import { getTierDisplayName, getTierColor } from '../src/utils/tierAccess';
 import { EmailAuthModal } from '../src/components/auth/EmailAuthModal';
+import { StatusBar } from '../src/components/StatusBar';
+import { webSocketManager } from '../src/utils/webSocketManager';
+import { useDataFeedMetrics } from '../hooks/useDataFeedMetrics';
 
 interface SidebarProps {
   onSelectedTraderChange?: (traderId: string | null) => void;
+  tickerCount?: number;
+  symbolCount?: number;
+  signalCount?: number;
+  onDataUpdate?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   onSelectedTraderChange,
+  tickerCount = 0,
+  symbolCount = 0,
+  signalCount = 0,
+  onDataUpdate
 }) => {
   const { user, signOut } = useAuthContext();
   const { currentTier, canAccessTier, profile } = useSubscription();
@@ -27,6 +38,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  
+  // WebSocket connection status
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
+  
+  // Data feed metrics
+  const { metrics, trackUpdate } = useDataFeedMetrics();
   
   // Check if user is admin
   const isAdmin = profile?.is_admin === true;
@@ -42,6 +59,26 @@ const Sidebar: React.FC<SidebarProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+  
+  // Track WebSocket connection status
+  useEffect(() => {
+    const handleStatusChange = (status: 'connected' | 'disconnected' | 'reconnecting') => {
+      setConnectionStatus(status);
+    };
+    
+    webSocketManager.addStatusListener(handleStatusChange);
+    
+    return () => {
+      webSocketManager.removeStatusListener(handleStatusChange);
+    };
+  }, []);
+  
+  // Track data updates
+  useEffect(() => {
+    if (onDataUpdate) {
+      trackUpdate();
+    }
+  }, [onDataUpdate, trackUpdate]);
 
   const handleTraderCreated = (trader: Trader) => {
     setSelectedTraderId(trader.id);
@@ -59,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--tm-bg-secondary)] p-4 md:p-6 flex flex-col border-r border-[var(--tm-border)] h-screen overflow-y-auto relative">
+    <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--tm-bg-secondary)] p-4 md:p-6 flex flex-col border-r border-[var(--tm-border)] h-screen overflow-y-auto relative pb-12">
       {/* Top accent bar */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--tm-accent)] to-[var(--tm-accent-dark)]"></div>
       <h2 className="text-2xl font-bold mb-4 tm-heading-lg">
@@ -212,6 +249,16 @@ const Sidebar: React.FC<SidebarProps> = ({
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         onAuthSuccess={handleAuthSuccess}
+      />
+      
+      {/* Status Bar */}
+      <StatusBar
+        connectionStatus={connectionStatus}
+        tickerCount={tickerCount}
+        symbolCount={symbolCount}
+        signalCount={signalCount}
+        lastUpdate={metrics.lastUpdate}
+        updateFrequency={metrics.updateFrequency}
       />
     </aside>
   );

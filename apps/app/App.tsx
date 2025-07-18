@@ -172,6 +172,8 @@ const AppContent: React.FC = () => {
           });
           return newTickers;
         });
+        // Trigger data update for StatusBar
+        handleDataUpdate();
       },
       50 // Batch updates every 50ms
     );
@@ -179,7 +181,7 @@ const AppContent: React.FC = () => {
     return () => {
       tickerBatchUpdater.current?.clear();
     };
-  }, []);
+  }, [handleDataUpdate]);
   
   // Register memory monitoring metrics
   useEffect(() => {
@@ -1124,11 +1126,24 @@ const AppContent: React.FC = () => {
   // Get signals and trades for activity panel
   const allSignals = signalManager.getSignals();
   const allTrades = tradeManager.getTrades();
+  
+  // Calculate active signal count
+  const activeSignalCount = allSignals.filter(signal => signal.status === 'active').length;
+  
+  // Data update callback for StatusBar metrics
+  const [dataUpdateTrigger, setDataUpdateTrigger] = useState(0);
+  const handleDataUpdate = useCallback(() => {
+    setDataUpdateTrigger(prev => prev + 1);
+  }, []);
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen relative">
       <Sidebar
         onSelectedTraderChange={setSelectedTraderId}
+        tickerCount={tickers.size}
+        symbolCount={allSymbols.length}
+        signalCount={activeSignalCount}
+        onDataUpdate={dataUpdateTrigger > 0 ? handleDataUpdate : undefined}
       />
       <MainContent
         statusText={statusText}

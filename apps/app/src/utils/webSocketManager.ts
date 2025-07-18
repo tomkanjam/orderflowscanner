@@ -26,6 +26,7 @@ class WebSocketManager {
   private maxReconnectDelay = 30000; // 30 seconds
   private initialReconnectDelay = 1000; // 1 second
   private isShuttingDown = false;
+  private statusListeners = new Set<(status: 'connected' | 'disconnected' | 'reconnecting') => void>();
   
   constructor() {
     // Listen for page unload to cleanup
@@ -139,6 +140,8 @@ class WebSocketManager {
         }
       }
     }
+    
+    this.notifyStatusChange();
   }
 
   /**
@@ -236,6 +239,7 @@ class WebSocketManager {
           console.log(`[WebSocketManager] Connection opened: ${key}`);
         }
         config.onOpen.call(this);
+        manager.notifyStatusChange();
       },
       
       onMessage: function(this: WebSocket, event: MessageEvent) {
@@ -264,6 +268,8 @@ class WebSocketManager {
         if (autoReconnect && isCurrent && !manager.isShuttingDown && event.code !== 1000) {
           manager.scheduleReconnect(key, config);
         }
+        
+        manager.notifyStatusChange();
       }
     };
   }
@@ -334,6 +340,56 @@ class WebSocketManager {
       case WebSocket.CLOSED: return 'CLOSED';
       default: return 'UNKNOWN';
     }
+  }
+  
+  /**
+   * Get overall connection status
+   */
+  getOverallStatus(): 'connected' | 'disconnected' | 'reconnecting' {
+    let hasOpen = false;
+    let hasConnecting = false;
+    
+    this.connections.forEach(managed => {
+      if (managed.ws.readyState === WebSocket.OPEN) {
+        hasOpen = true;
+      } else if (managed.ws.readyState === WebSocket.CONNECTING) {
+        hasConnecting = true;
+      }
+    });
+    
+    if (hasOpen) return 'connected';
+    if (hasConnecting || this.reconnectTimeouts.size > 0) return 'reconnecting';
+    return 'disconnected';
+  }
+  
+  /**
+   * Add a status listener
+   */
+  addStatusListener(listener: (status: 'connected' | 'disconnected' | 'reconnecting') => void) {
+    this.statusListeners.add(listener);
+    // Immediately call with current status
+    listener(this.getOverallStatus());
+  }
+  
+  /**
+   * Remove a status listener
+   */
+  removeStatusListener(listener: (status: 'connected' | 'disconnected' | 'reconnecting') => void) {
+    this.statusListeners.delete(listener);
+  }
+  
+  /**
+   * Notify all status listeners
+   */
+  private notifyStatusChange() {
+    const status = this.getOverallStatus();
+    this.statusListeners.forEach(listener => {
+      try {
+        listener(status);
+      } catch (e) {
+        console.error('[WebSocketManager] Error in status listener:', e);
+      }
+    });
   }
 }
 

@@ -35,6 +35,13 @@ import { startMemoryCleanup, getActiveSymbols } from './src/utils/memoryCleanup'
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
 
+// Debug tracking
+declare global {
+  interface Window {
+    __tickerDebugLogged?: boolean;
+  }
+}
+
 // Initialize observability
 observability.setupUnloadHandler();
 
@@ -179,6 +186,8 @@ const AppContent: React.FC = () => {
         if (dataUpdateCallbackRef.current) {
           // Call once per update in the batch
           updates.forEach(() => dataUpdateCallbackRef.current?.());
+        } else if (updates.length > 0) {
+          console.log('[StatusBar Debug] Updates received but no callback registered:', updates.length);
         }
       },
       50 // Batch updates every 50ms
@@ -853,6 +862,11 @@ const AppContent: React.FC = () => {
               if (message.stream && message.data) {
                 if (message.stream.includes('@ticker')) {
                   const tickerData = message.data;
+                  // Debug: Log first ticker message
+                  if (!window.__tickerDebugLogged) {
+                    console.log('[StatusBar Debug] First ticker message received:', tickerData.s);
+                    window.__tickerDebugLogged = true;
+                  }
                   handleTickerUpdate({
                     s: tickerData.s,
                     P: tickerData.P,

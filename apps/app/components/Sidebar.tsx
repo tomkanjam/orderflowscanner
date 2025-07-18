@@ -13,14 +13,14 @@ import { getTierDisplayName, getTierColor } from '../src/utils/tierAccess';
 import { EmailAuthModal } from '../src/components/auth/EmailAuthModal';
 import { StatusBar } from '../src/components/StatusBar';
 import { webSocketManager } from '../src/utils/webSocketManager';
-import { useDataFeedMetrics } from '../hooks/useDataFeedMetrics';
+import { useWebSocketMetrics } from '../hooks/useWebSocketMetrics';
 
 interface SidebarProps {
   onSelectedTraderChange?: (traderId: string | null) => void;
   tickerCount?: number;
   symbolCount?: number;
   signalCount?: number;
-  onDataUpdate?: number;
+  onDataUpdateCallback?: (callback: () => void) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -28,7 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   tickerCount = 0,
   symbolCount = 0,
   signalCount = 0,
-  onDataUpdate
+  onDataUpdateCallback
 }) => {
   const { user, signOut } = useAuthContext();
   const { currentTier, canAccessTier, profile } = useSubscription();
@@ -42,19 +42,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   // WebSocket connection status
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
   
-  // Data feed metrics
-  const { metrics, trackUpdate } = useDataFeedMetrics();
-  
-  // Throttle trackUpdate to prevent excessive calls
-  const lastUpdateRef = useRef<number>(0);
-  const throttledTrackUpdate = useCallback(() => {
-    const now = Date.now();
-    // Only track update if at least 100ms have passed
-    if (now - lastUpdateRef.current > 100) {
-      lastUpdateRef.current = now;
-      trackUpdate();
-    }
-  }, [trackUpdate]);
+  // WebSocket metrics
+  const { metrics, trackUpdate } = useWebSocketMetrics();
   
   // Check if user is admin
   const isAdmin = profile?.is_admin === true;
@@ -84,12 +73,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     };
   }, []);
   
-  // Track data updates - monitor when onDataUpdate timestamp changes
+  // Register the update callback with parent component
   useEffect(() => {
-    if (onDataUpdate && onDataUpdate > 0) {
-      throttledTrackUpdate();
+    if (onDataUpdateCallback) {
+      onDataUpdateCallback(trackUpdate);
     }
-  }, [onDataUpdate, throttledTrackUpdate]);
+  }, [onDataUpdateCallback, trackUpdate]);
 
   const handleTraderCreated = (trader: Trader) => {
     setSelectedTraderId(trader.id);

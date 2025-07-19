@@ -462,10 +462,23 @@ const AppContent: React.FC = () => {
       // Determine which intervals are needed by active traders
       const activeIntervals = new Set<KlineInterval>();
       const currentTraders = tradersRef.current; // Use ref to get current traders
+      console.log('[StatusBar Debug] Current traders:', currentTraders.length);
       currentTraders.forEach(trader => {
-        if (trader.enabled) {
-          const interval = trader.filter?.interval || KlineInterval.ONE_MINUTE;
-          activeIntervals.add(interval);
+        if (trader.enabled && trader.filter) {
+          console.log('[StatusBar Debug] Processing trader:', trader.name, {
+            hasFilter: !!trader.filter,
+            refreshInterval: trader.filter.interval || trader.filter.refreshInterval,
+            requiredTimeframes: trader.filter.requiredTimeframes
+          });
+          
+          // Add the refresh interval
+          const refreshInterval = trader.filter.interval || trader.filter.refreshInterval || KlineInterval.ONE_MINUTE;
+          activeIntervals.add(refreshInterval);
+          
+          // Add all required timeframes
+          if (trader.filter.requiredTimeframes) {
+            trader.filter.requiredTimeframes.forEach(tf => activeIntervals.add(tf));
+          }
         }
       });
       
@@ -473,7 +486,7 @@ const AppContent: React.FC = () => {
       activeIntervals.add(KlineInterval.ONE_MINUTE);
       
       if (activeIntervals.size > 0) {
-        console.log('Loading data for intervals:', Array.from(activeIntervals));
+        console.log('[StatusBar Debug] Loading data for intervals:', Array.from(activeIntervals));
       }
       
       // First, fetch top pairs and tickers
@@ -539,8 +552,11 @@ const AppContent: React.FC = () => {
   }, [traders]);
 
   useEffect(() => {
-    loadInitialData(klineHistoryConfig.screenerLimit);
-  }, [loadInitialData, klineHistoryConfig.screenerLimit, traderIntervalsKey]); // Only reload when intervals actually change
+    // Only load data after traders have been loaded
+    if (traders.length > 0 || tradersRef.current.length > 0) {
+      loadInitialData(klineHistoryConfig.screenerLimit);
+    }
+  }, [loadInitialData, klineHistoryConfig.screenerLimit, traderIntervalsKey, traders.length]); // Only reload when intervals actually change
   
   // Persist signal deduplication threshold to localStorage
   useEffect(() => {
@@ -819,130 +835,139 @@ const AppContent: React.FC = () => {
     }
 
     let isCleanedUp = false;
+    
+    // Add a small delay to avoid React StrictMode rapid cleanup
+    const connectionTimer = setTimeout(() => {
+      if (isCleanedUp) {
+        console.log('[StatusBar Debug] WebSocket connection cancelled - component unmounted');
+        return;
+      }
 
-    const handleTickerUpdate = (tickerUpdate: Ticker) => {
-      if (!isCleanedUp) {
-        if (!window.__tickerUpdateDebugLogged) {
-          console.log('[StatusBar Debug] handleTickerUpdate called with:', tickerUpdate.s);
-          window.__tickerUpdateDebugLogged = true;
-        }
-        handleTickerUpdateStable(tickerUpdate);
-      }
-    };
-
-    const handleKlineUpdate = (symbol: string, interval: KlineInterval, kline: Kline, isClosed: boolean) => {
-      if (!isCleanedUp) {
-        handleKlineUpdateStable(symbol, interval, kline, isClosed);
-      }
-    };
-    
-    // Determine which intervals are needed by active traders
-    const activeIntervals = new Set<KlineInterval>();
-    traders.forEach(trader => {
-      if (trader.enabled) {
-        // Add all required timeframes for this trader
-        const requiredTimeframes = trader.filter?.requiredTimeframes || [trader.filter?.refreshInterval || KlineInterval.ONE_MINUTE];
-        requiredTimeframes.forEach(tf => activeIntervals.add(tf));
-      }
-    });
-    
-    // Always include 1m as default/fallback
-    activeIntervals.add(KlineInterval.ONE_MINUTE);
-    
-    // Create WebSocket URL for multi-interval connection
-    const tickerStreams = allSymbols.map(s => `${s.toLowerCase()}@ticker`);
-    const klineStreams: string[] = [];
-    allSymbols.forEach(symbol => {
-      activeIntervals.forEach(interval => {
-        klineStreams.push(`${symbol.toLowerCase()}@kline_${interval}`);
-      });
-    });
-    const allStreams = [...tickerStreams, ...klineStreams].join('/');
-    const wsUrl = `wss://stream.binance.com:9443/ws/${allStreams}`;
-    
-    console.log('[StatusBar Debug] WebSocket URL length:', wsUrl.length);
-    console.log('[StatusBar Debug] Total streams:', tickerStreams.length + klineStreams.length);
-    
-    // Connect using WebSocket manager
-    try {
-      console.log('[StatusBar Debug] Calling webSocketManager.connect...');
-      webSocketManager.connect(
-        'main-connection',
-        wsUrl,
-        {
-          onOpen: () => {
-            if (!isCleanedUp) {
-              setStatusText('Live');
-              setStatusLightClass('bg-[var(--tm-success)]');
-              console.log(`[StatusBar Debug] WebSocket connected with ${allSymbols.length} symbols`);
-            }
-          },
-          onMessage: (event) => {
-            if (isCleanedUp) return;
-            
-            try {
-              const message = JSON.parse(event.data as string);
-              if (message.stream && message.data) {
-                if (message.stream.includes('@ticker')) {
-                  const tickerData = message.data;
-                  // Debug: Log first ticker message
-                  if (!window.__tickerDebugLogged) {
-                    console.log('[StatusBar Debug] First ticker message received:', tickerData.s);
-                    window.__tickerDebugLogged = true;
-                  }
-                  handleTickerUpdate({
-                    s: tickerData.s,
-                    P: tickerData.P,
-                    c: tickerData.c,
-                    q: tickerData.q,
-                    ...tickerData
-                  });
-                } else if (message.stream.includes('@kline')) {
-                  const klineData = message.data;
-                  const k = klineData.k;
-                  
-                  // Extract interval from stream name
-                  const streamParts = message.stream.split('_');
-                  const interval = streamParts[streamParts.length - 1] as KlineInterval;
-                  
-                  const kline: Kline = [
-                    k.t, k.o, k.h, k.l, k.c, k.v, k.T, k.q, k.n, k.V, k.Q, k.B
-                  ];
-                  handleKlineUpdate(klineData.s, interval, kline, k.x);
-                }
-              }
-            } catch (e) {
-              console.error("Error processing WebSocket message:", e);
-            }
-          },
-          onError: (error) => {
-            if (!isCleanedUp) {
-              console.error("WebSocket Error:", error);
-              setStatusText('WS Error');
-              setStatusLightClass('bg-[var(--tm-error)]');
-            }
-          },
-          onClose: () => {
-            if (!isCleanedUp) {
-              setStatusText('Disconnected');
-              setStatusLightClass('bg-[var(--tm-warning)]');
-            }
+      const handleTickerUpdate = (tickerUpdate: Ticker) => {
+        if (!isCleanedUp) {
+          if (!window.__tickerUpdateDebugLogged) {
+            console.log('[StatusBar Debug] handleTickerUpdate called with:', tickerUpdate.s);
+            window.__tickerUpdateDebugLogged = true;
           }
-        },
-        true // Enable auto-reconnect
-      );
-    } catch (e) {
-      console.error("[StatusBar Debug] Failed to connect WebSocket:", e);
-      console.error("[StatusBar Debug] WebSocket error details:", {
-        message: e instanceof Error ? e.message : 'Unknown error',
-        type: e?.constructor?.name || 'Unknown'
+          handleTickerUpdateStable(tickerUpdate);
+        }
+      };
+
+      const handleKlineUpdate = (symbol: string, interval: KlineInterval, kline: Kline, isClosed: boolean) => {
+        if (!isCleanedUp) {
+          handleKlineUpdateStable(symbol, interval, kline, isClosed);
+        }
+      };
+      
+      // Determine which intervals are needed by active traders
+      const activeIntervals = new Set<KlineInterval>();
+      traders.forEach(trader => {
+        if (trader.enabled) {
+          // Add all required timeframes for this trader
+          const requiredTimeframes = trader.filter?.requiredTimeframes || [trader.filter?.refreshInterval || KlineInterval.ONE_MINUTE];
+          requiredTimeframes.forEach(tf => activeIntervals.add(tf));
+        }
       });
-      setStatusText('WS Failed');
-      setStatusLightClass('bg-[var(--tm-error)]');
-    }
+      
+      // Always include 1m as default/fallback
+      activeIntervals.add(KlineInterval.ONE_MINUTE);
+      
+      // Create WebSocket URL for multi-interval connection
+      const tickerStreams = allSymbols.map(s => `${s.toLowerCase()}@ticker`);
+      const klineStreams: string[] = [];
+      allSymbols.forEach(symbol => {
+        activeIntervals.forEach(interval => {
+          klineStreams.push(`${symbol.toLowerCase()}@kline_${interval}`);
+        });
+      });
+      const allStreams = [...tickerStreams, ...klineStreams].join('/');
+      const wsUrl = `wss://stream.binance.com:9443/ws/${allStreams}`;
+      
+      console.log('[StatusBar Debug] WebSocket URL length:', wsUrl.length);
+      console.log('[StatusBar Debug] Total streams:', tickerStreams.length + klineStreams.length);
+      
+      // Connect using WebSocket manager
+      try {
+        console.log('[StatusBar Debug] Calling webSocketManager.connect...');
+        webSocketManager.connect(
+          'main-connection',
+          wsUrl,
+          {
+            onOpen: () => {
+              if (!isCleanedUp) {
+                setStatusText('Live');
+                setStatusLightClass('bg-[var(--tm-success)]');
+                console.log(`[StatusBar Debug] WebSocket connected with ${allSymbols.length} symbols`);
+              }
+            },
+            onMessage: (event) => {
+              if (isCleanedUp) return;
+              
+              try {
+                const message = JSON.parse(event.data as string);
+                if (message.stream && message.data) {
+                  if (message.stream.includes('@ticker')) {
+                    const tickerData = message.data;
+                    // Debug: Log first ticker message
+                    if (!window.__tickerDebugLogged) {
+                      console.log('[StatusBar Debug] First ticker message received:', tickerData.s);
+                      window.__tickerDebugLogged = true;
+                    }
+                    handleTickerUpdate({
+                      s: tickerData.s,
+                      P: tickerData.P,
+                      c: tickerData.c,
+                      q: tickerData.q,
+                      ...tickerData
+                    });
+                  } else if (message.stream.includes('@kline')) {
+                    const klineData = message.data;
+                    const k = klineData.k;
+                    
+                    // Extract interval from stream name
+                    const streamParts = message.stream.split('_');
+                    const interval = streamParts[streamParts.length - 1] as KlineInterval;
+                    
+                    const kline: Kline = [
+                      k.t, k.o, k.h, k.l, k.c, k.v, k.T, k.q, k.n, k.V, k.Q, k.B
+                    ];
+                    handleKlineUpdate(klineData.s, interval, kline, k.x);
+                  }
+                }
+              } catch (e) {
+                console.error("Error processing WebSocket message:", e);
+              }
+            },
+            onError: (error) => {
+              if (!isCleanedUp) {
+                console.error("WebSocket Error:", error);
+                setStatusText('WS Error');
+                setStatusLightClass('bg-[var(--tm-error)]');
+              }
+            },
+            onClose: () => {
+              if (!isCleanedUp) {
+                setStatusText('Disconnected');
+                setStatusLightClass('bg-[var(--tm-warning)]');
+              }
+            }
+          },
+          true // Enable auto-reconnect
+        );
+      } catch (e) {
+        console.error("[StatusBar Debug] Failed to connect WebSocket:", e);
+        console.error("[StatusBar Debug] WebSocket error details:", {
+          message: e instanceof Error ? e.message : 'Unknown error',
+          type: e?.constructor?.name || 'Unknown'
+        });
+        setStatusText('WS Failed');
+        setStatusLightClass('bg-[var(--tm-error)]');
+      }
+    }, 500); // 500ms delay to ensure React StrictMode completes and all components are mounted
 
     return () => {
       isCleanedUp = true;
+      clearTimeout(connectionTimer);
       webSocketManager.disconnect('main-connection');
     };
   // Only re-run when symbols, traders or handlers change

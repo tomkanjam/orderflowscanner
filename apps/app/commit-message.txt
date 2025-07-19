@@ -1,0 +1,17 @@
+fix: Fix WebSocket connection and multi-timeframe data loading issues
+
+- Increase WebSocket connection delay to 500ms to avoid React StrictMode cleanup
+- Fix loadInitialData to fetch all required timeframes (1m, 5m, 15m) for traders
+- Add condition to wait for traders before loading data
+- Add comprehensive debug logging to track connection and data flow
+- Ensure StatusBar receives proper update callbacks
+
+These fixes resolve:
+- "WebSocket is closed before the connection is established" errors
+- Traders reporting "insufficient data for required timeframes"
+- StatusBar showing 0/s update rate
+- Missing signals due to incomplete multi-timeframe data
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

@@ -46,6 +46,8 @@ class WebSocketManager {
     handlers: Omit<WebSocketConfig, 'url'>,
     autoReconnect: boolean = true
   ): WebSocket {
+    console.log(`[WebSocketManager Debug] connect() called for key: ${key}, URL length: ${url.length}, autoReconnect: ${autoReconnect}`);
+    
     // Cancel any pending reconnect for this key
     this.cancelReconnect(key);
     
@@ -53,24 +55,23 @@ class WebSocketManager {
     this.disconnect(key);
     
     if (this.isShuttingDown) {
+      console.log('[WebSocketManager Debug] Cannot connect - manager is shutting down');
       throw new Error('WebSocketManager is shutting down');
     }
     
     const config: WebSocketConfig = { url, ...handlers };
     const connectionId = `${key}_${Date.now()}`;
     
-    if (DEBUG_MODE) {
-      console.log(`[WebSocketManager] Creating connection: ${key} (${connectionId})`);
-    }
+    console.log(`[WebSocketManager Debug] Creating connection: ${key} (${connectionId})`);
     
     // Create new WebSocket
     let ws: WebSocket;
     try {
+      console.log(`[WebSocketManager Debug] Creating WebSocket for ${key}, readyState will be:`, WebSocket.CONNECTING);
       ws = new WebSocket(url);
+      console.log(`[WebSocketManager Debug] WebSocket created for ${key}, readyState:`, ws.readyState);
     } catch (e) {
-      if (DEBUG_MODE) {
-        console.error(`[WebSocketManager] Failed to create WebSocket for ${key}:`, e);
-      }
+      console.error(`[WebSocketManager Debug] Failed to create WebSocket for ${key}:`, e);
       throw e;
     }
     
@@ -109,11 +110,12 @@ class WebSocketManager {
    */
   disconnect(key: string) {
     const managed = this.connections.get(key);
-    if (!managed) return;
-    
-    if (DEBUG_MODE) {
-      console.log(`[WebSocketManager] Disconnecting: ${key} (${managed.connectionId})`);
+    if (!managed) {
+      console.log(`[WebSocketManager Debug] disconnect() called for ${key} - no existing connection`);
+      return;
     }
+    
+    console.log(`[WebSocketManager Debug] Disconnecting: ${key} (${managed.connectionId}), readyState: ${managed.ws.readyState}`);
     
     // Cancel any pending reconnect
     this.cancelReconnect(key);
@@ -133,12 +135,13 @@ class WebSocketManager {
     // Close if not already closed
     if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
       try {
+        console.log(`[WebSocketManager Debug] Closing WebSocket for ${key}, current readyState: ${ws.readyState}`);
         ws.close(1000, 'Intentional disconnect');
       } catch (e) {
-        if (DEBUG_MODE) {
-          console.error(`[WebSocketManager] Error closing WebSocket for ${key}:`, e);
-        }
+        console.error(`[WebSocketManager Debug] Error closing WebSocket for ${key}:`, e);
       }
+    } else {
+      console.log(`[WebSocketManager Debug] WebSocket for ${key} already closed, readyState: ${ws.readyState}`);
     }
     
     this.notifyStatusChange();

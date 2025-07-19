@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <div id="status">Initializing...</div>
+    <pre id="log"></pre>
+    
+    <script>
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        
+        function addLog(message) {
+            log.textContent += `[${new Date().toISOString()}] ${message}\n`;
+        }
+        
+        // Test React StrictMode behavior
+        addLog('Test started');
+        
+        // Simulate React StrictMode rapid mount/unmount
+        let isCleanedUp = false;
+        
+        // Immediate connection (StrictMode issue)
+        addLog('Attempting immediate connection...');
+        let ws1 = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@ticker');
+        ws1.onopen = () => addLog('Immediate connection: OPENED (this should not happen in StrictMode)');
+        ws1.onerror = (e) => addLog('Immediate connection: ERROR');
+        
+        // Simulate StrictMode cleanup
+        setTimeout(() => {
+            addLog('Simulating StrictMode cleanup');
+            ws1.close();
+            isCleanedUp = true;
+        }, 10);
+        
+        // Delayed connection (our fix)
+        setTimeout(() => {
+            addLog('Attempting delayed connection...');
+            if (!isCleanedUp) {
+                addLog('Component was cleaned up, skipping connection');
+                return;
+            }
+            
+            // Reset for second test
+            isCleanedUp = false;
+            
+            let ws2 = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@ticker');
+            ws2.onopen = () => {
+                addLog('Delayed connection: OPENED successfully!');
+                status.textContent = 'WebSocket connected!';
+                status.style.color = 'green';
+                
+                // Test receiving data
+                let messageCount = 0;
+                ws2.onmessage = (event) => {
+                    messageCount++;
+                    if (messageCount === 1) {
+                        addLog('First message received: ' + event.data.substring(0, 100) + '...');
+                    }
+                    status.textContent = `Connected - ${messageCount} messages received`;
+                };
+            };
+            ws2.onerror = (e) => {
+                addLog('Delayed connection: ERROR');
+                status.textContent = 'Connection failed';
+                status.style.color = 'red';
+            };
+            
+            // Clean up after 5 seconds
+            setTimeout(() => {
+                ws2.close();
+                addLog('Test completed, connection closed');
+            }, 5000);
+        }, 100);
+    </script>
+</body>
+</html>

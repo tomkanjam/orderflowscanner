@@ -547,7 +547,10 @@ const AppContent: React.FC = () => {
   const traderIntervalsKey = useMemo(() => {
     return traders
       .filter(t => t.enabled)
-      .map(t => `${t.id}:${t.filter?.interval || '1m'}`)
+      .map(t => {
+        const intervals = t.filter?.requiredTimeframes || [t.filter?.interval || t.filter?.refreshInterval || '1m'];
+        return `${t.id}:${intervals.sort().join('+')}`;
+      })
       .sort()
       .join(',');
   }, [traders]);
@@ -978,8 +981,8 @@ const AppContent: React.FC = () => {
       clearTimeout(connectionTimer);
       webSocketManager.disconnect('main-connection');
     };
-  // Only re-run when symbols, traders or handlers change
-  }, [allSymbols, traders, handleTickerUpdateStable, handleKlineUpdateStable]); 
+  // Only re-run when symbols, required intervals, or handlers change
+  }, [allSymbols, traderIntervalsKey, handleTickerUpdateStable, handleKlineUpdateStable]); 
 
 
   // Multi-trader screener hook

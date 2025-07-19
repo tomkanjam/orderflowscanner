@@ -1,0 +1,14 @@
+fix: Prevent WebSocket disconnection every minute
+
+- Remove traders array from WebSocket effect dependencies
+- Use traderIntervalsKey instead to track only actual interval changes
+- Update traderIntervalsKey to include all requiredTimeframes, not just refresh interval
+- Change dependency comment to reflect new behavior
+
+This fixes the issue where the WebSocket would disconnect and show "Offline"
+every minute when traders run their filters. Now the connection stays stable
+and only reconnects when trader intervals actually change.
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

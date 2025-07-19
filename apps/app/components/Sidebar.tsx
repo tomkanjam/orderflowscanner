@@ -97,12 +97,22 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--tm-bg-secondary)] p-4 md:p-6 flex flex-col border-r border-[var(--tm-border)] h-screen overflow-y-auto relative pb-12">
-      {/* Top accent bar */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--tm-accent)] to-[var(--tm-accent-dark)]"></div>
-      <h2 className="text-2xl font-bold mb-4 tm-heading-lg">
-        <span className="text-[var(--tm-accent)]">Trading</span> <span className="text-[var(--tm-text-primary)]">Dashboard</span>
-      </h2>
+    <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--tm-bg-secondary)] flex flex-col border-r border-[var(--tm-border)] h-screen">
+      {/* Status Bar Header */}
+      <StatusBar
+        connectionStatus={connectionStatus}
+        tickerCount={tickerCount}
+        symbolCount={symbolCount}
+        signalCount={signalCount}
+        lastUpdate={metrics.lastUpdate}
+        updateFrequency={metrics.updateFrequency}
+      />
+      
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col">
+        <h2 className="text-2xl font-bold mb-4 tm-heading-lg">
+          <span className="text-[var(--tm-accent)]">Trading</span> <span className="text-[var(--tm-text-primary)]">Dashboard</span>
+        </h2>
       
       {/* Show form or list based on state */}
       {showCreateForm || editingTrader ? (
@@ -245,22 +255,13 @@ const Sidebar: React.FC<SidebarProps> = ({
         </>
       )}
       
-      {/* Email Auth Modal */}
-      <EmailAuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onAuthSuccess={handleAuthSuccess}
-      />
-      
-      {/* Status Bar */}
-      <StatusBar
-        connectionStatus={connectionStatus}
-        tickerCount={tickerCount}
-        symbolCount={symbolCount}
-        signalCount={signalCount}
-        lastUpdate={metrics.lastUpdate}
-        updateFrequency={metrics.updateFrequency}
-      />
+        {/* Email Auth Modal */}
+        <EmailAuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onAuthSuccess={handleAuthSuccess}
+        />
+      </div>
     </aside>
   );
 };

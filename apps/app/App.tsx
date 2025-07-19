@@ -41,6 +41,7 @@ declare global {
     __tickerDebugLogged?: boolean;
     __tickerUpdateDebugLogged?: boolean;
     __noCallbackDebugLogged?: boolean;
+    __firstMessageLogged?: boolean;
   }
 }
 
@@ -881,7 +882,7 @@ const AppContent: React.FC = () => {
         });
       });
       const allStreams = [...tickerStreams, ...klineStreams].join('/');
-      const wsUrl = `wss://stream.binance.com:9443/ws/${allStreams}`;
+      const wsUrl = `wss://stream.binance.com:9443/stream?streams=${allStreams}`;
       
       console.log('[StatusBar Debug] WebSocket URL length:', wsUrl.length);
       console.log('[StatusBar Debug] Total streams:', tickerStreams.length + klineStreams.length);
@@ -905,6 +906,13 @@ const AppContent: React.FC = () => {
               
               try {
                 const message = JSON.parse(event.data as string);
+                
+                // Debug: Log first message of any type
+                if (!window.__firstMessageLogged) {
+                  console.log('[StatusBar Debug] First WebSocket message:', message);
+                  window.__firstMessageLogged = true;
+                }
+                
                 if (message.stream && message.data) {
                   if (message.stream.includes('@ticker')) {
                     const tickerData = message.data;

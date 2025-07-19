@@ -1,0 +1,13 @@
+fix: Fix WebSocket URL format and add message debugging
+
+- Change WebSocket URL from /ws/ to /stream?streams= format for multiple streams
+- Add debug logging to track first WebSocket message received
+- Add window.__firstMessageLogged to debug tracking interface
+
+This fixes the WebSocket connection to use the correct Binance API format
+for multiple streams and adds debugging to investigate why ticker updates
+aren't being tracked in the StatusBar (showing 0/s and "--" for last update).
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

@@ -556,11 +556,9 @@ const AppContent: React.FC = () => {
   }, [traders]);
 
   useEffect(() => {
-    // Only load data after traders have been loaded
-    if (traders.length > 0 || tradersRef.current.length > 0) {
-      loadInitialData(klineHistoryConfig.screenerLimit);
-    }
-  }, [loadInitialData, klineHistoryConfig.screenerLimit, traderIntervalsKey, traders.length]); // Only reload when intervals actually change
+    // Always load initial market data, regardless of traders
+    loadInitialData(klineHistoryConfig.screenerLimit);
+  }, [loadInitialData, klineHistoryConfig.screenerLimit, traderIntervalsKey]); // Only reload when intervals actually change
   
   // Persist signal deduplication threshold to localStorage
   useEffect(() => {

@@ -69,31 +69,25 @@ export const StatusBar = memo<StatusBarProps>(({
   const ConnectionIcon = config.icon;
   
   return (
-    <div className="sticky top-0 z-10 h-12 bg-[var(--tm-bg-secondary)] border-b border-[var(--tm-border)] px-3 py-2">
+    <div className="sticky top-0 z-10 h-12 bg-[var(--tm-bg-secondary)] border-b border-[var(--tm-border)] px-3 py-2 font-mono">
       <div className="flex items-center justify-between h-full text-xs">
-        {/* App Name and Connection Status */}
-        <div className="flex items-center gap-3">
+        {/* App Name */}
+        <div className="flex items-center">
           <span className="text-lg font-bold text-[var(--tm-accent)]">vyx</span>
-          <div className="flex items-center gap-2">
-            <div className={`relative ${config.bgColor} rounded-full p-1.5`}>
-              <ConnectionIcon className={`w-3.5 h-3.5 ${config.color}`} />
-            </div>
-            <span className={`font-medium ${config.color}`}>{config.label}</span>
-          </div>
         </div>
         
-        {/* Data Feed Metrics */}
-        <div className="flex items-center gap-4 ml-auto">
+        {/* Status Metrics */}
+        <div className="flex items-center gap-4">
+          {/* Update Frequency */}
+          <div className="flex items-center gap-1 text-white">
+            <Activity className={`w-3.5 h-3.5 ${updateFrequency > 0 ? 'animate-pulse' : ''}`} />
+            <span>{updateFrequency}/s</span>
+          </div>
+          
           {/* Symbol Count */}
           <div className="flex items-center gap-1 text-[var(--tm-text-secondary)]">
             <Database className="w-3.5 h-3.5" />
             <span>{symbolCount}</span>
-          </div>
-          
-          {/* Update Frequency */}
-          <div className={`flex items-center gap-1 ${updateFrequency > 0 ? 'text-[var(--tm-accent)]' : 'text-[var(--tm-text-secondary)]'}`}>
-            <Activity className={`w-3.5 h-3.5 ${updateFrequency > 0 ? 'animate-pulse' : ''}`} />
-            <span>{updateFrequency}/s</span>
           </div>
           
           {/* Active Signals */}
@@ -103,6 +97,14 @@ export const StatusBar = memo<StatusBarProps>(({
               <span>{signalCount}</span>
             </div>
           )}
+          
+          {/* Connection Status */}
+          <div className="flex items-center gap-2">
+            <div className={`relative ${config.bgColor} rounded-full p-1.5`}>
+              <ConnectionIcon className={`w-3.5 h-3.5 ${config.color}`} />
+            </div>
+            <span className={`font-medium ${config.color}`}>{config.label}</span>
+          </div>
         </div>
       </div>
     </div>

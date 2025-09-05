@@ -76,7 +76,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Register the update callback with parent component
   useEffect(() => {
     if (onDataUpdateCallback) {
-      console.log('[StatusBar Debug] Registering trackUpdate callback');
       onDataUpdateCallback(trackUpdate);
     }
   }, [onDataUpdateCallback, trackUpdate]);

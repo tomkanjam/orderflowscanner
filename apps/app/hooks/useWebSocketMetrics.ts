@@ -25,9 +25,6 @@ export const useWebSocketMetrics = () => {
   const trackUpdate = useCallback(() => {
     updateCountRef.current++;
     lastUpdateRef.current = Date.now();
-    if (updateCountRef.current === 1) {
-      console.log('[StatusBar Debug] First update tracked');
-    }
   }, []);
   
   // Calculate and update metrics every second
@@ -35,10 +32,6 @@ export const useWebSocketMetrics = () => {
     intervalRef.current = setInterval(() => {
       const updatesThisSecond = updateCountRef.current;
       const lastUpdate = lastUpdateRef.current;
-      
-      if (updatesThisSecond > 0) {
-        console.log('[StatusBar Debug] Updates this second:', updatesThisSecond);
-      }
       
       // Reset counter for next second
       updateCountRef.current = 0;

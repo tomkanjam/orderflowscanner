@@ -458,19 +458,12 @@ const AppContent: React.FC = () => {
     setSignalLog([]); // Clear signal log on new data load
 
     try {
-      console.log('[StatusBar Debug] loadInitialData starting...');
       
       // Determine which intervals are needed by active traders
       const activeIntervals = new Set<KlineInterval>();
       const currentTraders = tradersRef.current; // Use ref to get current traders
-      console.log('[StatusBar Debug] Current traders:', currentTraders.length);
       currentTraders.forEach(trader => {
         if (trader.enabled && trader.filter) {
-          console.log('[StatusBar Debug] Processing trader:', trader.name, {
-            hasFilter: !!trader.filter,
-            refreshInterval: trader.filter.interval || trader.filter.refreshInterval,
-            requiredTimeframes: trader.filter.requiredTimeframes
-          });
           
           // Add the refresh interval
           const refreshInterval = trader.filter.interval || trader.filter.refreshInterval || KlineInterval.ONE_MINUTE;
@@ -486,13 +479,9 @@ const AppContent: React.FC = () => {
       // Always include 1m as default/fallback
       activeIntervals.add(KlineInterval.ONE_MINUTE);
       
-      if (activeIntervals.size > 0) {
-        console.log('[StatusBar Debug] Loading data for intervals:', Array.from(activeIntervals));
-      }
       
       // First, fetch top pairs and tickers
       const { symbols, tickers: initialTickers, klinesData: oneMinuteData } = await fetchTopPairsAndInitialKlines(KlineInterval.ONE_MINUTE, klineLimit);
-      console.log('[StatusBar Debug] Fetched symbols:', symbols.length, 'tickers:', initialTickers.size);
       setAllSymbols(symbols);
       setTickers(initialTickers);
       
@@ -669,9 +658,6 @@ const AppContent: React.FC = () => {
     // Direct callback for immediate tracking
     if (dataUpdateCallbackRef.current) {
       dataUpdateCallbackRef.current();
-    } else if (!window.__noCallbackDebugLogged) {
-      console.log('[StatusBar Debug] Ticker update but no callback registered yet');
-      window.__noCallbackDebugLogged = true;
     }
     
     // Use batched updater for better performance
@@ -830,10 +816,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     // Only proceed if we have symbols and no error
     if (allSymbols.length === 0) {
-      console.log('[StatusBar Debug] WebSocket connection skipped - no symbols');
       return;
-    } else {
-      console.log('[StatusBar Debug] WebSocket connecting for', allSymbols.length, 'symbols');
     }
 
     let isCleanedUp = false;
@@ -841,16 +824,11 @@ const AppContent: React.FC = () => {
     // Add a small delay to avoid React StrictMode rapid cleanup
     const connectionTimer = setTimeout(() => {
       if (isCleanedUp) {
-        console.log('[StatusBar Debug] WebSocket connection cancelled - component unmounted');
         return;
       }
 
       const handleTickerUpdate = (tickerUpdate: Ticker) => {
         if (!isCleanedUp) {
-          if (!window.__tickerUpdateDebugLogged) {
-            console.log('[StatusBar Debug] handleTickerUpdate called with:', tickerUpdate.s);
-            window.__tickerUpdateDebugLogged = true;
-          }
           handleTickerUpdateStable(tickerUpdate);
         }
       };
@@ -885,12 +863,8 @@ const AppContent: React.FC = () => {
       const allStreams = [...tickerStreams, ...klineStreams].join('/');
       const wsUrl = `wss://stream.binance.com:9443/stream?streams=${allStreams}`;
       
-      console.log('[StatusBar Debug] WebSocket URL length:', wsUrl.length);
-      console.log('[StatusBar Debug] Total streams:', tickerStreams.length + klineStreams.length);
-      
       // Connect using WebSocket manager
       try {
-        console.log('[StatusBar Debug] Calling webSocketManager.connect...');
         webSocketManager.connect(
           'main-connection',
           wsUrl,
@@ -899,7 +873,6 @@ const AppContent: React.FC = () => {
               if (!isCleanedUp) {
                 setStatusText('Live');
                 setStatusLightClass('bg-[var(--tm-success)]');
-                console.log(`[StatusBar Debug] WebSocket connected with ${allSymbols.length} symbols`);
               }
             },
             onMessage: (event) => {
@@ -909,19 +882,11 @@ const AppContent: React.FC = () => {
                 const message = JSON.parse(event.data as string);
                 
                 // Debug: Log first message of any type
-                if (!window.__firstMessageLogged) {
-                  console.log('[StatusBar Debug] First WebSocket message:', message);
-                  window.__firstMessageLogged = true;
-                }
                 
                 if (message.stream && message.data) {
                   if (message.stream.includes('@ticker')) {
                     const tickerData = message.data;
                     // Debug: Log first ticker message
-                    if (!window.__tickerDebugLogged) {
-                      console.log('[StatusBar Debug] First ticker message received:', tickerData.s);
-                      window.__tickerDebugLogged = true;
-                    }
                     handleTickerUpdate({
                       s: tickerData.s,
                       P: tickerData.P,

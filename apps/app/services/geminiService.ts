@@ -588,12 +588,10 @@ export async function generateStructuredAnalysis(
     aiAnalysisLimit: number = 100,
     positionContext?: string
 ): Promise<string> {
-    // Use calculated indicators if provided, otherwise calculate basic ones
+    // Use calculated indicators if provided - NO FALLBACK
+    // Traders must have properly configured indicators
     const technicalIndicators = marketData.calculatedIndicators || {
         currentPrice: marketData.price,
-        sma20: helpers.calculateMA(marketData.klines, 20),
-        rsi: helpers.getLatestRSI(marketData.klines, 14),
-        macd: helpers.getLatestMACD(marketData.klines),
         volume: marketData.volume,
     };
     

@@ -123,7 +123,8 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
   }
 
   private calculateTechnicalIndicators(marketData: MarketData): Record<string, any> {
-    // Use calculated indicators if provided
+    // Use calculated indicators if provided, otherwise return minimal data
+    // NO FALLBACK CALCULATION - traders must have properly configured indicators
     if ((marketData as any).calculatedIndicators) {
       // Ensure current price and volume are included
       return {
@@ -133,23 +134,10 @@ export class BrowserAnalysisEngine implements IAnalysisEngine {
       };
     }
     
-    // Otherwise calculate basic indicators
-    const closes = marketData.klines.map(k => parseFloat(k[4]));
-    const highs = marketData.klines.map(k => parseFloat(k[2]));
-    const lows = marketData.klines.map(k => parseFloat(k[3]));
-    const volumes = marketData.klines.map(k => parseFloat(k[5]));
-    
+    // Return only price and volume - no fallback indicator calculations
     return {
       currentPrice: marketData.price,
-      sma20: helpers.calculateSMA(closes, 20),
-      sma50: helpers.calculateSMA(closes, 50),
-      ema9: helpers.calculateEMA(closes, 9),
-      ema21: helpers.calculateEMA(closes, 21),
-      rsi: helpers.calculateRSI(closes, 14),
-      macd: helpers.calculateMACD(closes),
-      bollingerBands: helpers.calculateBollingerBands(closes, 20, 2),
-      vwap: helpers.calculateVWAP(marketData.klines),
-      volumeProfile: this.calculateVolumeProfile(marketData.klines),
+      volume: marketData.volume,
     };
   }
 

@@ -87,7 +87,7 @@ Each trader has their own **custom generated filter code** that runs in a worker
 
 3. **AI Analysis** (`browserAnalysisEngine.analyzeSetup()`): Analyzes signals using provided indicators
    - Receives: Market data with `calculatedIndicators` if trader has indicator configs
-   - Falls back to basic indicators (SMA20, RSI14, MACD) if no indicators configured
+   - NO FALLBACK: If no indicators configured, only receives price and volume
    - PROBLEM: If indicators array is empty/incomplete, AI doesn't get needed data
 
 ### Why Traders May Not Receive Indicator Data:
@@ -109,8 +109,9 @@ Each trader has their own **custom generated filter code** that runs in a worker
 
 ### DO NOT:
 - Force calculate all possible indicators for every trader
-- Modify the fallback calculation to include extensive indicators
+- Add ANY fallback indicator calculations (traders must have properly configured indicators)
 - Assume all traders need the same indicators
+- Provide default indicators when none are configured
 
 ### DO:
 - Ensure `generateTrader()` properly populates the indicators array

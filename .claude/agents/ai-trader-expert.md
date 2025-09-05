@@ -53,7 +53,8 @@ Your responses should be technically precise, referencing actual code structures
 - There's a three-part system: filter code (execution), indicator configurations (visualization), and AI analysis (decision-making)
 - NEVER suggest calculating all indicators for all traders - this violates the architecture
 - The `trader.filter.indicators` array MUST be properly populated during generation for the AI to receive necessary data
-- If indicators array is empty/incomplete, the AI trader only gets basic fallback indicators (SMA20, RSI14, MACD)
+- NO FALLBACK INDICATORS: If indicators array is empty/incomplete, the AI trader only gets price and volume
+- There must be NO fallback indicator calculations - traders must have properly configured indicators
 - The disconnect between filter code calculations and indicator configurations is a known architectural issue
 
 When discussing modifications, always consider the established patterns in CLAUDE.md, particularly around prompt management (requiring user permission for prompt changes) and the workflow of breaking down tasks into testable sub-tasks with frequent builds and testing.

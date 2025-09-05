@@ -9,6 +9,7 @@ import ChartDisplay from './ChartDisplay';
 import Loader from './Loader';
 import ErrorMessage from './ErrorMessage';
 import ActivityPanel from '../src/components/ActivityPanel';
+import { useSubscription } from '../src/contexts/SubscriptionContext';
 import * as screenerHelpers from '../screenerHelpers'; 
 
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -92,6 +93,7 @@ const MainContent: React.FC<MainContentProps> = ({
   onCloseActivityPanel,
   isMobile = false,
 }) => {
+  const { currentTier } = useSubscription();
   const [selectedSignal, setSelectedSignal] = useState<SignalLifecycle | null>(null);
   
   return (
@@ -143,8 +145,8 @@ const MainContent: React.FC<MainContentProps> = ({
         </div>
       </div>
       
-      {/* Signal History Sidebar */}
-      {selectedSignal && (
+      {/* Signal History Sidebar - Elite tier only */}
+      {selectedSignal && currentTier === 'elite' && (
         <div className="w-96 border-l border-[var(--tm-border)] bg-[var(--tm-bg-primary)] h-full overflow-hidden flex-shrink-0">
           <SignalHistorySidebar 
             signal={selectedSignal}

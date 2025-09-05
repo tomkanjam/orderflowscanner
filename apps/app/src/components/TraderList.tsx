@@ -185,7 +185,7 @@ export function TraderList({
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold text-[var(--tm-accent)]">
-              My Custom Signals
+              {currentTier === 'elite' ? 'My AI Traders' : 'My Signals'}
             </h3>
             <div className="flex items-center gap-3">
               {remainingSignals !== Infinity && (
@@ -209,8 +209,14 @@ export function TraderList({
           {customSignals.length === 0 ? (
             <div className="text-center py-8 text-[var(--tm-text-muted)]">
               <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="mb-2">No custom signals yet</p>
-              <p className="text-sm">Create your first signal to start automated screening</p>
+              <p className="mb-2">
+                {currentTier === 'elite' ? 'No AI traders yet' : 'No signals yet'}
+              </p>
+              <p className="text-sm">
+                {currentTier === 'elite' 
+                  ? 'Create your first AI trader to start automated analysis and trading'
+                  : 'Create your first signal to start automated screening'}
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -230,6 +236,7 @@ export function TraderList({
                     canFavorite={access.canFavorite}
                     showEnableToggle={true}
                     showEditDelete={canEditDelete}
+                    showAIFeatures={currentTier === 'elite'} // Pass tier info
                     onSelect={() => onSelectTrader?.(isSelected ? null : trader.id)}
                     onToggleEnable={() => handleToggleTrader(trader)}
                     onEdit={() => onEditTrader(trader)}

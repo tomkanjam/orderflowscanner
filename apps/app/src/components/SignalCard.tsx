@@ -23,6 +23,8 @@ interface SignalCardProps {
   showEditDelete?: boolean;
   /** Show access indicator badge (typically for built-in signals) */
   showAccessIndicator?: boolean;
+  /** Show AI features (for Elite tier) */
+  showAIFeatures?: boolean;
   /** Handler for when the card is clicked */
   onSelect?: () => void;
   /** Handler for toggling signal enabled state */
@@ -102,6 +104,7 @@ export const SignalCard = React.memo(function SignalCard({
   showEnableToggle = false,
   showEditDelete = false,
   showAccessIndicator = false,
+  showAIFeatures = false,
   onSelect,
   onToggleEnable,
   onEdit,
@@ -285,8 +288,8 @@ export const SignalCard = React.memo(function SignalCard({
               </div>
             )}
 
-            {/* AI Analysis Settings (for custom signals) */}
-            {!signal.isBuiltIn && (
+            {/* AI Analysis Settings (for custom signals, Elite only) */}
+            {!signal.isBuiltIn && showAIFeatures && (
               <div className="text-xs text-[var(--tm-text-muted)] mb-2">
                 <div>Interval: {formatInterval(signal.filter?.interval || '1m')}</div>
                 <div>AI Model: {signal.strategy?.modelTier ? signal.strategy.modelTier.charAt(0).toUpperCase() + signal.strategy.modelTier.slice(1) : 'Standard'}</div>
@@ -297,30 +300,54 @@ export const SignalCard = React.memo(function SignalCard({
             {/* Metrics */}
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div className="text-center">
-                <div className="text-[var(--tm-text-muted)]">Signals</div>
+                <div className="text-[var(--tm-text-muted)]">
+                  {showAIFeatures ? 'Signals' : 'Triggered'}
+                </div>
                 <div className="font-medium text-[var(--tm-text-primary)]">
                   {signal.metrics?.totalSignals ?? 0}
                 </div>
               </div>
-              <div className="text-center">
-                <div className="text-[var(--tm-text-muted)]">Win Rate</div>
-                <div className="font-medium">
-                  {metrics && metrics.trades > 0 
-                    ? formatMetric((metrics.wins / metrics.trades) * 100) + '%'
-                    : '-'
-                  }
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-[var(--tm-text-muted)]">P&L</div>
-                <div className="font-medium">
-                  {metrics ? formatPnL(metrics.pnlPercent) : '-'}
-                </div>
-              </div>
+              {showAIFeatures ? (
+                <>
+                  <div className="text-center">
+                    <div className="text-[var(--tm-text-muted)]">Win Rate</div>
+                    <div className="font-medium">
+                      {metrics && metrics.trades > 0 
+                        ? formatMetric((metrics.wins / metrics.trades) * 100) + '%'
+                        : '-'
+                      }
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-[var(--tm-text-muted)]">P&L</div>
+                    <div className="font-medium">
+                      {metrics ? formatPnL(metrics.pnlPercent) : '-'}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-center">
+                    <div className="text-[var(--tm-text-muted)]">Interval</div>
+                    <div className="font-medium text-[var(--tm-text-primary)]">
+                      {formatInterval(signal.filter?.interval || '1m')}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-[var(--tm-text-muted)]">Last</div>
+                    <div className="font-medium text-[var(--tm-text-primary)]">
+                      {signal.metrics?.lastSignalAt 
+                        ? new Date(signal.metrics.lastSignalAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                        : '-'
+                      }
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Active positions indicator */}
-            {signal.metrics?.activePositions > 0 && (
+            {/* Active positions indicator (Elite only) */}
+            {showAIFeatures && signal.metrics?.activePositions > 0 && (
               <div className="mt-2 pt-2 border-t border-[var(--tm-border)]">
                 <div className="flex items-center gap-2 text-xs">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />

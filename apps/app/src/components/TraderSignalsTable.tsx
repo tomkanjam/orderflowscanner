@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Bell, BellOff, TrendingUp, TrendingDown, AlertCircle, X, Eye } from 'lucide-react';
 import { WorkflowStatus } from './WorkflowStatus';
 import { AutoTradeButton } from './AutoTradeButton';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 interface TraderSignalsTableProps {
   tickers: Map<string, Ticker>;
@@ -53,6 +54,7 @@ export function TraderSignalsTable({
   klineHistoryConfig,
   onKlineHistoryConfigChange,
 }: TraderSignalsTableProps) {
+  const { currentTier } = useSubscription();
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
   const [newSignalTimestamps, setNewSignalTimestamps] = useState<Set<number>>(new Set());
   const [soundEnabled, setSoundEnabled] = useState(() => {
@@ -350,7 +352,9 @@ export function TraderSignalsTable({
               <th className="p-2 md:px-4 md:py-2">Time</th>
               <th className="p-2 md:px-4 md:py-2">Symbol</th>
               <th className="p-2 md:px-4 md:py-2">Signal</th>
-              <th className="p-2 md:px-4 md:py-2">Status</th>
+              {currentTier === 'elite' && (
+                <th className="p-2 md:px-4 md:py-2">Status</th>
+              )}
               <th className="p-2 md:px-4 md:py-2 text-right">Entry Price</th>
               <th className="p-2 md:px-4 md:py-2 text-right">Current</th>
               <th className="p-2 md:px-4 md:py-2 text-right">Change</th>
@@ -381,71 +385,73 @@ export function TraderSignalsTable({
                       ? traders.find(t => t.id === signal.traderId)?.name || signal.traderId
                       : 'AI Screener'}
                   </td>
-                  <td className="p-2 md:px-4 md:py-2">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs ${getStatusColor(signal.status)}`}>
-                          {signal.status.replace('_', ' ')}
-                        </span>
-                        {signal.status === 'analysis_queued' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Remove from queue and update status back to 'new'
-                              signalManager.updateSignalStatus(signal.id, 'new');
-                            }}
-                            className="text-xs text-orange-500 hover:text-orange-600 underline"
-                            title="Cancel queued analysis"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </div>
-                      {/* Analysis indicator */}
-                      {signal.analysis && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-xs font-medium ${
-                            signal.analysis.decision === 'buy' || signal.analysis.decision === 'enter_trade' ? 'text-green-500' :
-                            signal.analysis.decision === 'sell' ? 'text-red-500' :
-                            signal.analysis.decision === 'hold' || signal.analysis.decision === 'monitor' || signal.analysis.decision === 'good_setup' ? 'text-yellow-500' :
-                            'text-gray-500'
-                          }`}>
-                            {signal.analysis.decision === 'buy' && 'BUY'}
-                            {signal.analysis.decision === 'sell' && 'SELL'}
-                            {signal.analysis.decision === 'hold' && 'HOLD'}
-                            {signal.analysis.decision === 'monitor' && 'MONITOR'}
-                            {signal.analysis.decision === 'no_trade' && 'NO TRADE'}
-                            {signal.analysis.decision === 'enter_trade' && 'ENTER'}
-                            {signal.analysis.decision === 'good_setup' && 'GOOD SETUP'}
-                            {signal.analysis.decision === 'bad_setup' && 'BAD SETUP'}
+                  {currentTier === 'elite' && (
+                    <td className="p-2 md:px-4 md:py-2">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs ${getStatusColor(signal.status)}`}>
+                            {signal.status.replace('_', ' ')}
                           </span>
-                          {signal.analysisHistory && signal.analysisHistory.length > 0 && (
-                            <span className="text-xs text-[var(--tm-text-muted)]">
-                              ({signal.analysisHistory.length})
-                            </span>
-                          )}
-                          {/* Show pulsing indicator if analyzed within last 5 seconds */}
-                          {signal.analyzedAt && 
-                           new Date().getTime() - new Date(signal.analyzedAt).getTime() < 5000 && (
-                            <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
-                                  title="Recently analyzed" />
+                          {signal.status === 'analysis_queued' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Remove from queue and update status back to 'new'
+                                signalManager.updateSignalStatus(signal.id, 'new');
+                              }}
+                              className="text-xs text-orange-500 hover:text-orange-600 underline"
+                              title="Cancel queued analysis"
+                            >
+                              Cancel
+                            </button>
                           )}
                         </div>
-                      )}
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-2 mt-1">
-                        {signal.status === 'monitoring' && (
-                          <WorkflowStatus signalId={signal.id} compact={true} />
+                        {/* Analysis indicator */}
+                        {signal.analysis && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs font-medium ${
+                              signal.analysis.decision === 'buy' || signal.analysis.decision === 'enter_trade' ? 'text-green-500' :
+                              signal.analysis.decision === 'sell' ? 'text-red-500' :
+                              signal.analysis.decision === 'hold' || signal.analysis.decision === 'monitor' || signal.analysis.decision === 'good_setup' ? 'text-yellow-500' :
+                              'text-gray-500'
+                            }`}>
+                              {signal.analysis.decision === 'buy' && 'BUY'}
+                              {signal.analysis.decision === 'sell' && 'SELL'}
+                              {signal.analysis.decision === 'hold' && 'HOLD'}
+                              {signal.analysis.decision === 'monitor' && 'MONITOR'}
+                              {signal.analysis.decision === 'no_trade' && 'NO TRADE'}
+                              {signal.analysis.decision === 'enter_trade' && 'ENTER'}
+                              {signal.analysis.decision === 'good_setup' && 'GOOD SETUP'}
+                              {signal.analysis.decision === 'bad_setup' && 'BAD SETUP'}
+                            </span>
+                            {signal.analysisHistory && signal.analysisHistory.length > 0 && (
+                              <span className="text-xs text-[var(--tm-text-muted)]">
+                                ({signal.analysisHistory.length})
+                              </span>
+                            )}
+                            {/* Show pulsing indicator if analyzed within last 5 seconds */}
+                            {signal.analyzedAt && 
+                             new Date().getTime() - new Date(signal.analyzedAt).getTime() < 5000 && (
+                              <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
+                                    title="Recently analyzed" />
+                            )}
+                          </div>
                         )}
-                        {signal.status === 'ready' && (
-                          <AutoTradeButton signalId={signal.id} />
-                        )}
-                        <span className="text-xs text-[var(--tm-text-muted)] hover:text-blue-500">
-                          Click for details →
-                        </span>
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-2 mt-1">
+                          {signal.status === 'monitoring' && (
+                            <WorkflowStatus signalId={signal.id} compact={true} />
+                          )}
+                          {signal.status === 'ready' && (
+                            <AutoTradeButton signalId={signal.id} />
+                          )}
+                          <span className="text-xs text-[var(--tm-text-muted)] hover:text-blue-500">
+                            Click for details →
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
+                  )}
                   <td className="p-2 md:px-4 md:py-2 text-right text-sm font-mono">
                     ${signal.initialPrice.toFixed(4)}
                   </td>

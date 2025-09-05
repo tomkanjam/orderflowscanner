@@ -69,6 +69,54 @@ Work with the PM on debugging
 ### Model Constraints
 - We will only ever use these models: gemini-2.5-flash, gemini-2.5-pro, and gemini-2.5-flash-lite-preview-06-17
 
+## Critical Architecture: Trader Indicators
+
+### IMPORTANT: How Traders Work with Indicators
+Each trader has their own **custom generated filter code** that runs in a worker thread. DO NOT try to calculate all indicators for all traders - this is incorrect and will break the architecture.
+
+### The Three-Part System:
+1. **Filter Code** (`trader.filter.code`): JavaScript code that executes in worker to identify matching symbols
+   - Receives: ticker data, timeframe klines, helper functions
+   - Calculates whatever indicators it needs internally
+   - Returns: boolean (matches or not)
+
+2. **Indicator Configurations** (`trader.filter.indicators`): Array of indicator definitions for chart visualization
+   - Defines which indicators to display on charts
+   - Used by `calculateIndicators()` to compute values for visualization
+   - CRITICAL: Must include ALL indicators the trader's analysis needs
+
+3. **AI Analysis** (`browserAnalysisEngine.analyzeSetup()`): Analyzes signals using provided indicators
+   - Receives: Market data with `calculatedIndicators` if trader has indicator configs
+   - Falls back to basic indicators (SMA20, RSI14, MACD) if no indicators configured
+   - PROBLEM: If indicators array is empty/incomplete, AI doesn't get needed data
+
+### Why Traders May Not Receive Indicator Data:
+- The `indicators` array in `trader.filter` wasn't properly populated during generation
+- There's a disconnect between what the filter code calculates and what's in the indicators array
+- The AI trader needs specific indicators but they're not in the configuration
+
+### Correct Flow:
+1. User describes strategy → `generateTrader()` creates trader with:
+   - Filter code that calculates needed conditions
+   - Indicators array that MUST include all indicators for both visualization AND analysis
+   - Required timeframes for multi-timeframe analysis
+
+2. When signal matches → `useSignalLifecycle` calculates configured indicators:
+   - If `trader.filter.indicators` exists → calculates those specific indicators
+   - Passes calculated indicators to AI analysis as `marketData.calculatedIndicators`
+   
+3. AI receives proper data → Can perform sophisticated analysis
+
+### DO NOT:
+- Force calculate all possible indicators for every trader
+- Modify the fallback calculation to include extensive indicators
+- Assume all traders need the same indicators
+
+### DO:
+- Ensure `generateTrader()` properly populates the indicators array
+- Validate that indicators match what the strategy needs
+- Pass trader-specific calculated indicators to the AI
+
 ## Core Flows
 
 ### Authentication & Signal Creation Flow

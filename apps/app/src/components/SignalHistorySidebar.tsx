@@ -34,15 +34,7 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
         // Check if analysis was added
         const newAnalysisCount = updatedSignal.analysisHistory?.length || 0;
         
-        console.log(`[SignalHistorySidebar] Signal ${updatedSignal.id} update:`, {
-          prevCount: prevAnalysisCountRef.current,
-          newCount: newAnalysisCount,
-          status: updatedSignal.status,
-          latestAnalysis: updatedSignal.analysisHistory?.[newAnalysisCount - 1]
-        });
-        
         if (newAnalysisCount > prevAnalysisCountRef.current) {
-          console.log(`[SignalHistorySidebar] New analysis detected! Count: ${prevAnalysisCountRef.current} -> ${newAnalysisCount}`);
           setJustUpdated(true);
           setTimeout(() => setJustUpdated(false), 2000);
         }

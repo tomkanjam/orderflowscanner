@@ -38,18 +38,23 @@ export function UserManager() {
           display_name,
           is_admin,
           created_at,
-          updated_at,
-          user_subscriptions (
-            tier,
-            status,
-            custom_signals_count,
-            started_at,
-            expires_at
-          )
+          updated_at
         `)
         .order('email', { ascending: true });
 
       if (usersError) throw usersError;
+
+      // Fetch all subscriptions separately for better reliability
+      const { data: subscriptionsData, error: subscriptionsError } = await supabase
+        .from('user_subscriptions')
+        .select('*');
+
+      if (subscriptionsError) throw subscriptionsError;
+
+      // Create a map of subscriptions by user_id for efficient lookup
+      const subscriptionMap = new Map(
+        (subscriptionsData || []).map(sub => [sub.user_id, sub])
+      );
 
       // Transform the data to match our interface
       const usersWithDetails = (usersData || []).map(user => ({
@@ -63,10 +68,7 @@ export function UserManager() {
           created_at: user.created_at,
           updated_at: user.updated_at
         },
-        subscription: user.user_subscriptions?.[0] ? {
-          ...user.user_subscriptions[0],
-          user_id: user.id
-        } : undefined
+        subscription: subscriptionMap.get(user.id) || undefined
       }));
       setUsers(usersWithDetails.sort((a, b) => a.email.localeCompare(b.email)));
     } catch (err) {
@@ -302,7 +304,7 @@ export function UserManager() {
             {getTierIcon('free')} Free Tier
           </div>
           <div className="text-2xl font-semibold mt-1" style={{ color: getTierColor('free') }}>
-            {users.filter(u => u.subscription?.tier === 'free').length}
+            {users.filter(u => !u.subscription || u.subscription.tier === 'free').length}
           </div>
         </div>
         <div className="bg-[var(--tm-bg-primary)] p-4 rounded-lg border border-[var(--tm-border)]">

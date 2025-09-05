@@ -113,19 +113,20 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
   
   return (
     <div className="bg-[#0d1421] rounded-lg border border-[#1a2332]">
-      {/* Status Filter Tabs */}
-      <div className="border-b border-[#1a2332] p-4">
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <button
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1 rounded text-sm transition-colors ${
-              statusFilter === 'all' 
-                ? 'bg-[#8efbba] text-[#0d1421]' 
-                : 'bg-[#1a2332] text-[#64748b] hover:text-[#e2e8f0]'
-            }`}
-          >
-            All ({statusCounts.total})
-          </button>
+      {/* Status Filter Tabs - Elite tier only */}
+      {currentTier === 'elite' && (
+        <div className="border-b border-[#1a2332] p-4">
+          <div className="flex items-center gap-2 overflow-x-auto">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1 rounded text-sm transition-colors ${
+                statusFilter === 'all' 
+                  ? 'bg-[#8efbba] text-[#0d1421]' 
+                  : 'bg-[#1a2332] text-[#64748b] hover:text-[#e2e8f0]'
+              }`}
+            >
+              All ({statusCounts.total})
+            </button>
           <button
             onClick={() => setStatusFilter('new')}
             className={`px-3 py-1 rounded text-sm transition-colors ${
@@ -178,6 +179,7 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
           </button>
         </div>
       </div>
+      )}
       
       {/* Table */}
       <div className="overflow-x-auto">
@@ -186,7 +188,9 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
             <tr className="border-b border-[#1a2332]">
               <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase"></th>
               <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Symbol</th>
-              <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Status</th>
+              {currentTier === 'elite' && (
+                <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Status</th>
+              )}
               <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Entry</th>
               <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Current</th>
               <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Change</th>
@@ -216,14 +220,16 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
                     }
                   </td>
                   <td className="p-3 font-medium text-[#e2e8f0]">{signal.symbol}</td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(signal.status)}
-                      <span className={`text-sm ${getStatusColor(signal.status)}`}>
-                        {signal.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                  </td>
+                  {currentTier === 'elite' && (
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(signal.status)}
+                        <span className={`text-sm ${getStatusColor(signal.status)}`}>
+                          {signal.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                    </td>
+                  )}
                   <td className="p-3 text-sm text-[#e2e8f0] font-mono">
                     ${signal.initialPrice.toFixed(4)}
                   </td>
@@ -276,7 +282,7 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
                 {/* Expanded Row - Signal Details */}
                 {expandedRows.has(signal.id) && (
                   <tr className="bg-[#1a2332]">
-                    <td colSpan={9} className="p-4">
+                    <td colSpan={currentTier === 'elite' ? 9 : 8} className="p-4">
                       <SignalDetails signal={signal} />
                     </td>
                   </tr>

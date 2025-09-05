@@ -109,9 +109,6 @@ const Sidebar: React.FC<SidebarProps> = ({
       
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col">
-        <h2 className="text-2xl font-bold mb-4 tm-heading-lg">
-          <span className="text-[var(--tm-accent)]">Trading</span> <span className="text-[var(--tm-text-primary)]">Dashboard</span>
-        </h2>
       
       {/* Show form or list based on state */}
       {showCreateForm || editingTrader ? (

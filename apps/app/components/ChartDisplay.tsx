@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Chart, registerables, Filler, ChartConfiguration } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { CandlestickController, CandlestickElement, OhlcController, OhlcElement } from 'chartjs-chart-financial';
+import zoomPlugin from 'chartjs-plugin-zoom';
 import { Kline, CustomIndicatorConfig, CandlestickDataPoint, SignalLogEntry, HistoricalSignal, KlineInterval, IndicatorDataPoint } from '../types';
 import { useIndicatorWorker } from '../hooks/useIndicatorWorker';
 
-Chart.register(...registerables, CandlestickController, CandlestickElement, OhlcController, OhlcElement, Filler);
+Chart.register(...registerables, CandlestickController, CandlestickElement, OhlcController, OhlcElement, Filler, zoomPlugin);
 
 interface ChartDisplayProps {
   symbol: string | null;
@@ -225,7 +226,16 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
             chart.update('none');
         }
     });
-  }, []); 
+  }, []);
+  
+  // Function to reset zoom on all charts
+  const resetZoom = useCallback(() => {
+    if (priceChartInstanceRef.current) {
+      priceChartInstanceRef.current.resetZoom();
+      // Sync reset with indicator charts
+      syncIndicatorCharts(priceChartInstanceRef.current);
+    }
+  }, [syncIndicatorCharts]); 
 
   // Calculate indicators when they change
   useEffect(() => {
@@ -352,6 +362,14 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
             }
         });
 
+        // Add double-click handler to reset zoom
+        priceCanvasRef.current.ondblclick = () => {
+            if (priceChartInstanceRef.current) {
+                priceChartInstanceRef.current.resetZoom();
+                syncIndicatorCharts(priceChartInstanceRef.current);
+            }
+        };
+        
         priceChartInstanceRef.current = new Chart(priceCanvasRef.current, {
             type: 'candlestick',
             data: { datasets: priceChartDatasets },
@@ -408,11 +426,32 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     }
                 },
                 zoom: {
-                    pan: { enabled: true, mode: 'x', onPanComplete: ({chart}) => syncIndicatorCharts(chart) },
+                    limits: {
+                        x: {
+                            min: 'original',  // Cannot pan/zoom before first data point
+                            max: 'original',  // Cannot pan/zoom after last data point  
+                            minRange: 60000 * 5  // Minimum zoom: 5 candles worth of time (5 minutes for 1m candles)
+                        }
+                    },
+                    pan: { 
+                        enabled: true, 
+                        mode: 'x',
+                        threshold: 10,  // Minimum pixels to trigger pan
+                        onPanComplete: ({chart}) => syncIndicatorCharts(chart) 
+                    },
                     zoom: { 
-                        wheel: { enabled: true, speed: 0.1 }, 
-                        pinch: { enabled: true }, 
-                        mode: 'x', 
+                        wheel: { 
+                            enabled: true, 
+                            speed: 0.15,  // Optimized for smooth scrolling (15% zoom per wheel event)
+                            modifierKey: null  // No modifier key needed - zoom works directly with scroll
+                        }, 
+                        pinch: { 
+                            enabled: true  // Support trackpad pinch gestures
+                        },
+                        drag: {
+                            enabled: false  // Disable drag to zoom (can be enabled if needed)
+                        },
+                        mode: 'x',  // Restrict zoom to x-axis only
                         onZoomComplete: ({chart}) => syncIndicatorCharts(chart) 
                     }
                 },
@@ -584,7 +623,11 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     }, 
                     zoom: { 
                         pan: { enabled: false }, 
-                        zoom: { wheel: { enabled: false }, pinch: { enabled: false } } 
+                        zoom: { 
+                            wheel: { enabled: false }, 
+                            pinch: { enabled: false },
+                            drag: { enabled: false }
+                        } 
                     },
                     crosshair: {
                         crosshairX: crosshairX,
@@ -713,6 +756,19 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 <div className="text-[var(--tm-accent)]">Calculating indicators...</div>
               </div>
             )}
+            {/* Zoom controls */}
+            <div className="absolute top-2 right-2 flex gap-2 z-10">
+              <button
+                onClick={resetZoom}
+                className="px-2 py-1 bg-[var(--tm-bg-secondary)] hover:bg-[var(--tm-bg-tertiary)] text-[var(--tm-text-muted)] hover:text-[var(--tm-accent)] rounded text-xs font-medium transition-colors"
+                title="Reset zoom (double-click also resets)"
+              >
+                Reset Zoom
+              </button>
+              <div className="px-2 py-1 bg-[var(--tm-bg-secondary)] text-[var(--tm-text-muted)] rounded text-xs">
+                Scroll to zoom X-axis
+              </div>
+            </div>
           </div>
           {panelIndicators.map((indicator, idx) => (
             <div key={indicator.id} className={`${panelHeight} relative border-t border-[var(--tm-border)]`}>

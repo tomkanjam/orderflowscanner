@@ -30,7 +30,8 @@ export function TierGate({
           <span className="text-sm">
             {minTier === 'free' && 'Sign in to access'}
             {minTier === 'pro' && 'Upgrade to Pro'}
-            {minTier === 'elite' && 'Upgrade to Elite'}
+            {/* Elite tier is secret - don't show upgrade prompt */}
+            {minTier === 'elite' && 'Feature not available'}
           </span>
         </div>
       );

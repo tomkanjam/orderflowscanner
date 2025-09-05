@@ -6,6 +6,7 @@ import { TradeExecutionModal } from './TradeExecutionModal';
 import { PositionManager } from './PositionManager';
 import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, AlertCircle, DollarSign } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 interface EnhancedSignalsTableProps {
   strategyId?: string;
@@ -15,6 +16,7 @@ interface EnhancedSignalsTableProps {
 }
 
 export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTrade, onRowClick }: EnhancedSignalsTableProps) {
+  const { currentTier } = useSubscription();
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<SignalStatus | 'all'>('all');
@@ -243,7 +245,8 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
                   </td>
                   <td className="p-3">
                     <div className="flex items-center gap-2">
-                      {signal.status === 'new' && (
+                      {/* Only show Analyze button for Elite tier */}
+                      {signal.status === 'new' && currentTier === 'elite' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -254,7 +257,8 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
                           Analyze
                         </button>
                       )}
-                      {signal.status === 'ready' && (
+                      {/* Only show Execute button for Elite tier */}
+                      {signal.status === 'ready' && currentTier === 'elite' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

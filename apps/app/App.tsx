@@ -31,6 +31,7 @@ import { memoryMonitor } from './src/utils/memoryMonitor';
 import { webSocketManager } from './src/utils/webSocketManager';
 import { useOptimizedMap, BatchedUpdater, LimitedMap, pruneMapByAge } from './src/utils/stateOptimizer';
 import { startMemoryCleanup, getActiveSymbols } from './src/utils/memoryCleanup';
+import { useSubscription } from './src/contexts/SubscriptionContext';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -56,6 +57,7 @@ if (process.env.NODE_ENV === 'development') {
 
 const AppContent: React.FC = () => {
   const { activeStrategy } = useStrategy();
+  const { currentTier } = useSubscription();
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
   const [historicalData, setHistoricalData] = useState<Map<string, Map<KlineInterval, Kline[]>>>(new Map());
@@ -279,8 +281,8 @@ const AppContent: React.FC = () => {
     isMonitoring 
   } = useSignalLifecycle({
     activeStrategy,
-    autoAnalyze: true,
-    autoMonitor: true,
+    autoAnalyze: currentTier === 'elite', // Only auto-analyze for Elite tier
+    autoMonitor: currentTier === 'elite', // Only auto-monitor for Elite tier
     modelName: 'gemini-2.5-flash', // Default model if trader doesn't specify
     calculateIndicators,
     aiAnalysisLimit: klineHistoryConfig.aiAnalysisLimit,

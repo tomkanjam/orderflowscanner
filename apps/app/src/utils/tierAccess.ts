@@ -95,7 +95,7 @@ export function getTierLimits(
     case 'elite':
       limits.push({ feature: 'Built-in Signals', limit: 'unlimited', used: 0 });
       limits.push({ feature: 'Custom Signals', limit: 'unlimited', used: customSignalsCount });
-      limits.push({ feature: 'AI Analysis', limit: 'unlimited', used: 0 });
+      // AI features are hidden for now - Elite tier is secret
       break;
   }
 

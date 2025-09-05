@@ -140,8 +140,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             />
           </div>
           
-          {/* Portfolio Metrics - Elite tier only */}
-          {canAccessTier('elite') ? (
+          {/* Portfolio Metrics - Elite tier only (hidden for now) */}
+          {canAccessTier('elite') && (
             <>
               <div className="mt-6">
                 <PortfolioMetrics />
@@ -157,24 +157,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <PositionsPanel />
               </div>
             </>
-          ) : (
-            <div className="mt-6 p-4 bg-[var(--tm-bg-primary)] rounded-lg border border-[var(--tm-border)]">
-              <div className="text-center">
-                <svg className="w-8 h-8 mx-auto mb-2 text-[var(--tm-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                <p className="text-sm text-[var(--tm-text-secondary)] mb-2">
-                  Portfolio & Trading features are
-                  <span className="block font-semibold text-[var(--tm-text-primary)]">Elite Tier Exclusive</span>
-                </p>
-                <a
-                  href="/account"
-                  className="text-xs text-[var(--tm-accent)] hover:text-[var(--tm-accent-dark)] transition-colors"
-                >
-                  Upgrade to Elite →
-                </a>
-              </div>
-            </div>
           )}
           
           {/* Admin Link - Only visible to authorized user */}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStrategy } from '../contexts/StrategyContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import { ServiceFactory } from '../services/serviceFactory';
 import { AnalysisResult, MarketData } from '../abstractions/interfaces';
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
@@ -12,10 +13,16 @@ interface EnhancedAnalysisProps {
 
 export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: EnhancedAnalysisProps) {
   const { activeStrategy } = useStrategy();
+  const { currentTier } = useSubscription();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+  
+  // Hide component for non-Elite users (Elite tier is secret)
+  if (currentTier !== 'elite') {
+    return null;
+  }
 
   const runAnalysis = async () => {
     if (!activeStrategy) {

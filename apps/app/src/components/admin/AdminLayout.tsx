@@ -27,8 +27,6 @@ export const AdminLayout: React.FC = () => {
       {/* Admin Navigation Sidebar */}
       <nav className="w-64 bg-gray-800 border-r border-gray-700">
         <div className="p-4">
-          <h1 className="text-2xl font-bold text-gray-100 mb-8">Admin Dashboard</h1>
-          
           <div className="space-y-2">
             {navItems.map((item) => (
               <NavLink

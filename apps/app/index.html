@@ -6,6 +6,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI-Powered Binance Crypto Screener</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Configure Tailwind to use Neon Terminal colors
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              // Map Tailwind colors to Neon Terminal variables
+              gray: {
+                900: '#0A0A0B', // --nt-bg-primary
+                800: '#111113', // --nt-bg-secondary
+                700: '#1A1A1C', // --nt-bg-tertiary
+                600: '#1F1F22', // --nt-bg-elevated
+                500: '#5A5A57', // --nt-text-muted
+                400: '#8A8A86', // --nt-text-tertiary
+                300: '#C4C4C0', // --nt-text-secondary
+                200: '#FAFAF9', // --nt-text-primary
+                100: '#FAFAF9', // --nt-text-primary
+              },
+              blue: {
+                400: '#C6FF00', // --nt-accent-lime
+                500: '#C6FF00', // --nt-accent-lime
+                600: '#D4FF33', // --nt-accent-lime-hover
+              },
+              green: {
+                400: '#00FF88', // --nt-success
+                500: '#00FF88', // --nt-success
+                600: '#00FF88', // --nt-success
+              },
+              red: {
+                400: '#FF0040', // --nt-error
+                500: '#FF0040', // --nt-error
+                600: '#FF0040', // --nt-error
+              },
+              yellow: {
+                400: '#FFD700', // --nt-warning
+                500: '#FFD700', // --nt-warning
+              },
+              cyan: {
+                400: '#00F0FF', // --nt-accent-cyan
+                500: '#00F0FF', // --nt-accent-cyan
+              }
+            }
+          }
+        }
+      }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="/neon-terminal-design-system.css" rel="stylesheet">
     <link href="/trademind-to-neon-migration.css" rel="stylesheet">
@@ -74,7 +120,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body>
+<body class="bg-gray-900 text-gray-100">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

@@ -198,6 +198,14 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   // State for crosshair synchronization
   const [crosshairX, setCrosshairX] = useState<number | null>(null);
   
+  // State for wheel zoom management and horizontal pan
+  const [wheelZoomEnabled, setWheelZoomEnabled] = useState(true);
+  const wheelZoomTimeoutRef = useRef<NodeJS.Timeout>();
+  const wheelEventHandlerRef = useRef<((e: WheelEvent) => void) | null>(null);
+  
+  // State to preserve zoom/pan state across chart recreations
+  const zoomStateRef = useRef<{ min: number | undefined; max: number | undefined }>({ min: undefined, max: undefined });
+  
   // Use the indicator worker hook
   const { calculateIndicators } = useIndicatorWorker();
 
@@ -232,10 +240,52 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   const resetZoom = useCallback(() => {
     if (priceChartInstanceRef.current) {
       priceChartInstanceRef.current.resetZoom();
+      // Clear saved zoom state when manually resetting
+      zoomStateRef.current = { min: undefined, max: undefined };
       // Sync reset with indicator charts
       syncIndicatorCharts(priceChartInstanceRef.current);
     }
-  }, [syncIndicatorCharts]); 
+  }, [syncIndicatorCharts]);
+  
+  // Handler for horizontal pan
+  const handleHorizontalPan = useCallback((
+    chart: Chart, 
+    deltaX: number, 
+    animate: boolean = false
+  ) => {
+    if (!chart) return;
+    
+    const panSpeed = 2; // Configurable
+    const mode = animate ? 'default' : 'none';
+    
+    chart.pan({ x: -deltaX * panSpeed }, undefined, mode);
+    syncIndicatorCharts(chart);
+  }, [syncIndicatorCharts]);
+  
+  // Helper function to temporarily disable/enable wheel zoom
+  const toggleWheelZoom = useCallback((enabled: boolean, chart: Chart) => {
+    if (!chart?.options?.plugins?.zoom) return;
+    
+    // Clear any existing timeout
+    if (wheelZoomTimeoutRef.current) {
+      clearTimeout(wheelZoomTimeoutRef.current);
+    }
+    
+    // Update zoom plugin config
+    chart.options.plugins.zoom.zoom.wheel.enabled = enabled;
+    
+    // If disabling, set timeout to re-enable
+    if (!enabled) {
+      wheelZoomTimeoutRef.current = setTimeout(() => {
+        if (chart?.options?.plugins?.zoom) {
+          chart.options.plugins.zoom.zoom.wheel.enabled = true;
+        }
+        setWheelZoomEnabled(true);
+      }, 100);
+    }
+    
+    setWheelZoomEnabled(enabled);
+  }, []); 
 
   // Calculate indicators when they change
   useEffect(() => {
@@ -275,6 +325,13 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
   // Render charts when calculations are complete
   useEffect(() => {
+    // Save current zoom/pan state before destroying charts
+    if (priceChartInstanceRef.current?.scales?.x) {
+      const currentMin = priceChartInstanceRef.current.scales.x.min;
+      const currentMax = priceChartInstanceRef.current.scales.x.max;
+      zoomStateRef.current = { min: currentMin, max: currentMax };
+    }
+    
     destroyAllCharts();
 
     if (!symbol || !klines || klines.length === 0 || isCalculating) {
@@ -366,9 +423,36 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         priceCanvasRef.current.ondblclick = () => {
             if (priceChartInstanceRef.current) {
                 priceChartInstanceRef.current.resetZoom();
+                // Clear saved zoom state when manually resetting
+                zoomStateRef.current = { min: undefined, max: undefined };
                 syncIndicatorCharts(priceChartInstanceRef.current);
             }
         };
+        
+        // Add custom wheel handler for horizontal panning (Shift+Scroll and native horizontal)
+        const handleWheelEvent = (e: WheelEvent) => {
+            if (!priceChartInstanceRef.current) return;
+            
+            const isHorizontalGesture = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+            const isShiftScroll = e.shiftKey && e.deltaY !== 0;
+            
+            if (isHorizontalGesture || isShiftScroll) {
+                e.preventDefault();
+                
+                // Temporarily disable zoom
+                toggleWheelZoom(false, priceChartInstanceRef.current);
+                
+                // Determine delta based on gesture type
+                const delta = isHorizontalGesture ? e.deltaX : e.deltaY;
+                
+                // Pan horizontally
+                handleHorizontalPan(priceChartInstanceRef.current, delta, false);
+            }
+        };
+        
+        // Store the handler reference for cleanup
+        wheelEventHandlerRef.current = handleWheelEvent;
+        priceCanvasRef.current.addEventListener('wheel', handleWheelEvent, { passive: false });
         
         priceChartInstanceRef.current = new Chart(priceCanvasRef.current, {
             type: 'candlestick',
@@ -482,6 +566,17 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
               },
             }
         });
+        
+        // Restore zoom/pan state if it exists
+        if (priceChartInstanceRef.current && zoomStateRef.current.min !== undefined && zoomStateRef.current.max !== undefined) {
+            // Apply the saved zoom state
+            priceChartInstanceRef.current.options.scales!.x!.min = zoomStateRef.current.min;
+            priceChartInstanceRef.current.options.scales!.x!.max = zoomStateRef.current.max;
+            priceChartInstanceRef.current.update('none');
+            
+            // Sync with indicator charts
+            syncIndicatorCharts(priceChartInstanceRef.current);
+        }
     }
 
     // --- Panel Indicators ---
@@ -671,6 +766,16 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
     });
 
     return () => {
+      // Remove wheel event listener
+      if (priceCanvasRef.current && wheelEventHandlerRef.current) {
+        priceCanvasRef.current.removeEventListener('wheel', wheelEventHandlerRef.current);
+      }
+      
+      // Clear any pending timeouts
+      if (wheelZoomTimeoutRef.current) {
+        clearTimeout(wheelZoomTimeoutRef.current);
+      }
+      
       destroyAllCharts();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

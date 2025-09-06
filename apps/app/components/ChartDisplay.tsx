@@ -184,6 +184,7 @@ const crosshairPlugin = {
 };
 
 const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, historicalSignals = [] }) => {
+
   const priceCanvasRef = useRef<HTMLCanvasElement>(null);
   const priceChartInstanceRef = useRef<Chart | null>(null);
   
@@ -290,28 +291,15 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   // Calculate indicators when they change
   useEffect(() => {
     if (!indicators || !klines || klines.length === 0) {
-      console.log('[CHART_DEBUG] No indicators or klines, clearing calculated indicators');
       setCalculatedIndicators(new Map());
       return;
     }
     
-    console.log('[CHART_DEBUG] Processing indicators:', indicators.map(ind => ({
-      id: ind.id,
-      name: ind.name,
-      panel: ind.panel,
-      hasCalculateFunction: !!ind.calculateFunction,
-      calculateFunctionPreview: ind.calculateFunction?.substring(0, 100) + '...'
-    })));
     
     const calculateAllIndicators = async () => {
       setIsCalculating(true);
       try {
         const results = await calculateIndicators(indicators, klines);
-        console.log('[CHART_DEBUG] Calculated indicators results:', Array.from(results.entries()).map(([id, data]) => ({
-          id,
-          dataLength: data.length,
-          firstPoint: data[0]
-        })));
         setCalculatedIndicators(results);
       } catch (error) {
         console.error('Error calculating indicators:', error);
@@ -323,20 +311,22 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
     calculateAllIndicators();
   }, [indicators, klines, calculateIndicators]);
 
-  // Render charts when calculations are complete
+  // Create or recreate charts only when symbol or interval changes
   useEffect(() => {
-    // Save current zoom/pan state before destroying charts
+
+    // Save current zoom/pan state before destroying charts (if we have one)
     if (priceChartInstanceRef.current?.scales?.x) {
       const currentMin = priceChartInstanceRef.current.scales.x.min;
       const currentMax = priceChartInstanceRef.current.scales.x.max;
       zoomStateRef.current = { min: currentMin, max: currentMax };
     }
-    
+
     destroyAllCharts();
 
     if (!symbol || !klines || klines.length === 0 || isCalculating) {
       return;
     }
+
 
     const candlestickData: CandlestickDataPoint[] = klines.map(k => ({
       x: k[0], o: parseFloat(k[1]), h: parseFloat(k[2]), l: parseFloat(k[3]), c: parseFloat(k[4]),
@@ -521,7 +511,9 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                         enabled: true, 
                         mode: 'x',
                         threshold: 10,  // Minimum pixels to trigger pan
-                        onPanComplete: ({chart}) => syncIndicatorCharts(chart) 
+                        onPanComplete: ({chart}) => {
+                            syncIndicatorCharts(chart);
+                        } 
                     },
                     zoom: { 
                         wheel: { 
@@ -536,7 +528,9 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                             enabled: false  // Disable drag to zoom (can be enabled if needed)
                         },
                         mode: 'x',  // Restrict zoom to x-axis only
-                        onZoomComplete: ({chart}) => syncIndicatorCharts(chart) 
+                        onZoomComplete: ({chart}) => {
+                            syncIndicatorCharts(chart);
+                        } 
                     }
                 },
                 signalMarkers: { 
@@ -779,7 +773,105 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
       destroyAllCharts();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, klines, indicators, interval, signalLog, syncIndicatorCharts, calculatedIndicators, isCalculating]); 
+  }, [symbol, interval]); // Only recreate chart when symbol or interval changes
+
+  // Separate effect to update chart data without recreating the chart
+  useEffect(() => {
+    if (!priceChartInstanceRef.current || !klines || klines.length === 0 || isCalculating) {
+      return;
+    }
+
+
+    const candlestickData: CandlestickDataPoint[] = klines.map(k => ({
+      x: k[0], o: parseFloat(k[1]), h: parseFloat(k[2]), l: parseFloat(k[3]), c: parseFloat(k[4]),
+    }));
+
+    const chart = priceChartInstanceRef.current;
+    if (chart && chart.data.datasets[0]) {
+      // Save current zoom state
+      const currentMin = chart.scales.x.min;
+      const currentMax = chart.scales.x.max;
+      
+      // Update candlestick data
+      chart.data.datasets[0].data = candlestickData;
+      
+      // Update indicator data
+      const overlayIndicators = indicators?.filter(ind => !ind.panel) || [];
+      let datasetIndex = 1; // Start after candlestick dataset
+      
+      overlayIndicators.forEach(indicator => {
+        const dataPoints = calculatedIndicators.get(indicator.id) || [];
+        if (dataPoints.length === 0) return;
+        
+        const hasMultipleLines = dataPoints.some(p => p.y2 !== undefined);
+        
+        if (hasMultipleLines) {
+          ['y', 'y2', 'y3', 'y4'].forEach((key) => {
+            const yKey = key as keyof IndicatorDataPoint;
+            if (dataPoints.some(p => p[yKey] !== undefined)) {
+              if (chart.data.datasets[datasetIndex]) {
+                chart.data.datasets[datasetIndex].data = dataPoints.map(p => ({x: p.x, y: p[yKey]}));
+              }
+              datasetIndex++;
+            }
+          });
+        } else {
+          if (chart.data.datasets[datasetIndex]) {
+            chart.data.datasets[datasetIndex].data = dataPoints.map(p => ({x: p.x, y: p.y}));
+          }
+          datasetIndex++;
+        }
+      });
+      
+      // Restore zoom state
+      chart.options.scales!.x!.min = currentMin;
+      chart.options.scales!.x!.max = currentMax;
+      
+      // Update chart without animation
+      chart.update('none');
+      syncIndicatorCharts(chart);
+      
+      // Update panel charts similarly
+      const panelIndicators = indicators?.filter(ind => ind.panel) || [];
+      panelIndicators.forEach((indicator, idx) => {
+        const panelChart = panelChartInstanceRefs.current[idx];
+        if (!panelChart) return;
+        
+        const dataPoints = calculatedIndicators.get(indicator.id) || [];
+        if (dataPoints.length === 0) return;
+        
+        // Update panel chart datasets
+        let panelDatasetIndex = 0;
+        if (indicator.chartType === 'bar') {
+          if (panelChart.data.datasets[panelDatasetIndex]) {
+            panelChart.data.datasets[panelDatasetIndex].data = dataPoints.map(p => ({x: p.x, y: p.y}));
+          }
+        } else {
+          const hasMultipleLines = dataPoints.some(p => p.y2 !== undefined);
+          if (hasMultipleLines) {
+            ['y', 'y2', 'y3', 'y4'].forEach((key) => {
+              const yKey = key as keyof IndicatorDataPoint;
+              if (dataPoints.some(p => p[yKey] !== undefined)) {
+                if (panelChart.data.datasets[panelDatasetIndex]) {
+                  panelChart.data.datasets[panelDatasetIndex].data = dataPoints.map(p => ({x: p.x, y: p[yKey]}));
+                }
+                panelDatasetIndex++;
+              }
+            });
+          } else {
+            if (panelChart.data.datasets[panelDatasetIndex]) {
+              panelChart.data.datasets[panelDatasetIndex].data = dataPoints.map(p => ({x: p.x, y: p.y}));
+            }
+          }
+        }
+        
+        // Match zoom with main chart
+        panelChart.options.scales!.x!.min = currentMin;
+        panelChart.options.scales!.x!.max = currentMax;
+        panelChart.update('none');
+      });
+    }
+  }, [klines, calculatedIndicators, indicators, isCalculating, syncIndicatorCharts]); 
 
   // Update crosshair position across all charts
   useEffect(() => {

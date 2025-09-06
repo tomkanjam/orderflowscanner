@@ -22,23 +22,23 @@
   --nt-accent-lime-light: rgba(198, 255, 0, 0.1);
   --nt-accent-lime-glow: rgba(198, 255, 0, 0.4);
   
-  --nt-accent-cyan: #00D9FF;
-  --nt-accent-cyan-hover: #33E0FF;
-  --nt-accent-cyan-light: rgba(0, 217, 255, 0.1);
-  --nt-accent-cyan-glow: rgba(0, 217, 255, 0.4);
+  --nt-accent-cyan: #00F0FF;
+  --nt-accent-cyan-hover: #33F5FF;
+  --nt-accent-cyan-light: rgba(0, 240, 255, 0.1);
+  --nt-accent-cyan-glow: rgba(0, 240, 255, 0.4);
   
-  /* Semantic Colors - Trading focused */
-  --nt-success: #00D68F;
-  --nt-success-light: rgba(0, 214, 143, 0.1);
-  --nt-success-glow: rgba(0, 214, 143, 0.4);
+  /* Semantic Colors - Trading focused - Electric intensity */
+  --nt-success: #00FF88;
+  --nt-success-light: rgba(0, 255, 136, 0.1);
+  --nt-success-glow: rgba(0, 255, 136, 0.4);
   
-  --nt-error: #FF5A5F;
-  --nt-error-light: rgba(255, 90, 95, 0.1);
-  --nt-error-glow: rgba(255, 90, 95, 0.4);
+  --nt-error: #FF0040;
+  --nt-error-light: rgba(255, 0, 64, 0.1);
+  --nt-error-glow: rgba(255, 0, 64, 0.4);
   
-  --nt-warning: #FFB800;
-  --nt-warning-light: rgba(255, 184, 0, 0.1);
-  --nt-warning-glow: rgba(255, 184, 0, 0.4);
+  --nt-warning: #FFD700;
+  --nt-warning-light: rgba(255, 215, 0, 0.1);
+  --nt-warning-glow: rgba(255, 215, 0, 0.4);
   
   --nt-info: #00B8D4;
   --nt-info-light: rgba(0, 184, 212, 0.1);
@@ -54,8 +54,8 @@
   --nt-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.5);
   --nt-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.6);
   --nt-shadow-glow-lime: 0 0 20px rgba(198, 255, 0, 0.3);
-  --nt-shadow-glow-cyan: 0 0 20px rgba(0, 217, 255, 0.3);
-  --nt-shadow-glow-success: 0 0 20px rgba(0, 214, 143, 0.3);
+  --nt-shadow-glow-cyan: 0 0 20px rgba(0, 240, 255, 0.3);
+  --nt-shadow-glow-success: 0 0 20px rgba(0, 255, 136, 0.3);
   
   /* Typography */
   --nt-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -96,11 +96,11 @@
   --nt-transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
   --nt-transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
   
-  /* Flat colors - no gradients */
+  /* Flat colors - no gradients - Electric intensity */
   --nt-flat-lime: #C6FF00;
-  --nt-flat-cyan: #00D9FF;
-  --nt-flat-success: #00D68F;
-  --nt-flat-error: #FF5A5F;
+  --nt-flat-cyan: #00F0FF;
+  --nt-flat-success: #00FF88;
+  --nt-flat-error: #FF0040;
 }
 
 /* Base Styles */

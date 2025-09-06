@@ -115,7 +115,7 @@ export const StyleGuideNeonTerminal: React.FC = () => {
                   }}></div>
                   <div>
                     <div className="nt-text-mono" style={{ color: 'var(--nt-accent-cyan)' }}>CYAN</div>
-                    <div style={{ fontSize: '12px', color: 'var(--nt-text-muted)' }}>#00D9FF</div>
+                    <div style={{ fontSize: '12px', color: 'var(--nt-text-muted)' }}>#00F0FF</div>
                   </div>
                 </div>
               </div>
@@ -135,7 +135,7 @@ export const StyleGuideNeonTerminal: React.FC = () => {
                   }}></div>
                   <div>
                     <div className="nt-text-mono" style={{ color: 'var(--nt-success)' }}>PROFIT</div>
-                    <div style={{ fontSize: '12px', color: 'var(--nt-text-muted)' }}>#00D68F</div>
+                    <div style={{ fontSize: '12px', color: 'var(--nt-text-muted)' }}>#00FF88</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -148,7 +148,7 @@ export const StyleGuideNeonTerminal: React.FC = () => {
                   }}></div>
                   <div>
                     <div className="nt-text-mono" style={{ color: 'var(--nt-error)' }}>LOSS</div>
-                    <div style={{ fontSize: '12px', color: 'var(--nt-text-muted)' }}>#FF5A5F</div>
+                    <div style={{ fontSize: '12px', color: 'var(--nt-text-muted)' }}>#FF0040</div>
                   </div>
                 </div>
               </div>

@@ -1224,7 +1224,7 @@ const AppContent: React.FC = () => {
   const activeSignalCount = allSignals.filter(signal => signal.status === 'active').length;
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen relative">
+    <div className="nt-design-system flex flex-col md:flex-row min-h-screen relative">
       <Sidebar
         onSelectedTraderChange={setSelectedTraderId}
         tickerCount={tickers.size}

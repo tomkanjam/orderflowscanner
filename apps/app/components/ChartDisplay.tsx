@@ -469,14 +469,14 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 x: { 
                     type: 'time', 
                     time: { unit: 'minute' },
-                    grid: { color: '#3f3f46' }, 
+                    grid: { display: false }, // Hide grid lines
                     ticks: { color: '#d4d4d8', maxRotation: 0, autoSkip: true, autoSkipPadding: 15 } 
                 },
                 yPrice: { 
                     type: 'linear', 
                     display: true, 
                     position: 'left', 
-                    grid: { color: '#3f3f46' }, 
+                    grid: { display: false }, // Hide grid lines
                     ticks: { color: '#d4d4d8' }
                 },
               },
@@ -638,14 +638,14 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                     x: { 
                         type: 'time', 
                         time: { unit: 'minute' },
-                        grid: { display: false }, 
+                        grid: { display: false }, // Hide grid lines
                         ticks: { display: false } 
                     },
                     y: { 
                         type: 'linear', 
                         display: true, 
                         position: indicator.yAxisConfig?.position || 'left', 
-                        grid: { color: '#3f3f46' }, 
+                        grid: { display: false }, // Hide grid lines
                         ticks: { 
                             color: '#d4d4d8', 
                             font: { size: 10 }, 

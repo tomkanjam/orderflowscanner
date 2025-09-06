@@ -123,14 +123,6 @@ export function TraderList({
           <h3 className="text-lg font-semibold text-[var(--tm-accent)]">
             Signals
           </h3>
-          <button
-            onClick={onCreateTrader}
-            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--tm-accent)] text-[var(--tm-bg-primary)] 
-              rounded hover:opacity-90 transition-opacity text-sm font-medium"
-          >
-            <Plus className="h-4 w-4" />
-            Create
-          </button>
         </div>
 
         {builtInSignals.length === 0 && lockedSignals.length === 0 ? (

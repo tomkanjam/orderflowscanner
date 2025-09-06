@@ -20,9 +20,9 @@ const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onA
       const currentPrice = parseFloat(tickerData.c);
       if (prevPrice !== null && currentPrice !== prevPrice) {
         if (currentPrice > prevPrice) {
-          setPriceFlashClass('text-[var(--tm-success)]');
+          setPriceFlashClass('text-[var(--nt-success)]');
         } else if (currentPrice < prevPrice) {
-          setPriceFlashClass('text-[var(--tm-error)]');
+          setPriceFlashClass('text-[var(--nt-error)]');
         }
         setFlashEndTime(Date.now() + 700);
       }
@@ -50,9 +50,9 @@ const TableRow: React.FC<TableRowProps> = ({ symbol, tickerData, onRowClick, onA
   if (!tickerData) {
     // Render a placeholder or nothing if ticker data is not yet available for this symbol
     return (
-      <tr className="hover:bg-[var(--tm-bg-hover)]/50 transition-colors duration-150" onClick={() => onRowClick(symbol)}>
-        <td className="px-4 py-3 whitespace-nowrap"><div className="font-semibold text-[var(--tm-accent)]">{symbol}</div></td>
-        <td colSpan={4} className="px-4 py-3 whitespace-nowrap text-right text-[var(--tm-text-muted)]">Loading data...</td>
+      <tr className="hover:bg-[var(--nt-bg-hover)]/50 transition-colors duration-150" onClick={() => onRowClick(symbol)}>
+        <td className="px-4 py-3 whitespace-nowrap"><div className="font-semibold text-[var(--nt-accent-lime)]">{symbol}</div></td>
+        <td colSpan={4} className="px-4 py-3 whitespace-nowrap text-right text-[var(--nt-text-muted)]">Loading data...</td>
       </tr>
     );
   }

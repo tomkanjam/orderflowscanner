@@ -51,10 +51,10 @@ export function getTierDisplayName(tier: SubscriptionTier | 'anonymous'): string
 
 export function getTierColor(tier: SubscriptionTier | 'anonymous'): string {
   const colors = {
-    anonymous: 'var(--tm-text-muted)',
-    free: 'var(--tm-text-secondary)',
-    pro: 'var(--tm-accent)',
-    elite: 'var(--tm-warning)'
+    anonymous: 'var(--nt-text-muted)',
+    free: 'var(--nt-text-secondary)',
+    pro: 'var(--nt-accent-lime)',
+    elite: 'var(--nt-warning)'
   };
   return colors[tier];
 }

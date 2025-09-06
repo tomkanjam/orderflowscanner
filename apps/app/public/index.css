@@ -1,0 +1,152 @@
+/* Main Application Styles - Neon Terminal Design System */
+
+/* Apply Neon Terminal design system globally */
+body {
+  background-color: var(--nt-bg-primary, #0A0A0B);
+  color: var(--nt-text-primary, #FAFAF9);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Override Tailwind dark theme colors with Neon Terminal */
+.bg-gray-900 { background-color: var(--nt-bg-primary, #0A0A0B) !important; }
+.bg-gray-800 { background-color: var(--nt-bg-secondary, #111113) !important; }
+.bg-gray-700 { background-color: var(--nt-bg-tertiary, #1A1A1C) !important; }
+.bg-gray-600 { background-color: var(--nt-bg-elevated, #1F1F22) !important; }
+
+/* Text color overrides */
+.text-gray-100 { color: var(--nt-text-primary, #FAFAF9) !important; }
+.text-gray-200 { color: var(--nt-text-primary, #FAFAF9) !important; }
+.text-gray-300 { color: var(--nt-text-secondary, #C4C4C0) !important; }
+.text-gray-400 { color: var(--nt-text-tertiary, #8A8A86) !important; }
+.text-gray-500 { color: var(--nt-text-muted, #5A5A57) !important; }
+
+/* Border color overrides */
+.border-gray-700 { border-color: var(--nt-border-default, rgba(198, 255, 0, 0.15)) !important; }
+.border-gray-600 { border-color: var(--nt-border-light, rgba(198, 255, 0, 0.08)) !important; }
+
+/* Primary accent colors - Electric Lime */
+.text-blue-400 { color: var(--nt-accent-lime, #C6FF00) !important; }
+.text-blue-500 { color: var(--nt-accent-lime, #C6FF00) !important; }
+.bg-blue-500 { background-color: var(--nt-accent-lime, #C6FF00) !important; }
+.bg-blue-600 { background-color: var(--nt-accent-lime-hover, #D4FF33) !important; }
+.border-blue-500 { border-color: var(--nt-accent-lime, #C6FF00) !important; }
+
+/* Secondary accent - Electric Cyan */
+.text-cyan-400 { color: var(--nt-accent-cyan, #00F0FF) !important; }
+.text-cyan-500 { color: var(--nt-accent-cyan, #00F0FF) !important; }
+.bg-cyan-500 { background-color: var(--nt-accent-cyan, #00F0FF) !important; }
+
+/* Success/Profit - Electric Green */
+.text-green-400 { color: var(--nt-success, #00FF88) !important; }
+.text-green-500 { color: var(--nt-success, #00FF88) !important; }
+.bg-green-500 { background-color: var(--nt-success, #00FF88) !important; }
+.bg-green-600 { background-color: var(--nt-success, #00FF88) !important; }
+
+/* Error/Loss - Hot Pink/Red */
+.text-red-400 { color: var(--nt-error, #FF0040) !important; }
+.text-red-500 { color: var(--nt-error, #FF0040) !important; }
+.bg-red-500 { background-color: var(--nt-error, #FF0040) !important; }
+.bg-red-600 { background-color: var(--nt-error, #FF0040) !important; }
+
+/* Warning - Electric Gold */
+.text-yellow-400 { color: var(--nt-warning, #FFD700) !important; }
+.text-yellow-500 { color: var(--nt-warning, #FFD700) !important; }
+.bg-yellow-500 { background-color: var(--nt-warning, #FFD700) !important; }
+
+/* Button overrides for Neon Terminal style */
+.bg-blue-500:hover { 
+  background-color: var(--nt-accent-lime-hover, #D4FF33) !important;
+  box-shadow: var(--nt-shadow-glow-lime, 0 0 20px rgba(198, 255, 0, 0.3));
+}
+
+button.bg-blue-500 {
+  color: var(--nt-bg-primary, #0A0A0B) !important;
+  font-weight: 600;
+}
+
+/* Input focus states */
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--nt-accent-lime, #C6FF00) !important;
+  box-shadow: 0 0 0 2px var(--nt-accent-lime-light, rgba(198, 255, 0, 0.1)) !important;
+  outline: none !important;
+}
+
+/* Card hover effects */
+.hover\:shadow-lg:hover {
+  box-shadow: var(--nt-shadow-glow-lime, 0 0 20px rgba(198, 255, 0, 0.3)) !important;
+}
+
+/* Monospace font for data */
+.font-mono,
+code,
+pre,
+.price-display,
+.metric-value {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', monospace !important;
+}
+
+/* Price flash animations with neon colors */
+@keyframes flash-green {
+  0% { background-color: rgba(0, 255, 136, 0.3); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-red {
+  0% { background-color: rgba(255, 0, 64, 0.3); }
+  100% { background-color: transparent; }
+}
+
+/* Custom scrollbar with neon accent */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--nt-bg-secondary, #111113);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--nt-border-default, rgba(198, 255, 0, 0.15));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--nt-accent-lime, #C6FF00);
+}
+
+/* Glow effect for active/selected elements */
+.selected,
+.active {
+  box-shadow: var(--nt-shadow-glow-lime, 0 0 20px rgba(198, 255, 0, 0.3)) !important;
+  border-color: var(--nt-accent-lime, #C6FF00) !important;
+}
+
+/* Pulse animation for live indicators */
+@keyframes neon-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pulse {
+  animation: neon-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Grid background pattern */
+.grid-bg {
+  background-image: 
+    linear-gradient(rgba(198, 255, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(198, 255, 0, 0.02) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Transition all color changes */
+* {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}

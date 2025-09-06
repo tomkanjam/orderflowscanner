@@ -80,7 +80,7 @@ export function AutoTradeButton({ signalId }: AutoTradeButtonProps) {
       )}
 
       {isAutoExecuteEnabled && (
-        <div className="flex items-center gap-1 text-xs text-[var(--nt-text-muted)]">
+        <div className="flex items-center gap-1 text-xs text-[var(--tm-text-muted)]">
           <Play className="w-3 h-3" />
           <span>Auto-execute enabled</span>
         </div>

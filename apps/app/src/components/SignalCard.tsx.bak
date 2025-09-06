@@ -195,8 +195,8 @@ export const SignalCard = React.memo(function SignalCard({
           canView ? 'cursor-pointer' : 'opacity-60'
         } ${
           isSelected 
-            ? 'bg-[var(--nt-bg-hover)] border-[var(--nt-accent-lime)]' 
-            : 'bg-[var(--nt-bg-secondary)] border-[var(--nt-border-default)] hover:border-[var(--nt-border-light)]'
+            ? 'bg-[var(--tm-bg-hover)] border-[var(--tm-accent)]' 
+            : 'bg-[var(--tm-bg-secondary)] border-[var(--tm-border)] hover:border-[var(--tm-border-light)]'
         }`}
         onClick={() => canView && onSelect?.()}
         role="button"
@@ -221,7 +221,7 @@ export const SignalCard = React.memo(function SignalCard({
                 <Power className="h-4 w-4" />
               </button>
             )}
-            <h4 className="font-medium text-[var(--nt-text-primary)] flex-1">
+            <h4 className="font-medium text-[var(--tm-text-primary)] flex-1">
               {signal.name || 'Unnamed Signal'}
             </h4>
             {signal.mode === 'demo' && (
@@ -233,7 +233,7 @@ export const SignalCard = React.memo(function SignalCard({
             {canFavorite && (
               <button
                 onClick={safeClickHandler(onToggleFavorite)}
-                className="p-1 rounded transition-colors text-[var(--nt-text-muted)] hover:text-[var(--nt-warning)]"
+                className="p-1 rounded transition-colors text-[var(--tm-text-muted)] hover:text-[var(--tm-warning)]"
                 title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
               >
@@ -245,7 +245,7 @@ export const SignalCard = React.memo(function SignalCard({
             <div className="flex items-center gap-1">
               <button
                 onClick={safeClickHandler(onEdit)}
-                className="p-1 text-[var(--nt-text-muted)] hover:text-[var(--nt-text-primary)] transition-colors"
+                className="p-1 text-[var(--tm-text-muted)] hover:text-[var(--tm-text-primary)] transition-colors"
                 title="Edit signal"
                 aria-label="Edit signal"
               >
@@ -253,7 +253,7 @@ export const SignalCard = React.memo(function SignalCard({
               </button>
               <button
                 onClick={safeClickHandler(onDelete)}
-                className="p-1 text-[var(--nt-text-muted)] hover:text-red-500 transition-colors"
+                className="p-1 text-[var(--tm-text-muted)] hover:text-red-500 transition-colors"
                 title="Delete signal"
                 aria-label="Delete signal"
               >
@@ -267,21 +267,21 @@ export const SignalCard = React.memo(function SignalCard({
         {canView && (
           <>
             {/* Description */}
-            <p className="text-sm text-[var(--nt-text-secondary)] mb-2">
+            <p className="text-sm text-[var(--tm-text-secondary)] mb-2">
               {signal.description || 'No description available'}
             </p>
 
             {/* Filter Conditions (for custom signals) */}
             {!signal.isBuiltIn && signal.filter?.description && signal.filter.description.length > 0 && (
-              <div className="text-xs text-[var(--nt-text-muted)] mb-2">
+              <div className="text-xs text-[var(--tm-text-muted)] mb-2">
                 {signal.filter.description.slice(0, 2).map((desc, i) => (
                   <div key={i} className="flex items-start gap-1">
-                    <span className="text-[var(--nt-accent-lime)] mt-0.5">•</span>
+                    <span className="text-[var(--tm-accent)] mt-0.5">•</span>
                     <span>{desc}</span>
                   </div>
                 ))}
                 {signal.filter.description.length > 2 && (
-                  <div className="text-[var(--nt-text-muted)] ml-3">
+                  <div className="text-[var(--tm-text-muted)] ml-3">
                     +{signal.filter.description.length - 2} more conditions
                   </div>
                 )}
@@ -290,7 +290,7 @@ export const SignalCard = React.memo(function SignalCard({
 
             {/* AI Analysis Settings (for custom signals, Elite only) */}
             {!signal.isBuiltIn && showAIFeatures && (
-              <div className="text-xs text-[var(--nt-text-muted)] mb-2">
+              <div className="text-xs text-[var(--tm-text-muted)] mb-2">
                 <div>Interval: {formatInterval(signal.filter?.interval || '1m')}</div>
                 <div>AI Model: {signal.strategy?.modelTier ? signal.strategy.modelTier.charAt(0).toUpperCase() + signal.strategy.modelTier.slice(1) : 'Standard'}</div>
                 <div>Analysis Data: {signal.strategy?.aiAnalysisLimit || 100} bars</div>
@@ -300,17 +300,17 @@ export const SignalCard = React.memo(function SignalCard({
             {/* Metrics */}
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div className="text-center">
-                <div className="text-[var(--nt-text-muted)]">
+                <div className="text-[var(--tm-text-muted)]">
                   {showAIFeatures ? 'Signals' : 'Triggered'}
                 </div>
-                <div className="font-medium text-[var(--nt-text-primary)]">
+                <div className="font-medium text-[var(--tm-text-primary)]">
                   {signal.metrics?.totalSignals ?? 0}
                 </div>
               </div>
               {showAIFeatures ? (
                 <>
                   <div className="text-center">
-                    <div className="text-[var(--nt-text-muted)]">Win Rate</div>
+                    <div className="text-[var(--tm-text-muted)]">Win Rate</div>
                     <div className="font-medium">
                       {metrics && metrics.trades > 0 
                         ? formatMetric((metrics.wins / metrics.trades) * 100) + '%'
@@ -319,7 +319,7 @@ export const SignalCard = React.memo(function SignalCard({
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[var(--nt-text-muted)]">P&L</div>
+                    <div className="text-[var(--tm-text-muted)]">P&L</div>
                     <div className="font-medium">
                       {metrics ? formatPnL(metrics.pnlPercent) : '-'}
                     </div>
@@ -328,14 +328,14 @@ export const SignalCard = React.memo(function SignalCard({
               ) : (
                 <>
                   <div className="text-center">
-                    <div className="text-[var(--nt-text-muted)]">Interval</div>
-                    <div className="font-medium text-[var(--nt-text-primary)]">
+                    <div className="text-[var(--tm-text-muted)]">Interval</div>
+                    <div className="font-medium text-[var(--tm-text-primary)]">
                       {formatInterval(signal.filter?.interval || '1m')}
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[var(--nt-text-muted)]">Last</div>
-                    <div className="font-medium text-[var(--nt-text-primary)]">
+                    <div className="text-[var(--tm-text-muted)]">Last</div>
+                    <div className="font-medium text-[var(--tm-text-primary)]">
                       {signal.metrics?.lastSignalAt 
                         ? new Date(signal.metrics.lastSignalAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
                         : '-'
@@ -348,10 +348,10 @@ export const SignalCard = React.memo(function SignalCard({
 
             {/* Active positions indicator (Elite only) */}
             {showAIFeatures && signal.metrics?.activePositions > 0 && (
-              <div className="mt-2 pt-2 border-t border-[var(--nt-border-default)]">
+              <div className="mt-2 pt-2 border-t border-[var(--tm-border)]">
                 <div className="flex items-center gap-2 text-xs">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="text-[var(--nt-text-muted)]">
+                  <span className="text-[var(--tm-text-muted)]">
                     {signal.metrics.activePositions} active position{signal.metrics.activePositions !== 1 ? 's' : ''}
                   </span>
                 </div>

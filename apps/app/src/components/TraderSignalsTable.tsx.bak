@@ -205,25 +205,25 @@ export function TraderSignalsTable({
   };
 
   return (
-    <div className="nt-card shadow-lg p-2 md:p-3 relative">
+    <div className="tm-card shadow-lg p-2 md:p-3 relative">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg md:text-xl font-semibold text-[var(--nt-accent-lime)] nt-heading-md">
+          <h2 className="text-lg md:text-xl font-semibold text-[var(--tm-accent)] tm-heading-md">
             Signal Triggers
           </h2>
           {selectedTrader && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-[var(--nt-accent-lime)]/10 border border-[var(--nt-accent-lime)] rounded-md">
-              <span className="text-sm font-medium text-[var(--nt-accent-lime)]">{selectedTrader.name}</span>
+            <div className="flex items-center gap-2 px-3 py-1 bg-[var(--tm-accent)]/10 border border-[var(--tm-accent)] rounded-md">
+              <span className="text-sm font-medium text-[var(--tm-accent)]">{selectedTrader.name}</span>
               <button
                 onClick={() => onSelectTrader?.(null)}
-                className="text-[var(--nt-accent-lime)] hover:text-[var(--nt-accent-lime)] transition-colors"
+                className="text-[var(--tm-accent)] hover:text-[var(--tm-accent-dark)] transition-colors"
                 title="Clear signal filter"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
           )}
-          <span className="text-sm text-[var(--nt-text-muted)]">
+          <span className="text-sm text-[var(--tm-text-muted)]">
             {sortedSignals.length} active {selectedTraderId && sortedHistoricalSignals.length > 0 && `+ ${sortedHistoricalSignals.length} historical`}
           </span>
         </div>
@@ -233,7 +233,7 @@ export function TraderSignalsTable({
           {!selectedTraderId && (
             <button
               onClick={toggleSound}
-              className="flex items-center gap-2 px-3 py-1 text-sm rounded-md bg-[var(--nt-bg-hover)] hover:bg-[var(--nt-bg-elevated)] transition-colors"
+              className="flex items-center gap-2 px-3 py-1 text-sm rounded-md bg-[var(--tm-bg-hover)] hover:bg-[var(--tm-bg-active)] transition-colors"
               title={soundEnabled ? "Disable sound notifications" : "Enable sound notifications"}
             >
               {soundEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
@@ -245,7 +245,7 @@ export function TraderSignalsTable({
           {selectedTraderId && (
             <button
               onClick={() => setShowDedupeSettings(!showDedupeSettings)}
-              className="flex items-center gap-2 px-3 py-1 text-sm rounded-md bg-[var(--nt-bg-hover)] hover:bg-[var(--nt-bg-elevated)] transition-colors"
+              className="flex items-center gap-2 px-3 py-1 text-sm rounded-md bg-[var(--tm-bg-hover)] hover:bg-[var(--tm-bg-active)] transition-colors"
             >
               <span className="hidden sm:inline">Dedupe: {signalDedupeThreshold} bars</span>
               <span className="sm:hidden">{signalDedupeThreshold}</span>
@@ -262,7 +262,7 @@ export function TraderSignalsTable({
                   lookbackBars: +e.target.value
                 })}
                 disabled={isHistoricalScanning}
-                className="nt-input px-2 py-1 text-sm disabled:opacity-50"
+                className="tm-input px-2 py-1 text-sm disabled:opacity-50"
               >
                 <option value={20}>20 bars</option>
                 <option value={50}>50 bars</option>
@@ -284,20 +284,20 @@ export function TraderSignalsTable({
                 <>
                   {historicalScanProgress && (
                     <div className="flex items-center gap-2 text-sm">
-                      <div className="w-24 bg-[var(--nt-bg-hover)] rounded-full h-1.5">
+                      <div className="w-24 bg-[var(--tm-bg-hover)] rounded-full h-1.5">
                         <div 
-                          className="bg-[var(--nt-accent-lime)] h-1.5 rounded-full transition-all duration-300"
+                          className="bg-[var(--tm-accent)] h-1.5 rounded-full transition-all duration-300"
                           style={{ width: `${historicalScanProgress.percentComplete}%` }}
                         />
                       </div>
-                      <span className="text-[var(--nt-text-muted)] text-xs">
+                      <span className="text-[var(--tm-text-muted)] text-xs">
                         {historicalScanProgress.percentComplete}%
                       </span>
                     </div>
                   )}
                   <button
                     onClick={onCancelHistoricalScan}
-                    className="tm-btn font-medium px-3 py-1 text-sm bg-[var(--nt-error)] hover:bg-[var(--nt-error)] text-[var(--nt-text-primary)]"
+                    className="tm-btn font-medium px-3 py-1 text-sm bg-[var(--tm-error)] hover:bg-[var(--tm-error-dark)] text-[var(--tm-text-primary)]"
                   >
                     Cancel
                   </button>
@@ -310,8 +310,8 @@ export function TraderSignalsTable({
 
       {/* Deduplication Settings Dropdown */}
       {showDedupeSettings && (
-        <div className="mb-3 p-2 bg-[var(--nt-bg-hover)] rounded-lg">
-          <label className="text-sm text-[var(--nt-text-secondary)] mb-2 block">
+        <div className="mb-3 p-2 bg-[var(--tm-bg-hover)] rounded-lg">
+          <label className="text-sm text-[var(--tm-text-secondary)] mb-2 block">
             Signal Deduplication Threshold
           </label>
           <div className="flex items-center gap-3">
@@ -335,11 +335,11 @@ export function TraderSignalsTable({
                   onSignalDedupeThresholdChange?.(value);
                 }
               }}
-              className="w-16 nt-input text-sm px-2 py-1"
+              className="w-16 tm-input text-sm px-2 py-1"
             />
-            <span className="text-sm text-[var(--nt-text-muted)]">bars</span>
+            <span className="text-sm text-[var(--tm-text-muted)]">bars</span>
           </div>
-          <p className="text-xs text-[var(--nt-text-muted)] mt-2">
+          <p className="text-xs text-[var(--tm-text-muted)] mt-2">
             Signals for the same symbol within this bar count will increment the count instead of creating a new entry.
           </p>
         </div>
@@ -347,8 +347,8 @@ export function TraderSignalsTable({
 
       <div className="overflow-y-auto max-h-[500px] md:max-h-[600px]">
         <table className="w-full tm-table">
-          <thead className="sticky top-0 bg-[var(--nt-bg-tertiary)] z-10">
-            <tr className="text-left text-xs md:text-sm text-[var(--nt-text-muted)]">
+          <thead className="sticky top-0 bg-[var(--tm-bg-tertiary)] z-10">
+            <tr className="text-left text-xs md:text-sm text-[var(--tm-text-muted)]">
               <th className="p-2 md:px-4 md:py-2">Time</th>
               <th className="p-2 md:px-4 md:py-2">Symbol</th>
               <th className="p-2 md:px-4 md:py-2">Signal</th>
@@ -366,21 +366,21 @@ export function TraderSignalsTable({
             {enhancedSignals.map((signal) => (
               <React.Fragment key={signal.id}>
                 <tr 
-                  className={`border-b border-[var(--nt-border-default)] hover:bg-[var(--nt-bg-hover)] transition-colors cursor-pointer ${
-                    newSignalTimestamps.has(signal.createdAt.getTime()) ? 'animate-pulse bg-[var(--nt-accent-lime)]/10' : ''
+                  className={`border-b border-[var(--tm-border)] hover:bg-[var(--tm-bg-hover)] transition-colors cursor-pointer ${
+                    newSignalTimestamps.has(signal.createdAt.getTime()) ? 'animate-pulse bg-[var(--tm-accent)]/10' : ''
                   } ${selectedSignalId === signal.id ? 'bg-blue-500/10 border-l-4 border-l-blue-500' : ''}`}
                   onClick={() => {
                     onRowClick?.(signal.symbol, signal.traderId, signal.id);
                     onSignalSelect?.(signal);
                   }}
 >
-                  <td className="p-2 md:px-4 md:py-2 text-xs md:text-sm text-[var(--nt-text-muted)]">
+                  <td className="p-2 md:px-4 md:py-2 text-xs md:text-sm text-[var(--tm-text-muted)]">
                     {formatDistanceToNow(signal.createdAt, { addSuffix: true })}
                   </td>
-                  <td className="p-2 md:px-4 md:py-2 font-medium text-[var(--nt-text-primary)]">
+                  <td className="p-2 md:px-4 md:py-2 font-medium text-[var(--tm-text-primary)]">
                     {signal.symbol}
                   </td>
-                  <td className="p-2 md:px-4 md:py-2 text-xs text-[var(--nt-text-secondary)]">
+                  <td className="p-2 md:px-4 md:py-2 text-xs text-[var(--tm-text-secondary)]">
                     {signal.traderId 
                       ? traders.find(t => t.id === signal.traderId)?.name || signal.traderId
                       : 'AI Screener'}
@@ -425,7 +425,7 @@ export function TraderSignalsTable({
                               {signal.analysis.decision === 'bad_setup' && 'BAD SETUP'}
                             </span>
                             {signal.analysisHistory && signal.analysisHistory.length > 0 && (
-                              <span className="text-xs text-[var(--nt-text-muted)]">
+                              <span className="text-xs text-[var(--tm-text-muted)]">
                                 ({signal.analysisHistory.length})
                               </span>
                             )}
@@ -445,7 +445,7 @@ export function TraderSignalsTable({
                           {signal.status === 'ready' && (
                             <AutoTradeButton signalId={signal.id} />
                           )}
-                          <span className="text-xs text-[var(--nt-text-muted)] hover:text-blue-500">
+                          <span className="text-xs text-[var(--tm-text-muted)] hover:text-blue-500">
                             Click for details →
                           </span>
                         </div>
@@ -470,8 +470,8 @@ export function TraderSignalsTable({
             
             {/* Separator row - only show when trader selected */}
             {selectedTraderId && sortedHistoricalSignals.length > 0 && (
-              <tr className="bg-[var(--nt-bg-tertiary)]/50 border-t border-b border-[var(--nt-border-light)]">
-                <td colSpan={8} className="text-center py-2 text-sm text-[var(--nt-accent-lime)] font-medium">
+              <tr className="bg-[var(--tm-bg-tertiary)]/50 border-t border-b border-[var(--tm-border-light)]">
+                <td colSpan={8} className="text-center py-2 text-sm text-[var(--tm-accent)] font-medium">
                   📊 Historical Signals (Found in Past Data)
                 </td>
               </tr>
@@ -485,19 +485,19 @@ export function TraderSignalsTable({
               return (
                 <tr 
                   key={`historical-${signal.symbol}-${signal.timestamp}-${index}`}
-                  className="border-b border-[var(--nt-border-default)] hover:bg-[var(--nt-bg-hover)] transition-colors cursor-pointer opacity-75"
+                  className="border-b border-[var(--tm-border)] hover:bg-[var(--tm-bg-hover)] transition-colors cursor-pointer opacity-75"
                   onClick={() => onRowClick?.(signal.symbol, signal.traderId)}
 >
-                  <td className="p-2 md:px-4 md:py-2 text-xs md:text-sm text-[var(--nt-text-muted)]">
+                  <td className="p-2 md:px-4 md:py-2 text-xs md:text-sm text-[var(--tm-text-muted)]">
                     {new Date(signal.klineTimestamp).toLocaleString()}
                   </td>
-                  <td className="p-2 md:px-4 md:py-2 font-medium text-[var(--nt-text-primary)]">
+                  <td className="p-2 md:px-4 md:py-2 font-medium text-[var(--tm-text-primary)]">
                     {signal.symbol}
                     {(signal.count || 0) > 1 && (
-                      <span className="ml-1 text-xs text-[var(--nt-accent-lime)]">x{signal.count}</span>
+                      <span className="ml-1 text-xs text-[var(--tm-accent)]">x{signal.count}</span>
                     )}
                   </td>
-                  <td className="p-2 md:px-4 md:py-2 text-xs text-[var(--nt-text-secondary)]">
+                  <td className="p-2 md:px-4 md:py-2 text-xs text-[var(--tm-text-secondary)]">
                     Historical
                   </td>
                   <td className="p-2 md:px-4 md:py-2">
@@ -521,7 +521,7 @@ export function TraderSignalsTable({
             
             {signals.length === 0 && historicalSignals.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center text-[var(--nt-text-muted)] p-4">
+                <td colSpan={8} className="text-center text-[var(--tm-text-muted)] p-4">
                   No signals generated yet. Enable your traders to start capturing signals.
                 </td>
               </tr>

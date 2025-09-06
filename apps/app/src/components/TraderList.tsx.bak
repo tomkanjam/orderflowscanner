@@ -101,7 +101,7 @@ export function TraderList({
 
   if (loading) {
     return (
-      <div className="p-4 text-center text-[var(--nt-text-muted)]">
+      <div className="p-4 text-center text-[var(--tm-text-muted)]">
         Loading traders...
       </div>
     );
@@ -120,13 +120,13 @@ export function TraderList({
       {/* Built-in Signals Section */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-[var(--nt-accent-lime)]">
+          <h3 className="text-lg font-semibold text-[var(--tm-accent)]">
             Signals
           </h3>
         </div>
 
         {builtInSignals.length === 0 && lockedSignals.length === 0 ? (
-          <div className="text-center py-8 text-[var(--nt-text-muted)]">
+          <div className="text-center py-8 text-[var(--tm-text-muted)]">
             <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p className="mb-2">No signals available</p>
           </div>
@@ -176,19 +176,19 @@ export function TraderList({
       }>
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-[var(--nt-accent-lime)]">
+            <h3 className="text-lg font-semibold text-[var(--tm-accent)]">
               {currentTier === 'elite' ? 'My AI Traders' : 'My Signals'}
             </h3>
             <div className="flex items-center gap-3">
               {remainingSignals !== Infinity && (
-                <span className="text-sm text-[var(--nt-text-muted)]">
+                <span className="text-sm text-[var(--tm-text-muted)]">
                   {remainingSignals} remaining
                 </span>
               )}
               <button
                 onClick={onCreateTrader}
                 disabled={!canCreateSignal()}
-                className="flex items-center gap-2 px-3 py-1.5 bg-[var(--nt-accent-lime)] text-[var(--nt-bg-primary)] 
+                className="flex items-center gap-2 px-3 py-1.5 bg-[var(--tm-accent)] text-[var(--tm-bg-primary)] 
                   rounded hover:opacity-90 transition-opacity text-sm font-medium
                   disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -199,7 +199,7 @@ export function TraderList({
           </div>
 
           {customSignals.length === 0 ? (
-            <div className="text-center py-8 text-[var(--nt-text-muted)]">
+            <div className="text-center py-8 text-[var(--tm-text-muted)]">
               <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p className="mb-2">
                 {currentTier === 'elite' ? 'No AI traders yet' : 'No signals yet'}

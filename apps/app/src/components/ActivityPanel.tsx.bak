@@ -233,14 +233,14 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
 
   const getEventColor = (type: ActivityEvent['type']) => {
     switch (type) {
-      case 'signal_created': return 'text-[var(--nt-text-muted)]';
-      case 'signal_analyzed': return 'text-[var(--nt-info)]';
-      case 'signal_monitoring': return 'text-[var(--nt-warning)]';
-      case 'signal_ready': return 'text-[var(--nt-success)]';
-      case 'trade_opened': return 'text-[var(--nt-accent-lime)]';
-      case 'trade_closed': return 'text-[var(--nt-accent-cyan)]';
-      case 'monitoring_decision': return 'text-[var(--nt-accent-lime)]';
-      default: return 'text-[var(--nt-text-muted)]';
+      case 'signal_created': return 'text-[var(--tm-text-dim)]';
+      case 'signal_analyzed': return 'text-[var(--tm-info)]';
+      case 'signal_monitoring': return 'text-[var(--tm-warning)]';
+      case 'signal_ready': return 'text-[var(--tm-success)]';
+      case 'trade_opened': return 'text-[var(--tm-accent)]';
+      case 'trade_closed': return 'text-[var(--tm-secondary)]';
+      case 'monitoring_decision': return 'text-[var(--tm-accent)]';
+      default: return 'text-[var(--tm-text-dim)]';
     }
   };
 
@@ -259,13 +259,13 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
 
   const panelContent = (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-[var(--nt-border-default)] flex-shrink-0">
+      <div className="p-4 border-b border-[var(--tm-border)] flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold">
             {selectedSignalId ? 'Signal History' : 'Trader Activity'}
           </h3>
           {selectedSignalId && (
-            <span className="text-sm text-[var(--nt-text-muted)]">
+            <span className="text-sm text-[var(--tm-text-muted)]">
               (Click another signal to change view)
             </span>
           )}
@@ -276,8 +276,8 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
             onClick={() => setFilter('all')}
             className={`px-3 py-1 rounded text-sm ${
               filter === 'all' 
-                ? 'bg-[var(--nt-accent-lime)] text-white' 
-                : 'bg-[var(--nt-bg-secondary)] text-[var(--nt-text-muted)]'
+                ? 'bg-[var(--tm-accent)] text-white' 
+                : 'bg-[var(--tm-bg-secondary)] text-[var(--tm-text-dim)]'
             }`}
           >
             All
@@ -286,8 +286,8 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
             onClick={() => setFilter('signals')}
             className={`px-3 py-1 rounded text-sm ${
               filter === 'signals' 
-                ? 'bg-[var(--nt-accent-lime)] text-white' 
-                : 'bg-[var(--nt-bg-secondary)] text-[var(--nt-text-muted)]'
+                ? 'bg-[var(--tm-accent)] text-white' 
+                : 'bg-[var(--tm-bg-secondary)] text-[var(--tm-text-dim)]'
             }`}
           >
             Signals
@@ -296,8 +296,8 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
             onClick={() => setFilter('trades')}
             className={`px-3 py-1 rounded text-sm ${
               filter === 'trades' 
-                ? 'bg-[var(--nt-accent-lime)] text-white' 
-                : 'bg-[var(--nt-bg-secondary)] text-[var(--nt-text-muted)]'
+                ? 'bg-[var(--tm-accent)] text-white' 
+                : 'bg-[var(--tm-bg-secondary)] text-[var(--tm-text-dim)]'
             }`}
           >
             Trades
@@ -307,18 +307,18 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
 
       <div className="flex-1 overflow-y-auto min-h-0">
         {filteredEvents.length === 0 ? (
-          <div className="p-4 text-center text-[var(--nt-text-muted)]">
+          <div className="p-4 text-center text-[var(--tm-text-muted)]">
             No activity to show
           </div>
         ) : (
-          <div className="divide-y divide-[var(--nt-border-default)]">
+          <div className="divide-y divide-[var(--tm-border)]">
             {filteredEvents.map(event => {
               const isExpanded = expandedEvents.has(event.id);
               
               return (
                 <div
                   key={event.id}
-                  className="p-4 hover:bg-[var(--nt-bg-secondary)] cursor-pointer transition-colors"
+                  className="p-4 hover:bg-[var(--tm-bg-secondary)] cursor-pointer transition-colors"
                   onClick={() => toggleEventExpanded(event.id)}
                 >
                   <div className="flex items-start gap-3">
@@ -329,7 +329,7 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium">{event.symbol}</span>
-                        <span className="text-xs text-[var(--nt-text-muted)]">
+                        <span className="text-xs text-[var(--tm-text-muted)]">
                           {formatTime(event.timestamp)}
                         </span>
                       </div>
@@ -339,16 +339,16 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
                       </div>
                       
                       {event.confidence !== undefined && (
-                        <div className="text-xs text-[var(--nt-text-muted)] mt-1">
+                        <div className="text-xs text-[var(--tm-text-dim)] mt-1">
                           Confidence: {(event.confidence * 100).toFixed(0)}%
                         </div>
                       )}
                       
                       {isExpanded && event.details && (
-                        <div className="mt-2 p-2 bg-[var(--nt-bg-primary)] rounded text-xs">
+                        <div className="mt-2 p-2 bg-[var(--tm-bg)] rounded text-xs">
                           {event.details.matchedConditions && (
                             <div className="mb-1">
-                              <span className="text-[var(--nt-text-muted)]">Conditions:</span>
+                              <span className="text-[var(--tm-text-muted)]">Conditions:</span>
                               <ul className="mt-1">
                                 {event.details.matchedConditions.map((condition: string, i: number) => (
                                   <li key={i}>• {condition}</li>
@@ -359,21 +359,21 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
                           
                           {event.details.reasoning && (
                             <div className="mb-1">
-                              <span className="text-[var(--nt-text-muted)]">Reasoning:</span>
+                              <span className="text-[var(--tm-text-muted)]">Reasoning:</span>
                               <div className="mt-1">{event.details.reasoning}</div>
                             </div>
                           )}
                           
                           {event.details.reason && (
                             <div className="mb-1">
-                              <span className="text-[var(--nt-text-muted)]">Reason:</span>
+                              <span className="text-[var(--tm-text-muted)]">Reason:</span>
                               <div className="mt-1">{event.details.reason}</div>
                             </div>
                           )}
                           
                           {event.details.targets && (
                             <div className="mb-1">
-                              <span className="text-[var(--nt-text-muted)]">Targets:</span>
+                              <span className="text-[var(--tm-text-muted)]">Targets:</span>
                               <div className="mt-1">
                                 Entry: ${event.details.targets.entry} | 
                                 Stop: ${event.details.targets.stop} | 
@@ -384,8 +384,8 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
                           
                           {event.details.pnl !== undefined && (
                             <div className="mb-1">
-                              <span className="text-[var(--nt-text-muted)]">P&L:</span>
-                              <div className={`mt-1 font-medium ${event.details.pnl >= 0 ? 'text-[var(--nt-success)]' : 'text-[var(--nt-error)]'}`}>
+                              <span className="text-[var(--tm-text-muted)]">P&L:</span>
+                              <div className={`mt-1 font-medium ${event.details.pnl >= 0 ? 'text-[var(--tm-success)]' : 'text-[var(--tm-error)]'}`}>
                                 ${event.details.pnl.toFixed(2)} ({event.details.pnlPct.toFixed(2)}%)
                               </div>
                             </div>
@@ -393,14 +393,14 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
                           
                           {event.details.decision && (
                             <div className="mb-1">
-                              <span className="text-[var(--nt-text-muted)]">Decision:</span>
-                              <div className="mt-1 font-medium text-[var(--nt-accent-lime)]">{event.details.decision.toUpperCase()}</div>
+                              <span className="text-[var(--tm-text-muted)]">Decision:</span>
+                              <div className="mt-1 font-medium text-[var(--tm-accent)]">{event.details.decision.toUpperCase()}</div>
                             </div>
                           )}
                           
                           {event.details.tradePlan && (
                             <div className="mb-1">
-                              <span className="text-[var(--nt-text-muted)]">Trade Plan:</span>
+                              <span className="text-[var(--tm-text-muted)]">Trade Plan:</span>
                               <div className="mt-1">
                                 Entry: ${event.details.tradePlan.entry} |
                                 Stop: ${event.details.tradePlan.stopLoss} |
@@ -424,7 +424,7 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
   // Desktop side panel
   if (!isMobile) {
     return (
-      <div className="w-80 border-l border-[var(--nt-border-default)] bg-[var(--nt-bg-primary)] h-full overflow-hidden">
+      <div className="w-80 border-l border-[var(--tm-border)] bg-[var(--tm-bg-primary)] h-full overflow-hidden">
         {panelContent}
       </div>
     );
@@ -434,10 +434,10 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 transform transition-transform duration-300">
       <div 
-        className="bg-[var(--nt-bg-primary)] rounded-t-xl shadow-lg max-h-[70vh] flex flex-col"
+        className="bg-[var(--tm-bg-primary)] rounded-t-xl shadow-lg max-h-[70vh] flex flex-col"
         style={{ transform: isOpen ? 'translateY(0)' : 'translateY(100%)' }}
       >
-        <div className="w-12 h-1 bg-[var(--nt-border-default)] rounded-full mx-auto mt-2 mb-2" />
+        <div className="w-12 h-1 bg-[var(--tm-border)] rounded-full mx-auto mt-2 mb-2" />
         {panelContent}
       </div>
     </div>

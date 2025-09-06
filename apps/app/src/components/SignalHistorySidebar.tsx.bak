@@ -120,14 +120,14 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
   };
 
   return (
-    <div className="h-full w-full bg-[var(--nt-bg-primary)] flex flex-col">
+    <div className="h-full w-full bg-[var(--tm-bg-primary)] flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-[var(--nt-border-default)]">
+      <div className="p-4 border-b border-[var(--tm-border)]">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-[var(--nt-text-primary)]">Signal History</h2>
+          <h2 className="text-lg font-semibold text-[var(--tm-text-primary)]">Signal History</h2>
           <button
             onClick={onClose}
-            className="text-[var(--nt-text-muted)] hover:text-[var(--nt-text-primary)] transition-colors"
+            className="text-[var(--tm-text-muted)] hover:text-[var(--tm-text-primary)] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -137,7 +137,7 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-[var(--nt-text-primary)]">{signal.symbol}</span>
+              <span className="text-xl font-bold text-[var(--tm-text-primary)]">{signal.symbol}</span>
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(signal.status)}`}>
                 {signal.status.replace('_', ' ')}
               </span>
@@ -149,19 +149,19 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
           
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <span className="text-[var(--nt-text-muted)]">Entry Price:</span>
+              <span className="text-[var(--tm-text-muted)]">Entry Price:</span>
               <span className="ml-2 font-mono">${signal.initialPrice.toFixed(4)}</span>
             </div>
             <div>
-              <span className="text-[var(--nt-text-muted)]">Current:</span>
+              <span className="text-[var(--tm-text-muted)]">Current:</span>
               <span className="ml-2 font-mono">${ticker?.c ? parseFloat(ticker.c).toFixed(4) : '---'}</span>
             </div>
             <div>
-              <span className="text-[var(--nt-text-muted)]">Trader:</span>
+              <span className="text-[var(--tm-text-muted)]">Trader:</span>
               <span className="ml-2">{trader?.name || 'Unknown'}</span>
             </div>
             <div>
-              <span className="text-[var(--nt-text-muted)]">Created:</span>
+              <span className="text-[var(--tm-text-muted)]">Created:</span>
               <span className="ml-2">{formatDistanceToNow(signal.createdAt, { addSuffix: true })}</span>
             </div>
           </div>
@@ -170,11 +170,11 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
       
       {/* Analysis Timeline */}
       <div className="flex-1 overflow-y-auto p-4">
-        <h3 className="text-sm font-semibold text-[var(--nt-text-secondary)] mb-4 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-[var(--tm-text-secondary)] mb-4 flex items-center gap-2">
           <Clock className="w-4 h-4" />
           Analysis Timeline
           {signal.analysisHistory && signal.analysisHistory.length > 0 && (
-            <span className="text-xs text-[var(--nt-text-muted)]">
+            <span className="text-xs text-[var(--tm-text-muted)]">
               ({signal.analysisHistory.length} {signal.analysisHistory.length === 1 ? 'analysis' : 'analyses'})
             </span>
           )}
@@ -186,11 +186,11 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
         </h3>
         
         {(!signal.analysisHistory || signal.analysisHistory.length === 0) ? (
-          <div className="text-center py-8 text-[var(--nt-text-muted)]">
+          <div className="text-center py-8 text-[var(--tm-text-muted)]">
             {signal.status === 'analyzing' || signal.status === 'analysis_queued' ? (
               <>
                 <div className="w-12 h-12 mx-auto mb-3 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-                <p className="text-sm font-medium text-[var(--nt-text-primary)]">
+                <p className="text-sm font-medium text-[var(--tm-text-primary)]">
                   {signal.status === 'analyzing' ? 'Analyzing signal...' : 'Queued for analysis'}
                 </p>
                 <p className="text-xs mt-1">
@@ -218,18 +218,18 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
               return (
                 <div 
                   key={idx} 
-                  className={`relative pl-8 pb-4 ${idx < signal.analysisHistory!.length - 1 ? 'border-l-2 border-[var(--nt-border-default)]' : ''}`}
+                  className={`relative pl-8 pb-4 ${idx < signal.analysisHistory!.length - 1 ? 'border-l-2 border-[var(--tm-border)]' : ''}`}
                   style={{ marginLeft: '12px' }}
                 >
                   {/* Timeline dot */}
                   <div className={`absolute -left-[9px] w-4 h-4 rounded-full border-2 ${
                     isLatest ? 'bg-blue-500 border-blue-500' : 
                     isDecisionChange ? 'bg-yellow-500 border-yellow-500' : 
-                    'bg-[var(--nt-bg-secondary)] border-[var(--nt-border-default)]'
+                    'bg-[var(--tm-bg-secondary)] border-[var(--tm-border)]'
                   }`} />
                   
                   {/* Analysis Card */}
-                  <div className={`bg-[var(--nt-bg-secondary)] rounded-lg p-4 ${
+                  <div className={`bg-[var(--tm-bg-secondary)] rounded-lg p-4 ${
                     isLatest ? 'ring-2 ring-blue-500/20' : ''
                   }`}>
                     {/* Header */}
@@ -248,10 +248,10 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
                         )}
                       </div>
                       <div className="text-right">
-                        <div className="text-xs text-[var(--nt-text-muted)]">
+                        <div className="text-xs text-[var(--tm-text-muted)]">
                           {new Date(analysis.timestamp).toLocaleTimeString()}
                         </div>
-                        <div className="text-xs text-[var(--nt-text-muted)]">
+                        <div className="text-xs text-[var(--tm-text-muted)]">
                           {new Date(analysis.timestamp).toLocaleDateString()}
                         </div>
                       </div>
@@ -260,10 +260,10 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
                     {/* Confidence */}
                     <div className="mb-3">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-[var(--nt-text-muted)]">Confidence</span>
+                        <span className="text-xs text-[var(--tm-text-muted)]">Confidence</span>
                         <span className="text-xs font-medium">{Math.round(analysis.confidence * 100)}%</span>
                       </div>
-                      <div className="w-full bg-[var(--nt-bg-hover)] rounded-full h-1.5">
+                      <div className="w-full bg-[var(--tm-bg-hover)] rounded-full h-1.5">
                         <div 
                           className={`h-1.5 rounded-full transition-all ${
                             analysis.confidence >= 0.8 ? 'bg-green-500' :
@@ -277,38 +277,38 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
                     
                     {/* Reasoning */}
                     <div className="space-y-2">
-                      <p className="text-sm text-[var(--nt-text-secondary)] leading-relaxed">
+                      <p className="text-sm text-[var(--tm-text-secondary)] leading-relaxed">
                         {analysis.reasoning}
                       </p>
                       
                       {/* Trade Plan */}
                       {analysis.tradePlan && (
-                        <div className="mt-3 p-3 bg-[var(--nt-bg-hover)] rounded-lg">
+                        <div className="mt-3 p-3 bg-[var(--tm-bg-hover)] rounded-lg">
                           <div className="flex items-center gap-2 mb-2">
-                            <Target className="w-4 h-4 text-[var(--nt-text-muted)]" />
-                            <span className="text-xs font-medium text-[var(--nt-text-secondary)]">Trade Plan</span>
+                            <Target className="w-4 h-4 text-[var(--tm-text-muted)]" />
+                            <span className="text-xs font-medium text-[var(--tm-text-secondary)]">Trade Plan</span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-xs">
                             <div>
-                              <span className="text-[var(--nt-text-muted)]">Entry:</span>
+                              <span className="text-[var(--tm-text-muted)]">Entry:</span>
                               <span className="ml-2 font-mono">{analysis.tradePlan.entry}</span>
                             </div>
                             <div>
-                              <span className="text-[var(--nt-text-muted)]">Stop Loss:</span>
+                              <span className="text-[var(--tm-text-muted)]">Stop Loss:</span>
                               <span className="ml-2 font-mono text-red-500">{analysis.tradePlan.stopLoss}</span>
                             </div>
                             <div>
-                              <span className="text-[var(--nt-text-muted)]">Take Profit:</span>
+                              <span className="text-[var(--tm-text-muted)]">Take Profit:</span>
                               <span className="ml-2 font-mono text-green-500">{analysis.tradePlan.takeProfit}</span>
                             </div>
                             <div>
-                              <span className="text-[var(--nt-text-muted)]">Size:</span>
+                              <span className="text-[var(--tm-text-muted)]">Size:</span>
                               <span className="ml-2">{analysis.tradePlan.positionSize}</span>
                             </div>
                             {analysis.tradePlan.notes && (
                               <div className="col-span-2">
-                                <span className="text-[var(--nt-text-muted)]">Notes:</span>
-                                <p className="mt-1 text-[var(--nt-text-secondary)]">{analysis.tradePlan.notes}</p>
+                                <span className="text-[var(--tm-text-muted)]">Notes:</span>
+                                <p className="mt-1 text-[var(--tm-text-secondary)]">{analysis.tradePlan.notes}</p>
                               </div>
                             )}
                           </div>
@@ -320,7 +320,7 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
                         <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                           {analysis.keyLevels.support && analysis.keyLevels.support.length > 0 && (
                             <div>
-                              <span className="text-[var(--nt-text-muted)]">Support:</span>
+                              <span className="text-[var(--tm-text-muted)]">Support:</span>
                               <div className="font-mono text-red-500">
                                 {analysis.keyLevels.support.map(s => `$${s.toFixed(4)}`).join(', ')}
                               </div>
@@ -328,7 +328,7 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
                           )}
                           {analysis.keyLevels.resistance && analysis.keyLevels.resistance.length > 0 && (
                             <div>
-                              <span className="text-[var(--nt-text-muted)]">Resistance:</span>
+                              <span className="text-[var(--tm-text-muted)]">Resistance:</span>
                               <div className="font-mono text-green-500">
                                 {analysis.keyLevels.resistance.map(r => `$${r.toFixed(4)}`).join(', ')}
                               </div>
@@ -347,30 +347,30 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
         {/* Monitoring Updates Section */}
         {signal.monitoringUpdates && signal.monitoringUpdates.length > 0 && (
           <div className="mt-8">
-            <h3 className="text-sm font-semibold text-[var(--nt-text-secondary)] mb-4 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-[var(--tm-text-secondary)] mb-4 flex items-center gap-2">
               <Activity className="w-4 h-4" />
               Monitoring Updates
-              <span className="text-xs text-[var(--nt-text-muted)]">
+              <span className="text-xs text-[var(--tm-text-muted)]">
                 ({signal.monitoringUpdates.length})
               </span>
             </h3>
             
             <div className="space-y-2">
               {signal.monitoringUpdates.slice(-10).reverse().map((update, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 bg-[var(--nt-bg-secondary)] rounded text-xs">
-                  <span className="text-[var(--nt-text-muted)]">
+                <div key={idx} className="flex items-center justify-between p-2 bg-[var(--tm-bg-secondary)] rounded text-xs">
+                  <span className="text-[var(--tm-text-muted)]">
                     {new Date(update.timestamp).toLocaleTimeString()}
                   </span>
                   <span className={`font-medium ${
                     update.action === 'enter' ? 'text-green-500' :
                     update.action === 'cancel' ? 'text-red-500' :
-                    'text-[var(--nt-text-secondary)]'
+                    'text-[var(--tm-text-secondary)]'
                   }`}>
                     {update.action.toUpperCase()}
                   </span>
                   <span className="font-mono">${update.price.toFixed(4)}</span>
                   {update.confidence && (
-                    <span className="text-[var(--nt-text-muted)]">
+                    <span className="text-[var(--tm-text-muted)]">
                       {Math.round(update.confidence * 100)}%
                     </span>
                   )}

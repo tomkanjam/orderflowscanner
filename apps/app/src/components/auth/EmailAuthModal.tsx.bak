@@ -69,21 +69,21 @@ export const EmailAuthModal: React.FC<EmailAuthModalProps> = ({
       <Modal isOpen={isOpen} onClose={onClose} title="✨ Check Your Email">
         <div className="text-center py-8">
           <div className="mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--nt-success)]/20 flex items-center justify-center">
-              <svg className="w-8 h-8 text-[var(--nt-success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--tm-success)]/20 flex items-center justify-center">
+              <svg className="w-8 h-8 text-[var(--tm-success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-[var(--nt-text-primary)] mb-2">
+            <h3 className="text-xl font-semibold text-[var(--tm-text-primary)] mb-2">
               Magic Link Sent!
             </h3>
-            <p className="text-[var(--nt-text-secondary)] mb-1">
+            <p className="text-[var(--tm-text-secondary)] mb-1">
               We've sent a magic link to:
             </p>
-            <p className="text-[var(--nt-accent-lime)] font-medium text-lg mb-4">
+            <p className="text-[var(--tm-accent)] font-medium text-lg mb-4">
               {email}
             </p>
-            <p className="text-[var(--nt-text-muted)] text-sm">
+            <p className="text-[var(--tm-text-muted)] text-sm">
               Click the link in your email to sign in and run your AI screener.
             </p>
           </div>
@@ -103,23 +103,23 @@ export const EmailAuthModal: React.FC<EmailAuthModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} title="🔐 Sign In to Continue">
       <div className="py-4">
         {pendingPrompt && (
-          <div className="mb-6 p-4 bg-[var(--nt-bg-tertiary)] rounded-lg border border-[var(--nt-border-light)]">
-            <p className="text-sm text-[var(--nt-text-secondary)] mb-2">
+          <div className="mb-6 p-4 bg-[var(--tm-bg-tertiary)] rounded-lg border border-[var(--tm-border-light)]">
+            <p className="text-sm text-[var(--tm-text-secondary)] mb-2">
               Your AI screener is ready to run:
             </p>
-            <p className="text-sm text-[var(--nt-accent-lime)] italic">
+            <p className="text-sm text-[var(--tm-accent)] italic">
               "{pendingPrompt}"
             </p>
           </div>
         )}
         
-        <p className="text-[var(--nt-text-secondary)] mb-6">
+        <p className="text-[var(--tm-text-secondary)] mb-6">
           Sign in with your email to access AI-powered crypto screening features.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-[var(--nt-text-secondary)] mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-[var(--tm-text-secondary)] mb-2">
               Email Address
             </label>
             <input
@@ -128,7 +128,7 @@ export const EmailAuthModal: React.FC<EmailAuthModalProps> = ({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full nt-input"
+              className="w-full tm-input"
               disabled={isSubmitting}
               autoFocus
               required
@@ -136,8 +136,8 @@ export const EmailAuthModal: React.FC<EmailAuthModalProps> = ({
           </div>
 
           {displayError && (
-            <div className="p-3 bg-[var(--nt-error)]/10 border border-[var(--nt-error)] rounded-lg">
-              <p className="text-sm text-[var(--nt-error)]">{displayError}</p>
+            <div className="p-3 bg-[var(--tm-error)]/10 border border-[var(--tm-error)] rounded-lg">
+              <p className="text-sm text-[var(--tm-error)]">{displayError}</p>
             </div>
           )}
 
@@ -149,7 +149,7 @@ export const EmailAuthModal: React.FC<EmailAuthModalProps> = ({
             >
               {isSubmitting ? (
                 <>
-                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--nt-bg-primary)] mr-2"></span>
+                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--tm-text-inverse)] mr-2"></span>
                   Sending...
                 </>
               ) : (
@@ -167,7 +167,7 @@ export const EmailAuthModal: React.FC<EmailAuthModalProps> = ({
           </div>
         </form>
 
-        <p className="text-xs text-[var(--nt-text-muted)] text-center mt-6">
+        <p className="text-xs text-[var(--tm-text-muted)] text-center mt-6">
           We'll email you a magic link for a password-free sign in.
         </p>
       </div>

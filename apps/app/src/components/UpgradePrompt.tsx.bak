@@ -63,8 +63,8 @@ export function UpgradePrompt({
   if (compact) {
     return (
       <button className={`inline-flex items-center gap-2 px-3 py-1 text-sm rounded-lg
-        bg-[var(--nt-bg-tertiary)] text-[var(--nt-accent-lime)] 
-        hover:bg-[var(--nt-accent-lime)] hover:text-[var(--nt-bg-primary)]
+        bg-[var(--tm-bg-tertiary)] text-[var(--tm-accent)] 
+        hover:bg-[var(--tm-accent)] hover:text-[var(--tm-text-inverse)]
         transition-colors ${className}`}
       >
         {getTierIcon(requiredTier)}
@@ -74,24 +74,24 @@ export function UpgradePrompt({
   }
 
   return (
-    <div className={`p-6 rounded-lg bg-gradient-to-br from-[var(--nt-bg-secondary)] to-[var(--nt-bg-tertiary)]
-      border border-[var(--nt-border-light)] ${className}`}
+    <div className={`p-6 rounded-lg bg-gradient-to-br from-[var(--tm-bg-secondary)] to-[var(--tm-bg-tertiary)]
+      border border-[var(--tm-border-light)] ${className}`}
     >
       <div className="flex items-start gap-4">
-        <div className="p-3 rounded-lg bg-[var(--nt-accent-lime)]/10 text-[var(--nt-accent-lime)]">
+        <div className="p-3 rounded-lg bg-[var(--tm-accent)]/10 text-[var(--tm-accent)]">
           {getTierIcon(requiredTier)}
         </div>
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-[var(--nt-text-primary)] mb-2">
+          <h3 className="text-lg font-semibold text-[var(--tm-text-primary)] mb-2">
             {currentTier === 'anonymous' ? 'Sign in' : 'Upgrade'} to access {feature}
           </h3>
-          <p className="text-sm text-[var(--nt-text-secondary)] mb-4">
+          <p className="text-sm text-[var(--tm-text-secondary)] mb-4">
             {requiredTier} tier includes:
           </p>
           <ul className="space-y-2 mb-4">
             {getTierBenefits(requiredTier).map((benefit, index) => (
-              <li key={index} className="flex items-center gap-2 text-sm text-[var(--nt-text-secondary)]">
-                <div className="w-1.5 h-1.5 rounded-full bg-[var(--nt-accent-lime)]" />
+              <li key={index} className="flex items-center gap-2 text-sm text-[var(--tm-text-secondary)]">
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--tm-accent)]" />
                 {benefit}
               </li>
             ))}

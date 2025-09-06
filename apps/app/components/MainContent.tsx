@@ -147,7 +147,7 @@ const MainContent: React.FC<MainContentProps> = ({
       
       {/* Signal History Sidebar - Elite tier only */}
       {selectedSignal && currentTier === 'elite' && (
-        <div className="w-96 border-l border-[var(--tm-border)] bg-[var(--tm-bg-primary)] h-full overflow-hidden flex-shrink-0">
+        <div className="w-96 border-l border-[var(--nt-border-default)] bg-[var(--nt-bg-primary)] h-full overflow-hidden flex-shrink-0">
           <SignalHistorySidebar 
             signal={selectedSignal}
             onClose={() => setSelectedSignal(null)}

@@ -11,10 +11,10 @@ const StrategyGrid: React.FC<StrategyGridProps> = ({ onSelectStrategy, loadingSt
   return (
     <div className="w-full">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-[var(--tm-text-primary)] mb-2 tm-heading-lg">
+        <h2 className="text-2xl font-bold text-[var(--nt-text-primary)] mb-2 nt-heading-lg">
           Choose a Day Trading Strategy
         </h2>
-        <p className="text-[var(--tm-text-muted)]">
+        <p className="text-[var(--nt-text-muted)]">
           Select a pre-built strategy to instantly scan the market for opportunities
         </p>
       </div>
@@ -31,7 +31,7 @@ const StrategyGrid: React.FC<StrategyGridProps> = ({ onSelectStrategy, loadingSt
       </div>
 
       <div className="mt-8 text-center">
-        <p className="text-sm text-[var(--tm-text-muted)]">
+        <p className="text-sm text-[var(--nt-text-muted)]">
           All strategies use real-time market data • Performance metrics based on backtesting
         </p>
       </div>

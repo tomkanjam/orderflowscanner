@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--tm-bg-secondary)] flex flex-col border-r border-[var(--tm-border)] h-screen">
+    <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--nt-bg-secondary)] flex flex-col border-r border-[var(--nt-border-default)] h-screen">
       {/* Status Bar Header */}
       <StatusBar
         connectionStatus={connectionStatus}
@@ -160,34 +160,34 @@ const Sidebar: React.FC<SidebarProps> = ({
           )}
           
           {/* User Menu */}
-          <div className="mt-6 pt-6 border-t border-[var(--tm-border)]">
+          <div className="mt-6 pt-6 border-t border-[var(--nt-border-default)]">
             {user ? (
               <div className="relative" ref={userMenuRef}>
                 {/* User Button */}
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="w-full flex items-center gap-3 px-4 py-2 bg-[var(--tm-bg-primary)] hover:bg-[var(--tm-bg-hover)] rounded-lg transition-all duration-200"
+                  className="w-full flex items-center gap-3 px-4 py-2 bg-[var(--nt-bg-primary)] hover:bg-[var(--nt-bg-hover)] rounded-lg transition-all duration-200"
                 >
-                  <User className="w-5 h-5 text-[var(--tm-text-secondary)]" />
+                  <User className="w-5 h-5 text-[var(--nt-text-secondary)]" />
                   <div className="flex-1 text-left">
-                    <div className="text-sm font-medium text-[var(--tm-text-primary)]">
+                    <div className="text-sm font-medium text-[var(--nt-text-primary)]">
                       {user.email}
                     </div>
                     <div className="text-xs" style={{ color: getTierColor(currentTier) }}>
                       {getTierDisplayName(currentTier)} Tier
                     </div>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-[var(--tm-text-secondary)] transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-4 h-4 text-[var(--nt-text-secondary)] transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
                 </button>
                 
                 {/* Dropdown Menu */}
                 {showUserMenu && (
-                  <div className="absolute bottom-full left-0 right-0 mb-2 bg-[var(--tm-bg-primary)] border border-[var(--tm-border)] rounded-lg shadow-lg overflow-hidden">
+                  <div className="absolute bottom-full left-0 right-0 mb-2 bg-[var(--nt-bg-primary)] border border-[var(--nt-border-default)] rounded-lg shadow-lg overflow-hidden">
                     {/* Admin Dashboard - Only visible to admin users */}
                     {isAdmin && (
                       <a
                         href="/admin"
-                        className="flex items-center gap-3 px-4 py-3 text-[var(--tm-text-secondary)] hover:text-[var(--tm-accent)] hover:bg-[var(--tm-bg-hover)] transition-all duration-200"
+                        className="flex items-center gap-3 px-4 py-3 text-[var(--nt-text-secondary)] hover:text-[var(--nt-accent-lime)] hover:bg-[var(--nt-bg-hover)] transition-all duration-200"
                         onClick={() => setShowUserMenu(false)}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -201,7 +201,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     {/* Account Dashboard - All users */}
                     <a
                       href="/account"
-                      className={`flex items-center gap-3 px-4 py-3 text-[var(--tm-text-secondary)] hover:text-[var(--tm-accent)] hover:bg-[var(--tm-bg-hover)] transition-all duration-200 ${isAdmin ? 'border-t border-[var(--tm-border)]' : ''}`}
+                      className={`flex items-center gap-3 px-4 py-3 text-[var(--nt-text-secondary)] hover:text-[var(--nt-accent-lime)] hover:bg-[var(--nt-bg-hover)] transition-all duration-200 ${isAdmin ? 'border-t border-[var(--nt-border-default)]' : ''}`}
                       onClick={() => setShowUserMenu(false)}
                     >
                       <Settings className="w-5 h-5" />
@@ -212,7 +212,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         signOut();
                         setShowUserMenu(false);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-[var(--tm-text-secondary)] hover:text-[var(--tm-error)] hover:bg-[var(--tm-error)]/10 transition-all duration-200 border-t border-[var(--tm-border)]"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-[var(--nt-text-secondary)] hover:text-[var(--nt-error)] hover:bg-[var(--nt-error)]/10 transition-all duration-200 border-t border-[var(--nt-border-default)]"
                     >
                       <LogOut className="w-5 h-5" />
                       <span className="font-medium">Logout</span>
@@ -223,7 +223,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             ) : (
               <button
                 onClick={handleSignIn}
-                className="w-full flex items-center gap-3 px-4 py-2 bg-[var(--tm-accent)] hover:bg-[var(--tm-accent-dark)] text-[var(--tm-bg-primary)] rounded-lg transition-all duration-200 font-medium"
+                className="w-full flex items-center gap-3 px-4 py-2 bg-[var(--nt-accent-lime)] hover:bg-[var(--nt-accent-lime-hover)] text-[var(--nt-bg-primary)] rounded-lg transition-all duration-200 font-medium"
               >
                 <LogIn className="w-5 h-5" />
                 <span>Sign In</span>

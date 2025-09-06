@@ -106,7 +106,7 @@ const AppContent: React.FC = () => {
   
   
   const [statusText, setStatusText] = useState<string>('Connecting...');
-  const [statusLightClass, setStatusLightClass] = useState<string>('bg-[var(--tm-text-muted)]');
+  const [statusLightClass, setStatusLightClass] = useState<string>('bg-[var(--nt-text-muted)]');
   
   const [selectedSymbolForChart, setSelectedSymbolForChart] = useState<string | null>(null);
   const [selectedSignalTraderId, setSelectedSignalTraderId] = useState<string | null>(null);
@@ -531,7 +531,7 @@ const AppContent: React.FC = () => {
       setTickers(new Map());
       setHistoricalData(new Map());
       setStatusText('Error');
-      setStatusLightClass('bg-[var(--tm-error)]');
+      setStatusLightClass('bg-[var(--nt-error)]');
     } finally {
       setInitialLoading(false);
     }
@@ -877,7 +877,7 @@ const AppContent: React.FC = () => {
             onOpen: () => {
               if (!isCleanedUp) {
                 setStatusText('Live');
-                setStatusLightClass('bg-[var(--tm-success)]');
+                setStatusLightClass('bg-[var(--nt-success)]');
               }
             },
             onMessage: (event) => {
@@ -921,13 +921,13 @@ const AppContent: React.FC = () => {
               if (!isCleanedUp) {
                 console.error("WebSocket Error:", error);
                 setStatusText('WS Error');
-                setStatusLightClass('bg-[var(--tm-error)]');
+                setStatusLightClass('bg-[var(--nt-error)]');
               }
             },
             onClose: () => {
               if (!isCleanedUp) {
                 setStatusText('Disconnected');
-                setStatusLightClass('bg-[var(--tm-warning)]');
+                setStatusLightClass('bg-[var(--nt-warning)]');
               }
             }
           },
@@ -940,7 +940,7 @@ const AppContent: React.FC = () => {
           type: e?.constructor?.name || 'Unknown'
         });
         setStatusText('WS Failed');
-        setStatusLightClass('bg-[var(--tm-error)]');
+        setStatusLightClass('bg-[var(--nt-error)]');
       }
     }, 500); // 500ms delay to ensure React StrictMode completes and all components are mounted
 
@@ -1137,7 +1137,7 @@ const AppContent: React.FC = () => {
   const handleAnalyzeMarket = useCallback(async () => {
     setIsMarketAnalysisLoading(true);
     setModalTitle('📊 AI Market Analysis');
-    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--tm-accent)] mx-auto"></div><p className="mt-2">Generating analysis...</p></div>);
+    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--nt-accent-lime)] mx-auto"></div><p className="mt-2">Generating analysis...</p></div>);
     setIsModalOpen(true);
 
     try {
@@ -1147,7 +1147,7 @@ const AppContent: React.FC = () => {
     } catch (error) {
         console.error("Market Analysis error:", error);
         const errorMessage = error instanceof Error ? error.message : "Failed to get market analysis.";
-        setModalContent(<p className="text-[var(--tm-error)]">{errorMessage}</p>);
+        setModalContent(<p className="text-[var(--nt-error)]">{errorMessage}</p>);
     } finally {
         setIsMarketAnalysisLoading(false);
     }
@@ -1157,14 +1157,14 @@ const AppContent: React.FC = () => {
     event.stopPropagation(); 
     setIsSymbolAnalysisLoading(true); 
     setModalTitle(`✨ AI Analysis for ${symbol}`);
-    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--tm-accent)] mx-auto"></div><p className="mt-2">Generating analysis for {symbol}...</p></div>);
+    setModalContent(<div className="text-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--nt-accent-lime)] mx-auto"></div><p className="mt-2">Generating analysis for {symbol}...</p></div>);
     setIsModalOpen(true);
 
     const tickerData = tickers.get(symbol);
     const klineData = historicalData.get(symbol);
 
     if (!tickerData || !klineData) {
-        setModalContent(<p className="text-[var(--tm-error)]">Data not available for {symbol}.</p>);
+        setModalContent(<p className="text-[var(--nt-error)]">Data not available for {symbol}.</p>);
         setIsSymbolAnalysisLoading(false);
         return;
     }
@@ -1176,7 +1176,7 @@ const AppContent: React.FC = () => {
     } catch (error) {
         console.error(`Symbol Analysis error for ${symbol}:`, error);
         const errorMessage = error instanceof Error ? error.message : "Failed to get analysis.";
-        setModalContent(<p className="text-[var(--tm-error)]">{errorMessage}</p>);
+        setModalContent(<p className="text-[var(--nt-error)]">{errorMessage}</p>);
     } finally {
         setIsSymbolAnalysisLoading(false);
     }

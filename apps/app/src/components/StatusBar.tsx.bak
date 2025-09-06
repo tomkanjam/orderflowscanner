@@ -69,11 +69,11 @@ export const StatusBar = memo<StatusBarProps>(({
   const ConnectionIcon = config.icon;
   
   return (
-    <div className="sticky top-0 z-10 h-12 bg-[var(--nt-bg-secondary)] border-b border-[var(--nt-border-default)] px-3 py-2 font-mono">
+    <div className="sticky top-0 z-10 h-12 bg-[var(--tm-bg-secondary)] border-b border-[var(--tm-border)] px-3 py-2 font-mono">
       <div className="flex items-center justify-between h-full text-xs">
         {/* App Name */}
         <div className="flex items-center">
-          <span className="text-lg font-bold text-[var(--nt-accent-lime)]">vyx</span>
+          <span className="text-lg font-bold text-[var(--tm-accent)]">vyx</span>
         </div>
         
         {/* Status Metrics */}
@@ -85,14 +85,14 @@ export const StatusBar = memo<StatusBarProps>(({
           </div>
           
           {/* Symbol Count */}
-          <div className="flex items-center gap-1 text-[var(--nt-text-secondary)]">
+          <div className="flex items-center gap-1 text-[var(--tm-text-secondary)]">
             <Database className="w-3.5 h-3.5" />
             <span>{symbolCount}</span>
           </div>
           
           {/* Active Signals */}
           {signalCount > 0 && (
-            <div className="flex items-center gap-1 text-[var(--nt-accent-lime)]">
+            <div className="flex items-center gap-1 text-[var(--tm-accent)]">
               <Zap className="w-3.5 h-3.5" />
               <span>{signalCount}</span>
             </div>

@@ -69,7 +69,7 @@ export const StyleGuideNeonTerminal: React.FC = () => {
               <div className="nt-metric-label">Crypto Native</div>
             </div>
             <div className="nt-metric">
-              <div className="nt-metric-value nt-pulse" style={{ color: 'var(--nt-accent-cyan)' }}>LIVE</div>
+              <div className="nt-metric-value nt-pulse" style={{ color: 'var(--nt-success)' }}>LIVE</div>
               <div className="nt-metric-label">Real-Time Data</div>
             </div>
             <div className="nt-metric">
@@ -286,7 +286,7 @@ export const StyleGuideNeonTerminal: React.FC = () => {
             
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <span className="nt-badge nt-badge-amber">ACTIVE</span>
-              <span className="nt-badge nt-badge-cyan">STREAMING</span>
+              <span className="nt-badge nt-badge-default">STREAMING</span>
               <span className="nt-badge nt-badge-success">PROFITABLE</span>
               <span className="nt-badge nt-badge-error">STOPPED</span>
               <span className="nt-badge nt-badge-default">PENDING</span>
@@ -395,7 +395,7 @@ export const StyleGuideNeonTerminal: React.FC = () => {
                   <td className="nt-table-cell nt-metric-positive">+12.7%</td>
                   <td className="nt-table-cell">$3.8B</td>
                   <td className="nt-table-cell">
-                    <span className="nt-badge nt-badge-cyan">WATCH</span>
+                    <span className="nt-badge nt-badge-default">WATCH</span>
                   </td>
                 </tr>
               </tbody>
@@ -437,7 +437,7 @@ export const StyleGuideNeonTerminal: React.FC = () => {
                 </div>
               </div>
               <div>
-                <div className="nt-text-mono" style={{ fontSize: '24px', color: 'var(--nt-accent-cyan)' }}>
+                <div className="nt-text-mono" style={{ fontSize: '24px', color: 'var(--nt-text-primary)' }}>
                   28.5B
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--nt-text-muted)', marginTop: '4px' }}>

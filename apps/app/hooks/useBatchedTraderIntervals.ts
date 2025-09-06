@@ -1,3 +1,15 @@
+/**
+ * Batched Trader Intervals Hook
+ * 
+ * Optimized version of useIndividualTraderIntervals that groups traders by refresh interval
+ * and executes them in batches to reduce data serialization overhead.
+ * 
+ * Performance improvements:
+ * - Single data serialization per interval group (80% reduction for 5 traders)
+ * - Reduced main thread blocking
+ * - Better resource utilization
+ */
+
 import { useEffect, useRef, useCallback } from 'react';
 import { Ticker, Kline, KlineInterval } from '../types';
 import { Trader } from '../src/abstractions/trader.interfaces';
@@ -17,17 +29,14 @@ interface UseBatchedTraderIntervalsProps {
   enabled?: boolean;
 }
 
-interface BatchedInterval {
+interface BatchedExecution {
   interval: KlineInterval;
+  traders: Trader[];
   timer: NodeJS.Timeout | null;
-  traders: Set<string>;
   lastRun: number;
   running: boolean;
 }
 
-/**
- * Optimized hook that batches trader executions by interval to reduce serialization overhead
- */
 export function useBatchedTraderIntervals({
   traders,
   symbols,
@@ -38,26 +47,30 @@ export function useBatchedTraderIntervals({
 }: UseBatchedTraderIntervalsProps) {
   const workerRef = useRef<Worker | null>(null);
   const requestIdRef = useRef(0);
-  const batchedIntervalsRef = useRef<Map<KlineInterval, BatchedInterval>>(new Map());
+  const batchesRef = useRef<Map<KlineInterval, BatchedExecution>>(new Map());
   
-  // Store callbacks and dependencies in refs
+  // Store callbacks in refs to avoid recreating worker
   const onResultsRef = useRef(onResults);
+  useEffect(() => {
+    onResultsRef.current = onResults;
+  }, [onResults]);
+
+  // Store dependencies in refs for stable callbacks
   const symbolsRef = useRef(symbols);
   const tickersRef = useRef(tickers);
   const historicalDataRef = useRef(historicalData);
   const enabledRef = useRef(enabled);
   
   useEffect(() => {
-    onResultsRef.current = onResults;
     symbolsRef.current = symbols;
     tickersRef.current = tickers;
     historicalDataRef.current = historicalData;
     enabledRef.current = enabled;
-  }, [onResults, symbols, tickers, historicalData, enabled]);
+  }, [symbols, tickers, historicalData, enabled]);
 
   // Initialize worker
   useEffect(() => {
-    console.log('[BatchedTraderIntervals] Creating optimized worker');
+    console.log('[BatchedTraderIntervals] Creating new worker');
     
     workerRef.current = new Worker(
       new URL('../workers/multiTraderScreenerWorker.ts', import.meta.url),
@@ -71,20 +84,28 @@ export function useBatchedTraderIntervals({
         // Mark batch as not running
         const firstTraderId = data.results[0]?.traderId;
         if (firstTraderId) {
-          const trader = traders.find(t => t.id === firstTraderId);
-          if (trader) {
-            const interval = trader.filter?.refreshInterval || KlineInterval.ONE_MINUTE;
-            const batch = batchedIntervalsRef.current.get(interval);
-            if (batch) {
+          // Find which batch this belongs to
+          batchesRef.current.forEach(batch => {
+            if (batch.traders.some(t => t.id === firstTraderId)) {
               batch.running = false;
             }
-          }
+          });
         }
         
-        console.log(`[BatchedTraderIntervals] Batch complete: ${data.results.length} traders, ${data.executionTime.toFixed(0)}ms`);
+        // Log performance metrics
+        console.log(`[BatchedTraderIntervals] Batch complete:`, {
+          traders: data.results.length,
+          executionTime: data.executionTime.toFixed(2) + 'ms',
+          totalSymbols: data.totalSymbols
+        });
+        
         onResultsRef.current(data.results);
       } else if (type === 'MULTI_SCREENER_ERROR') {
         console.error('[BatchedTraderIntervals] Worker error:', error);
+        // Mark all batches as not running on error
+        batchesRef.current.forEach(batch => {
+          batch.running = false;
+        });
       }
     });
 
@@ -93,17 +114,46 @@ export function useBatchedTraderIntervals({
       workerRef.current?.terminate();
       
       // Clear all intervals
-      batchedIntervalsRef.current.forEach(batch => {
+      batchesRef.current.forEach(batch => {
         if (batch.timer) {
           clearInterval(batch.timer);
         }
       });
-      batchedIntervalsRef.current.clear();
+      batchesRef.current.clear();
     };
-  }, [traders]);
+  }, []);
 
-  // Serialize data once and cache it
-  const serializeDataOnce = useCallback(() => {
+  // Execute a batch of traders with the same interval
+  const executeBatch = useCallback((batch: BatchedExecution) => {
+    if (!workerRef.current || !enabledRef.current || symbolsRef.current.length === 0) {
+      return;
+    }
+
+    if (batch.running) {
+      console.log(`[BatchedTraderIntervals] Skipping batch for ${batch.interval} - already running`);
+      return;
+    }
+
+    const enabledTraders = batch.traders.filter(t => t.enabled && t.filter?.code);
+    if (enabledTraders.length === 0) {
+      return;
+    }
+
+    console.log(`[BatchedTraderIntervals] Executing batch:`, {
+      interval: batch.interval,
+      traders: enabledTraders.length,
+      traderNames: enabledTraders.map(t => t.name)
+    });
+    
+    batch.running = true;
+    batch.lastRun = Date.now();
+
+    requestIdRef.current += 1;
+
+    // Performance optimization: Measure serialization time
+    const serializeStart = performance.now();
+
+    // Convert Maps to objects for serialization (this is the expensive part)
     const tickersObj: Record<string, Ticker> = {};
     tickersRef.current.forEach((value, key) => {
       tickersObj[key] = value;
@@ -117,41 +167,12 @@ export function useBatchedTraderIntervals({
       });
     });
 
-    return { tickersObj, historicalDataObj };
-  }, []);
-
-  // Run a batch of traders with the same interval
-  const runTraderBatch = useCallback((interval: KlineInterval, traderIds: Set<string>) => {
-    if (!workerRef.current || !enabledRef.current || symbolsRef.current.length === 0) {
-      return;
-    }
-
-    const batch = batchedIntervalsRef.current.get(interval);
-    if (batch?.running) {
-      console.log(`[BatchedTraderIntervals] Skipping ${interval} batch - already running`);
-      return;
-    }
-
-    const batchTraders = traders.filter(t => 
-      traderIds.has(t.id) && t.enabled && t.filter?.code
-    );
-
-    if (batchTraders.length === 0) return;
-
-    console.log(`[BatchedTraderIntervals] Running batch for ${interval}: ${batchTraders.length} traders`);
+    const serializeTime = performance.now() - serializeStart;
     
-    if (batch) {
-      batch.running = true;
-      batch.lastRun = Date.now();
+    // Log serialization performance
+    if (serializeTime > 50) {
+      console.warn(`[BatchedTraderIntervals] Serialization took ${serializeTime.toFixed(2)}ms`);
     }
-
-    requestIdRef.current += 1;
-
-    // Serialize data once for all traders in this batch
-    const startSerialize = performance.now();
-    const { tickersObj, historicalDataObj } = serializeDataOnce();
-    const serializeTime = performance.now() - startSerialize;
-    console.log(`[BatchedTraderIntervals] Data serialization took ${serializeTime.toFixed(0)}ms`);
 
     const message: MultiTraderScreenerMessage = {
       id: requestIdRef.current.toString(),
@@ -160,7 +181,7 @@ export function useBatchedTraderIntervals({
         symbols: symbolsRef.current,
         tickers: tickersObj,
         historicalData: historicalDataObj,
-        traders: batchTraders.map(trader => ({
+        traders: enabledTraders.map(trader => ({
           traderId: trader.id,
           filterCode: trader.filter?.code || '',
           refreshInterval: trader.filter?.refreshInterval,
@@ -170,117 +191,151 @@ export function useBatchedTraderIntervals({
     };
 
     workerRef.current.postMessage(message);
-  }, [traders, serializeDataOnce]);
+  }, []);
 
-  // Set up batched intervals
+  // Set up batched intervals for traders
   useEffect(() => {
     if (!enabled) {
       // Clear all intervals when disabled
-      batchedIntervalsRef.current.forEach(batch => {
+      batchesRef.current.forEach(batch => {
         if (batch.timer) {
           clearInterval(batch.timer);
           console.log(`[BatchedTraderIntervals] Cleared interval for ${batch.interval}`);
         }
       });
-      batchedIntervalsRef.current.clear();
+      batchesRef.current.clear();
       return;
     }
 
-    // Group traders by interval
-    const tradersByInterval = new Map<KlineInterval, Set<string>>();
+    // Get enabled traders
     const enabledTraders = traders.filter(t => t.enabled && t.filter?.code);
-    
+    console.log(`[BatchedTraderIntervals] Managing ${enabledTraders.length} enabled traders`);
+
+    // Group traders by refresh interval
+    const grouped = new Map<KlineInterval, Trader[]>();
     enabledTraders.forEach(trader => {
       const interval = trader.filter?.refreshInterval || KlineInterval.ONE_MINUTE;
-      if (!tradersByInterval.has(interval)) {
-        tradersByInterval.set(interval, new Set());
+      if (!grouped.has(interval)) {
+        grouped.set(interval, []);
       }
-      tradersByInterval.get(interval)!.add(trader.id);
+      grouped.get(interval)!.push(trader);
     });
 
-    console.log('[BatchedTraderIntervals] Trader groups:', 
-      Array.from(tradersByInterval.entries()).map(([interval, ids]) => 
-        `${interval}: ${ids.size} traders`
-      ).join(', ')
+    console.log(`[BatchedTraderIntervals] Grouped into ${grouped.size} interval batches:`, 
+      Array.from(grouped.entries()).map(([interval, traders]) => ({
+        interval,
+        count: traders.length,
+        traders: traders.map(t => t.name)
+      }))
     );
 
-    // Remove intervals that no longer have traders
-    batchedIntervalsRef.current.forEach((batch, interval) => {
-      if (!tradersByInterval.has(interval)) {
+    // Remove batches for intervals that no longer have traders
+    const activeIntervals = new Set(grouped.keys());
+    batchesRef.current.forEach((batch, interval) => {
+      if (!activeIntervals.has(interval)) {
         if (batch.timer) {
           clearInterval(batch.timer);
-          console.log(`[BatchedTraderIntervals] Removed interval for ${interval}`);
+          console.log(`[BatchedTraderIntervals] Removed batch for interval ${interval}`);
         }
-        batchedIntervalsRef.current.delete(interval);
+        batchesRef.current.delete(interval);
       }
     });
 
-    // Set up or update intervals
-    tradersByInterval.forEach((traderIds, interval) => {
+    // Set up or update batches for each interval group
+    grouped.forEach((groupTraders, interval) => {
+      const existingBatch = batchesRef.current.get(interval);
       const intervalMs = klineIntervalToMs(interval);
-      const existingBatch = batchedIntervalsRef.current.get(interval);
       
-      // Check if we need to update the batch
       if (existingBatch) {
-        // Update trader list
-        existingBatch.traders = traderIds;
-        
-        // If timer doesn't exist, create it
-        if (!existingBatch.timer) {
-          console.log(`[BatchedTraderIntervals] Creating timer for ${interval} (${intervalMs}ms)`);
-          
-          // Run immediately
-          runTraderBatch(interval, traderIds);
-          
-          // Then set up interval
-          existingBatch.timer = setInterval(() => {
-            runTraderBatch(interval, traderIds);
-          }, intervalMs);
-        }
+        // Update traders list for existing batch
+        existingBatch.traders = groupTraders;
+        console.log(`[BatchedTraderIntervals] Updated batch for ${interval} with ${groupTraders.length} traders`);
       } else {
         // Create new batch
-        console.log(`[BatchedTraderIntervals] Setting up new batch for ${interval} (${intervalMs}ms)`);
+        console.log(`[BatchedTraderIntervals] Creating batch for ${interval} (${intervalMs}ms) with ${groupTraders.length} traders`);
+        
+        const batch: BatchedExecution = {
+          interval,
+          traders: groupTraders,
+          timer: null,
+          lastRun: 0,
+          running: false
+        };
         
         // Run immediately
-        runTraderBatch(interval, traderIds);
+        executeBatch(batch);
         
         // Then set up interval
-        const timer = setInterval(() => {
-          runTraderBatch(interval, traderIds);
+        batch.timer = setInterval(() => {
+          // Re-check traders in case they changed
+          const currentBatch = batchesRef.current.get(interval);
+          if (currentBatch) {
+            executeBatch(currentBatch);
+          }
         }, intervalMs);
-
-        batchedIntervalsRef.current.set(interval, {
-          interval,
-          timer,
-          traders: traderIds,
-          lastRun: Date.now(),
-          running: false
-        });
+        
+        batchesRef.current.set(interval, batch);
       }
     });
-  }, [traders, enabled, runTraderBatch]);
+  }, [traders, enabled, executeBatch]);
+
+  // Clear trader cache when needed
+  const clearTraderCache = useCallback((traderId: string) => {
+    if (workerRef.current) {
+      const message: MultiTraderScreenerMessage = {
+        id: 'clear-trader-' + traderId,
+        type: 'CLEAR_TRADER_CACHE',
+        traderId
+      };
+      workerRef.current.postMessage(message);
+    }
+  }, []);
 
   // Get batch status for debugging
   const getBatchStatus = useCallback(() => {
     const status: Record<string, { 
-      traders: number; 
-      intervalMs: number; 
+      interval: KlineInterval; 
+      traderCount: number; 
       lastRun: number; 
-      running: boolean 
+      running: boolean;
+      traders: string[];
     }> = {};
     
-    batchedIntervalsRef.current.forEach((batch, interval) => {
-      const intervalMs = klineIntervalToMs(interval);
+    batchesRef.current.forEach((batch, interval) => {
       status[interval] = {
-        traders: batch.traders.size,
-        intervalMs,
+        interval,
+        traderCount: batch.traders.length,
         lastRun: batch.lastRun,
-        running: batch.running
+        running: batch.running,
+        traders: batch.traders.map(t => t.name)
       };
     });
     
     return status;
   }, []);
 
-  return { getBatchStatus };
+  // Performance metrics
+  const getPerformanceMetrics = useCallback(() => {
+    const totalTraders = traders.filter(t => t.enabled).length;
+    const batchCount = batchesRef.current.size;
+    const serializationsPerMinute = batchCount; // One per batch per interval
+    const oldSerializationsPerMinute = totalTraders; // Old approach
+    const improvement = oldSerializationsPerMinute > 0 
+      ? ((oldSerializationsPerMinute - serializationsPerMinute) / oldSerializationsPerMinute * 100).toFixed(1)
+      : 0;
+    
+    return {
+      totalTraders,
+      batchCount,
+      serializationsPerMinute,
+      oldSerializationsPerMinute,
+      improvementPercent: improvement + '%'
+    };
+  }, [traders]);
+
+  return {
+    clearTraderCache,
+    getBatchStatus,
+    getPerformanceMetrics
+  };
 }

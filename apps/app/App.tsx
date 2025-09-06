@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
+import { PerformanceMonitor } from './components/PerformanceMonitor';
 import Modal from './components/Modal';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket, connectMultiIntervalWebSocket } from './services/binanceService';
@@ -21,6 +22,8 @@ import { tradeManager } from './src/services/tradeManager';
 import { traderManager } from './src/services/traderManager';
 import { Trader } from './src/abstractions/trader.interfaces';
 import { useIndividualTraderIntervals } from './hooks/useIndividualTraderIntervals';
+import { useBatchedTraderIntervals } from './hooks/useBatchedTraderIntervals';
+import { useSharedTraderIntervals } from './hooks/useSharedTraderIntervals';
 import { TraderResult } from './workers/multiTraderScreenerWorker';
 import { useIndicatorWorker } from './hooks/useIndicatorWorker';
 import ActivityPanel from './src/components/ActivityPanel';
@@ -1056,10 +1059,24 @@ const AppContent: React.FC = () => {
   //   traders: traders.map(t => ({ id: t.id, name: t.name, enabled: t.enabled }))
   // });
   
-  const { 
-    clearTraderCache,
-    getIntervalStatus 
-  } = useIndividualTraderIntervals({
+  // Performance optimization feature flags
+  const [performanceMode, setPerformanceMode] = useState(
+    localStorage.getItem('performanceMode') || 'shared'
+  ); // 'individual' | 'batched' | 'shared'
+  
+  const handlePerformanceModeChange = (mode: string) => {
+    localStorage.setItem('performanceMode', mode);
+    setPerformanceMode(mode);
+    window.location.reload(); // Reload to apply new mode
+  };
+  
+  // Choose the appropriate hook based on performance mode
+  const useTraderIntervals = 
+    performanceMode === 'shared' ? useSharedTraderIntervals :
+    performanceMode === 'batched' ? useBatchedTraderIntervals :
+    useIndividualTraderIntervals;
+  
+  const traderIntervalsResult = useTraderIntervals({
     traders,
     symbols: allSymbols,
     tickers,
@@ -1067,6 +1084,34 @@ const AppContent: React.FC = () => {
     onResults: handleMultiTraderResults,
     enabled: screenerEnabled
   });
+  
+  const clearTraderCache = traderIntervalsResult.clearTraderCache;
+  
+  // Get performance metrics if available
+  const performanceMetrics = 
+    'getPerformanceComparison' in traderIntervalsResult ? 
+    traderIntervalsResult.getPerformanceComparison?.() : 
+    'getPerformanceMetrics' in traderIntervalsResult ?
+    traderIntervalsResult.getPerformanceMetrics?.() :
+    null;
+  
+  // Log performance mode and metrics
+  useEffect(() => {
+    console.log(`[App] Performance mode: ${performanceMode}`);
+    if (performanceMetrics) {
+      console.log('[App] Performance metrics:', performanceMetrics);
+    }
+    
+    // Test SharedArrayBuffer support if in shared mode
+    if (performanceMode === 'shared' && 'testSharedArrayBuffer' in traderIntervalsResult) {
+      const test = traderIntervalsResult.testSharedArrayBuffer?.();
+      if (test && !test.supported) {
+        console.error('[App] SharedArrayBuffer not supported:', test);
+        // Fallback to batched mode
+        handlePerformanceModeChange('batched');
+      }
+    }
+  }, [performanceMode, performanceMetrics]);
 
   // Subscribe to trader deletions to clean up worker cache
   useEffect(() => {
@@ -1231,6 +1276,13 @@ const AppContent: React.FC = () => {
       >
         {modalContent}
       </Modal>
+      
+      {/* Performance Monitor */}
+      <PerformanceMonitor
+        metrics={performanceMetrics}
+        mode={performanceMode}
+        onModeChange={handlePerformanceModeChange}
+      />
     </div>
   );
 };

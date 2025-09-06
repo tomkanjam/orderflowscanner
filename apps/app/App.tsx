@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import Modal from './components/Modal';
@@ -32,6 +33,7 @@ import { webSocketManager } from './src/utils/webSocketManager';
 import { useOptimizedMap, BatchedUpdater, LimitedMap, pruneMapByAge } from './src/utils/stateOptimizer';
 import { startMemoryCleanup, getActiveSymbols } from './src/utils/memoryCleanup';
 import { useSubscription } from './src/contexts/SubscriptionContext';
+import { StyleGuide } from './src/pages/StyleGuide';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -1235,8 +1237,19 @@ const AppContent: React.FC = () => {
   );
 };
 
-const App: React.FC = () => {
+const MainApp: React.FC = () => {
   return <AppContent />;
+};
+
+const App: React.FC = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/style-guide" element={<StyleGuide />} />
+      </Routes>
+    </Router>
+  );
 };
 
 export default App;

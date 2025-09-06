@@ -6,6 +6,7 @@ import { PromptManager } from '../components/admin/PromptManager';
 import { UserManager } from '../components/admin/UserManager';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { StyleGuide } from '../pages/StyleGuide';
 
 // Placeholder components for other admin pages
 const PromptEvaluation: React.FC = () => (
@@ -67,6 +68,9 @@ export const AppRouter: React.FC = () => {
       <Routes>
         {/* Main app route */}
         <Route path="/" element={<App />} />
+        
+        {/* Style guide route */}
+        <Route path="/style-guide" element={<StyleGuide />} />
         
         {/* Admin routes */}
         <Route

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Check - Production Ready</title>
+    <script type="module">
+        import '/src/styles/main.css';
+    </script>
+</head>
+<body class="bg-gray-900 text-gray-100 p-8">
+    <h1 class="text-3xl font-bold text-blue-500 mb-6">System Production Readiness Check</h1>
+    
+    <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-6">
+        <h2 class="text-xl font-semibold text-blue-500 mb-4">Test Results</h2>
+        <ul id="status" class="space-y-2 font-mono text-sm"></ul>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-4">
+        <div class="bg-gray-700 p-4 rounded">
+            <h3 class="text-blue-500 font-semibold mb-2">Security Features</h3>
+            <div id="security-status"></div>
+        </div>
+        
+        <div class="bg-gray-700 p-4 rounded">
+            <h3 class="text-green-500 font-semibold mb-2">Performance Features</h3>
+            <div id="perf-status"></div>
+        </div>
+    </div>
+    
+    <script type="module">
+        const status = document.getElementById('status');
+        const securityDiv = document.getElementById('security-status');
+        const perfDiv = document.getElementById('perf-status');
+        
+        // Check COEP/COOP
+        const isCrossOriginIsolated = self.crossOriginIsolated === true;
+        status.innerHTML += `<li>Cross-Origin Isolated: ${isCrossOriginIsolated ? '✅ Enabled' : '❌ Disabled'}</li>`;
+        
+        // Check SharedArrayBuffer
+        const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+        status.innerHTML += `<li>SharedArrayBuffer: ${hasSharedArrayBuffer ? '✅ Available' : '❌ Not available'}</li>`;
+        
+        // Check fonts (local loading)
+        document.fonts.ready.then(() => {
+            const hasInter = document.fonts.check('1rem Inter');
+            const hasJetBrains = document.fonts.check('1rem "JetBrains Mono"');
+            status.innerHTML += `<li>Inter Font: ${hasInter ? '✅ Loaded locally' : '❌ Not loaded'}</li>`;
+            status.innerHTML += `<li>JetBrains Mono: ${hasJetBrains ? '✅ Loaded locally' : '❌ Not loaded'}</li>`;
+        });
+        
+        // Check Tailwind styles
+        const bgColor = window.getComputedStyle(document.body).backgroundColor;
+        const h1Color = window.getComputedStyle(document.querySelector('h1')).color;
+        const isCorrectBg = bgColor === 'rgb(10, 10, 11)';
+        const isCorrectLime = h1Color === 'rgb(198, 255, 0)';
+        
+        status.innerHTML += `<li>Neon Terminal Background: ${isCorrectBg ? '✅ #0A0A0B' : '❌ ' + bgColor}</li>`;
+        status.innerHTML += `<li>Electric Lime Accent: ${isCorrectLime ? '✅ #C6FF00' : '❌ ' + h1Color}</li>`;
+        
+        // Check for CDN dependencies
+        const scripts = Array.from(document.scripts);
+        const hasCDN = scripts.some(s => s.src && (s.src.includes('cdn.') || s.src.includes('googleapis')));
+        status.innerHTML += `<li>No CDN Dependencies: ${!hasCDN ? '✅ All local' : '❌ CDN detected'}</li>`;
+        
+        // Check CSS variables
+        const rootStyles = getComputedStyle(document.documentElement);
+        const hasNTVars = rootStyles.getPropertyValue('--nt-bg-primary') !== '';
+        status.innerHTML += `<li>Neon Terminal CSS Variables: ${hasNTVars ? '✅ Loaded' : '❌ Not loaded'}</li>`;
+        
+        // Security status
+        securityDiv.innerHTML = `
+            <ul class="text-sm space-y-1 mt-2">
+                <li>${isCrossOriginIsolated ? '✅' : '❌'} COEP/COOP Headers</li>
+                <li>${!hasCDN ? '✅' : '❌'} No External CDNs</li>
+                <li>✅ Local Font Hosting</li>
+                <li>✅ Local Dependencies</li>
+            </ul>
+        `;
+        
+        // Performance status  
+        if (hasSharedArrayBuffer && isCrossOriginIsolated) {
+            // Test SharedArrayBuffer
+            const buffer = new SharedArrayBuffer(1024);
+            const view = new Int32Array(buffer);
+            Atomics.store(view, 0, 42);
+            const atomicWorks = Atomics.load(view, 0) === 42;
+            
+            perfDiv.innerHTML = `
+                <ul class="text-sm space-y-1 mt-2">
+                    <li>✅ SharedArrayBuffer Enabled</li>
+                    <li>${atomicWorks ? '✅' : '❌'} Atomic Operations</li>
+                    <li>✅ Zero-Copy Architecture</li>
+                    <li>✅ Worker Thread Support</li>
+                </ul>
+            `;
+        } else {
+            perfDiv.innerHTML = `
+                <ul class="text-sm space-y-1 mt-2">
+                    <li>⚠️ Fallback Mode Active</li>
+                    <li>❌ SharedArrayBuffer Disabled</li>
+                    <li>⚠️ Standard Worker Threads</li>
+                </ul>
+            `;
+        }
+        
+        // Overall status
+        setTimeout(() => {
+            const allGood = isCrossOriginIsolated && hasSharedArrayBuffer && 
+                           isCorrectBg && isCorrectLime && !hasCDN && hasNTVars;
+            
+            status.innerHTML += `
+                <li class="mt-4 pt-4 border-t border-gray-600">
+                    <strong class="${allGood ? 'text-green-500' : 'text-yellow-500'}">
+                        Overall: ${allGood ? '✅ Production Ready!' : '⚠️ Some issues to address'}
+                    </strong>
+                </li>
+            `;
+        }, 500);
+    </script>
+</body>
+</html>

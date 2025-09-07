@@ -1,126 +1,15 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI-Powered Binance Crypto Screener</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      // Configure Tailwind to use Neon Terminal colors
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              // Map Tailwind colors to Neon Terminal variables
-              gray: {
-                900: '#0A0A0B', // --nt-bg-primary
-                800: '#111113', // --nt-bg-secondary
-                700: '#1A1A1C', // --nt-bg-tertiary
-                600: '#1F1F22', // --nt-bg-elevated
-                500: '#5A5A57', // --nt-text-muted
-                400: '#8A8A86', // --nt-text-tertiary
-                300: '#C4C4C0', // --nt-text-secondary
-                200: '#FAFAF9', // --nt-text-primary
-                100: '#FAFAF9', // --nt-text-primary
-              },
-              blue: {
-                400: '#C6FF00', // --nt-accent-lime
-                500: '#C6FF00', // --nt-accent-lime
-                600: '#D4FF33', // --nt-accent-lime-hover
-              },
-              green: {
-                400: '#00FF88', // --nt-success
-                500: '#00FF88', // --nt-success
-                600: '#00FF88', // --nt-success
-              },
-              red: {
-                400: '#FF0040', // --nt-error
-                500: '#FF0040', // --nt-error
-                600: '#FF0040', // --nt-error
-              },
-              yellow: {
-                400: '#FFD700', // --nt-warning
-                500: '#FFD700', // --nt-warning
-              },
-              cyan: {
-                400: '#00F0FF', // --nt-accent-cyan
-                500: '#00F0FF', // --nt-accent-cyan
-              }
-            }
-          }
-        }
-      }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="/neon-terminal-design-system.css" rel="stylesheet">
-    <link href="/trademind-to-neon-migration.css" rel="stylesheet">
-    <!-- Chart.js and dependencies -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial/dist/chartjs-chart-financial.min.js"></script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            overscroll-behavior: none; /* Prevents bounce scroll effects */
-        }
-        /* Sticky header for table */
-        .table-container thead th {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-        /* Price flash animations */
-        .flash-green { animation: flash-green 0.7s ease-out; }
-        .flash-red { animation: flash-red 0.7s ease-out; }
-        @keyframes flash-green {
-            0% { background-color: rgba(16, 185, 129, 0.3); }
-            100% { background-color: transparent; }
-        }
-        @keyframes flash-red {
-            0% { background-color: rgba(239, 68, 68, 0.3); }
-            100% { background-color: transparent; }
-        }
-        /* Fade in animation for streaming content */
-        @keyframes fadeIn {
-            0% { opacity: 0; transform: translateY(4px); }
-            100% { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn {
-            animation: fadeIn 0.3s ease-out;
-        }
-        /* Custom scrollbar for webkit browsers */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #2d3748; /* gray-800 */
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #4a5568; /* gray-600 */
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #718096; /* gray-500 */
-        }
-    </style>
-<script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.1.0/",
-    "react": "https://esm.sh/react@^19.1.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.5.1",
-    "chart.js": "https://esm.sh/chart.js@^4.5.0",
-    "chartjs-adapter-date-fns": "https://esm.sh/chartjs-adapter-date-fns@^3.0.0",
-    "chartjs-chart-financial": "https://esm.sh/chartjs-chart-financial@^0.2.1"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
+    
+    <!-- All styles are now compiled locally via Vite -->
+    <!-- Tailwind, fonts, and design system are imported in main.css -->
+    <!-- All dependencies are now installed locally via npm/pnpm -->
 </head>
-<body class="bg-gray-900 text-gray-100">
+<body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

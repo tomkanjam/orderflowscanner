@@ -1,0 +1,90 @@
+/* Import local fonts */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/600.css';
+@import '@fontsource/jetbrains-mono/700.css';
+
+/* Import design system */
+@import url('/neon-terminal-design-system.css');
+@import url('/trademind-to-neon-migration.css');
+
+/* Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+@layer base {
+  body {
+    @apply bg-gray-900 text-gray-100;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overscroll-behavior: none;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  /* Scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-800;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: rgba(198, 255, 0, 0.15);
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(198, 255, 0, 0.3);
+  }
+  
+  /* Table header sticky */
+  .table-container thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  /* Price flash animations */
+  .flash-green {
+    animation: flash-green 0.7s ease-out;
+  }
+  
+  .flash-red {
+    animation: flash-red 0.7s ease-out;
+  }
+  
+  @keyframes flash-green {
+    0% { background-color: rgba(0, 255, 136, 0.3); }
+    100% { background-color: transparent; }
+  }
+  
+  @keyframes flash-red {
+    0% { background-color: rgba(255, 0, 64, 0.3); }
+    100% { background-color: transparent; }
+  }
+  
+  @keyframes fadeIn {
+    0% { 
+      opacity: 0; 
+      transform: translateY(4px); 
+    }
+    100% { 
+      opacity: 1; 
+      transform: translateY(0); 
+    }
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+}

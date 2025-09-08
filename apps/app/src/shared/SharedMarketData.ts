@@ -120,6 +120,15 @@ export class SharedMarketData {
     const symbolIndex = this.getOrCreateSymbolIndex(symbol);
     const offset = symbolIndex * TICKER_SIZE;
     
+    // Log first few updates for debugging
+    if (symbolIndex < 3 && Math.random() < 0.01) { // Sample 1% of updates for first 3 symbols
+      console.log(`[SharedMarketData] Updating ticker ${symbol} at index ${symbolIndex}:`, {
+        price: ticker.c,
+        volume: ticker.v,
+        change: ticker.P
+      });
+    }
+    
     // Direct write to shared memory
     this.tickerView[offset + 0] = parseFloat(ticker.c); // Current price
     this.tickerView[offset + 1] = parseFloat(ticker.o); // Open price
@@ -133,8 +142,14 @@ export class SharedMarketData {
     this.tickerView[offset + 9] = Date.now(); // Update timestamp
     
     // Increment update counter and notify waiting workers
-    Atomics.add(this.updateCounter, 0, 1);
+    const oldCount = Atomics.load(this.updateCounter, 0);
+    const newCount = Atomics.add(this.updateCounter, 0, 1) + 1;
     Atomics.notify(this.updateCounter, 0);
+    
+    // Log counter updates occasionally
+    if (newCount % 1000 === 0) {
+      console.log(`[SharedMarketData] Update counter: ${oldCount} -> ${newCount}`);
+    }
   }
 
   /**

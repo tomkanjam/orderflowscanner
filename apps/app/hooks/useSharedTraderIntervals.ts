@@ -75,6 +75,27 @@ export function useSharedTraderIntervals({
       const stats = sharedDataRef.current.getMemoryStats();
       console.log('[SharedTraderIntervals] Shared memory initialized:', stats);
       
+      // Add diagnostic function to window for debugging
+      (window as any).debugSharedMemory = () => {
+        if (!sharedDataRef.current) {
+          console.log('SharedMarketData not initialized');
+          return;
+        }
+        
+        const stats = sharedDataRef.current.getMemoryStats();
+        const updateCount = sharedDataRef.current.getUpdateCount();
+        
+        console.log('=== SHARED MEMORY DEBUG ===');
+        console.log('Memory stats:', stats);
+        console.log('Update count:', updateCount);
+        console.log('Workers:', workersRef.current.length);
+        console.log('Worker trader counts:', workersRef.current.map(w => w.traderIds.size));
+        console.log('Enabled traders:', traders.filter(t => t.enabled).length);
+        console.log('===========================');
+      };
+      
+      console.log('[SharedTraderIntervals] Debug function available: window.debugSharedMemory()');
+      
     } catch (error) {
       console.error('[SharedTraderIntervals] Failed to initialize:', error);
     }
@@ -209,11 +230,15 @@ export function useSharedTraderIntervals({
     // Distribute traders across workers
     const tradersPerWorker = Math.ceil(enabledTraders.length / workersRef.current.length);
     
+    console.log(`[SharedTraderIntervals] Distributing ${enabledTraders.length} traders to ${workersRef.current.length} workers`);
+    
     enabledTraders.forEach((trader, index) => {
       const workerIndex = Math.floor(index / tradersPerWorker);
       const workerInstance = workersRef.current[workerIndex];
       
       if (workerInstance) {
+        console.log(`[SharedTraderIntervals] Adding trader ${trader.id} to worker ${workerInstance.id}`);
+        
         // Add trader to worker
         workerInstance.worker.postMessage({
           type: 'ADD_TRADER',
@@ -226,6 +251,8 @@ export function useSharedTraderIntervals({
         });
         
         workerInstance.traderIds.add(trader.id);
+      } else {
+        console.error(`[SharedTraderIntervals] No worker at index ${workerIndex} for trader ${trader.id}`);
       }
     });
     

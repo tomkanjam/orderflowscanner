@@ -208,7 +208,7 @@ export function TraderSignalsTable({
     <div className="nt-card shadow-lg p-2 md:p-3 relative">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg md:text-xl font-semibold text-[var(--nt-accent-lime)] nt-heading-md">
+          <h2 className="text-lg md:text-xl font-semibold text-[var(--nt-text-primary)] nt-heading-md">
             Signal Triggers
           </h2>
           {selectedTrader && (

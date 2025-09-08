@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Trader } from '../abstractions/trader.interfaces';
 import { Plus, Power, Edit2, Trash2, TrendingUp, TrendingDown, Activity, Lock, Star, StarOff } from 'lucide-react';
 import { SignalAccessIndicator } from './SignalAccessIndicator';
+import { ActivityIndicator } from './cards/ActivityIndicator';
+import { CardExpandable } from './cards/CardExpandable';
+import { TriggerHistory, TriggerRecord } from './cards/TriggerHistory';
+import { activityTracker } from '../services/activityTracker';
+import './SignalCard.css';
 
 /**
  * Props for the SignalCard component
@@ -111,6 +116,8 @@ export const SignalCard = React.memo(function SignalCard({
   onDelete,
   onToggleFavorite
 }: SignalCardProps) {
+  // Local state for card expansion
+  const [expanded, setExpanded] = useState(false);
   // Safely access metrics with error handling
   const getMetrics = () => {
     try {

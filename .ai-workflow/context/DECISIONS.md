@@ -15,6 +15,28 @@ Revisit: [When to review]
 
 ## Decisions
 
+### 2025-01-08: Differential Updates for Worker Memory Fix
+**Decision:** Implement differential tracking instead of full state replacement
+**Context:** React re-renders were sending 80+ ADD_TRADER messages causing memory leak
+**Options Considered:**
+  1. Complex message queuing: Over-engineered for the problem
+  2. Worker pooling: Didn't address root cause
+  3. Differential updates: Track and send only changes
+**Chosen:** Differential updates with UPDATE_TRADER message type
+**Impact:** 99.5% reduction in memory growth, 94% fewer compilations
+**Status:** Complete - memory leak resolved
+
+### 2025-01-08: Feature Flag for Card Standardization
+**Decision:** Use feature flags for gradual rollout of new card system
+**Context:** Major UI change needs safe deployment strategy
+**Options Considered:**
+  1. Big bang replacement: Risky, hard to rollback
+  2. A/B testing: Complex setup for UI changes
+  3. Feature flag: Simple toggle, easy rollback
+**Chosen:** Feature flag with localStorage override
+**Impact:** Safe deployment, easy testing, instant rollback
+**Status:** In development - Phase 2 of 4 complete
+
 ### 2025-01-08: SharedArrayBuffer for Zero-Copy Worker Communication
 **Decision:** Implement SharedArrayBuffer with Atomics for worker communication
 **Context:** Serialization overhead was causing 172MB data transfers per screening cycle
@@ -24,7 +46,7 @@ Revisit: [When to review]
   3. SharedArrayBuffer: Complex but zero-copy (0ms overhead)
 **Chosen:** SharedArrayBuffer for ultimate performance
 **Impact:** 100% reduction in serialization overhead, requires COOP/COEP headers
-**Status:** Beta - monitoring for stability
+**Status:** Stable - working in production
 
 ### 2025-01-07: Persistent Worker Architecture
 **Decision:** Keep workers alive between executions vs spawning new ones

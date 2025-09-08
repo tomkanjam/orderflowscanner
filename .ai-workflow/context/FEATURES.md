@@ -13,7 +13,7 @@
 |---------|--------|-------|------|----------------|---------------|
 | WebSocket Streaming | 🟢 | Core | Real-time market data | /apps/app/src/services/binanceService.ts | 2025-01-08 |
 | AI Signal Generation | 🟢 | AI Team | Natural language filters | /apps/app/src/services/geminiService.ts | 2025-01-08 |
-| SharedArrayBuffer Workers | 🟡 | Performance | Zero-copy optimization | /apps/app/hooks/useSharedTraderIntervals.ts | 2025-01-08 |
+| SharedArrayBuffer Workers | 🟢 | Performance | Zero-copy optimization | /apps/app/hooks/useSharedTraderIntervals.ts | 2025-01-08 |
 | Multi-Trader System | 🟢 | Core | Parallel signal detection | /apps/app/src/services/traderManager.ts | 2025-01-07 |
 | Interactive Charts | 🟢 | UI | Financial charting | /apps/app/src/components/TradingViewChart.tsx | 2025-01-06 |
 | Subscription Tiers | 🟢 | Business | Access control | /apps/app/src/contexts/SubscriptionContext.tsx | 2025-01-05 |
@@ -21,11 +21,12 @@
 | Signal Lifecycle | 🟢 | Core | Signal management | /apps/app/hooks/useSignalLifecycle.ts | 2025-01-07 |
 | Technical Indicators | 🟢 | Analysis | 15+ indicators | /apps/app/lib/screenerHelpers.ts | 2025-01-06 |
 | Authentication Flow | 🟢 | Auth | Magic link + OAuth | /apps/app/src/contexts/AuthContext.tsx | 2025-01-05 |
-| Memory Management | 🟡 | Performance | Auto cleanup | /apps/app/src/utils/memoryUtils.ts | 2025-01-07 |
+| Memory Management | 🟢 | Performance | Worker memory leak fixed | /apps/app/src/utils/DifferentialTracker.ts | 2025-01-08 |
 | Workflow Automation | 🔴 | Trading | Auto-trading flows | /apps/app/src/services/workflowManager.ts | 2025-01-06 |
 | Demo Trading | 🔴 | Trading | Paper trading | /apps/app/src/services/tradingManager.ts | 2025-01-06 |
 | Historical Scanner | 🟡 | Analysis | Past data analysis | /apps/app/workers/historicalScannerWorker.ts | 2025-01-05 |
-| Persistent Workers | 🟡 | Performance | Long-lived workers | /apps/app/workers/persistentTraderWorker.ts | 2025-01-08 |
+| Persistent Workers | 🟢 | Performance | Long-lived workers | /apps/app/workers/persistentTraderWorker.ts | 2025-01-08 |
+| Unified Card System | 🔴 | UI | Signal/trader cards | /apps/app/src/components/cards/ | 2025-01-08 |
 
 ## Feature Dependencies
 ```mermaid

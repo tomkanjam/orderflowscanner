@@ -118,18 +118,29 @@ class PersistentTraderWorker {
    * Monitor for data updates using Atomics.wait
    */
   private async startUpdateMonitor() {
+    console.log('[PersistentWorker] Starting update monitor');
+    let loopCount = 0;
+    
     while (this.isInitialized) {
       const currentCount = Atomics.load(this.updateCounter!, 0);
       
+      // Debug: Log every 100 loops
+      if (++loopCount % 100 === 0) {
+        console.log(`[PersistentWorker] Monitor loop ${loopCount}, updateCount: ${currentCount}, lastCount: ${this.lastUpdateCount}, traders: ${this.traders.size}`);
+      }
+      
       if (currentCount !== this.lastUpdateCount) {
+        console.log(`[PersistentWorker] Detected update! Count: ${this.lastUpdateCount} -> ${currentCount}`);
         // Data has been updated
         this.lastUpdateCount = currentCount;
         
         // Re-read symbol names in case new symbols were added
         this.readSymbolNames();
+        console.log(`[PersistentWorker] Found ${this.symbolMap.size} symbols`);
         
         // Run all traders with current data
         if (this.traders.size > 0) {
+          console.log(`[PersistentWorker] Running ${this.traders.size} traders...`);
           this.runAllTraders();
         }
       }
@@ -139,9 +150,16 @@ class PersistentTraderWorker {
       
       if (result === 'not-equal') {
         // Data changed while we were preparing to wait
+        console.log('[PersistentWorker] Data changed during wait preparation');
         continue;
+      } else if (result === 'timed-out') {
+        // Normal timeout - continue loop
+      } else if (result === 'ok') {
+        console.log('[PersistentWorker] Woken up by notify!');
       }
     }
+    
+    console.log('[PersistentWorker] Update monitor stopped');
   }
 
   /**
@@ -162,6 +180,17 @@ class PersistentTraderWorker {
       this.compiledFilters.set(trader.traderId, filterFunction);
       
       console.log(`[PersistentWorker] Added trader ${trader.traderId}`);
+      console.log(`[PersistentWorker] Filter code length: ${trader.filterCode.length}`);
+      console.log(`[PersistentWorker] Required timeframes: ${trader.requiredTimeframes.join(', ')}`);
+      
+      // Immediately run the trader to test
+      console.log(`[PersistentWorker] Testing trader immediately...`);
+      if (this.symbolMap.size > 0) {
+        const result = this.runTrader(trader.traderId, trader, filterFunction);
+        console.log(`[PersistentWorker] Test result:`, result);
+      } else {
+        console.log(`[PersistentWorker] No symbols available for testing`);
+      }
     } catch (error) {
       console.error(`[PersistentWorker] Failed to compile filter for ${trader.traderId}:`, error);
     }

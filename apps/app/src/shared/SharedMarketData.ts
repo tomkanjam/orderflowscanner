@@ -30,6 +30,7 @@ export class SharedMarketData {
   private tickerBuffer: SharedArrayBuffer;
   private klineBuffer: SharedArrayBuffer;
   private metadataBuffer: SharedArrayBuffer;
+  private updateCounterBuffer: SharedArrayBuffer;
   private symbolIndexMap: Map<string, number> = new Map();
   private intervalIndexMap: Map<KlineInterval, number> = new Map();
   private tickerView: Float64Array;
@@ -48,6 +49,7 @@ export class SharedMarketData {
     this.tickerBuffer = new SharedArrayBuffer(TICKER_BUFFER_SIZE);
     this.klineBuffer = new SharedArrayBuffer(KLINE_BUFFER_SIZE);
     this.metadataBuffer = new SharedArrayBuffer(METADATA_BUFFER_SIZE);
+    this.updateCounterBuffer = new SharedArrayBuffer(4);
     
     // Create typed array views
     this.tickerView = new Float64Array(this.tickerBuffer);
@@ -55,8 +57,7 @@ export class SharedMarketData {
     this.metadataView = new Uint8Array(this.metadataBuffer);
     
     // Update counter for synchronization
-    const counterBuffer = new SharedArrayBuffer(4);
-    this.updateCounter = new Int32Array(counterBuffer);
+    this.updateCounter = new Int32Array(this.updateCounterBuffer);
     
     // Initialize interval mapping
     const intervals: KlineInterval[] = ['1m', '5m', '15m', '1h', '4h', '1d'] as KlineInterval[];
@@ -76,7 +77,7 @@ export class SharedMarketData {
       tickerBuffer: this.tickerBuffer,
       klineBuffer: this.klineBuffer,
       metadataBuffer: this.metadataBuffer,
-      updateCounterBuffer: this.updateCounter.buffer,
+      updateCounterBuffer: this.updateCounterBuffer,  // Use the stored buffer, not updateCounter.buffer
       config: {
         maxSymbols: MAX_SYMBOLS,
         maxKlinesPerSymbol: MAX_KLINES_PER_SYMBOL,

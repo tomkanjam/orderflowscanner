@@ -73,10 +73,10 @@ export const StatusBar = memo<StatusBarProps>(({
       <div className="flex items-center justify-between h-full text-xs">
         {/* App Name with Logo */}
         <div className="flex items-center gap-2">
-          <svg width="24" height="24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-[var(--nt-accent-lime)]">
-            <rect x="50" y="45" width="30" height="10" rx="5" fill="currentColor"/>
-            <rect x="35.5" y="27.5" width="30" height="10" rx="5" transform="rotate(60 35.5 27.5)" fill="currentColor"/>
-            <rect x="35.5" y="62.5" width="30" height="10" rx="5" transform="rotate(-60 35.5 62.5)" fill="currentColor"/>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-[var(--nt-accent-lime)]">
+            <path d="M12 13L20 13" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M4 6L12 13" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+            <path d="M12 13L4 20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
           </svg>
           <span className="text-lg font-bold text-[var(--nt-accent-lime)]">vyx</span>
         </div>

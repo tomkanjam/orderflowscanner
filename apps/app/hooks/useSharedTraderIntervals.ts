@@ -179,12 +179,19 @@ export function useSharedTraderIntervals({
           console.log(`[SharedTraderIntervals] Results from worker:`, {
             executionTime: data.executionTime.toFixed(2) + 'ms',
             updateCount: data.updateCount,
-            results: data.results.length
+            results: data.results.length,
+            details: data.results
           });
+          
+          if (data.results.length > 0) {
+            console.log('[SharedTraderIntervals] SIGNALS DETECTED:', data.results);
+          }
           
           onResultsRef.current(data.results);
         } else if (type === 'ERROR') {
           console.error(`[SharedTraderIntervals] Worker error:`, error);
+        } else if (type === 'STATUS') {
+          console.log(`[SharedTraderIntervals] Worker status:`, data);
         }
       });
       

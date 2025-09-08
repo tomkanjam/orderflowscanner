@@ -132,7 +132,7 @@ export function TraderSignalsTable({
           newSignals.forEach(signal => next.delete(signal.createdAt.getTime()));
           return next;
         });
-      }, 2000);
+      }, 3000);
     }
   }, [signals, soundEnabled]);
 
@@ -367,8 +367,8 @@ export function TraderSignalsTable({
               <React.Fragment key={signal.id}>
                 <tr 
                   className={`border-b border-[var(--nt-border-default)] hover:bg-[var(--nt-bg-hover)] transition-colors cursor-pointer ${
-                    newSignalTimestamps.has(signal.createdAt.getTime()) ? 'animate-pulse bg-[var(--nt-accent-lime)]/10' : ''
-                  } ${selectedSignalId === signal.id ? 'bg-amber-500/10 border-l-4 border-l-amber-500' : ''}`}
+                    selectedSignalId === signal.id ? 'bg-amber-500/10 border-l-4 border-l-amber-500' : ''
+                  }`}
                   onClick={() => {
                     onRowClick?.(signal.symbol, signal.traderId, signal.id);
                     onSignalSelect?.(signal);
@@ -377,7 +377,9 @@ export function TraderSignalsTable({
                   <td className="p-2 md:px-4 md:py-2 text-xs md:text-sm text-[var(--nt-text-muted)]">
                     {formatDistanceToNow(signal.createdAt, { addSuffix: true })}
                   </td>
-                  <td className="p-2 md:px-4 md:py-2 font-medium text-[var(--nt-text-primary)]">
+                  <td className={`p-2 md:px-4 md:py-2 font-medium text-[var(--nt-text-primary)] ${
+                    newSignalTimestamps.has(signal.createdAt.getTime()) ? 'signal-new-symbol' : ''
+                  }`}>
                     {signal.symbol}
                   </td>
                   <td className="p-2 md:px-4 md:py-2 text-xs text-[var(--nt-text-secondary)]">

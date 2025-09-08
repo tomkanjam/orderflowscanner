@@ -550,6 +550,22 @@
   animation: nt-glow 2s ease-in-out infinite;
 }
 
+/* Signal Symbol Fade Animation */
+@keyframes signal-symbol-fade {
+  0% {
+    color: var(--nt-accent-lime);
+    text-shadow: 0 0 8px var(--nt-accent-lime-glow);
+  }
+  100% {
+    color: var(--nt-text-primary);
+    text-shadow: none;
+  }
+}
+
+.signal-new-symbol {
+  animation: signal-symbol-fade 3s ease-out forwards;
+}
+
 /* Loading Skeleton */
 .nt-skeleton {
   background: linear-gradient(

@@ -154,3 +154,40 @@ When an anonymous user tries to create a signal:
 ## Sub-Agent use
 - Use the available research sub-agents
 - Notify the user of which sub-agent you're calling at each sub-agent call.
+
+## AI Development Workflow
+
+### Workflow Documentation
+All workflow artifacts are stored in `.ai-workflow/` directory to keep the repository clean. This includes:
+- Context (system architecture, product vision, feature registry)
+- Specifications (ideas, PRDs, engineering reviews)
+- Designs (UI/UX mockups following style guide)
+- Architecture documents
+- Implementation plans and progress tracking
+- Knowledge base (learnings, patterns, optimizations)
+
+### Development Process
+Follow the structured 9-stage workflow for all features:
+1. `/spec-init` - Initialize context (first time only)
+2. `/idea` - Review and enhance ideas with trading expertise
+3. `/create-spec` - Create PRD (features) or streamlined spec (enhancements)
+4. `/design` - Design UI/UX following style guide
+5. `/engineering-review` - Technical feasibility review
+6. `/architect` - System architecture design
+7. `/plan` - Break work into testable phases
+8. `/implement` - Execute plan phase by phase
+9. `/update-spec` - Document what was actually built
+
+### Important Workflow Notes
+- **Deep Code Review**: Every stage requires thorough code analysis before decisions
+- **Trading Expertise**: All AI agents have trading/quant experience - use this knowledge
+- **Testable Phases**: Break implementation into independently verifiable chunks
+- **Documentation**: Keep specs updated as living documents
+- **Single Source of Truth**: All artifacts go in `.ai-workflow/` folder
+
+### Context Awareness
+Before making any changes, check:
+- `.ai-workflow/context/SYSTEM.md` - Architecture patterns and conventions
+- `.ai-workflow/context/FEATURES.md` - Feature registry (what's stable/frozen)
+- `.ai-workflow/context/DECISIONS.md` - Past architectural decisions
+- `.ai-workflow/context/PATTERNS.md` - Established code patterns to follow

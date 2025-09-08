@@ -195,7 +195,7 @@ export const SignalCard = React.memo(function SignalCard({
           canView ? 'cursor-pointer' : 'opacity-60'
         } ${
           isSelected 
-            ? 'bg-[var(--nt-bg-hover)] border-amber-500' 
+            ? 'bg-[var(--nt-bg-hover)] border-[var(--nt-text-primary)]' 
             : 'bg-[var(--nt-bg-secondary)] border-[var(--nt-border-default)] hover:border-[var(--nt-border-light)]'
         }`}
         onClick={() => canView && onSelect?.()}

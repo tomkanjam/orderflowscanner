@@ -131,8 +131,9 @@ export class SharedMarketData {
     this.tickerView[offset + 8] = parseFloat(ticker.w); // Weighted avg price
     this.tickerView[offset + 9] = Date.now(); // Update timestamp
     
-    // Increment update counter (atomic operation)
+    // Increment update counter and notify waiting workers
     Atomics.add(this.updateCounter, 0, 1);
+    Atomics.notify(this.updateCounter, 0);
   }
 
   /**
@@ -175,8 +176,9 @@ export class SharedMarketData {
     this.klineView[offset + 4] = parseFloat(kline[4]); // Close
     this.klineView[offset + 5] = parseFloat(kline[5]); // Volume
     
-    // Increment update counter
+    // Increment update counter and notify waiting workers
     Atomics.add(this.updateCounter, 0, 1);
+    Atomics.notify(this.updateCounter, 0);
   }
 
   /**
@@ -213,8 +215,9 @@ export class SharedMarketData {
       this.klineView[offset + 5] = parseFloat(kline[5]);
     }
     
-    // Increment update counter
+    // Increment update counter and notify waiting workers
     Atomics.add(this.updateCounter, 0, 1);
+    Atomics.notify(this.updateCounter, 0);
   }
 
   /**

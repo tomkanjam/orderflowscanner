@@ -1095,12 +1095,9 @@ const AppContent: React.FC = () => {
     traderIntervalsResult.getPerformanceMetrics?.() :
     null;
   
-  // Log performance mode and metrics
+  // Log performance mode and test SharedArrayBuffer support
   useEffect(() => {
     console.log(`[App] Performance mode: ${performanceMode}`);
-    if (performanceMetrics) {
-      console.log('[App] Performance metrics:', performanceMetrics);
-    }
     
     // Test SharedArrayBuffer support if in shared mode
     if (performanceMode === 'shared' && 'testSharedArrayBuffer' in traderIntervalsResult) {
@@ -1111,7 +1108,21 @@ const AppContent: React.FC = () => {
         handlePerformanceModeChange('batched');
       }
     }
-  }, [performanceMode, performanceMetrics]);
+  }, [performanceMode]);
+  
+  // Log performance metrics only on significant changes (throttled)
+  useEffect(() => {
+    if (!performanceMetrics || performanceMode !== 'shared') return;
+    
+    let lastLogTime = 0;
+    const LOG_INTERVAL = 10000; // Log at most once every 10 seconds
+    
+    const now = Date.now();
+    if (now - lastLogTime > LOG_INTERVAL) {
+      console.log('[App] Performance metrics:', performanceMetrics);
+      lastLogTime = now;
+    }
+  }, [performanceMode]);
 
   // Subscribe to trader deletions to clean up worker cache
   useEffect(() => {

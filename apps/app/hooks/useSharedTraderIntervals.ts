@@ -68,34 +68,8 @@ export function useSharedTraderIntervals({
         return;
       }
       
-      console.log('[SharedTraderIntervals] Initializing shared memory...');
       sharedDataRef.current = new SharedMarketData();
       setIsInitialized(true);
-      
-      // Log memory stats
-      const stats = sharedDataRef.current.getMemoryStats();
-      console.log('[SharedTraderIntervals] Shared memory initialized:', stats);
-      
-      // Add diagnostic function to window for debugging
-      (window as any).debugSharedMemory = () => {
-        if (!sharedDataRef.current) {
-          console.log('SharedMarketData not initialized');
-          return;
-        }
-        
-        const stats = sharedDataRef.current.getMemoryStats();
-        const updateCount = sharedDataRef.current.getUpdateCount();
-        
-        console.log('=== SHARED MEMORY DEBUG ===');
-        console.log('Memory stats:', stats);
-        console.log('Update count:', updateCount);
-        console.log('Workers:', workersRef.current.length);
-        console.log('Worker trader counts:', workersRef.current.map(w => w.traderIds.size));
-        console.log('Enabled traders:', traders.filter(t => t.enabled).length);
-        console.log('===========================');
-      };
-      
-      console.log('[SharedTraderIntervals] Debug function available: window.debugSharedMemory()');
       
     } catch (error) {
       console.error('[SharedTraderIntervals] Failed to initialize:', error);
@@ -158,27 +132,10 @@ export function useSharedTraderIntervals({
 
   // Initialize persistent workers
   useEffect(() => {
-    console.log('[SharedTraderIntervals] Worker management effect triggered:', {
-      hasSharedData: !!sharedDataRef.current,
-      isInitialized,
-      enabled,
-      totalTraders: traders.length,
-      enabledTraders: traders.filter(t => t.enabled).length,
-      tradersWithCode: traders.filter(t => t.enabled && t.filter?.code).length
-    });
-    
-    if (!sharedDataRef.current || !isInitialized || !enabled) {
-      console.log('[SharedTraderIntervals] Skipping worker management - prerequisites not met');
-      return;
-    }
+    if (!sharedDataRef.current || !isInitialized || !enabled) return;
     
     const enabledTraders = traders.filter(t => t.enabled && t.filter?.code);
-    if (enabledTraders.length === 0) {
-      console.log('[SharedTraderIntervals] No enabled traders with filter code');
-      return;
-    }
-    
-    console.log(`[SharedTraderIntervals] Managing ${enabledTraders.length} traders with persistent workers`);
+    if (enabledTraders.length === 0) return;
     
     // Determine optimal worker count (1 worker per 5 traders, max 4 workers)
     const optimalWorkerCount = Math.min(Math.ceil(enabledTraders.length / 5), 4);
@@ -204,12 +161,9 @@ export function useSharedTraderIntervals({
         const { type, data, error } = event.data;
         
         if (type === 'READY') {
-          console.log(`[SharedTraderIntervals] Worker ${workerId} is READY, adding ${instance.pendingTraders?.length || 0} pending traders`);
-          
           // Now that worker is ready, send all pending traders
           if (instance.pendingTraders) {
-            instance.pendingTraders.forEach(traderData => {
-              console.log(`[SharedTraderIntervals] Sending ADD_TRADER for ${traderData.traderId} to ready worker`);
+            instance.pendingTraders.forEach((traderData) => {
               worker.postMessage({
                 type: 'ADD_TRADER',
                 data: traderData
@@ -221,34 +175,34 @@ export function useSharedTraderIntervals({
           }
           
         } else if (type === 'RESULTS') {
-          // Handle results from worker
-          console.log(`[SharedTraderIntervals] Results from worker:`, {
-            executionTime: data.executionTime.toFixed(2) + 'ms',
-            updateCount: data.updateCount,
-            results: data.results.length,
-            details: data.results
-          });
-          
-          if (data.results.length > 0) {
-            console.log('[SharedTraderIntervals] SIGNALS DETECTED:', data.results);
-          }
-          
           onResultsRef.current(data.results);
         } else if (type === 'ERROR') {
           console.error(`[SharedTraderIntervals] Worker error:`, error);
-        } else if (type === 'STATUS') {
-          console.log(`[SharedTraderIntervals] Worker status:`, data);
         }
       });
       
       workersRef.current.push(instance);
+      console.log(`[SharedTraderIntervals] Added worker to pool. Total workers: ${workersRef.current.length}`);
+      console.log(`[SharedTraderIntervals] Worker instance stored:`, {
+        id: instance.id,
+        hasWorker: !!instance.worker,
+        hasPendingTraders: !!instance.pendingTraders,
+        pendingTradersLength: instance.pendingTraders?.length || 0
+      });
       
       // Initialize worker with shared buffers AFTER setting up listener
       const buffers = sharedDataRef.current.getSharedBuffers();
+      console.log(`[SharedTraderIntervals] Sending INIT to worker ${workerId} with buffers:`, {
+        hasTickerBuffer: !!buffers.tickerBuffer,
+        hasKlineBuffer: !!buffers.klineBuffer,
+        hasMetadataBuffer: !!buffers.metadataBuffer,
+        hasUpdateCounterBuffer: !!buffers.updateCounterBuffer
+      });
       worker.postMessage({
         type: 'INIT',
         data: buffers
       });
+      console.log(`[SharedTraderIntervals] INIT message sent to worker ${workerId}`);
     }
     
     // Remove excess workers

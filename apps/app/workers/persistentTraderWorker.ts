@@ -81,17 +81,8 @@ class PersistentTraderWorker {
     this.isInitialized = true;
     this.lastUpdateCount = Atomics.load(this.updateCounter, 0);
     
-    console.log('[PersistentWorker] Initialized with shared memory', {
-      maxSymbols: this.config.maxSymbols,
-      bufferSizes: {
-        ticker: (config.tickerBuffer.byteLength / 1024).toFixed(2) + 'KB',
-        kline: (config.klineBuffer.byteLength / 1024 / 1024).toFixed(2) + 'MB',
-        metadata: (config.metadataBuffer.byteLength / 1024).toFixed(2) + 'KB'
-      }
-    });
-    
-    // Start monitoring for updates
-    this.startUpdateMonitor();
+    // Start monitoring for updates asynchronously
+    setTimeout(() => this.startUpdateMonitor(), 10);
   }
 
   /**
@@ -115,26 +106,19 @@ class PersistentTraderWorker {
   }
 
   /**
-   * Monitor for data updates using Atomics.wait
+   * Monitor for data updates using setInterval
    */
-  private async startUpdateMonitor() {
-    console.log('[PersistentWorker] Starting update monitor');
-    let loopCount = 0;
-    
-    while (this.isInitialized) {
-      const currentCount = Atomics.load(this.updateCounter!, 0);
-      
-      // Debug: Log every 100 loops
-      if (++loopCount % 100 === 0) {
-        console.log(`[PersistentWorker] Monitor loop ${loopCount}, updateCount: ${currentCount}, lastCount: ${this.lastUpdateCount}, traders: ${this.traders.size}`);
+  private startUpdateMonitor() {
+    // Use setInterval instead of while loop to avoid blocking message processing
+    const intervalId = setInterval(() => {
+      if (!this.isInitialized) {
+        clearInterval(intervalId);
+        return;
       }
       
+      const currentCount = Atomics.load(this.updateCounter!, 0);
+      
       if (currentCount !== this.lastUpdateCount) {
-        // Only log every 100th update to reduce noise
-        if (currentCount % 100 === 0) {
-          console.log(`[PersistentWorker] Update ${currentCount}, symbols: ${this.symbolMap.size}, traders: ${this.traders.size}`);
-        }
-        
         // Data has been updated
         this.lastUpdateCount = currentCount;
         
@@ -143,33 +127,22 @@ class PersistentTraderWorker {
         
         // Run all traders with current data
         if (this.traders.size > 0) {
-          console.log(`[PersistentWorker] ⚠️ RUNNING ${this.traders.size} TRADERS at update ${currentCount}`);
           this.runAllTraders();
-        } else if (currentCount % 100 === 0) {
-          console.log(`[PersistentWorker] ⚠️ NO TRADERS TO RUN! traders.size = ${this.traders.size}`);
         }
       }
-      
-      // Wait for next update (with timeout to check periodically)
-      const result = Atomics.wait(this.updateCounter!, 0, currentCount, 100);
-      
-      if (result === 'not-equal') {
-        // Data changed while we were preparing to wait - silent continue
-        continue;
-      } else if (result === 'timed-out') {
-        // Normal timeout - continue loop
-      } else if (result === 'ok') {
-        // Woken up by notify - silent continue
-      }
-    }
-    
-    console.log('[PersistentWorker] Update monitor stopped');
+    }, 10); // Check every 10ms
   }
 
   /**
    * Add or update a trader
    */
   addTrader(trader: TraderExecution) {
+    
+    if (!trader || !trader.traderId) {
+      console.error('[PersistentWorker] Invalid trader data:', trader);
+      return;
+    }
+    
     this.traders.set(trader.traderId, trader);
     
     // Compile the filter function
@@ -182,9 +155,6 @@ class PersistentTraderWorker {
         `try { ${trader.filterCode} } catch(e) { console.error('Filter error:', e); return false; }`
       );
       this.compiledFilters.set(trader.traderId, filterFunction);
-      
-      console.log(`[PersistentWorker] ✅ TRADER ADDED: ${trader.traderId} (${trader.filterCode.length} chars, timeframes: ${trader.requiredTimeframes.join(',')})`);
-      console.log(`[PersistentWorker] Current trader count: ${this.traders.size}`);
     } catch (error) {
       console.error(`[PersistentWorker] Failed to compile filter for ${trader.traderId}:`, error);
     }
@@ -197,7 +167,6 @@ class PersistentTraderWorker {
     this.traders.delete(traderId);
     this.compiledFilters.delete(traderId);
     this.previousMatches.delete(traderId);
-    console.log(`[PersistentWorker] Removed trader ${traderId}`);
   }
 
   /**
@@ -207,28 +176,15 @@ class PersistentTraderWorker {
     const startTime = performance.now();
     const results: any[] = [];
     
-    console.log(`[PersistentWorker] runAllTraders called with ${this.traders.size} traders, ${this.symbolMap.size} symbols`);
-    
     for (const [traderId, trader] of this.traders) {
       const filterFunction = this.compiledFilters.get(traderId);
-      if (!filterFunction) {
-        console.warn(`[PersistentWorker] No compiled filter for trader ${traderId}`);
-        continue;
-      }
+      if (!filterFunction) continue;
       
-      console.log(`[PersistentWorker] Running trader ${traderId}...`);
       const result = this.runTrader(traderId, trader, filterFunction);
-      console.log(`[PersistentWorker] Trader ${traderId} result:`, {
-        filtered: result.filteredSymbols.length,
-        signals: result.signalSymbols.length,
-        symbols: result.signalSymbols.slice(0, 5)
-      });
       results.push(result);
     }
     
     const executionTime = performance.now() - startTime;
-    
-    console.log(`[PersistentWorker] All traders complete in ${executionTime.toFixed(2)}ms, total results: ${results.length}`);
     
     // Send results back to main thread
     self.postMessage({
@@ -250,19 +206,10 @@ class PersistentTraderWorker {
     const filteredSymbols: string[] = [];
     const signalSymbols: string[] = [];
     
-    let symbolsChecked = 0;
-    let symbolsWithData = 0;
-    let symbolsMatched = 0;
-    
     // Iterate through all symbols in shared memory
     for (const [symbolIndex, symbol] of this.symbolMap) {
-      symbolsChecked++;
-      
       const ticker = this.getTickerFromSharedMemory(symbolIndex);
-      if (!ticker) {
-        console.log(`[PersistentWorker] No ticker data for ${symbol} at index ${symbolIndex}`);
-        continue;
-      }
+      if (!ticker) continue;
       
       // Build timeframes object from shared memory
       const timeframes: Record<string, any[]> = {};
@@ -271,9 +218,6 @@ class PersistentTraderWorker {
       for (const tf of trader.requiredTimeframes) {
         const klines = this.getKlinesFromSharedMemory(symbolIndex, tf);
         if (!klines || klines.length < 30) {
-          if (symbolsChecked <= 3) { // Log first few for debugging
-            console.log(`[PersistentWorker] Insufficient klines for ${symbol} ${tf}: ${klines?.length || 0} klines`);
-          }
           hasAllData = false;
           break;
         }
@@ -281,7 +225,6 @@ class PersistentTraderWorker {
       }
       
       if (!hasAllData) continue;
-      symbolsWithData++;
       
       try {
         // Calculate HVN nodes
@@ -295,26 +238,17 @@ class PersistentTraderWorker {
         const matches = filterFunction(ticker, timeframes, helpers, hvnNodes);
         
         if (matches) {
-          symbolsMatched++;
           filteredSymbols.push(symbol);
           currentMatches.add(symbol);
           
           if (!previousMatches.has(symbol)) {
             signalSymbols.push(symbol);
-            console.log(`[PersistentWorker] NEW SIGNAL: ${symbol} for trader ${traderId}`);
           }
         }
       } catch (error) {
         console.error(`[PersistentWorker] Filter error for ${traderId} on ${symbol}:`, error);
       }
     }
-    
-    console.log(`[PersistentWorker] Trader ${traderId} stats:`, {
-      symbolsChecked,
-      symbolsWithData,
-      symbolsMatched,
-      newSignals: signalSymbols.length
-    });
     
     // Update cache
     this.previousMatches.set(traderId, currentMatches);
@@ -330,31 +264,19 @@ class PersistentTraderWorker {
    * Get ticker from shared memory
    */
   private getTickerFromSharedMemory(symbolIndex: number) {
-    if (!this.tickerView || !this.config) {
-      console.error('[PersistentWorker] No tickerView or config!');
-      return null;
-    }
+    if (!this.tickerView || !this.config) return null;
     
     const offset = symbolIndex * this.config.tickerSize;
     const updateTime = this.tickerView[offset + 9];
     
-    if (updateTime === 0) {
-      // Log first few for debugging
-      if (symbolIndex < 3) {
-        console.log(`[PersistentWorker] No ticker data at index ${symbolIndex} (updateTime=0)`);
-      }
-      return null; // No data
-    }
+    if (updateTime === 0) return null; // No data
     
     // Get the symbol name for this index
     const symbol = this.symbolMap.get(symbolIndex);
-    if (!symbol) {
-      console.error(`[PersistentWorker] No symbol mapping for index ${symbolIndex}`);
-      return null;
-    }
+    if (!symbol) return null;
     
-    const ticker = {
-      s: symbol,  // Add the symbol property that filters expect
+    return {
+      s: symbol,  // Symbol property that filters expect
       c: this.tickerView[offset + 0].toString(),
       o: this.tickerView[offset + 1].toString(),
       h: this.tickerView[offset + 2].toString(),
@@ -365,13 +287,6 @@ class PersistentTraderWorker {
       p: this.tickerView[offset + 7].toString(),
       w: this.tickerView[offset + 8].toString()
     };
-    
-    // Log first ticker for debugging
-    if (symbolIndex === 0) {
-      console.log(`[PersistentWorker] First ticker data:`, ticker);
-    }
-    
-    return ticker;
   }
 
   /**
@@ -445,56 +360,45 @@ const worker = new PersistentTraderWorker();
 
 // Message handler
 self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
-  const { type, data, traderId } = event.data;
+  if (!event.data) return;
   
-  console.log(`[PersistentWorker] 📨 Received message: ${type}`, { 
-    hasData: !!data, 
-    traderId,
-    dataKeys: data ? Object.keys(data) : []
-  });
+  const { type, data, traderId } = event.data;
   
   try {
     switch (type) {
       case 'INIT':
-        console.log('[PersistentWorker] Initializing with shared buffers...');
         worker.init(data);
         self.postMessage({ type: 'READY' } as WorkerResponse);
         break;
         
       case 'ADD_TRADER':
-        console.log('[PersistentWorker] ADD_TRADER message received:', data);
         worker.addTrader(data);
         break;
         
       case 'REMOVE_TRADER':
         if (traderId) {
-          console.log(`[PersistentWorker] Removing trader: ${traderId}`);
           worker.removeTrader(traderId);
         }
         break;
         
       case 'UPDATE_TRADER':
-        console.log('[PersistentWorker] UPDATE_TRADER message received:', data);
         worker.addTrader(data); // Add/update uses same method
         break;
         
       case 'RUN_TRADERS':
         // Manual trigger (usually automatic via update monitor)
-        console.log('[PersistentWorker] Manual RUN_TRADERS triggered');
         worker['runAllTraders']();
         break;
         
       case 'GET_STATUS':
-        const status = worker.getStatus();
-        console.log('[PersistentWorker] Status requested:', status);
         self.postMessage({
           type: 'STATUS',
-          data: status
+          data: worker.getStatus()
         } as WorkerResponse);
         break;
         
       default:
-        console.warn(`[PersistentWorker] Unknown message type: ${type}`);
+        // Unknown message type
     }
   } catch (error) {
     console.error(`[PersistentWorker] Error handling message ${type}:`, error);

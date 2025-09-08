@@ -127,9 +127,10 @@ export function useSharedTraderIntervals({
     });
     
     // Log only if update took significant time (more than 50ms)
-    if (updateTime > 50) {
-      console.log(`[SharedTraderIntervals] Updated shared memory in ${updateTime.toFixed(2)}ms (${updates} updates)`);
-    }
+    // Commented out to reduce noise - uncomment for debugging
+    // if (updateTime > 50) {
+    //   console.log(`[SharedTraderIntervals] Updated shared memory in ${updateTime.toFixed(2)}ms (${updates} updates)`);
+    // }
     
   }, [tickers, historicalData, isInitialized]);
 

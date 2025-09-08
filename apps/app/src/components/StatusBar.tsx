@@ -71,8 +71,13 @@ export const StatusBar = memo<StatusBarProps>(({
   return (
     <div className="sticky top-0 z-10 h-12 bg-[var(--nt-bg-secondary)] border-b border-[var(--nt-border-default)] px-3 py-2 font-mono">
       <div className="flex items-center justify-between h-full text-xs">
-        {/* App Name */}
-        <div className="flex items-center">
+        {/* App Name with Logo */}
+        <div className="flex items-center gap-2">
+          <svg width="24" height="24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-[var(--nt-accent-lime)]">
+            <rect x="50" y="45" width="30" height="10" rx="5" fill="currentColor"/>
+            <rect x="35.5" y="27.5" width="30" height="10" rx="5" transform="rotate(60 35.5 27.5)" fill="currentColor"/>
+            <rect x="35.5" y="62.5" width="30" height="10" rx="5" transform="rotate(-60 35.5 62.5)" fill="currentColor"/>
+          </svg>
           <span className="text-lg font-bold text-[var(--nt-accent-lime)]">vyx</span>
         </div>
         

@@ -35,6 +35,7 @@ import { webSocketManager } from './src/utils/webSocketManager';
 import { useOptimizedMap, BatchedUpdater, LimitedMap, pruneMapByAge } from './src/utils/stateOptimizer';
 import { startMemoryCleanup, getActiveSymbols } from './src/utils/memoryCleanup';
 import { useSubscription } from './src/contexts/SubscriptionContext';
+import { areTraderArraysEqual } from './src/utils/traderEquality';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -274,6 +275,17 @@ const AppContent: React.FC = () => {
     tradersRef.current = traders;
   }, [traders]);
   
+  // Stable trader update function to prevent unnecessary re-renders
+  const updateTraders = useCallback((newTraders: Trader[]) => {
+    if (!areTraderArraysEqual(tradersRef.current, newTraders)) {
+      console.log('[App] Traders actually changed, updating state');
+      tradersRef.current = newTraders;
+      setTraders(newTraders);
+    } else {
+      console.log('[App] Traders unchanged, skipping state update');
+    }
+  }, []);
+  
   // Signal lifecycle hook
   const { 
     signals: enhancedSignals,
@@ -373,7 +385,7 @@ const AppContent: React.FC = () => {
       updatedTraders.forEach(t => {
         console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}, hasFilterCode=${!!t.filter?.code}, filterCodeLength=${t.filter?.code?.length || 0}`);
       });
-      setTraders(updatedTraders);
+      updateTraders(updatedTraders);
     });
     
     // Initial load
@@ -382,11 +394,11 @@ const AppContent: React.FC = () => {
       traders.forEach(t => {
         console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}, hasFilterCode=${!!t.filter?.code}, filterCodeLength=${t.filter?.code?.length || 0}`);
       });
-      setTraders(traders);
+      updateTraders(traders);
     });
     
     return unsubscribe;
-  }, []);
+  }, [updateTraders]);
 
   // Multi-trader historical scanner
   const {

@@ -12,6 +12,7 @@ export class TraderManager implements ITraderManager {
   private subscribers: Set<(traders: Trader[]) => void> = new Set();
   private deleteSubscribers: Set<(traderId: string) => void> = new Set();
   private initialized = false;
+  private pendingNotification: NodeJS.Timeout | null = null;
 
   constructor() {
     this.initialize();
@@ -229,8 +230,18 @@ export class TraderManager implements ITraderManager {
 
   // Helper methods
   private notifySubscribers() {
-    const traders = this.getTradersList();
-    this.subscribers.forEach(callback => callback(traders));
+    // Clear any pending notification
+    if (this.pendingNotification) {
+      clearTimeout(this.pendingNotification);
+    }
+    
+    // Debounce notifications by 50ms to batch rapid updates
+    this.pendingNotification = setTimeout(() => {
+      console.log('[TraderManager] Notifying subscribers (debounced)');
+      const traders = this.getTradersList();
+      this.subscribers.forEach(callback => callback(traders));
+      this.pendingNotification = null;
+    }, 50);
   }
 
   private notifyDeleteSubscribers(traderId: string) {

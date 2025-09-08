@@ -36,6 +36,7 @@ import { useOptimizedMap, BatchedUpdater, LimitedMap, pruneMapByAge } from './sr
 import { startMemoryCleanup, getActiveSymbols } from './src/utils/memoryCleanup';
 import { useSubscription } from './src/contexts/SubscriptionContext';
 import { areTraderArraysEqual } from './src/utils/traderEquality';
+import { memDebug } from './src/utils/memoryDebugger';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -747,12 +748,16 @@ const AppContent: React.FC = () => {
     setHistoricalData(prevData => {
       const symbolData = prevData.get(symbol);
       
+      // Track memory before update
+      memDebug.takeSnapshot('Before kline update', { symbol, interval });
+      
       // For new symbols, create new interval map
       if (!symbolData) {
         const newData = new Map(prevData);
         const intervalMap = new Map<KlineInterval, Kline[]>();
         intervalMap.set(interval, [kline]);
         newData.set(symbol, intervalMap);
+        memDebug.trackDataStructure('historicalData', newData);
         return newData;
       }
       

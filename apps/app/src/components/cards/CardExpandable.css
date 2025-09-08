@@ -1,0 +1,81 @@
+/* CardExpandable Component Styles */
+
+.signal-card__expand-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: var(--nt-transition-fast);
+}
+
+.signal-card__expand-button:hover {
+  background: var(--nt-bg-hover);
+}
+
+.signal-card__expand-button:focus {
+  outline: 2px solid var(--nt-accent-lime);
+  outline-offset: 2px;
+}
+
+.signal-card__expand-icon {
+  color: var(--nt-text-tertiary);
+  transition: transform var(--nt-transition-base);
+}
+
+.signal-card__expandable {
+  position: relative;
+  will-change: max-height, opacity;
+}
+
+/* Smooth height transition */
+.signal-card__expandable[data-expanded="true"] {
+  transition: max-height var(--nt-card-transition) ease-out,
+              opacity var(--nt-card-transition) ease-out;
+}
+
+.signal-card__expandable[data-expanded="false"] {
+  transition: max-height var(--nt-card-transition) ease-in,
+              opacity var(--nt-card-transition) ease-in;
+}
+
+/* Content fade effect */
+.signal-card__expandable::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to bottom, transparent, var(--nt-card-bg));
+  opacity: 0;
+  transition: opacity var(--nt-transition-fast);
+  pointer-events: none;
+}
+
+.signal-card__expandable[data-expanded="false"]::after {
+  opacity: 1;
+}
+
+/* Variant-specific max heights */
+.signal-card__expandable[data-variant="signal"] {
+  max-height: var(--nt-card-height-expanded-signal);
+}
+
+.signal-card__expandable[data-variant="trader"] {
+  max-height: var(--nt-card-height-expanded-trader);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .signal-card__expand-button {
+    padding: 0.5rem;
+  }
+  
+  .signal-card__expand-icon {
+    width: 20px;
+    height: 20px;
+  }
+}

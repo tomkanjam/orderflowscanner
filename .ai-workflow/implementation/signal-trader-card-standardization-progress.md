@@ -25,9 +25,28 @@ Implementing unified card design with 88px collapsed height, tier-adaptive conte
    - Created `src/components/SignalCard.css` with all required styles
    - Implemented activity states, animations, and responsive design
 
-## Phase 2: Core UI Components ⏳
+## Phase 2: Core UI Components 🔄
+- Started: 2025-01-08 17:30
 - Estimated: 12 hours
-- Status: Not Started
+- Status: In Progress (60% complete)
+
+### Completed Chunks:
+1. **Activity Indicator Component** ✅
+   - Created `ActivityIndicator.tsx` with 8x8px dots per design
+   - Color-coded states: lime (triggered), yellow (recent), green (active), gray (idle)
+   - Full test coverage in `ActivityIndicator.test.tsx`
+   
+2. **Expandable Container Component** ✅
+   - Created `CardExpandable.tsx` with smooth 200ms transitions
+   - Heights: 280px for signals, 328px for traders
+   - ChevronDown icon with 180° rotation on expand
+   - CSS animations in `CardExpandable.css`
+
+3. **Trigger History Component** ✅
+   - Created `TriggerHistory.tsx` for signal expansion view
+   - Shows 5 recent triggers with symbol, time, price, percentage
+   - Top symbols summary feature
+   - View All link functionality
 
 ## Phase 3: Animations & Interactions ⏳
 - Estimated: 8 hours

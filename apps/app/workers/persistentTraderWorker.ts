@@ -416,7 +416,7 @@ class PersistentTraderWorker {
    * Get worker status
    */
   getStatus() {
-    return {
+    const status = {
       isInitialized: this.isInitialized,
       traderCount: this.traders.size,
       traders: Array.from(this.traders.keys()),
@@ -424,6 +424,21 @@ class PersistentTraderWorker {
       updateCount: this.lastUpdateCount,
       memoryUsage: this.getMemoryUsage()
     };
+    
+    if (DEBUG) {
+      console.log('[Worker] Detailed status:', {
+        ...status,
+        compiledFilters: this.compiledFilters.size,
+        previousMatches: this.previousMatches.size,
+        intervalId: this.updateIntervalId,
+        isShuttingDown: this.isShuttingDown,
+        memoryMB: typeof performance !== 'undefined' && 'memory' in performance 
+          ? ((performance as any).memory.usedJSHeapSize / 1024 / 1024).toFixed(2)
+          : 'N/A'
+      });
+    }
+    
+    return status;
   }
 
   /**
@@ -447,6 +462,9 @@ class PersistentTraderWorker {
 
 // Track global interval count for debugging
 let globalIntervalCount = 0;
+
+// Debug mode from localStorage
+const DEBUG = typeof localStorage !== 'undefined' && localStorage.getItem('DEBUG_WORKERS') === 'true';
 
 // Worker instance
 const worker = new PersistentTraderWorker();
@@ -476,7 +494,29 @@ self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
         break;
         
       case 'UPDATE_TRADER':
-        worker.addTrader(data); // Add/update uses same method
+        // Handle updates more efficiently
+        if (data && data.traderId) {
+          const existing = worker['traders'].get(data.traderId);
+          if (existing) {
+            // Check if filter needs recompilation
+            if (existing.filterCode !== data.filterCode) {
+              console.log(`[Worker] Filter changed for ${data.traderId}, recompiling`);
+              worker.addTrader(data); // Reuse existing logic for filter changes
+            } else {
+              console.log(`[Worker] Updating metadata only for ${data.traderId}`);
+              // Update non-filter properties without recompilation
+              worker['traders'].set(data.traderId, {
+                ...existing,
+                refreshInterval: data.refreshInterval,
+                requiredTimeframes: data.requiredTimeframes
+              });
+            }
+          } else {
+            // Trader doesn't exist, add it
+            console.log(`[Worker] UPDATE_TRADER for non-existent trader ${data.traderId}, adding`);
+            worker.addTrader(data);
+          }
+        }
         break;
         
       case 'RUN_TRADERS':

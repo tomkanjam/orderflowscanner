@@ -17,6 +17,7 @@ import { Ticker, Kline, KlineInterval } from '../types';
 import { Trader } from '../src/abstractions/trader.interfaces';
 import { SharedMarketData } from '../src/shared/SharedMarketData';
 import { TraderResult } from '../workers/multiTraderScreenerWorker';
+import { DifferentialTracker } from '../src/utils/DifferentialTracker';
 
 interface UseSharedTraderIntervalsProps {
   traders: Trader[];
@@ -45,6 +46,14 @@ export function useSharedTraderIntervals({
   const sharedDataRef = useRef<SharedMarketData | null>(null);
   const workersRef = useRef<WorkerInstance[]>([]);
   const onResultsRef = useRef(onResults);
+  const trackerRef = useRef(new DifferentialTracker());
+  const metricsRef = useRef({
+    addCount: 0,
+    updateCount: 0,
+    removeCount: 0,
+    skipCount: 0,
+    lastReset: Date.now()
+  });
   const [isInitialized, setIsInitialized] = useState(false);
   const [performanceMetrics, setPerformanceMetrics] = useState({
     serializationTime: 0,
@@ -234,55 +243,73 @@ export function useSharedTraderIntervals({
       }
     }
     
-    // Distribute traders across workers
-    const tradersPerWorker = Math.ceil(enabledTraders.length / workersRef.current.length);
+    // Use differential tracking to send only changes
+    const changes = trackerRef.current.computeChanges(traders);
     
-    console.log(`[SharedTraderIntervals] Distributing ${enabledTraders.length} traders to ${workersRef.current.length} workers`);
+    // Update metrics
+    metricsRef.current.addCount += changes.toAdd.length;
+    metricsRef.current.updateCount += changes.toUpdate.length;
+    metricsRef.current.removeCount += changes.toRemove.length;
+    if (changes.toAdd.length === 0 && changes.toUpdate.length === 0 && changes.toRemove.length === 0) {
+      metricsRef.current.skipCount++;
+    }
     
-    enabledTraders.forEach((trader, index) => {
-      const workerIndex = Math.floor(index / tradersPerWorker);
-      const workerInstance = workersRef.current[workerIndex];
+    console.log(`[SharedTraderIntervals] Differential update: +${changes.toAdd.length}, ~${changes.toUpdate.length}, -${changes.toRemove.length}`);
+    
+    // Distribute new traders across workers
+    if (changes.toAdd.length > 0 && workersRef.current.length > 0) {
+      const tradersPerWorker = Math.ceil(changes.toAdd.length / workersRef.current.length);
+      
+      changes.toAdd.forEach((traderData, index) => {
+        const workerIndex = Math.floor(index / tradersPerWorker);
+        const workerInstance = workersRef.current[workerIndex];
+        
+        if (workerInstance) {
+          console.log(`[SharedTraderIntervals] Adding new trader ${traderData.traderId} to worker ${workerInstance.id}`);
+          
+          // Queue trader to be added after worker is ready
+          if (workerInstance.pendingTraders) {
+            workerInstance.pendingTraders.push(traderData);
+          } else {
+            // Worker already ready, send directly
+            workerInstance.worker.postMessage({
+              type: 'ADD_TRADER',
+              data: traderData
+            });
+          }
+          
+          workerInstance.traderIds.add(traderData.traderId);
+        }
+      });
+    }
+    
+    // Send updates to appropriate workers
+    changes.toUpdate.forEach(traderData => {
+      // Find which worker has this trader
+      const workerInstance = workersRef.current.find(w => w.traderIds.has(traderData.traderId));
       
       if (workerInstance) {
-        console.log(`[SharedTraderIntervals] Queueing trader ${trader.id} for worker ${workerInstance.id}`);
-        
-        const traderData = {
-          traderId: trader.id,
-          filterCode: trader.filter?.code || '',
-          refreshInterval: trader.filter?.refreshInterval || KlineInterval.ONE_MINUTE,
-          requiredTimeframes: trader.filter?.requiredTimeframes || [KlineInterval.ONE_MINUTE]
-        };
-        
-        // Queue trader to be added after worker is ready
-        if (workerInstance.pendingTraders) {
-          workerInstance.pendingTraders.push(traderData);
-        } else {
-          // Worker might already be ready, send directly
-          console.log(`[SharedTraderIntervals] Worker already ready, sending ADD_TRADER directly for ${trader.id}`);
-          workerInstance.worker.postMessage({
-            type: 'ADD_TRADER',
-            data: traderData
-          });
-        }
-        
-        workerInstance.traderIds.add(trader.id);
-      } else {
-        console.error(`[SharedTraderIntervals] No worker at index ${workerIndex} for trader ${trader.id}`);
+        console.log(`[SharedTraderIntervals] Updating trader ${traderData.traderId} in worker ${workerInstance.id}`);
+        workerInstance.worker.postMessage({
+          type: 'UPDATE_TRADER',
+          data: traderData
+        });
       }
     });
     
-    // Remove traders that are no longer enabled
-    const enabledTraderIds = new Set(enabledTraders.map(t => t.id));
-    workersRef.current.forEach(instance => {
-      instance.traderIds.forEach(traderId => {
-        if (!enabledTraderIds.has(traderId)) {
-          instance.worker.postMessage({
-            type: 'REMOVE_TRADER',
-            traderId
-          });
-          instance.traderIds.delete(traderId);
-        }
-      });
+    // Remove traders from appropriate workers
+    changes.toRemove.forEach(traderId => {
+      // Find which worker has this trader
+      const workerInstance = workersRef.current.find(w => w.traderIds.has(traderId));
+      
+      if (workerInstance) {
+        console.log(`[SharedTraderIntervals] Removing trader ${traderId} from worker ${workerInstance.id}`);
+        workerInstance.worker.postMessage({
+          type: 'REMOVE_TRADER',
+          traderId
+        });
+        workerInstance.traderIds.delete(traderId);
+      }
     });
     
   }, [traders, enabled, isInitialized]);
@@ -325,6 +352,13 @@ export function useSharedTraderIntervals({
       ? ((oldApproachSerializationMs - newApproachSerializationMs) / oldApproachSerializationMs * 100).toFixed(1)
       : 0;
     
+    // Calculate efficiency metrics
+    const elapsed = (Date.now() - metricsRef.current.lastReset) / 1000;
+    const totalMessages = metricsRef.current.addCount + metricsRef.current.updateCount + metricsRef.current.removeCount;
+    const efficiency = totalMessages > 0 
+      ? (metricsRef.current.skipCount / (metricsRef.current.skipCount + totalMessages) * 100).toFixed(1)
+      : 100;
+    
     return {
       oldApproach: {
         serializationMs: oldApproachSerializationMs.toFixed(2),
@@ -338,7 +372,16 @@ export function useSharedTraderIntervals({
       },
       improvementPercent: improvement + '%',
       updateCount: performanceMetrics.updateCount,
-      memoryUsageMB: performanceMetrics.memoryUsageMB.toFixed(2)
+      memoryUsageMB: performanceMetrics.memoryUsageMB.toFixed(2),
+      metrics: {
+        messagesPerSecond: elapsed > 0 ? (totalMessages / elapsed).toFixed(2) : '0',
+        efficiency: efficiency + '%',
+        addCount: metricsRef.current.addCount,
+        updateCount: metricsRef.current.updateCount,
+        removeCount: metricsRef.current.removeCount,
+        skipCount: metricsRef.current.skipCount,
+        elapsedSeconds: elapsed.toFixed(1)
+      }
     };
   }, [performanceMetrics]);
 

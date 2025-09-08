@@ -31,6 +31,7 @@ interface WorkerInstance {
   worker: Worker;
   id: string;
   traderIds: Set<string>;
+  pendingTraders?: any[];
 }
 
 export function useSharedTraderIntervals({
@@ -157,10 +158,25 @@ export function useSharedTraderIntervals({
 
   // Initialize persistent workers
   useEffect(() => {
-    if (!sharedDataRef.current || !isInitialized || !enabled) return;
+    console.log('[SharedTraderIntervals] Worker management effect triggered:', {
+      hasSharedData: !!sharedDataRef.current,
+      isInitialized,
+      enabled,
+      totalTraders: traders.length,
+      enabledTraders: traders.filter(t => t.enabled).length,
+      tradersWithCode: traders.filter(t => t.enabled && t.filter?.code).length
+    });
+    
+    if (!sharedDataRef.current || !isInitialized || !enabled) {
+      console.log('[SharedTraderIntervals] Skipping worker management - prerequisites not met');
+      return;
+    }
     
     const enabledTraders = traders.filter(t => t.enabled && t.filter?.code);
-    if (enabledTraders.length === 0) return;
+    if (enabledTraders.length === 0) {
+      console.log('[SharedTraderIntervals] No enabled traders with filter code');
+      return;
+    }
     
     console.log(`[SharedTraderIntervals] Managing ${enabledTraders.length} traders with persistent workers`);
     
@@ -179,22 +195,31 @@ export function useSharedTraderIntervals({
       const instance: WorkerInstance = {
         worker,
         id: workerId,
-        traderIds: new Set()
+        traderIds: new Set(),
+        pendingTraders: []  // Initialize pending traders array
       };
-      
-      // Initialize worker with shared buffers
-      const buffers = sharedDataRef.current.getSharedBuffers();
-      worker.postMessage({
-        type: 'INIT',
-        data: buffers
-      });
       
       // Handle worker messages
       worker.addEventListener('message', (event) => {
         const { type, data, error } = event.data;
         
         if (type === 'READY') {
-          console.log(`[SharedTraderIntervals] Worker ${workerId} initialized`);
+          console.log(`[SharedTraderIntervals] Worker ${workerId} is READY, adding ${instance.pendingTraders?.length || 0} pending traders`);
+          
+          // Now that worker is ready, send all pending traders
+          if (instance.pendingTraders) {
+            instance.pendingTraders.forEach(traderData => {
+              console.log(`[SharedTraderIntervals] Sending ADD_TRADER for ${traderData.traderId} to ready worker`);
+              worker.postMessage({
+                type: 'ADD_TRADER',
+                data: traderData
+              });
+            });
+            
+            // Clear pending traders and remove reference to prevent future queuing
+            instance.pendingTraders = undefined;
+          }
+          
         } else if (type === 'RESULTS') {
           // Handle results from worker
           console.log(`[SharedTraderIntervals] Results from worker:`, {
@@ -217,6 +242,13 @@ export function useSharedTraderIntervals({
       });
       
       workersRef.current.push(instance);
+      
+      // Initialize worker with shared buffers AFTER setting up listener
+      const buffers = sharedDataRef.current.getSharedBuffers();
+      worker.postMessage({
+        type: 'INIT',
+        data: buffers
+      });
     }
     
     // Remove excess workers
@@ -237,18 +269,26 @@ export function useSharedTraderIntervals({
       const workerInstance = workersRef.current[workerIndex];
       
       if (workerInstance) {
-        console.log(`[SharedTraderIntervals] Adding trader ${trader.id} to worker ${workerInstance.id}`);
+        console.log(`[SharedTraderIntervals] Queueing trader ${trader.id} for worker ${workerInstance.id}`);
         
-        // Add trader to worker
-        workerInstance.worker.postMessage({
-          type: 'ADD_TRADER',
-          data: {
-            traderId: trader.id,
-            filterCode: trader.filter?.code || '',
-            refreshInterval: trader.filter?.refreshInterval || KlineInterval.ONE_MINUTE,
-            requiredTimeframes: trader.filter?.requiredTimeframes || [KlineInterval.ONE_MINUTE]
-          }
-        });
+        const traderData = {
+          traderId: trader.id,
+          filterCode: trader.filter?.code || '',
+          refreshInterval: trader.filter?.refreshInterval || KlineInterval.ONE_MINUTE,
+          requiredTimeframes: trader.filter?.requiredTimeframes || [KlineInterval.ONE_MINUTE]
+        };
+        
+        // Queue trader to be added after worker is ready
+        if (workerInstance.pendingTraders) {
+          workerInstance.pendingTraders.push(traderData);
+        } else {
+          // Worker might already be ready, send directly
+          console.log(`[SharedTraderIntervals] Worker already ready, sending ADD_TRADER directly for ${trader.id}`);
+          workerInstance.worker.postMessage({
+            type: 'ADD_TRADER',
+            data: traderData
+          });
+        }
         
         workerInstance.traderIds.add(trader.id);
       } else {

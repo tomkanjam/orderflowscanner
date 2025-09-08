@@ -346,7 +346,15 @@ class PersistentTraderWorker {
       return null; // No data
     }
     
+    // Get the symbol name for this index
+    const symbol = this.symbolMap.get(symbolIndex);
+    if (!symbol) {
+      console.error(`[PersistentWorker] No symbol mapping for index ${symbolIndex}`);
+      return null;
+    }
+    
     const ticker = {
+      s: symbol,  // Add the symbol property that filters expect
       c: this.tickerView[offset + 0].toString(),
       o: this.tickerView[offset + 1].toString(),
       h: this.tickerView[offset + 2].toString(),
@@ -439,36 +447,49 @@ const worker = new PersistentTraderWorker();
 self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
   const { type, data, traderId } = event.data;
   
+  console.log(`[PersistentWorker] 📨 Received message: ${type}`, { 
+    hasData: !!data, 
+    traderId,
+    dataKeys: data ? Object.keys(data) : []
+  });
+  
   try {
     switch (type) {
       case 'INIT':
+        console.log('[PersistentWorker] Initializing with shared buffers...');
         worker.init(data);
         self.postMessage({ type: 'READY' } as WorkerResponse);
         break;
         
       case 'ADD_TRADER':
+        console.log('[PersistentWorker] ADD_TRADER message received:', data);
         worker.addTrader(data);
         break;
         
       case 'REMOVE_TRADER':
         if (traderId) {
+          console.log(`[PersistentWorker] Removing trader: ${traderId}`);
           worker.removeTrader(traderId);
         }
         break;
         
       case 'UPDATE_TRADER':
+        console.log('[PersistentWorker] UPDATE_TRADER message received:', data);
         worker.addTrader(data); // Add/update uses same method
         break;
         
       case 'RUN_TRADERS':
         // Manual trigger (usually automatic via update monitor)
+        console.log('[PersistentWorker] Manual RUN_TRADERS triggered');
         worker['runAllTraders']();
         break;
         
       case 'GET_STATUS':
+        const status = worker.getStatus();
+        console.log('[PersistentWorker] Status requested:', status);
         self.postMessage({
           type: 'STATUS',
-          data: worker.getStatus()
+          data: status
         } as WorkerResponse);
         break;
         
@@ -476,6 +497,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
         console.warn(`[PersistentWorker] Unknown message type: ${type}`);
     }
   } catch (error) {
+    console.error(`[PersistentWorker] Error handling message ${type}:`, error);
     self.postMessage({
       type: 'ERROR',
       error: error instanceof Error ? error.message : 'Unknown error'

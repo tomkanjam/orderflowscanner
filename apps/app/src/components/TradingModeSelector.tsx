@@ -130,7 +130,7 @@ export function TradingModeSelector({ onModeChange }: TradingModeSelectorProps) 
         <h3 className="text-sm font-semibold text-[var(--nt-text-primary)]">Trading Mode</h3>
         <div className="flex items-center gap-2">
           {mode === 'demo' ? (
-            <Shield className="w-4 h-4 text-blue-500" />
+            <Shield className="w-4 h-4 text-cyan-500" />
           ) : (
             <Zap className="w-4 h-4 text-orange-500" />
           )}
@@ -147,7 +147,7 @@ export function TradingModeSelector({ onModeChange }: TradingModeSelectorProps) 
           disabled={isLoading}
           className={`flex-1 px-3 py-2 text-sm rounded-md transition-colors ${
             mode === 'demo'
-              ? 'bg-blue-500 text-white'
+              ? 'bg-cyan-500 text-white'
               : 'bg-[var(--nt-bg-hover)] text-[var(--nt-text-secondary)] hover:bg-[var(--nt-bg-elevated)]'
           }`}
         >

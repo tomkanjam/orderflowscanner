@@ -496,7 +496,7 @@ export function TraderForm({
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               placeholder="Example: Create a momentum trader that buys strong uptrends with increasing volume"
-              className="w-full p-3 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-[var(--nt-accent-lime)] focus:outline-none resize-none"
+              className="w-full p-3 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-amber-500/50 focus:outline-none resize-none"
               rows={4}
             />
           </div>
@@ -587,7 +587,7 @@ export function TraderForm({
               value={manualName}
               onChange={(e) => setManualName(e.target.value)}
               placeholder="e.g., RSI Bounce Signal"
-              className="w-full p-2 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-[var(--nt-accent-lime)] focus:outline-none"
+              className="w-full p-2 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-amber-500/50 focus:outline-none"
             />
           </div>
 
@@ -600,7 +600,7 @@ export function TraderForm({
               value={manualDescription}
               onChange={(e) => setManualDescription(e.target.value)}
               placeholder="Brief description of what this trader does"
-              className="w-full p-2 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-[var(--nt-accent-lime)] focus:outline-none"
+              className="w-full p-2 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-amber-500/50 focus:outline-none"
             />
           </div>
 
@@ -630,7 +630,7 @@ export function TraderForm({
                       setFilterConditions(newConditions);
                     }}
                     placeholder={`Condition ${index + 1}`}
-                    className="flex-1 p-2 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-[var(--nt-accent-lime)] focus:outline-none text-sm"
+                    className="flex-1 p-2 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-amber-500/50 focus:outline-none text-sm"
                   />
                   <button
                     onClick={() => {
@@ -698,7 +698,7 @@ export function TraderForm({
                 value={manualFilterCode}
                 onChange={(e) => setManualFilterCode(e.target.value)}
                 placeholder="// JavaScript function body that returns boolean"
-                className="w-full p-3 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-[var(--nt-accent-lime)] focus:outline-none resize-none font-mono text-sm"
+                className="w-full p-3 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-amber-500/50 focus:outline-none resize-none font-mono text-sm"
                 rows={6}
               />
               <p className="text-xs text-[var(--nt-text-muted)] mt-1">
@@ -715,7 +715,7 @@ export function TraderForm({
               value={manualStrategy}
               onChange={(e) => setManualStrategy(e.target.value)}
               placeholder="Detailed instructions for the AI analyzer. Include entry criteria, exit criteria, and risk management rules."
-              className="w-full p-3 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-[var(--nt-accent-lime)] focus:outline-none resize-none"
+              className="w-full p-3 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:border-amber-500/50 focus:outline-none resize-none"
               rows={4}
             />
           </div>
@@ -728,7 +728,7 @@ export function TraderForm({
             <select
               value={filterInterval}
               onChange={(e) => setFilterInterval(e.target.value as KlineInterval)}
-              className="w-full p-2 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] focus:border-[var(--nt-accent-lime)] focus:outline-none"
+              className="w-full p-2 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] focus:border-amber-500/50 focus:outline-none"
             >
               {KLINE_INTERVALS.map(({ value, label }) => (
                 <option key={value} value={value}>

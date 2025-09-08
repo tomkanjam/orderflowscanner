@@ -72,7 +72,7 @@ export function PositionsPanel({ isOpen = true, onClose }: PositionsPanelProps) 
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-[var(--nt-text-primary)]">Positions & P&L</h3>
           {tradingMode === 'demo' ? (
-            <Shield className="w-4 h-4 text-blue-500" title="Demo Trading" />
+            <Shield className="w-4 h-4 text-cyan-500" title="Demo Trading" />
           ) : (
             <Zap className="w-4 h-4 text-orange-500" title="Live Trading" />
           )}
@@ -125,7 +125,7 @@ export function PositionsPanel({ isOpen = true, onClose }: PositionsPanelProps) 
 
       {/* Demo Stats */}
       {demoStats && (
-        <div className="mb-3 p-2 bg-blue-500/10 border border-blue-500/30 rounded-md text-xs">
+        <div className="mb-3 p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-md text-xs">
           <div className="grid grid-cols-2 gap-2">
             <div>
               <span className="text-[var(--nt-text-muted)]">Total Trades:</span>{' '}

@@ -27,6 +27,7 @@ export default {
           900: '#0A0A0B',
           950: '#080809'
         },
+        // Electric Lime - use very sparingly for critical emphasis only
         blue: {
           300: '#D4FF33',
           400: '#C6FF00',
@@ -34,6 +35,23 @@ export default {
           600: '#A3D100',
           700: '#7FA300'
         },
+        // Amber - primary accent for actions and highlights
+        amber: {
+          300: '#FF8833',
+          400: '#FF7A1A',
+          500: '#FF6B00',
+          600: '#E65C00',
+          700: '#CC5200'
+        },
+        // Cyan - secondary accent for info and selections
+        cyan: {
+          300: '#33F3FF',
+          400: '#00F0FF',
+          500: '#00F0FF',
+          600: '#00C0CC',
+          700: '#009099'
+        },
+        // Green - success and profits
         green: {
           300: '#33FFB3',
           400: '#00FF88',
@@ -41,6 +59,7 @@ export default {
           600: '#00CC6E',
           700: '#009954'
         },
+        // Red - errors and losses
         red: {
           300: '#FF336C',
           400: '#FF0040',
@@ -54,17 +73,10 @@ export default {
           500: '#FFD700',
           600: '#CCAC00',
           700: '#998100'
-        },
-        cyan: {
-          300: '#33F3FF',
-          400: '#00F0FF',
-          500: '#00F0FF',
-          600: '#00C0CC',
-          700: '#009099'
         }
       },
       borderColor: {
-        DEFAULT: 'rgba(198, 255, 0, 0.15)'
+        DEFAULT: 'rgba(90, 90, 87, 0.3)' // Use subtle gray instead of lime
       },
       fontFamily: {
         'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],

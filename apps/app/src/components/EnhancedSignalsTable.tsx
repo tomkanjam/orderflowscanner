@@ -74,7 +74,7 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
   const getStatusIcon = (status: SignalStatus) => {
     switch (status) {
       case 'new':
-        return <AlertCircle className="h-4 w-4 text-blue-500" />;
+        return <AlertCircle className="h-4 w-4 text-amber-500" />;
       case 'analyzing':
         return <Clock className="h-4 w-4 text-yellow-500 animate-pulse" />;
       case 'rejected':
@@ -94,7 +94,7 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
   
   const getStatusColor = (status: SignalStatus) => {
     switch (status) {
-      case 'new': return 'text-blue-500';
+      case 'new': return 'text-amber-500';
       case 'analyzing': return 'text-yellow-500';
       case 'rejected': return 'text-gray-500';
       case 'monitoring': return 'text-yellow-500';

@@ -182,7 +182,7 @@ export function TraderSignalsTable({
 
   const getStatusColor = (status: SignalStatus) => {
     switch (status) {
-      case 'new': return 'text-blue-500';
+      case 'new': return 'text-amber-500';
       case 'analysis_queued': return 'text-orange-500';
       case 'analyzing': return 'text-yellow-500';
       case 'rejected': return 'text-gray-500';
@@ -368,7 +368,7 @@ export function TraderSignalsTable({
                 <tr 
                   className={`border-b border-[var(--nt-border-default)] hover:bg-[var(--nt-bg-hover)] transition-colors cursor-pointer ${
                     newSignalTimestamps.has(signal.createdAt.getTime()) ? 'animate-pulse bg-[var(--nt-accent-lime)]/10' : ''
-                  } ${selectedSignalId === signal.id ? 'bg-blue-500/10 border-l-4 border-l-blue-500' : ''}`}
+                  } ${selectedSignalId === signal.id ? 'bg-amber-500/10 border-l-4 border-l-amber-500' : ''}`}
                   onClick={() => {
                     onRowClick?.(signal.symbol, signal.traderId, signal.id);
                     onSignalSelect?.(signal);
@@ -432,7 +432,7 @@ export function TraderSignalsTable({
                             {/* Show pulsing indicator if analyzed within last 5 seconds */}
                             {signal.analyzedAt && 
                              new Date().getTime() - new Date(signal.analyzedAt).getTime() < 5000 && (
-                              <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" 
+                              <span className="inline-block w-2 h-2 bg-amber-500 rounded-full animate-pulse" 
                                     title="Recently analyzed" />
                             )}
                           </div>
@@ -445,7 +445,7 @@ export function TraderSignalsTable({
                           {signal.status === 'ready' && (
                             <AutoTradeButton signalId={signal.id} />
                           )}
-                          <span className="text-xs text-[var(--nt-text-muted)] hover:text-blue-500">
+                          <span className="text-xs text-[var(--nt-text-muted)] hover:text-cyan-500">
                             Click for details →
                           </span>
                         </div>

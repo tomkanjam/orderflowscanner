@@ -183,7 +183,7 @@ export const PromptManager: React.FC = () => {
                 onClick={() => setSelectedPrompt(prompt)}
                 className={`p-3 rounded-lg cursor-pointer transition-colors ${
                   selectedPrompt?.id === prompt.id
-                    ? 'bg-gray-700 border border-blue-500'
+                    ? 'bg-gray-700 border border-amber-500'
                     : 'bg-gray-800 hover:bg-gray-700 border border-transparent'
                 }`}
               >
@@ -267,7 +267,7 @@ export const PromptManager: React.FC = () => {
               <textarea
                 value={editedContent}
                 onChange={(e) => setEditedContent(e.target.value)}
-                className="w-full h-full bg-gray-800 text-gray-100 rounded-lg p-4 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700"
+                className="w-full h-full bg-gray-800 text-gray-100 rounded-lg p-4 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-500 border border-gray-700"
                 spellCheck={false}
                 placeholder="Enter system instruction here..."
               />

@@ -99,7 +99,7 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'new':
-        return 'bg-blue-500/10 text-blue-500';
+        return 'bg-amber-500/10 text-amber-500';
       case 'analyzing':
       case 'analysis_queued':
         return 'bg-yellow-500/10 text-yellow-500';
@@ -189,7 +189,7 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
           <div className="text-center py-8 text-[var(--nt-text-muted)]">
             {signal.status === 'analyzing' || signal.status === 'analysis_queued' ? (
               <>
-                <div className="w-12 h-12 mx-auto mb-3 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                <div className="w-12 h-12 mx-auto mb-3 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
                 <p className="text-sm font-medium text-[var(--nt-text-primary)]">
                   {signal.status === 'analyzing' ? 'Analyzing signal...' : 'Queued for analysis'}
                 </p>
@@ -223,14 +223,14 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
                 >
                   {/* Timeline dot */}
                   <div className={`absolute -left-[9px] w-4 h-4 rounded-full border-2 ${
-                    isLatest ? 'bg-blue-500 border-blue-500' : 
+                    isLatest ? 'bg-amber-500 border-amber-500' : 
                     isDecisionChange ? 'bg-yellow-500 border-yellow-500' : 
                     'bg-[var(--nt-bg-secondary)] border-[var(--nt-border-default)]'
                   }`} />
                   
                   {/* Analysis Card */}
                   <div className={`bg-[var(--nt-bg-secondary)] rounded-lg p-4 ${
-                    isLatest ? 'ring-2 ring-blue-500/20' : ''
+                    isLatest ? 'ring-2 ring-amber-500/20' : ''
                   }`}>
                     {/* Header */}
                     <div className="flex items-start justify-between mb-3">
@@ -242,7 +242,7 @@ export function SignalHistorySidebar({ signal: initialSignal, onClose, tickers, 
                           </span>
                         </div>
                         {isLatest && (
-                          <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full">
+                          <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full">
                             Latest
                           </span>
                         )}

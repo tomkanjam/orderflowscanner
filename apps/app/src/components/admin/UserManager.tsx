@@ -189,7 +189,7 @@ export function UserManager() {
           placeholder="Search by email or name..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 bg-[var(--nt-bg-primary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:outline-none focus:border-[var(--nt-accent-lime)]"
+          className="w-full px-4 py-2 bg-[var(--nt-bg-primary)] border border-[var(--nt-border-default)] rounded-lg text-[var(--nt-text-primary)] placeholder-[var(--nt-text-muted)] focus:outline-none focus:border-amber-500/50"
         />
       </div>
 
@@ -260,7 +260,7 @@ export function UserManager() {
                   value={user.subscription?.tier || 'free'}
                   onChange={(e) => updateUserTier(user.id, e.target.value as UserTier)}
                   disabled={savingUser === user.id}
-                  className="px-3 py-1.5 bg-[var(--nt-bg-primary)] border border-[var(--nt-border-default)] rounded-lg text-sm text-[var(--nt-text-primary)] focus:outline-none focus:border-[var(--nt-accent-lime)] cursor-pointer"
+                  className="px-3 py-1.5 bg-[var(--nt-bg-primary)] border border-[var(--nt-border-default)] rounded-lg text-sm text-[var(--nt-text-primary)] focus:outline-none focus:border-amber-500/50 cursor-pointer"
                   style={{ 
                     color: getTierColor(user.subscription?.tier || 'free')
                   }}

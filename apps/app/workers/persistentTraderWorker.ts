@@ -30,13 +30,13 @@ interface TraderExecution {
 }
 
 interface WorkerMessage {
-  type: 'INIT' | 'ADD_TRADER' | 'REMOVE_TRADER' | 'UPDATE_TRADER' | 'RUN_TRADERS' | 'GET_STATUS';
+  type: 'INIT' | 'ADD_TRADER' | 'REMOVE_TRADER' | 'UPDATE_TRADER' | 'RUN_TRADERS' | 'GET_STATUS' | 'CLEANUP' | 'PING';
   data?: any;
   traderId?: string;
 }
 
 interface WorkerResponse {
-  type: 'READY' | 'RESULTS' | 'STATUS' | 'ERROR';
+  type: 'READY' | 'RESULTS' | 'STATUS' | 'ERROR' | 'CLEANUP_COMPLETE' | 'PONG';
   data?: any;
   error?: string;
 }
@@ -56,6 +56,8 @@ class PersistentTraderWorker {
   
   private lastUpdateCount = 0;
   private isInitialized = false;
+  private updateIntervalId: number | null = null; // Track the interval ID for cleanup
+  private isShuttingDown = false; // Flag to prevent operations during shutdown
   
   constructor() {
     // Set up interval mapping
@@ -109,10 +111,13 @@ class PersistentTraderWorker {
    * Monitor for data updates using setInterval
    */
   private startUpdateMonitor() {
-    // Use setInterval instead of while loop to avoid blocking message processing
-    const intervalId = setInterval(() => {
-      if (!this.isInitialized) {
-        clearInterval(intervalId);
+    // Clear any existing interval first
+    this.stopUpdateMonitor();
+    
+    // Create new interval and store its ID for cleanup
+    this.updateIntervalId = setInterval(() => {
+      if (this.isShuttingDown || !this.isInitialized) {
+        this.stopUpdateMonitor();
         return;
       }
       
@@ -131,6 +136,16 @@ class PersistentTraderWorker {
         }
       }
     }, 10); // Check every 10ms
+  }
+
+  /**
+   * Stop the update monitor interval
+   */
+  private stopUpdateMonitor() {
+    if (this.updateIntervalId !== null) {
+      clearInterval(this.updateIntervalId);
+      this.updateIntervalId = null;
+    }
   }
 
   /**
@@ -323,6 +338,37 @@ class PersistentTraderWorker {
   }
 
   /**
+   * Cleanup worker resources before termination
+   */
+  private cleanup() {
+    // Set shutdown flag to stop all operations
+    this.isShuttingDown = true;
+    
+    // Stop the update monitor interval
+    this.stopUpdateMonitor();
+    
+    // Clear all data structures
+    this.traders.clear();
+    this.compiledFilters.clear();
+    this.previousMatches.clear();
+    this.symbolMap.clear();
+    this.intervalMap.clear();
+    
+    // Nullify shared buffer references to allow garbage collection
+    this.tickerView = null;
+    this.klineView = null;
+    this.metadataView = null;
+    this.updateCounter = null;
+    this.config = null;
+    
+    // Mark as not initialized
+    this.isInitialized = false;
+    
+    // Send cleanup completion confirmation
+    self.postMessage({ type: 'CLEANUP_COMPLETE' } as WorkerResponse);
+  }
+
+  /**
    * Get worker status
    */
   getStatus() {
@@ -395,6 +441,14 @@ self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
           type: 'STATUS',
           data: worker.getStatus()
         } as WorkerResponse);
+        break;
+        
+      case 'CLEANUP':
+        worker['cleanup']();
+        break;
+        
+      case 'PING':
+        self.postMessage({ type: 'PONG' } as WorkerResponse);
         break;
         
       default:

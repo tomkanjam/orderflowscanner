@@ -76,11 +76,20 @@ export function useSharedTraderIntervals({
     }
     
     return () => {
-      // Cleanup workers
-      workersRef.current.forEach(({ worker }) => {
-        worker.terminate();
+      // Cleanup workers with proper cleanup message
+      console.log('[SharedTraderIntervals] Cleaning up all workers on unmount');
+      workersRef.current.forEach((instance) => {
+        // Send cleanup message first
+        instance.worker.postMessage({ type: 'CLEANUP' });
       });
-      workersRef.current = [];
+      
+      // Give workers time to cleanup, then terminate
+      setTimeout(() => {
+        workersRef.current.forEach((instance) => {
+          instance.worker.terminate();
+        });
+        workersRef.current = [];
+      }, 100);
     };
   }, []);
 
@@ -205,11 +214,19 @@ export function useSharedTraderIntervals({
       console.log(`[SharedTraderIntervals] INIT message sent to worker ${workerId}`);
     }
     
-    // Remove excess workers
+    // Remove excess workers with proper cleanup
     while (workersRef.current.length > optimalWorkerCount) {
       const instance = workersRef.current.pop();
       if (instance) {
-        instance.worker.terminate();
+        // Send cleanup message first
+        console.log(`[SharedTraderIntervals] Sending CLEANUP to worker ${instance.id}`);
+        instance.worker.postMessage({ type: 'CLEANUP' });
+        
+        // Wait a short time for cleanup to complete, then terminate
+        setTimeout(() => {
+          console.log(`[SharedTraderIntervals] Terminating worker ${instance.id}`);
+          instance.worker.terminate();
+        }, 100); // 100ms should be enough for cleanup
       }
     }
     

@@ -120,7 +120,7 @@ export function TraderList({
       {/* Built-in Signals Section */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-[var(--nt-accent-lime)]">
+          <h3 className="text-lg font-semibold text-[var(--nt-text-primary)]">
             Signals
           </h3>
         </div>
@@ -176,7 +176,7 @@ export function TraderList({
       }>
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-[var(--nt-accent-lime)]">
+            <h3 className="text-lg font-semibold text-[var(--nt-text-primary)]">
               {currentTier === 'elite' ? 'My AI Traders' : 'My Signals'}
             </h3>
             <div className="flex items-center gap-3">

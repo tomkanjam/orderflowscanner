@@ -60,6 +60,7 @@ class PersistentTraderWorker {
   private isShuttingDown = false; // Flag to prevent operations during shutdown
   
   constructor() {
+    console.log(`[Worker ${self.name || 'unnamed'}] Constructor called at ${new Date().toISOString()}`);
     // Set up interval mapping
     const intervals = ['1m', '5m', '15m', '1h', '4h', '1d'];
     intervals.forEach((interval, index) => {
@@ -71,6 +72,7 @@ class PersistentTraderWorker {
    * Initialize with shared buffers
    */
   init(config: WorkerConfig) {
+    console.log(`[Worker] Init called at ${new Date().toISOString()}`);
     this.tickerView = new Float64Array(config.tickerBuffer);
     this.klineView = new Float64Array(config.klineBuffer);
     this.metadataView = new Uint8Array(config.metadataBuffer);
@@ -84,6 +86,7 @@ class PersistentTraderWorker {
     this.lastUpdateCount = Atomics.load(this.updateCounter, 0);
     
     // Start monitoring for updates asynchronously
+    console.log(`[Worker] Scheduling startUpdateMonitor`);
     setTimeout(() => this.startUpdateMonitor(), 10);
   }
 
@@ -111,10 +114,13 @@ class PersistentTraderWorker {
    * Monitor for data updates using setInterval
    */
   private startUpdateMonitor() {
+    console.log(`[Worker] startUpdateMonitor called at ${new Date().toISOString()}, existing interval: ${this.updateIntervalId}`);
     // Clear any existing interval first
     this.stopUpdateMonitor();
     
     // Create new interval and store its ID for cleanup
+    globalIntervalCount++;
+    console.log(`[Worker] Creating interval #${globalIntervalCount} - Total active: ${globalIntervalCount}`);
     this.updateIntervalId = setInterval(() => {
       if (this.isShuttingDown || !this.isInitialized) {
         this.stopUpdateMonitor();
@@ -136,15 +142,21 @@ class PersistentTraderWorker {
         }
       }
     }, 10); // Check every 10ms
+    console.log(`[Worker] Created interval with ID: ${this.updateIntervalId}`);
   }
 
   /**
    * Stop the update monitor interval
    */
   private stopUpdateMonitor() {
+    console.log(`[Worker] stopUpdateMonitor called at ${new Date().toISOString()}, current interval: ${this.updateIntervalId}`);
     if (this.updateIntervalId !== null) {
       clearInterval(this.updateIntervalId);
+      globalIntervalCount--;
+      console.log(`[Worker] Cleared interval ${this.updateIntervalId} - Total active: ${globalIntervalCount}`);
       this.updateIntervalId = null;
+    } else {
+      console.log(`[Worker] No interval to clear - Total active: ${globalIntervalCount}`);
     }
   }
 
@@ -158,10 +170,32 @@ class PersistentTraderWorker {
       return;
     }
     
+    // Check if trader already exists with identical configuration
+    const existing = this.traders.get(trader.traderId);
+    if (existing && 
+        existing.filterCode === trader.filterCode &&
+        existing.refreshInterval === trader.refreshInterval &&
+        JSON.stringify(existing.requiredTimeframes) === JSON.stringify(trader.requiredTimeframes)) {
+      // Skip duplicate - no need to recompile identical filter
+      console.log(`[Worker] Skipping duplicate ADD_TRADER for ${trader.traderId} - filter unchanged`);
+      return;
+    }
+    
+    // If updating an existing trader, dispose old function first
+    if (existing && this.compiledFilters.has(trader.traderId)) {
+      console.log(`[Worker] Updating trader ${trader.traderId} - disposing old filter function`);
+      const oldFunction = this.compiledFilters.get(trader.traderId);
+      if (oldFunction) {
+        // Clear references to help garbage collection
+        this.compiledFilters.delete(trader.traderId);
+      }
+    }
+    
     this.traders.set(trader.traderId, trader);
     
-    // Compile the filter function
+    // Compile the filter function only for new or changed traders
     try {
+      console.log(`[Worker] Compiling filter for trader ${trader.traderId}`);
       const filterFunction = new Function(
         'ticker',
         'timeframes',
@@ -170,6 +204,7 @@ class PersistentTraderWorker {
         `try { ${trader.filterCode} } catch(e) { console.error('Filter error:', e); return false; }`
       );
       this.compiledFilters.set(trader.traderId, filterFunction);
+      console.log(`[Worker] Successfully compiled filter for trader ${trader.traderId}`);
     } catch (error) {
       console.error(`[PersistentWorker] Failed to compile filter for ${trader.traderId}:`, error);
     }
@@ -179,8 +214,15 @@ class PersistentTraderWorker {
    * Remove a trader
    */
   removeTrader(traderId: string) {
+    console.log(`[Worker] Removing trader ${traderId}`);
+    
+    // Dispose of compiled function to help garbage collection
+    if (this.compiledFilters.has(traderId)) {
+      this.compiledFilters.delete(traderId);
+      console.log(`[Worker] Disposed filter function for trader ${traderId}`);
+    }
+    
     this.traders.delete(traderId);
-    this.compiledFilters.delete(traderId);
     this.previousMatches.delete(traderId);
   }
 
@@ -341,6 +383,7 @@ class PersistentTraderWorker {
    * Cleanup worker resources before termination
    */
   private cleanup() {
+    console.log(`[Worker] CLEANUP called at ${new Date().toISOString()}, interval: ${this.updateIntervalId}`);
     // Set shutdown flag to stop all operations
     this.isShuttingDown = true;
     
@@ -365,6 +408,7 @@ class PersistentTraderWorker {
     this.isInitialized = false;
     
     // Send cleanup completion confirmation
+    console.log(`[Worker] Cleanup complete, sending CLEANUP_COMPLETE`);
     self.postMessage({ type: 'CLEANUP_COMPLETE' } as WorkerResponse);
   }
 
@@ -401,6 +445,9 @@ class PersistentTraderWorker {
   }
 }
 
+// Track global interval count for debugging
+let globalIntervalCount = 0;
+
 // Worker instance
 const worker = new PersistentTraderWorker();
 
@@ -409,6 +456,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
   if (!event.data) return;
   
   const { type, data, traderId } = event.data;
+  console.log(`[Worker] Received message: ${type} at ${new Date().toISOString()}`);
   
   try {
     switch (type) {

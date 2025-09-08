@@ -141,6 +141,7 @@ export function useSharedTraderIntervals({
 
   // Initialize persistent workers
   useEffect(() => {
+    console.log(`[SharedTraderIntervals] Worker useEffect triggered at ${new Date().toISOString()}, enabled: ${enabled}, initialized: ${isInitialized}, traders: ${traders.length}`);
     if (!sharedDataRef.current || !isInitialized || !enabled) return;
     
     const enabledTraders = traders.filter(t => t.enabled && t.filter?.code);
@@ -150,12 +151,14 @@ export function useSharedTraderIntervals({
     const optimalWorkerCount = Math.min(Math.ceil(enabledTraders.length / 5), 4);
     
     // Adjust worker pool size
+    console.log(`[SharedTraderIntervals] Current workers: ${workersRef.current.length}, optimal: ${optimalWorkerCount}`);
     while (workersRef.current.length < optimalWorkerCount) {
       const workerId = `worker-${Date.now()}-${Math.random()}`;
+      console.log(`[SharedTraderIntervals] Creating new worker: ${workerId} at ${new Date().toISOString()}`);
       
       const worker = new Worker(
         new URL('../workers/persistentTraderWorker.ts', import.meta.url),
-        { type: 'module' }
+        { type: 'module', name: workerId }
       );
       
       const instance: WorkerInstance = {
@@ -224,8 +227,9 @@ export function useSharedTraderIntervals({
         
         // Wait a short time for cleanup to complete, then terminate
         setTimeout(() => {
-          console.log(`[SharedTraderIntervals] Terminating worker ${instance.id}`);
+          console.log(`[SharedTraderIntervals] Terminating worker ${instance.id} at ${new Date().toISOString()}`);
           instance.worker.terminate();
+          console.log(`[SharedTraderIntervals] Worker ${instance.id} terminated`);
         }, 100); // 100ms should be enough for cleanup
       }
     }

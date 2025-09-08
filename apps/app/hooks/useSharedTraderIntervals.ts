@@ -126,8 +126,8 @@ export function useSharedTraderIntervals({
       memoryUsageMB: parseFloat(stats.usedMemoryMB)
     });
     
-    // Log only if update took significant time
-    if (updateTime > 10) {
+    // Log only if update took significant time (more than 50ms)
+    if (updateTime > 50) {
       console.log(`[SharedTraderIntervals] Updated shared memory in ${updateTime.toFixed(2)}ms (${updates} updates)`);
     }
     

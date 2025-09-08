@@ -188,9 +188,9 @@ export function TraderList({
               <button
                 onClick={onCreateTrader}
                 disabled={!canCreateSignal()}
-                className="flex items-center gap-2 px-3 py-1.5 bg-[var(--nt-accent-lime)] text-[var(--nt-bg-primary)] 
-                  rounded hover:opacity-90 transition-opacity text-sm font-medium
-                  disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-3 py-1.5 bg-[var(--nt-bg-primary)] text-[var(--nt-accent-lime)] 
+                  border border-[var(--nt-accent-lime)] rounded hover:bg-[var(--nt-accent-lime)] hover:text-[var(--nt-bg-primary)]
+                  transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="h-4 w-4" />
                 Create

@@ -1,0 +1,311 @@
+/* Signal/Trader Card Styles - Following Neon Terminal Design System */
+
+/* Base Card Styles */
+.signal-card {
+  height: var(--nt-card-height-collapsed);
+  background: var(--nt-card-bg);
+  border: 1px solid var(--nt-card-border);
+  border-radius: var(--nt-radius-xl);
+  padding: var(--nt-card-padding);
+  transition: var(--nt-card-transition);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Hover State */
+.signal-card:hover {
+  background: var(--nt-card-bg-hover);
+  border-color: var(--nt-card-border-hover);
+  transform: scale(var(--nt-card-scale-hover));
+}
+
+/* Expanded State */
+.signal-card[data-expanded="true"] {
+  height: auto;
+  min-height: var(--nt-card-height-collapsed);
+}
+
+.signal-card[data-expanded="true"][data-variant="signal"] {
+  min-height: var(--nt-card-height-expanded-signal);
+}
+
+.signal-card[data-expanded="true"][data-variant="trader"] {
+  min-height: var(--nt-card-height-expanded-trader);
+}
+
+/* Active/Selected State */
+.signal-card[data-selected="true"] {
+  border: 2px solid var(--nt-card-border-active);
+  box-shadow: var(--nt-shadow-glow-lime);
+}
+
+/* Activity States */
+
+/* Just Triggered - Lime pulse animation */
+.signal-card[data-activity="triggered"] {
+  animation: triggerPulse 3s ease-out;
+}
+
+@keyframes triggerPulse {
+  0% {
+    border-color: var(--nt-accent-lime);
+    background: var(--nt-accent-lime-light);
+    box-shadow: var(--nt-shadow-glow-lime);
+  }
+  100% {
+    border-color: var(--nt-card-border);
+    background: var(--nt-card-bg);
+    box-shadow: none;
+  }
+}
+
+/* High Activity - Orange accent */
+.signal-card[data-activity="high"] {
+  border-left: 3px solid #FF8C00;
+}
+
+/* Recent Activity - Yellow accent */
+.signal-card[data-activity="recent"] {
+  border-left: 3px solid var(--nt-warning);
+}
+
+/* Idle - Muted appearance */
+.signal-card[data-activity="idle"] {
+  opacity: 0.7;
+}
+
+/* Performance States (Elite Tier) */
+
+/* Profitable - Green accent */
+.signal-card[data-performance="profitable"] {
+  border-left: 3px solid var(--nt-success);
+}
+
+/* Losing - Red accent with attention pulse */
+.signal-card[data-performance="losing"] {
+  border-left: 3px solid var(--nt-error);
+  animation: attentionPulse 2s infinite;
+}
+
+@keyframes attentionPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+    border-color: var(--nt-error);
+  }
+}
+
+/* Loading State */
+.signal-card[data-loading="true"] {
+  pointer-events: none;
+}
+
+.signal-card[data-loading="true"]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(198, 255, 0, 0.1),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Disabled State */
+.signal-card[data-disabled="true"] {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* Card Header */
+.signal-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--nt-space-2);
+}
+
+.signal-card__title {
+  font-family: var(--nt-font-sans);
+  font-size: var(--nt-text-base);
+  font-weight: 600;
+  color: var(--nt-text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-card__actions {
+  display: flex;
+  gap: var(--nt-space-2);
+  align-items: center;
+}
+
+/* Card Metrics */
+.signal-card__metrics {
+  display: flex;
+  gap: var(--nt-card-gap);
+  align-items: center;
+  font-family: var(--nt-font-mono);
+  font-size: var(--nt-text-sm);
+  color: var(--nt-text-secondary);
+  margin-bottom: var(--nt-space-2);
+}
+
+.signal-card__metric {
+  display: flex;
+  align-items: center;
+  gap: var(--nt-space-1);
+}
+
+.signal-card__metric-label {
+  color: var(--nt-text-tertiary);
+  font-size: var(--nt-text-xs);
+}
+
+.signal-card__metric-value {
+  color: var(--nt-text-primary);
+  font-weight: 500;
+}
+
+/* Last Activity Row */
+.signal-card__activity {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--nt-text-xs);
+  color: var(--nt-text-muted);
+}
+
+.signal-card__symbol {
+  font-family: var(--nt-font-mono);
+  color: var(--nt-text-secondary);
+}
+
+.signal-card__time {
+  color: var(--nt-text-tertiary);
+}
+
+.signal-card__change {
+  font-family: var(--nt-font-mono);
+  font-weight: 500;
+}
+
+.signal-card__change--positive {
+  color: var(--nt-success);
+}
+
+.signal-card__change--negative {
+  color: var(--nt-error);
+}
+
+/* Expand/Collapse Icon */
+.signal-card__expand-icon {
+  transition: transform var(--nt-transition-fast);
+  color: var(--nt-text-tertiary);
+  width: 16px;
+  height: 16px;
+}
+
+.signal-card[data-expanded="true"] .signal-card__expand-icon {
+  transform: rotate(180deg);
+}
+
+/* Expandable Content Container */
+.signal-card__expandable {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height var(--nt-card-transition);
+}
+
+.signal-card[data-expanded="true"] .signal-card__expandable {
+  max-height: 500px; /* Sufficient for expanded content */
+  margin-top: var(--nt-space-3);
+}
+
+/* Activity Indicator Dot */
+.signal-card__status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nt-text-muted);
+  margin-right: var(--nt-space-2);
+}
+
+.signal-card__status-dot--triggered {
+  background: var(--nt-accent-lime);
+  animation: pulseDot 1s ease-in-out infinite;
+}
+
+.signal-card__status-dot--recent {
+  background: var(--nt-warning);
+}
+
+.signal-card__status-dot--active {
+  background: var(--nt-success);
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+.signal-card__status-dot--idle {
+  background: var(--nt-text-muted);
+}
+
+@keyframes pulseDot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .signal-card {
+    width: 100%;
+    font-size: var(--nt-text-sm);
+    padding: var(--nt-space-3);
+  }
+  
+  .signal-card__title {
+    font-size: var(--nt-text-sm);
+  }
+  
+  .signal-card__metrics {
+    font-size: var(--nt-text-xs);
+  }
+  
+  .signal-card__metric-label {
+    display: none; /* Hide labels on mobile to save space */
+  }
+  
+  /* Disable hover effects on touch devices */
+  @media (hover: none) {
+    .signal-card:hover {
+      transform: none;
+      background: var(--nt-card-bg);
+    }
+  }
+}

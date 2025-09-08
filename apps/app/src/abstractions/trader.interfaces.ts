@@ -31,6 +31,13 @@ export interface Trader {
   // Metadata
   createdAt: Date;
   updatedAt: Date;
+  
+  // Display configuration (optional) - for UI customization
+  displayConfig?: {
+    variant?: 'compact' | 'standard' | 'detailed';
+    priority?: 'high' | 'normal' | 'low';
+    lastActivity?: number; // Timestamp of last activity for UI indicators
+  };
 }
 
 export interface TraderFilter {

@@ -96,6 +96,20 @@
   --nt-transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
   --nt-transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
   
+  /* Card-specific Variables - Signal/Trader Card Standardization */
+  --nt-card-height-collapsed: 88px;
+  --nt-card-height-expanded-signal: 280px;
+  --nt-card-height-expanded-trader: 328px;
+  --nt-card-padding: var(--nt-space-4);
+  --nt-card-gap: var(--nt-space-3);
+  --nt-card-transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --nt-card-bg: var(--nt-bg-tertiary);
+  --nt-card-bg-hover: var(--nt-bg-elevated);
+  --nt-card-border: var(--nt-border-default);
+  --nt-card-border-hover: var(--nt-border-strong);
+  --nt-card-border-active: var(--nt-accent-lime);
+  --nt-card-scale-hover: 1.01;
+  
   /* Flat colors - no gradients - Electric intensity */
   --nt-flat-lime: #C6FF00;
   --nt-flat-cyan: #00F0FF;

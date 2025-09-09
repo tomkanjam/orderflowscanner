@@ -141,7 +141,7 @@ class PersistentTraderWorker {
           this.runAllTraders();
         }
       }
-    }, 10); // Check every 10ms
+    }, 1000); // Check every 1 second (reduced from 10ms for CPU savings)
     console.log(`[Worker] Created interval with ID: ${this.updateIntervalId}`);
   }
 

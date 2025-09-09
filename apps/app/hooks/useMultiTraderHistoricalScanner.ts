@@ -111,12 +111,17 @@ export function useMultiTraderHistoricalScanner({
       const tickersObj: Record<string, Ticker> = {};
       
       symbols.forEach(symbol => {
-        const intervalMap = historicalData.get(symbol);
+        // Get klines from SharedMarketData for all intervals
         const ticker = tickers.get(symbol);
-        if (intervalMap && ticker) {
+        if (ticker) {
           historicalDataObj[symbol] = {};
-          intervalMap.forEach((klines, interval) => {
-            historicalDataObj[symbol][interval] = klines;
+          // Get klines for each interval the traders might need
+          const intervals: KlineInterval[] = ['1m', '5m', '15m', '1h', '4h', '1d'] as KlineInterval[];
+          intervals.forEach(interval => {
+            const klines = sharedMarketData.getKlines(symbol, interval);
+            if (klines.length > 0) {
+              historicalDataObj[symbol][interval] = klines;
+            }
           });
           tickersObj[symbol] = ticker;
         }
@@ -231,7 +236,7 @@ export function useMultiTraderHistoricalScanner({
       setError(err instanceof Error ? err.message : 'Failed to start scan');
       setIsScanning(false);
     }
-  }, [traders, symbols, historicalData, tickers, klineInterval, signalDedupeThreshold]);
+  }, [traders, symbols, tickers, klineInterval, signalDedupeThreshold]);
   
   const cancelScan = useCallback(() => {
     if (workerRef.current) {

@@ -89,9 +89,10 @@ export function useHistoricalScanner({
       const tickersObj: Record<string, Ticker> = {};
       
       symbols.forEach(symbol => {
-        const klines = historicalData.get(symbol);
+        // Get klines from SharedMarketData
+        const klines = sharedMarketData.getKlines(symbol, klineInterval);
         const ticker = tickers.get(symbol);
-        if (klines && ticker) {
+        if (klines.length > 0 && ticker) {
           historicalDataObj[symbol] = klines;
           tickersObj[symbol] = ticker;
         }
@@ -193,7 +194,7 @@ export function useHistoricalScanner({
       setError(err instanceof Error ? err.message : 'Failed to start scan');
       setIsScanning(false);
     }
-  }, [symbols, historicalData, tickers, filterCode, filterDescription, klineInterval, signalDedupeThreshold]);
+  }, [symbols, tickers, filterCode, filterDescription, klineInterval, signalDedupeThreshold]);
   
   const cancelScan = useCallback(() => {
     if (workerRef.current) {

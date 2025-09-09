@@ -10,6 +10,7 @@ import Loader from './Loader';
 import ErrorMessage from './ErrorMessage';
 import ActivityPanel from '../src/components/ActivityPanel';
 import { useSubscription } from '../src/contexts/SubscriptionContext';
+import { sharedMarketData } from '../src/shared/SharedMarketData';
 import * as screenerHelpers from '../screenerHelpers'; 
 
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -21,7 +22,6 @@ interface MainContentProps {
   initialError: string | null;
   allSymbols: string[];
   tickers: Map<string, Ticker>;
-  historicalData: Map<string, Map<KlineInterval, Kline[]>>;
   traders?: any[]; // Add traders prop
   selectedTraderId?: string | null; // Selected trader for filtering
   onSelectTrader?: (traderId: string | null) => void; // Trader selection callback
@@ -63,7 +63,6 @@ const MainContent: React.FC<MainContentProps> = ({
   initialError,
   allSymbols,
   tickers,
-  historicalData,
   traders,
   selectedTraderId,
   onSelectTrader,
@@ -108,7 +107,7 @@ const MainContent: React.FC<MainContentProps> = ({
             <>
               <ChartDisplay
                 symbol={selectedSymbolForChart}
-                klines={selectedSymbolForChart ? historicalData.get(selectedSymbolForChart)?.get(klineInterval) : undefined}
+                klines={selectedSymbolForChart ? sharedMarketData.getKlines(selectedSymbolForChart, klineInterval) : undefined}
                 indicators={chartConfigForDisplay}
                 interval={klineInterval}
                 signalLog={signalLog} // Pass signalLog to ChartDisplay

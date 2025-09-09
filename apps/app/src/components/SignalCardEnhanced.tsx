@@ -55,10 +55,17 @@ export const SignalCardEnhanced = React.memo(function SignalCardEnhanced({
     : signal.metrics?.liveMetrics;
 
   // Mock trigger history (in real app, this would come from signal data)
-  const mockTriggers: TriggerRecord[] = signal.metrics?.lastSignalAt ? [
+  // Ensure lastSignalAt is a Date object
+  const lastSignalDate = signal.metrics?.lastSignalAt 
+    ? (signal.metrics.lastSignalAt instanceof Date 
+        ? signal.metrics.lastSignalAt 
+        : new Date(signal.metrics.lastSignalAt))
+    : null;
+    
+  const mockTriggers: TriggerRecord[] = lastSignalDate ? [
     { 
       symbol: 'BTCUSDT', 
-      timestamp: signal.metrics.lastSignalAt.getTime(), 
+      timestamp: lastSignalDate.getTime(), 
       price: 67234.50, 
       changePercent: 2.4 
     }
@@ -223,7 +230,7 @@ export const SignalCardEnhanced = React.memo(function SignalCardEnhanced({
             <div className="signal-card__metric">
               <span className="signal-card__metric-label">Last:</span>
               <span className="signal-card__metric-value">
-                {formatTime(signal.metrics?.lastSignalAt)}
+                {formatTime(lastSignalDate || undefined)}
               </span>
             </div>
           </>

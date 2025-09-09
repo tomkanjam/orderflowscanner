@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, Kline, Ticker, KlineInterval } from '../types';
+import { sharedMarketData } from '../src/shared/SharedMarketData';
 
 // Helper function to get milliseconds per bar for each interval
 function getMillisecondsPerBar(interval: KlineInterval): number {
@@ -23,7 +24,6 @@ function getMillisecondsPerBar(interval: KlineInterval): number {
 
 interface UseHistoricalScannerProps {
   symbols: string[];
-  historicalData: Map<string, Kline[]>;
   tickers: Map<string, Ticker>;
   filterCode: string;
   filterDescription: string[];
@@ -43,7 +43,6 @@ interface UseHistoricalScannerReturn {
 
 export function useHistoricalScanner({
   symbols,
-  historicalData,
   tickers,
   filterCode,
   filterDescription,

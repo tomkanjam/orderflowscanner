@@ -372,4 +372,53 @@ export class SharedMarketData {
       updateCount: this.getUpdateCount()
     };
   }
+
+  /**
+   * Get symbol index (public method for hooks)
+   */
+  getSymbolIndex(symbol: string): number {
+    return this.symbolIndexMap.get(symbol) ?? -1;
+  }
+
+  /**
+   * Get interval index (public method for hooks)
+   */
+  getIntervalIndex(interval: KlineInterval): number {
+    return this.intervalIndexMap.get(interval) ?? -1;
+  }
+
+  /**
+   * Get maximum klines per symbol
+   */
+  getMaxKlinesPerSymbol(): number {
+    return MAX_KLINES_PER_SYMBOL;
+  }
+
+  /**
+   * Read a single kline from shared memory
+   */
+  readKline(symbolIndex: number, intervalIndex: number, klineIndex: number): Kline | null {
+    if (symbolIndex < 0 || intervalIndex < 0 || klineIndex < 0 || klineIndex >= MAX_KLINES_PER_SYMBOL) {
+      return null;
+    }
+
+    const baseOffset = (symbolIndex * MAX_INTERVALS * MAX_KLINES_PER_SYMBOL + 
+                        intervalIndex * MAX_KLINES_PER_SYMBOL) * KLINE_SIZE;
+    const offset = baseOffset + klineIndex * KLINE_SIZE;
+    
+    const timestamp = this.klineView[offset + 0];
+    if (timestamp === 0) return null;
+    
+    return {
+      time: timestamp,
+      open: this.klineView[offset + 1],
+      high: this.klineView[offset + 2],
+      low: this.klineView[offset + 3],
+      close: this.klineView[offset + 4],
+      volume: this.klineView[offset + 5]
+    } as any;
+  }
 }
+
+// Create and export singleton instance
+export const sharedMarketData = new SharedMarketData();

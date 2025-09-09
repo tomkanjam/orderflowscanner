@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, Kline, Ticker, KlineInterval } from '../types';
 import { Trader } from '../src/abstractions/trader.interfaces';
+import { sharedMarketData } from '../src/shared/SharedMarketData';
 
 // Helper function to get milliseconds per bar for each interval
 function getMillisecondsPerBar(interval: KlineInterval): number {
@@ -25,7 +26,6 @@ function getMillisecondsPerBar(interval: KlineInterval): number {
 interface UseMultiTraderHistoricalScannerProps {
   traders: Trader[];
   symbols: string[];
-  historicalData: Map<string, Map<KlineInterval, Kline[]>>;
   tickers: Map<string, Ticker>;
   klineInterval: KlineInterval;
   signalDedupeThreshold: number;
@@ -64,7 +64,6 @@ interface TraderHistoricalResult extends HistoricalSignal {
 export function useMultiTraderHistoricalScanner({
   traders,
   symbols,
-  historicalData,
   tickers,
   klineInterval,
   signalDedupeThreshold,

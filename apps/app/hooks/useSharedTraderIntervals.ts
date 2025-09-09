@@ -15,7 +15,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Ticker, Kline, KlineInterval } from '../types';
 import { Trader } from '../src/abstractions/trader.interfaces';
-import { SharedMarketData } from '../src/shared/SharedMarketData';
+import { sharedMarketData } from '../src/shared/SharedMarketData';
 import { TraderResult } from '../workers/multiTraderScreenerWorker';
 import { DifferentialTracker } from '../src/utils/DifferentialTracker';
 
@@ -23,7 +23,6 @@ interface UseSharedTraderIntervalsProps {
   traders: Trader[];
   symbols: string[];
   tickers: Map<string, Ticker>;
-  historicalData: Map<string, Map<KlineInterval, Kline[]>>;
   onResults: (results: TraderResult[]) => void;
   enabled?: boolean;
 }
@@ -39,7 +38,6 @@ export function useSharedTraderIntervals({
   traders,
   symbols,
   tickers,
-  historicalData,
   onResults,
   enabled = true
 }: UseSharedTraderIntervalsProps) {
@@ -77,7 +75,7 @@ export function useSharedTraderIntervals({
         return;
       }
       
-      sharedDataRef.current = new SharedMarketData();
+      sharedDataRef.current = sharedMarketData;
       setIsInitialized(true);
       
     } catch (error) {
@@ -115,20 +113,8 @@ export function useSharedTraderIntervals({
       updates++;
     });
     
-    // Update klines in shared memory
-    historicalData.forEach((intervalMap, symbol) => {
-      intervalMap.forEach((klines, interval) => {
-        if (klines.length > 0) {
-          // Update latest kline or batch update
-          if (klines.length === 1) {
-            sharedDataRef.current!.updateKline(symbol, interval, klines[0]);
-          } else {
-            sharedDataRef.current!.updateKlines(symbol, interval, klines);
-          }
-          updates++;
-        }
-      });
-    });
+    // Klines are already in sharedMarketData, no need to update them here
+    // The sharedMarketData is being updated directly by App.tsx
     
     const updateTime = performance.now() - updateStart;
     

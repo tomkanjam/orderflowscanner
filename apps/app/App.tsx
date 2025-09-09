@@ -37,6 +37,8 @@ import { startMemoryCleanup, getActiveSymbols } from './src/utils/memoryCleanup'
 import { useSubscription } from './src/contexts/SubscriptionContext';
 import { areTraderArraysEqual } from './src/utils/traderEquality';
 import { memDebug } from './src/utils/memoryDebugger';
+import { klineEventEmitter } from './src/utils/KlineEventEmitter';
+import { sharedMarketData } from './src/shared/SharedMarketData';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -65,14 +67,14 @@ const AppContent: React.FC = () => {
   const { currentTier } = useSubscription();
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
-  const [historicalData, setHistoricalData] = useState<Map<string, Map<KlineInterval, Kline[]>>>(new Map());
+  // REMOVED: historicalData state - now using SharedMarketData directly to prevent memory leaks
   const [traders, setTraders] = useState<Trader[]>([]);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
   
   // Helper to get klines for a specific interval
   const getKlinesForInterval = useCallback((symbol: string, interval: KlineInterval): Kline[] => {
-    return historicalData.get(symbol)?.get(interval) || [];
-  }, [historicalData]);
+    return sharedMarketData.getKlines(symbol, interval);
+  }, []);
   
   const [klineInterval, setKlineInterval] = useState<KlineInterval>(DEFAULT_KLINE_INTERVAL);
   const [selectedGeminiModel, setSelectedGeminiModel] = useState<GeminiModelOption>(DEFAULT_GEMINI_MODEL);
@@ -207,14 +209,10 @@ const AppContent: React.FC = () => {
     if (process.env.NODE_ENV === 'development') {
       // Register custom metrics to track data structure sizes
       memoryMonitor.registerMetric('tickersSize', () => tickers.size);
-      memoryMonitor.registerMetric('historicalDataSize', () => {
-        let totalKlines = 0;
-        historicalData.forEach(intervalMap => {
-          intervalMap.forEach(klines => {
-            totalKlines += klines.length;
-          });
-        });
-        return totalKlines;
+      memoryMonitor.registerMetric('sharedDataSize', () => {
+        // Track SharedMarketData usage instead
+        const stats = sharedMarketData.getMemoryStats();
+        return stats.usedSymbols;
       });
       memoryMonitor.registerMetric('signalLogSize', () => signalLog.length);
       memoryMonitor.registerMetric('signalHistorySize', () => signalHistory.size);
@@ -223,7 +221,7 @@ const AppContent: React.FC = () => {
       
       // console.log('[App] Memory monitoring metrics registered');
     }
-  }, [tickers, historicalData, signalLog, signalHistory]);
+  }, [tickers, signalLog, signalHistory]);
   
   // Initialize workflow and trading managers
   useEffect(() => {
@@ -260,7 +258,7 @@ const AppContent: React.FC = () => {
   
   // Use refs to avoid stale closures
   const tickersRef = useRef(tickers);
-  const historicalDataRef = useRef(historicalData);
+  // Removed historicalDataRef - using SharedMarketData directly
   const tradersRef = useRef(traders);
   
   // Update refs when state changes
@@ -268,9 +266,7 @@ const AppContent: React.FC = () => {
     tickersRef.current = tickers;
   }, [tickers]);
   
-  useEffect(() => {
-    historicalDataRef.current = historicalData;
-  }, [historicalData]);
+  // Removed historicalData ref update - using SharedMarketData directly
   
   useEffect(() => {
     tradersRef.current = traders;
@@ -304,8 +300,7 @@ const AppContent: React.FC = () => {
     aiAnalysisLimit: klineHistoryConfig.aiAnalysisLimit,
     getMarketData: (symbol: string, traderId?: string) => {
       const ticker = tickersRef.current.get(symbol);
-      const intervalMap = historicalDataRef.current.get(symbol);
-      if (!ticker || !intervalMap) return null;
+      if (!ticker) return null;
       
       // Determine which interval to use
       let interval: KlineInterval = KlineInterval.ONE_MINUTE; // Default
@@ -318,10 +313,15 @@ const AppContent: React.FC = () => {
         }
       }
       
-      // Get klines for the appropriate interval
-      const klines = intervalMap.get(interval) || intervalMap.get(KlineInterval.ONE_MINUTE);
-      if (!klines) {
-        return null;
+      // Get klines directly from SharedMarketData for the appropriate interval
+      const klines = sharedMarketData.getKlines(symbol, interval);
+      if (!klines || klines.length === 0) {
+        // Fallback to 1m if specific interval has no data
+        const fallbackKlines = sharedMarketData.getKlines(symbol, KlineInterval.ONE_MINUTE);
+        if (!fallbackKlines || fallbackKlines.length === 0) {
+          return null;
+        }
+        return { ticker, klines: fallbackKlines };
       }
       return { ticker, klines };
     },
@@ -362,7 +362,6 @@ const AppContent: React.FC = () => {
     clearSignals: clearHistoricalSignals,
   } = useHistoricalScanner({
     symbols: allSymbols,
-    historicalData,
     tickers,
     filterCode: '',
     filterDescription: [],
@@ -413,7 +412,6 @@ const AppContent: React.FC = () => {
   } = useMultiTraderHistoricalScanner({
     traders,
     symbols: allSymbols,
-    historicalData,
     tickers,
     klineInterval,
     signalDedupeThreshold,
@@ -452,14 +450,14 @@ const AppContent: React.FC = () => {
         
         return {
           tickers: tickersRef.current,
-          historicalData: historicalDataRef.current,
+          // Historical data now in SharedMarketData,
           activeSymbols,
           prioritySymbols: selectedSymbols
         };
       },
       (state) => {
         if (state.tickers) setTickers(state.tickers);
-        if (state.historicalData) setHistoricalData(state.historicalData);
+        // Historical data now in SharedMarketData, no need to restore
       },
       30000 // Clean up every 30 seconds
     );
@@ -530,7 +528,20 @@ const AppContent: React.FC = () => {
         });
       }
       
-      setHistoricalData(multiIntervalData);
+      // Write initial klines to SharedMarketData
+      multiIntervalData.forEach((intervalMap, symbol) => {
+        intervalMap.forEach((klines, interval) => {
+          // Batch update all klines for this symbol-interval
+          sharedMarketData.updateKlines(symbol, interval, klines);
+        });
+      });
+      
+      // Emit events for all loaded data
+      multiIntervalData.forEach((intervalMap, symbol) => {
+        intervalMap.forEach((_, interval) => {
+          klineEventEmitter.emit(symbol, interval);
+        });
+      });
     } catch (error) {
       console.error("[StatusBar Debug] Error fetching initial data:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
@@ -542,7 +553,7 @@ const AppContent: React.FC = () => {
       setInitialError(`Failed to load initial market data: ${errorMessage}`);
       setAllSymbols([]);
       setTickers(new Map());
-      setHistoricalData(new Map());
+      // SharedMarketData is already empty on error
       setStatusText('Error');
       setStatusLightClass('bg-[var(--nt-error)]');
     } finally {
@@ -745,93 +756,20 @@ const AppContent: React.FC = () => {
       tradeManager.updatePrice(symbol, currentPrice);
     }
     
-    setHistoricalData(prevData => {
-      const symbolData = prevData.get(symbol);
-      
-      // Track memory before update
-      memDebug.takeSnapshot('Before kline update', { symbol, interval });
-      
-      // For new symbols, create new interval map
-      if (!symbolData) {
-        const newData = new Map(prevData);
-        const intervalMap = new Map<KlineInterval, Kline[]>();
-        intervalMap.set(interval, [kline]);
-        newData.set(symbol, intervalMap);
-        memDebug.trackDataStructure('historicalData', newData);
-        return newData;
-      }
-      
-      const intervalKlines = symbolData.get(interval);
-      
-      // For new intervals, add to the symbol's interval map
-      if (!intervalKlines) {
-        const newData = new Map(prevData);
-        const newIntervalMap = new Map(symbolData);
-        newIntervalMap.set(interval, [kline]);
-        newData.set(symbol, newIntervalMap);
-        return newData;
-      }
-      
-      // Check if update is needed before creating new array
-      const lastKline = intervalKlines[intervalKlines.length - 1];
-      const lastTime = lastKline ? lastKline[0] : 0;
-      const newTime = kline[0];
-      
-      let needsUpdate = false;
-      let klines = intervalKlines; // Don't clone unless needed
-      
-      if (isClosed) {
-          if (newTime > lastTime) {
-              // New candle - need to add it
-              klines = [...intervalKlines, kline];
-              if (klines.length > KLINE_HISTORY_LIMIT) {
-                  klines = klines.slice(-KLINE_HISTORY_LIMIT);
-              }
-              needsUpdate = true;
-          } else if (newTime === lastTime && lastKline) {
-              // Update existing candle only if values changed
-              if (lastKline[2] !== kline[2] || // high
-                  lastKline[3] !== kline[3] || // low
-                  lastKline[4] !== kline[4] || // close
-                  lastKline[5] !== kline[5]) { // volume
-                  klines = [...intervalKlines];
-                  klines[klines.length - 1] = kline;
-                  needsUpdate = true;
-              }
-          }
-      } else {
-          // Not closed - real-time update
-          if (intervalKlines.length > 0 && lastTime === newTime) {
-              // Update existing candle only if values changed
-              if (lastKline[2] !== kline[2] || // high
-                  lastKline[3] !== kline[3] || // low
-                  lastKline[4] !== kline[4] || // close
-                  lastKline[5] !== kline[5]) { // volume
-                  klines = [...intervalKlines];
-                  klines[klines.length - 1] = kline;
-                  needsUpdate = true;
-              }
-          } else {
-              // New candle
-              klines = [...intervalKlines, kline];
-              if (klines.length > KLINE_HISTORY_LIMIT) {
-                  klines = klines.slice(-KLINE_HISTORY_LIMIT);
-              }
-              needsUpdate = true;
-          }
-      }
-      
-      // Only create new Maps if data actually changed
-      if (!needsUpdate) {
-          return prevData;
-      }
-      
-      const newData = new Map(prevData);
-      const newIntervalMap = new Map(symbolData);
-      newIntervalMap.set(interval, klines);
-      newData.set(symbol, newIntervalMap);
-      return newData;
-    });
+    // Write directly to SharedMarketData (no state cloning!)
+    sharedMarketData.updateKline(symbol, interval, kline);
+    
+    // Emit lightweight event for UI updates
+    klineEventEmitter.emit(symbol, interval);
+    
+    // Track memory after update (for debugging)
+    if (process.env.NODE_ENV === 'development') {
+      memDebug.takeSnapshot('After kline update', { 
+        symbol, 
+        interval,
+        sharedDataStats: sharedMarketData.getMemoryStats()
+      });
+    }
   }, []);
 
   // Separate WebSocket connection effect with stable dependencies
@@ -1087,7 +1025,6 @@ const AppContent: React.FC = () => {
     traders,
     symbols: allSymbols,
     tickers,
-    historicalData,
     onResults: handleMultiTraderResults,
     enabled: screenerEnabled
   });
@@ -1179,7 +1116,14 @@ const AppContent: React.FC = () => {
     setIsModalOpen(true);
 
     const tickerData = tickers.get(symbol);
-    const klineData = historicalData.get(symbol);
+    // Get all intervals for the symbol from SharedMarketData
+    const klineData = new Map<KlineInterval, Kline[]>();
+    ['1m', '5m', '15m', '1h', '4h', '1d'].forEach((interval) => {
+      const klines = sharedMarketData.getKlines(symbol, interval as KlineInterval);
+      if (klines.length > 0) {
+        klineData.set(interval as KlineInterval, klines);
+      }
+    });
 
     if (!tickerData || !klineData) {
         setModalContent(<p className="text-[var(--nt-error)]">Data not available for {symbol}.</p>);
@@ -1198,7 +1142,7 @@ const AppContent: React.FC = () => {
     } finally {
         setIsSymbolAnalysisLoading(false);
     }
-  }, [tickers, historicalData, internalGeminiModelName, klineInterval]);
+  }, [tickers, internalGeminiModelName, klineInterval]);
 
 
   const handleRowClick = (symbol: string, traderId?: string, signalId?: string) => {
@@ -1257,7 +1201,6 @@ const AppContent: React.FC = () => {
         initialError={initialError}
         allSymbols={allSymbols}
         tickers={tickers}
-        historicalData={historicalData}
         traders={traders} // Pass traders to MainContent
         selectedTraderId={selectedTraderId} // Pass selected trader
         onSelectTrader={setSelectedTraderId} // Pass selection callback

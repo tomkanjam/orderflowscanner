@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from '../types';
 import { TraderSignalsTable } from '../src/components/TraderSignalsTable';
 import { SignalHistorySidebar } from '../src/components/SignalHistorySidebar';
@@ -95,6 +95,28 @@ const MainContent: React.FC<MainContentProps> = ({
   const { currentTier } = useSubscription();
   const [selectedSignal, setSelectedSignal] = useState<SignalLifecycle | null>(null);
   
+  // Memoize klines to prevent unnecessary recalculations
+  const chartKlines = useMemo(() => {
+    if (!selectedSymbolForChart) {
+      return undefined;
+    }
+    const klines = sharedMarketData.getKlines(selectedSymbolForChart, klineInterval);
+    console.log(`[DEBUG ${new Date().toISOString()}] Memoizing klines for ${selectedSymbolForChart}`, {
+      klinesLength: klines.length,
+      interval: klineInterval
+    });
+    return klines;
+  }, [selectedSymbolForChart, klineInterval]);
+  
+  // Debug logging for re-renders
+  console.log(`[DEBUG ${new Date().toISOString()}] MainContent rendering`, {
+    selectedSymbolForChart,
+    klineInterval,
+    chartConfigForDisplay: chartConfigForDisplay?.length || 0,
+    tickersSize: tickers.size,
+    chartKlines: chartKlines?.length || 0
+  });
+  
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex h-screen overflow-hidden">
       <div className="flex-grow flex flex-col overflow-hidden">
@@ -107,7 +129,7 @@ const MainContent: React.FC<MainContentProps> = ({
             <>
               <ChartDisplay
                 symbol={selectedSymbolForChart}
-                klines={selectedSymbolForChart ? sharedMarketData.getKlines(selectedSymbolForChart, klineInterval) : undefined}
+                klines={chartKlines}
                 indicators={chartConfigForDisplay}
                 interval={klineInterval}
                 signalLog={signalLog} // Pass signalLog to ChartDisplay

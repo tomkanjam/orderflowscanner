@@ -295,16 +295,24 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
       return;
     }
     
+    console.log(`[DEBUG ${new Date().toISOString()}] ChartDisplay useEffect triggered - recalculating indicators`, {
+      indicatorsLength: indicators.length,
+      klinesLength: klines.length,
+      klinesRef: klines // Log the reference to see if it changes
+    });
     
     const calculateAllIndicators = async () => {
       setIsCalculating(true);
+      console.log(`[DEBUG ${new Date().toISOString()}] Starting indicator calculation`);
       try {
         const results = await calculateIndicators(indicators, klines);
         setCalculatedIndicators(results);
+        console.log(`[DEBUG ${new Date().toISOString()}] Indicator calculation completed`, results.size);
       } catch (error) {
         console.error('Error calculating indicators:', error);
       } finally {
         setIsCalculating(false);
+        console.log(`[DEBUG ${new Date().toISOString()}] Indicator calculation finished (finally block)`);
       }
     };
     

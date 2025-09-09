@@ -7,7 +7,7 @@ import { getSignalAccess } from '../utils/tierAccess';
 import { TierGate } from './TierGate';
 import { UpgradePrompt } from './UpgradePrompt';
 import { SubscriptionTier } from '../types/subscription.types';
-import { SignalCard } from './SignalCard';
+import { SignalCardEnhanced } from './SignalCardEnhanced';
 
 interface TraderListProps {
   onCreateTrader: () => void;
@@ -138,7 +138,7 @@ export function TraderList({
               const isSelected = selectedTraderId === trader.id;
               
               return (
-                <SignalCard
+                <SignalCardEnhanced
                   key={trader.id}
                   signal={trader}
                   isSelected={isSelected}
@@ -219,7 +219,7 @@ export function TraderList({
                 const canEditDelete = profile?.is_admin || trader.createdBy === profile?.id;
                 
                 return (
-                  <SignalCard
+                  <SignalCardEnhanced
                     key={trader.id}
                     signal={trader}
                     isSelected={isSelected}

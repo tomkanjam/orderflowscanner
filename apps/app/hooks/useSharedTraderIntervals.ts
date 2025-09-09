@@ -132,7 +132,7 @@ export function useSharedTraderIntervals({
     //   console.log(`[SharedTraderIntervals] Updated shared memory in ${updateTime.toFixed(2)}ms (${updates} updates)`);
     // }
     
-  }, [tickers, historicalData, isInitialized]);
+  }, [tickers, isInitialized]);
 
   // Initialize persistent workers
   useEffect(() => {

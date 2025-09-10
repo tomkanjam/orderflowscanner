@@ -7,6 +7,7 @@
  */
 
 import { Ticker, Kline, KlineInterval } from '../../types';
+import { BitSet } from '../utils/BitSet';
 
 // Constants for memory layout
 const TICKER_SIZE = 10; // floats per ticker (price, volume, change%, etc.)
@@ -20,6 +21,9 @@ const TICKER_BUFFER_SIZE = MAX_SYMBOLS * TICKER_SIZE * Float64Array.BYTES_PER_EL
 const KLINE_BUFFER_SIZE = MAX_SYMBOLS * MAX_INTERVALS * MAX_KLINES_PER_SYMBOL * KLINE_SIZE * Float64Array.BYTES_PER_ELEMENT;
 const METADATA_BUFFER_SIZE = MAX_SYMBOLS * 256; // For symbol names and metadata
 
+// Symbol update tracking sizes
+const SYMBOL_UPDATE_FLAGS_SIZE = Math.ceil(MAX_SYMBOLS / 32); // 7 uint32s for 200 symbols
+
 export interface SharedMarketDataConfig {
   maxSymbols?: number;
   maxKlinesPerSymbol?: number;
@@ -31,12 +35,34 @@ export class SharedMarketData {
   private klineBuffer: SharedArrayBuffer;
   private metadataBuffer: SharedArrayBuffer;
   private updateCounterBuffer: SharedArrayBuffer;
+  
+  // Double buffering for race-condition free updates
+  private updateFlagsA: SharedArrayBuffer;
+  private updateFlagsB: SharedArrayBuffer;
+  private currentWriteBuffer: 'A' | 'B' = 'A';
+  private flagsViewA: Uint32Array;
+  private flagsViewB: Uint32Array;
+  
+  // Maps for O(1) lookups
   private symbolIndexMap: Map<string, number> = new Map();
+  private indexToSymbol: Map<number, string> = new Map();
   private intervalIndexMap: Map<KlineInterval, number> = new Map();
+  
+  // Views for data access
   private tickerView: Float64Array;
   private klineView: Float64Array;
   private metadataView: Uint8Array;
   private updateCounter: Int32Array;
+  
+  // Rate limiting
+  private lastUpdateTime: Map<string, number> = new Map();
+  private readonly MIN_UPDATE_INTERVAL = 100; // ms between updates per symbol
+  
+  // Debug ring buffer for tracking recent updates
+  private debugMode = false;
+  private updateHistory: Array<{symbol: string, timestamp: number, type: 'ticker' | 'kline'}> = [];
+  private readonly MAX_HISTORY = 100;
+  
   private isInitialized = false;
 
   constructor(config?: SharedMarketDataConfig) {
@@ -50,6 +76,13 @@ export class SharedMarketData {
     this.klineBuffer = new SharedArrayBuffer(KLINE_BUFFER_SIZE);
     this.metadataBuffer = new SharedArrayBuffer(METADATA_BUFFER_SIZE);
     this.updateCounterBuffer = new SharedArrayBuffer(4);
+    
+    // Initialize double buffers for update flags
+    const flagBufferSize = SYMBOL_UPDATE_FLAGS_SIZE * Uint32Array.BYTES_PER_ELEMENT;
+    this.updateFlagsA = new SharedArrayBuffer(flagBufferSize);
+    this.updateFlagsB = new SharedArrayBuffer(flagBufferSize);
+    this.flagsViewA = new Uint32Array(this.updateFlagsA);
+    this.flagsViewB = new Uint32Array(this.updateFlagsB);
     
     // Create typed array views
     this.tickerView = new Float64Array(this.tickerBuffer);
@@ -65,6 +98,10 @@ export class SharedMarketData {
       this.intervalIndexMap.set(interval, index);
     });
     
+    // Check for debug mode
+    this.debugMode = typeof localStorage !== 'undefined' && 
+                     localStorage.getItem('DEBUG_SYMBOL_UPDATES') === 'true';
+    
     this.isInitialized = true;
   }
 
@@ -77,12 +114,15 @@ export class SharedMarketData {
       klineBuffer: this.klineBuffer,
       metadataBuffer: this.metadataBuffer,
       updateCounterBuffer: this.updateCounterBuffer,  // Use the stored buffer, not updateCounter.buffer
+      updateFlagsA: this.updateFlagsA,
+      updateFlagsB: this.updateFlagsB,
       config: {
         maxSymbols: MAX_SYMBOLS,
         maxKlinesPerSymbol: MAX_KLINES_PER_SYMBOL,
         maxIntervals: MAX_INTERVALS,
         tickerSize: TICKER_SIZE,
-        klineSize: KLINE_SIZE
+        klineSize: KLINE_SIZE,
+        symbolUpdateFlagsSize: SYMBOL_UPDATE_FLAGS_SIZE
       }
     };
   }
@@ -100,7 +140,9 @@ export class SharedMarketData {
       throw new Error(`Maximum symbols (${MAX_SYMBOLS}) exceeded`);
     }
     
+    // Maintain both maps for O(1) lookups
     this.symbolIndexMap.set(symbol, index);
+    this.indexToSymbol.set(index, symbol);
     
     // Store symbol name in metadata
     const encoder = new TextEncoder();
@@ -116,6 +158,14 @@ export class SharedMarketData {
    * Update ticker data (zero-copy)
    */
   updateTicker(symbol: string, ticker: Ticker) {
+    // Rate limiting
+    const now = Date.now();
+    const lastUpdate = this.lastUpdateTime.get(symbol) || 0;
+    if (now - lastUpdate < this.MIN_UPDATE_INTERVAL) {
+      return; // Skip update if too frequent
+    }
+    this.lastUpdateTime.set(symbol, now);
+    
     const symbolIndex = this.getOrCreateSymbolIndex(symbol);
     const offset = symbolIndex * TICKER_SIZE;
     
@@ -139,6 +189,16 @@ export class SharedMarketData {
     this.tickerView[offset + 7] = parseFloat(ticker.p); // Price change
     this.tickerView[offset + 8] = parseFloat(ticker.w); // Weighted avg price
     this.tickerView[offset + 9] = Date.now(); // Update timestamp
+    
+    // Set update flag in current write buffer
+    const writeFlags = this.currentWriteBuffer === 'A' ? this.flagsViewA : this.flagsViewB;
+    const bitSet = new BitSet(writeFlags, MAX_SYMBOLS);
+    bitSet.set(symbolIndex);
+    
+    // Add to debug history if enabled
+    if (this.debugMode) {
+      this.addToHistory(symbol, 'ticker');
+    }
     
     // Increment update counter and notify waiting workers
     const oldCount = Atomics.load(this.updateCounter, 0);
@@ -417,6 +477,79 @@ export class SharedMarketData {
       close: this.klineView[offset + 4],
       volume: this.klineView[offset + 5]
     } as any;
+  }
+  
+  /**
+   * Swap buffers and return the read buffer for workers
+   * This ensures workers get a consistent snapshot
+   */
+  swapBuffers(): Uint32Array {
+    // Return read buffer and swap for next cycle
+    const readBuffer = this.currentWriteBuffer === 'A' ? this.flagsViewB : this.flagsViewA;
+    this.currentWriteBuffer = this.currentWriteBuffer === 'A' ? 'B' : 'A';
+    
+    // Clear the new write buffer
+    const newWriteBuffer = this.currentWriteBuffer === 'A' ? this.flagsViewA : this.flagsViewB;
+    const bitSet = new BitSet(newWriteBuffer, MAX_SYMBOLS);
+    bitSet.clearAll();
+    
+    if (this.debugMode) {
+      const readBitSet = new BitSet(readBuffer, MAX_SYMBOLS);
+      const updatedCount = readBitSet.count();
+      console.log(`[SharedMarketData] Buffer swap: ${updatedCount} symbols updated`);
+    }
+    
+    return readBuffer;
+  }
+  
+  /**
+   * Get symbol from index (O(1) reverse lookup)
+   */
+  getSymbolFromIndex(index: number): string | undefined {
+    return this.indexToSymbol.get(index);
+  }
+  
+  /**
+   * Get all updated symbol indices from a flags buffer
+   */
+  getUpdatedSymbols(flagsBuffer: Uint32Array): number[] {
+    const bitSet = new BitSet(flagsBuffer, MAX_SYMBOLS);
+    return bitSet.getSetIndices();
+  }
+  
+  /**
+   * Add to debug history (ring buffer)
+   */
+  private addToHistory(symbol: string, type: 'ticker' | 'kline') {
+    if (!this.debugMode) return;
+    
+    this.updateHistory.push({
+      symbol,
+      timestamp: Date.now(),
+      type
+    });
+    
+    // Keep only last MAX_HISTORY entries
+    if (this.updateHistory.length > this.MAX_HISTORY) {
+      this.updateHistory.shift();
+    }
+  }
+  
+  /**
+   * Get debug history
+   */
+  getUpdateHistory() {
+    return this.updateHistory.slice(); // Return copy
+  }
+  
+  /**
+   * Enable/disable debug mode
+   */
+  setDebugMode(enabled: boolean) {
+    this.debugMode = enabled;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('DEBUG_SYMBOL_UPDATES', enabled ? 'true' : 'false');
+    }
   }
 }
 

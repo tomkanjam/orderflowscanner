@@ -302,36 +302,53 @@ class PersistentTraderWorker {
    * Process updates normally (for small batches)
    */
   private processNormalUpdates(updatedIndices: number[]) {
-    const results: any[] = [];
-    const deltaResults: any[] = [];
-    
-    for (const [traderId, trader] of this.traders) {
-      const filterFunction = this.compiledFilters.get(traderId);
-      if (!filterFunction) continue;
+    try {
+      const results: any[] = [];
+      const deltaResults: any[] = [];
       
-      const result = this.runTraderSelective(traderId, trader, filterFunction, updatedIndices);
-      results.push(result);
-      
-      // Calculate delta from previous result
-      const delta = this.calculateResultDelta(traderId, result);
-      if (delta) {
-        deltaResults.push(delta);
-      }
-    }
-    
-    // Only send if there are changes
-    if (deltaResults.length > 0 || this.processingCycle === 1) {
-      self.postMessage({
-        type: 'RESULTS',
-        data: {
-          results: this.processingCycle === 1 ? results : deltaResults,
-          isDelta: this.processingCycle > 1,
-          cycle: this.processingCycle,
-          efficiency: this.efficiencyStats.avgEfficiency.toFixed(1),
-          symbolsProcessed: updatedIndices.length,
-          totalSymbols: this.symbolMap.size
+      for (const [traderId, trader] of this.traders) {
+        const filterFunction = this.compiledFilters.get(traderId);
+        if (!filterFunction) continue;
+        
+        const result = this.runTraderSelective(traderId, trader, filterFunction, updatedIndices);
+        results.push(result);
+        
+        // Calculate delta from previous result
+        const delta = this.calculateResultDelta(traderId, result);
+        if (delta) {
+          deltaResults.push(delta);
         }
-      } as WorkerResponse);
+      }
+      
+      // Only send if there are changes
+      if (deltaResults.length > 0 || this.processingCycle === 1) {
+        self.postMessage({
+          type: 'RESULTS',
+          data: {
+            results: this.processingCycle === 1 ? results : deltaResults,
+            isDelta: this.processingCycle > 1,
+            cycle: this.processingCycle,
+            efficiency: this.efficiencyStats.avgEfficiency.toFixed(1),
+            symbolsProcessed: updatedIndices.length,
+            totalSymbols: this.symbolMap.size
+          }
+        } as WorkerResponse);
+      }
+    } catch (error) {
+      this.handleProcessingError(error, 'processNormalUpdates');
+      // Continue with partial results if possible
+      const partialResults = deltaResults || [];
+      if (partialResults.length > 0) {
+        self.postMessage({
+          type: 'RESULTS',
+          data: {
+            results: partialResults,
+            isDelta: true,
+            partial: true,
+            error: true
+          }
+        } as WorkerResponse);
+      }
     }
   }
   
@@ -737,6 +754,97 @@ class PersistentTraderWorker {
       traders: this.traders.size
     };
   }
+  
+  /**
+   * Handle processing errors with recovery logic
+   */
+  private handleProcessingError(error: any, context: string) {
+    const now = Date.now();
+    
+    // Reset error count if more than a minute has passed
+    if (now - this.lastErrorTime > 60000) {
+      this.errorCount = 0;
+    }
+    
+    this.errorCount++;
+    this.lastErrorTime = now;
+    
+    console.error(`[Worker] Error in ${context} (count: ${this.errorCount}):`, error);
+    
+    // Report to monitoring
+    self.postMessage({
+      type: 'ERROR',
+      data: {
+        context,
+        errorCount: this.errorCount,
+        message: error?.message || 'Unknown error',
+        timestamp: now
+      }
+    } as WorkerResponse);
+    
+    // Enter recovery mode if too many errors
+    if (this.errorCount >= this.MAX_ERRORS_PER_MINUTE) {
+      this.enterErrorRecovery();
+    }
+  }
+  
+  /**
+   * Enter error recovery mode
+   */
+  private enterErrorRecovery() {
+    if (this.isInErrorRecovery) return;
+    
+    console.warn(`[Worker] Entering error recovery mode after ${this.errorCount} errors`);
+    this.isInErrorRecovery = true;
+    
+    // Pause processing temporarily
+    setTimeout(() => {
+      console.log(`[Worker] Attempting recovery after delay`);
+      this.attemptRecovery();
+    }, this.ERROR_RECOVERY_DELAY);
+  }
+  
+  /**
+   * Attempt to recover from error state
+   */
+  private attemptRecovery() {
+    try {
+      // Re-read symbol names
+      this.readSymbolNames();
+      
+      // Validate shared memory buffers
+      if (!this.tickerView || !this.klineView) {
+        throw new Error('Shared memory buffers invalid');
+      }
+      
+      // Clear cached data
+      this.previousMatches.clear();
+      this.previousResults.clear();
+      
+      console.log(`[Worker] Recovery attempt successful`);
+      this.isInErrorRecovery = false;
+      this.errorCount = Math.max(0, this.errorCount - 2); // Reduce error count on successful recovery
+    } catch (recoveryError) {
+      console.error(`[Worker] Recovery failed:`, recoveryError);
+      // Will retry on next cycle
+    }
+  }
+  
+  /**
+   * Safely run all traders with error handling
+   */
+  private runAllTradersSafely() {
+    try {
+      if (this.isInErrorRecovery) {
+        console.log(`[Worker] Skipping processing - in recovery mode`);
+        return;
+      }
+      
+      this.runAllTraders();
+    } catch (error) {
+      this.handleProcessingError(error, 'runAllTradersSafely');
+    }
+  }
 }
 
 // Track global interval count for debugging
@@ -819,9 +927,18 @@ self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
         break;
         
       case 'PROCESS_UPDATES':
-        // Process only updated symbols using read buffer
-        if (event.data.readFlags) {
-          worker['processUpdateCycle'](event.data.readFlags);
+        // Process only updated symbols using read buffer if feature enabled
+        if (event.data.readFlags || event.data.data?.readBuffer) {
+          const readBuffer = event.data.readFlags || event.data.data?.readBuffer;
+          const featureEnabled = event.data.data?.featureEnabled !== false;
+          
+          if (featureEnabled && readBuffer) {
+            worker['processUpdateCycle'](readBuffer);
+          } else {
+            // Fallback to processing all symbols
+            console.log('[Worker] Per-symbol tracking disabled, processing all symbols');
+            worker['runAllTraders']();
+          }
         }
         break;
         

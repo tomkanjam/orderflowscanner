@@ -18,6 +18,7 @@ import { Trader } from '../src/abstractions/trader.interfaces';
 import { sharedMarketData } from '../src/shared/SharedMarketData';
 import { TraderResult } from '../workers/multiTraderScreenerWorker';
 import { DifferentialTracker } from '../src/utils/DifferentialTracker';
+import { featureFlags, FeatureFlags } from '../src/config/features';
 
 interface UseSharedTraderIntervalsProps {
   traders: Trader[];
@@ -159,16 +160,30 @@ export function useSharedTraderIntervals({
     if (hasUpdates) {
       console.log(`[SharedTraderIntervals] Processing buffered updates at ${new Date().toISOString()}`);
       
+      // Check if per-symbol tracking is enabled
+      const featureEnabled = featureFlags.isEnabled(FeatureFlags.PER_SYMBOL_TRACKING);
+      
       // Send read buffer to all workers for processing
       workersRef.current.forEach(instance => {
         instance.worker.postMessage({
           type: 'PROCESS_UPDATES',
           data: {
             readBuffer: readBuffer.buffer,
-            cycleNumber: Math.floor(now / 1000) // Use seconds as cycle number
+            cycleNumber: Math.floor(now / 1000), // Use seconds as cycle number
+            featureEnabled
           }
         });
       });
+      
+      // Track metrics for A/B testing
+      if (hasUpdates) {
+        const updatedCount = readBuffer.filter(val => val !== 0).length;
+        featureFlags.trackMetric(
+          FeatureFlags.PER_SYMBOL_TRACKING,
+          featureEnabled ? 'enabled:updates' : 'disabled:updates',
+          updatedCount
+        );
+      }
     }
   }, []);
 

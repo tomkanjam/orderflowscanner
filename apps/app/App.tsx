@@ -512,19 +512,39 @@ const AppContent: React.FC = () => {
         multiIntervalData.get(symbol)!.set(KlineInterval.ONE_MINUTE, klines);
       });
       
-      // Fetch data for other intervals if needed
+      // Fetch data for other intervals if needed - reuse symbols from first call
       const otherIntervals = Array.from(activeIntervals).filter(interval => interval !== KlineInterval.ONE_MINUTE);
       
+      // Fetch klines for other intervals using the same symbols from the first call
       for (const interval of otherIntervals) {
         console.log(`Fetching data for interval: ${interval}`);
-        const { klinesData: intervalData } = await fetchTopPairsAndInitialKlines(interval, klineLimit);
         
-        // Merge into multiIntervalData
-        intervalData.forEach((klines, symbol) => {
-          if (!multiIntervalData.has(symbol)) {
-            multiIntervalData.set(symbol, new Map());
+        // Fetch klines for each symbol individually for this interval
+        const intervalPromises = symbols.map(async (symbol) => {
+          try {
+            const klineResponse = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${klineLimit}`);
+            if (!klineResponse.ok) {
+              console.warn(`Failed to fetch klines for ${symbol} (${interval}). Status: ${klineResponse.status}`);
+              return null;
+            }
+            const klines: Kline[] = await klineResponse.json();
+            return { symbol, klines };
+          } catch (e) {
+            console.warn(`Error fetching klines for ${symbol} (${interval}):`, e);
+            return null;
           }
-          multiIntervalData.get(symbol)!.set(interval, klines);
+        });
+        
+        const results = await Promise.all(intervalPromises);
+        
+        // Merge successful results into multiIntervalData
+        results.forEach(result => {
+          if (result && result.klines) {
+            if (!multiIntervalData.has(result.symbol)) {
+              multiIntervalData.set(result.symbol, new Map());
+            }
+            multiIntervalData.get(result.symbol)!.set(interval, result.klines);
+          }
         });
       }
       

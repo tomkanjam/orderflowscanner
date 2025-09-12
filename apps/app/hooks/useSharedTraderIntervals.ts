@@ -52,6 +52,8 @@ export function useSharedTraderIntervals({
     skipCount: 0,
     lastReset: Date.now()
   });
+  const lastBufferSwapRef = useRef<number>(0);
+  const bufferSwapIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [performanceMetrics, setPerformanceMetrics] = useState({
     serializationTime: 0,
@@ -134,6 +136,42 @@ export function useSharedTraderIntervals({
     
   }, [tickers, isInitialized]);
 
+  // Process updates with double buffering
+  const processBufferedUpdates = useCallback(() => {
+    if (!sharedDataRef.current || workersRef.current.length === 0) return;
+    
+    const now = Date.now();
+    const timeSinceLastSwap = now - lastBufferSwapRef.current;
+    
+    // Skip if too soon (rate limiting)
+    if (timeSinceLastSwap < 100) {
+      console.log(`[SharedTraderIntervals] Skipping buffer swap - too soon (${timeSinceLastSwap}ms)`); 
+      return;
+    }
+    
+    // Swap buffers and get the read buffer
+    const readBuffer = sharedDataRef.current.swapBuffers();
+    lastBufferSwapRef.current = now;
+    
+    // Check if there are any updates to process
+    const hasUpdates = readBuffer.some(val => val !== 0);
+    
+    if (hasUpdates) {
+      console.log(`[SharedTraderIntervals] Processing buffered updates at ${new Date().toISOString()}`);
+      
+      // Send read buffer to all workers for processing
+      workersRef.current.forEach(instance => {
+        instance.worker.postMessage({
+          type: 'PROCESS_UPDATES',
+          data: {
+            readBuffer: readBuffer.buffer,
+            cycleNumber: Math.floor(now / 1000) // Use seconds as cycle number
+          }
+        });
+      });
+    }
+  }, []);
+
   // Initialize persistent workers
   useEffect(() => {
     console.log(`[SharedTraderIntervals] Worker useEffect triggered at ${new Date().toISOString()}, enabled: ${enabled}, initialized: ${isInitialized}, traders: ${traders.length}`);
@@ -203,7 +241,11 @@ export function useSharedTraderIntervals({
         hasTickerBuffer: !!buffers.tickerBuffer,
         hasKlineBuffer: !!buffers.klineBuffer,
         hasMetadataBuffer: !!buffers.metadataBuffer,
-        hasUpdateCounterBuffer: !!buffers.updateCounterBuffer
+        hasUpdateCounterBuffer: !!buffers.updateCounterBuffer,
+        hasUpdateFlagsA: !!buffers.updateFlagsA,
+        hasUpdateFlagsB: !!buffers.updateFlagsB,
+        maxSymbols: buffers.maxSymbols,
+        indexToSymbol: buffers.indexToSymbol
       });
       worker.postMessage({
         type: 'INIT',
@@ -299,6 +341,29 @@ export function useSharedTraderIntervals({
     });
     
   }, [traders, enabled, isInitialized]);
+
+  // Set up interval for processing buffered updates
+  useEffect(() => {
+    if (!enabled || !isInitialized || workersRef.current.length === 0) {
+      if (bufferSwapIntervalRef.current) {
+        clearInterval(bufferSwapIntervalRef.current);
+        bufferSwapIntervalRef.current = null;
+      }
+      return;
+    }
+    
+    // Process updates every second (matching worker interval)
+    bufferSwapIntervalRef.current = setInterval(() => {
+      processBufferedUpdates();
+    }, 1000);
+    
+    return () => {
+      if (bufferSwapIntervalRef.current) {
+        clearInterval(bufferSwapIntervalRef.current);
+        bufferSwapIntervalRef.current = null;
+      }
+    };
+  }, [enabled, isInitialized, processBufferedUpdates]);
 
   // Clear trader cache
   const clearTraderCache = useCallback((traderId: string) => {

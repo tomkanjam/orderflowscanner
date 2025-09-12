@@ -7,18 +7,24 @@
 
 import { KlineInterval } from '../types';
 import * as helpers from '../screenerHelpers';
+import { BitSet } from '../src/utils/BitSet';
 
 interface WorkerConfig {
   tickerBuffer: SharedArrayBuffer;
   klineBuffer: SharedArrayBuffer;
   metadataBuffer: SharedArrayBuffer;
   updateCounterBuffer: SharedArrayBuffer;
+  updateFlagsA: SharedArrayBuffer;
+  updateFlagsB: SharedArrayBuffer;
+  maxSymbols: number;
+  indexToSymbol: Record<number, string>;
   config: {
     maxSymbols: number;
     maxKlinesPerSymbol: number;
     maxIntervals: number;
     tickerSize: number;
     klineSize: number;
+    symbolUpdateFlagsSize: number;
   };
 }
 
@@ -30,9 +36,11 @@ interface TraderExecution {
 }
 
 interface WorkerMessage {
-  type: 'INIT' | 'ADD_TRADER' | 'REMOVE_TRADER' | 'UPDATE_TRADER' | 'RUN_TRADERS' | 'GET_STATUS' | 'CLEANUP' | 'PING';
+  type: 'INIT' | 'ADD_TRADER' | 'REMOVE_TRADER' | 'UPDATE_TRADER' | 'RUN_TRADERS' | 'GET_STATUS' | 'CLEANUP' | 'PING' | 'PROCESS_UPDATES';
   data?: any;
   traderId?: string;
+  readFlags?: ArrayBuffer;
+  cycle?: number;
 }
 
 interface WorkerResponse {
@@ -46,11 +54,15 @@ class PersistentTraderWorker {
   private klineView: Float64Array | null = null;
   private metadataView: Uint8Array | null = null;
   private updateCounter: Int32Array | null = null;
+  private updateFlagsViewA: Uint32Array | null = null;
+  private updateFlagsViewB: Uint32Array | null = null;
   private config: WorkerConfig['config'] | null = null;
+  private indexToSymbol: Record<number, string> = {};
   
   private traders: Map<string, TraderExecution> = new Map();
   private compiledFilters: Map<string, Function> = new Map();
   private previousMatches: Map<string, Set<string>> = new Map();
+  private previousResults: Map<string, any> = new Map(); // For result diffing
   private symbolMap: Map<number, string> = new Map();
   private intervalMap: Map<string, number> = new Map();
   
@@ -58,6 +70,15 @@ class PersistentTraderWorker {
   private isInitialized = false;
   private updateIntervalId: number | null = null; // Track the interval ID for cleanup
   private isShuttingDown = false; // Flag to prevent operations during shutdown
+  
+  // Efficiency tracking
+  private processingCycle = 0;
+  private efficiencyStats = {
+    totalSymbols: 0,
+    processedSymbols: 0,
+    skippedSymbols: 0,
+    avgEfficiency: 0
+  };
   
   constructor() {
     console.log(`[Worker ${self.name || 'unnamed'}] Constructor called at ${new Date().toISOString()}`);
@@ -77,7 +98,10 @@ class PersistentTraderWorker {
     this.klineView = new Float64Array(config.klineBuffer);
     this.metadataView = new Uint8Array(config.metadataBuffer);
     this.updateCounter = new Int32Array(config.updateCounterBuffer);
+    this.updateFlagsViewA = new Uint32Array(config.updateFlagsA);
+    this.updateFlagsViewB = new Uint32Array(config.updateFlagsB);
     this.config = config.config;
+    this.indexToSymbol = config.indexToSymbol || {};
     
     // Read symbol names from metadata
     this.readSymbolNames();
@@ -224,10 +248,196 @@ class PersistentTraderWorker {
     
     this.traders.delete(traderId);
     this.previousMatches.delete(traderId);
+    this.previousResults.delete(traderId);
   }
 
   /**
-   * Run all traders against current shared memory data
+   * Process update cycle with selective symbol processing
+   */
+  private processUpdateCycle(readFlags: ArrayBuffer) {
+    if (!this.config) return;
+    
+    this.processingCycle++;
+    const readFlagsView = new Uint32Array(readFlags);
+    const bitSet = new BitSet(readFlagsView, this.config.maxSymbols);
+    const updatedIndices = bitSet.getSetIndices();
+    
+    if (updatedIndices.length === 0) {
+      console.log(`[Worker] Cycle ${this.processingCycle}: No updates to process`);
+      return;
+    }
+    
+    const totalSymbols = this.symbolMap.size;
+    const efficiency = totalSymbols > 0 ? ((totalSymbols - updatedIndices.length) / totalSymbols * 100) : 0;
+    console.log(`[Worker] Cycle ${this.processingCycle}: Processing ${updatedIndices.length}/${totalSymbols} symbols (${efficiency.toFixed(1)}% saved)`);
+    
+    const startTime = performance.now();
+    
+    // Use batching for large updates (>50 symbols)
+    const BATCH_SIZE = 50;
+    const useBatching = updatedIndices.length > BATCH_SIZE;
+    
+    if (useBatching) {
+      console.log(`[Worker] Using batch processing for ${updatedIndices.length} symbols`);
+      this.processBatchedUpdates(updatedIndices, BATCH_SIZE);
+    } else {
+      // Process normally for small updates
+      this.processNormalUpdates(updatedIndices);
+    }
+    
+    const executionTime = performance.now() - startTime;
+    
+    // Update stats
+    this.efficiencyStats.totalSymbols += totalSymbols;
+    this.efficiencyStats.processedSymbols += updatedIndices.length;
+    this.efficiencyStats.skippedSymbols += (totalSymbols - updatedIndices.length);
+    this.efficiencyStats.avgEfficiency = this.efficiencyStats.totalSymbols > 0 
+      ? (this.efficiencyStats.skippedSymbols / this.efficiencyStats.totalSymbols * 100)
+      : 0;
+    
+    console.log(`[Worker] Cycle ${this.processingCycle} complete in ${executionTime.toFixed(2)}ms`);
+  }
+  
+  /**
+   * Process updates normally (for small batches)
+   */
+  private processNormalUpdates(updatedIndices: number[]) {
+    const results: any[] = [];
+    const deltaResults: any[] = [];
+    
+    for (const [traderId, trader] of this.traders) {
+      const filterFunction = this.compiledFilters.get(traderId);
+      if (!filterFunction) continue;
+      
+      const result = this.runTraderSelective(traderId, trader, filterFunction, updatedIndices);
+      results.push(result);
+      
+      // Calculate delta from previous result
+      const delta = this.calculateResultDelta(traderId, result);
+      if (delta) {
+        deltaResults.push(delta);
+      }
+    }
+    
+    // Only send if there are changes
+    if (deltaResults.length > 0 || this.processingCycle === 1) {
+      self.postMessage({
+        type: 'RESULTS',
+        data: {
+          results: this.processingCycle === 1 ? results : deltaResults,
+          isDelta: this.processingCycle > 1,
+          cycle: this.processingCycle,
+          efficiency: this.efficiencyStats.avgEfficiency.toFixed(1),
+          symbolsProcessed: updatedIndices.length,
+          totalSymbols: this.symbolMap.size
+        }
+      } as WorkerResponse);
+    }
+  }
+  
+  /**
+   * Calculate delta between current and previous results
+   */
+  private calculateResultDelta(traderId: string, currentResult: any) {
+    const previousResult = this.previousResults.get(traderId);
+    
+    // Store current result for next comparison
+    this.previousResults.set(traderId, {
+      matchingSymbols: [...currentResult.matchingSymbols],
+      signalSymbols: [...currentResult.signalSymbols]
+    });
+    
+    if (!previousResult) {
+      // First time - send full result
+      return currentResult;
+    }
+    
+    // Calculate changes
+    const prevMatches = new Set(previousResult.matchingSymbols);
+    const currMatches = new Set(currentResult.matchingSymbols);
+    
+    const added = currentResult.matchingSymbols.filter((s: string) => !prevMatches.has(s));
+    const removed = previousResult.matchingSymbols.filter((s: string) => !currMatches.has(s));
+    
+    // Only send if there are changes
+    if (added.length > 0 || removed.length > 0 || currentResult.signalSymbols.length > 0) {
+      return {
+        traderId,
+        added,
+        removed,
+        signalSymbols: currentResult.signalSymbols,
+        matchingSymbols: currentResult.matchingSymbols // Still send full list for UI consistency
+      };
+    }
+    
+    return null; // No changes
+  }
+  
+  /**
+   * Process updates in batches to prevent blocking
+   */
+  private processBatchedUpdates(updatedIndices: number[], batchSize: number) {
+    const totalBatches = Math.ceil(updatedIndices.length / batchSize);
+    const allResults: any[] = [];
+    
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const start = batchIndex * batchSize;
+      const end = Math.min(start + batchSize, updatedIndices.length);
+      const batch = updatedIndices.slice(start, end);
+      
+      console.log(`[Worker] Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} symbols)`);
+      
+      // Process this batch for all traders
+      for (const [traderId, trader] of this.traders) {
+        const filterFunction = this.compiledFilters.get(traderId);
+        if (!filterFunction) continue;
+        
+        const result = this.runTraderSelective(traderId, trader, filterFunction, batch);
+        
+        // Merge results
+        if (batchIndex === 0) {
+          allResults.push(result);
+        } else {
+          // Merge with existing result for this trader
+          const existingResult = allResults.find(r => r.traderId === traderId);
+          if (existingResult) {
+            existingResult.matchingSymbols = [...new Set([...existingResult.matchingSymbols, ...result.matchingSymbols])];
+            existingResult.signalSymbols = [...new Set([...existingResult.signalSymbols, ...result.signalSymbols])];
+            existingResult.removedSymbols = [...new Set([...existingResult.removedSymbols, ...result.removedSymbols])];
+          }
+        }
+      }
+    }
+    
+    // Calculate deltas for batched results
+    const deltaResults: any[] = [];
+    for (const result of allResults) {
+      const delta = this.calculateResultDelta(result.traderId, result);
+      if (delta) {
+        deltaResults.push(delta);
+      }
+    }
+    
+    // Send combined results
+    if (deltaResults.length > 0 || this.processingCycle === 1) {
+      self.postMessage({
+        type: 'RESULTS',
+        data: {
+          results: this.processingCycle === 1 ? allResults : deltaResults,
+          isDelta: this.processingCycle > 1,
+          cycle: this.processingCycle,
+          efficiency: this.efficiencyStats.avgEfficiency.toFixed(1),
+          symbolsProcessed: updatedIndices.length,
+          totalSymbols: this.symbolMap.size,
+          batched: true,
+          batchCount: totalBatches
+        }
+      } as WorkerResponse);
+    }
+  }
+
+  /**
+   * Run all traders against current shared memory data (legacy method for compatibility)
    */
   private runAllTraders() {
     const startTime = performance.now();
@@ -255,7 +465,76 @@ class PersistentTraderWorker {
   }
 
   /**
-   * Run a single trader
+   * Run a single trader with selective symbol processing
+   */
+  private runTraderSelective(traderId: string, trader: TraderExecution, filterFunction: Function, updatedIndices: number[]) {
+    const previousMatches = this.previousMatches.get(traderId) || new Set<string>();
+    const currentMatches = new Set<string>();
+    const filteredSymbols: string[] = [];
+    const signalSymbols: string[] = [];
+    
+    // Only process updated symbols
+    for (const symbolIndex of updatedIndices) {
+      // Try indexToSymbol first (O(1)), fallback to symbolMap
+      const symbol = this.indexToSymbol[symbolIndex] || this.symbolMap.get(symbolIndex);
+      if (!symbol) continue;
+      
+      const ticker = this.getTickerFromSharedMemory(symbolIndex);
+      if (!ticker) continue;
+      
+      // Build timeframes object from shared memory
+      const timeframes: Record<string, any[]> = {};
+      let hasAllData = true;
+      
+      for (const tf of trader.requiredTimeframes) {
+        const klines = this.getKlinesFromSharedMemory(symbolIndex, tf);
+        if (!klines || klines.length < 30) {
+          hasAllData = false;
+          break;
+        }
+        timeframes[tf] = klines;
+      }
+      
+      if (!hasAllData) continue;
+      
+      try {
+        // Calculate HVN nodes
+        const longestTf = trader.requiredTimeframes[0];
+        const hvnKlines = timeframes[longestTf];
+        const hvnNodes = helpers.calculateHighVolumeNodes(hvnKlines, { 
+          lookback: Math.min(hvnKlines.length, 100) 
+        });
+        
+        // Run filter (directly on shared memory data)
+        const matches = filterFunction(ticker, timeframes, helpers, hvnNodes);
+        
+        if (matches) {
+          filteredSymbols.push(symbol);
+          currentMatches.add(symbol);
+          
+          // Check if this is a new match (signal)
+          if (!previousMatches.has(symbol)) {
+            signalSymbols.push(symbol);
+          }
+        }
+      } catch (error) {
+        console.error(`[Worker] Error running filter for ${symbol}:`, error);
+      }
+    }
+    
+    // Update previous matches for this trader
+    this.previousMatches.set(traderId, currentMatches);
+    
+    return {
+      traderId,
+      filteredSymbols,
+      signalSymbols,
+      totalProcessed: updatedIndices.length
+    };
+  }
+
+  /**
+   * Run a single trader (legacy - processes all symbols)
    */
   private runTrader(traderId: string, trader: TraderExecution, filterFunction: Function) {
     const previousMatches = this.previousMatches.get(traderId) || new Set<string>();
@@ -537,6 +816,13 @@ self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
         
       case 'PING':
         self.postMessage({ type: 'PONG' } as WorkerResponse);
+        break;
+        
+      case 'PROCESS_UPDATES':
+        // Process only updated symbols using read buffer
+        if (event.data.readFlags) {
+          worker['processUpdateCycle'](event.data.readFlags);
+        }
         break;
         
       default:

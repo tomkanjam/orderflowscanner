@@ -21,8 +21,6 @@ import { signalManager } from './src/services/signalManager';
 import { tradeManager } from './src/services/tradeManager';
 import { traderManager } from './src/services/traderManager';
 import { Trader } from './src/abstractions/trader.interfaces';
-import { useIndividualTraderIntervals } from './hooks/useIndividualTraderIntervals';
-import { useBatchedTraderIntervals } from './hooks/useBatchedTraderIntervals';
 import { useSharedTraderIntervals } from './hooks/useSharedTraderIntervals';
 import { TraderResult } from './workers/multiTraderScreenerWorker';
 import { useIndicatorWorker } from './hooks/useIndicatorWorker';
@@ -1035,11 +1033,8 @@ const AppContent: React.FC = () => {
     window.location.reload(); // Reload to apply new mode
   };
   
-  // Choose the appropriate hook based on performance mode
-  const useTraderIntervals = 
-    performanceMode === 'shared' ? useSharedTraderIntervals :
-    performanceMode === 'batched' ? useBatchedTraderIntervals :
-    useIndividualTraderIntervals;
+  // Always use shared trader intervals (other modes removed)
+  const useTraderIntervals = useSharedTraderIntervals;
   
   const traderIntervalsResult = useTraderIntervals({
     traders,

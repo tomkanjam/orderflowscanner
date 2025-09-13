@@ -159,36 +159,58 @@ When an anonymous user tries to create a signal:
 ## AI Development Workflow
 
 ### Workflow Documentation
-All workflow artifacts are stored in `.ai-workflow/` directory to keep the repository clean. This includes:
-- Context (system architecture, product vision, feature registry)
-- Specifications (ideas, PRDs, engineering reviews)
-- Designs (UI/UX mockups following style guide)
-- Architecture documents
-- Implementation plans and progress tracking
-- Knowledge base (learnings, patterns, optimizations)
+All feature development uses a **single-file issue workflow** where each feature's complete journey lives in one markdown file in the `issues/` directory.
+
+**Structure:**
+```
+issues/
+├── YYYY-MM-DD-feature-name.md  # One file per feature
+├── index.md                     # Auto-generated dashboard
+└── README.md                    # Workflow documentation
+```
 
 ### Development Process
-Follow the structured 9-stage workflow for all features:
-1. `/spec-init` - Initialize context (first time only)
-2. `/idea` - Review and enhance ideas with trading expertise
-3. `/create-spec` - Create PRD (features) or streamlined spec (enhancements)
-4. `/design` - Design UI/UX following style guide
-5. `/engineering-review` - Technical feasibility review
-6. `/architect` - System architecture design
-7. `/plan` - Break work into testable phases
-8. `/implement` - Execute plan phase by phase
-9. `/update-spec` - Document what was actually built
+Follow the structured 9-stage workflow, all within a single issue file:
+1. `/spec-init` - Initialize context (first time only, creates `.ai-workflow/context/`)
+2. `/new` - Create new issue file with idea review
+3. `/spec` - Append specification to issue file
+4. `/design-issue` - Append UI/UX design to issue file
+5. `/engineering-review-issue` - Append technical review to issue file
+6. `/architect-issue` - Append architecture to issue file
+7. `/plan-issue` - Append implementation plan with checkboxes to issue file
+8. `/implement-issue` - Execute plan, updating checkboxes in real-time
+9. `/update-spec-issue` - Append final documentation to issue file
 
 ### Important Workflow Notes
+- **Single File Per Feature**: Everything from idea to completion in one file
+- **Real-time Progress**: During implementation, checkboxes update in place with timestamps
 - **Deep Code Review**: Every stage requires thorough code analysis before decisions
-- **Trading Expertise**: All AI agents have trading/quant experience - use this knowledge
+- **Domain Expertise**: All AI agents analyze the project domain and apply relevant industry expertise
 - **Testable Phases**: Break implementation into independently verifiable chunks
-- **Documentation**: Keep specs updated as living documents
-- **Single Source of Truth**: All artifacts go in `.ai-workflow/` folder
+- **Living Documentation**: Issue files are continuously updated during development
 
 ### Context Awareness
-Before making any changes, check:
-- `.ai-workflow/context/SYSTEM.md` - Architecture patterns and conventions
-- `.ai-workflow/context/FEATURES.md` - Feature registry (what's stable/frozen)
-- `.ai-workflow/context/DECISIONS.md` - Past architectural decisions
-- `.ai-workflow/context/PATTERNS.md` - Established code patterns to follow
+System-wide context stored in `.ai-workflow/context/`:
+- `SYSTEM.md` - Architecture patterns and conventions
+- `FEATURES.md` - Feature registry (what's stable/frozen)
+- `DECISIONS.md` - Past architectural decisions
+- `PATTERNS.md` - Established code patterns to follow
+
+### Quick Start
+```bash
+# Create new feature
+/new "Your feature idea"
+
+# Then append to the created issue file
+/spec issues/YYYY-MM-DD-feature-name.md
+/design-issue issues/YYYY-MM-DD-feature-name.md
+/engineering-review-issue issues/YYYY-MM-DD-feature-name.md
+/architect-issue issues/YYYY-MM-DD-feature-name.md
+/plan-issue issues/YYYY-MM-DD-feature-name.md
+/implement-issue issues/YYYY-MM-DD-feature-name.md
+/update-spec-issue issues/YYYY-MM-DD-feature-name.md
+
+# Check status
+/status-issue
+/index-issues
+```

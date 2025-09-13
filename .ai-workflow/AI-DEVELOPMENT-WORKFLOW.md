@@ -1,57 +1,35 @@
 # AI-Powered Development Workflow
 
-## The Complete Idea-to-Implementation Flow
+## Single-File Issue Workflow
 
-All AI agents are experts in their field AND experienced traders/quants. They deeply review code at each stage to maintain quality and prevent regressions.
+All AI agents are experts in their field who first analyze your project's domain, then adopt deep expertise specific to that industry. They deeply review code at each stage to maintain quality and prevent regressions. Each feature's complete journey is documented in a single markdown file.
+
+**Domain Adaptation:** Whether your app is for healthcare, finance, e-commerce, gaming, or any other domain, the AI agents will understand the context and apply appropriate industry expertise.
 
 ---
 
-## 📂 Artifact Organization
-
-All workflow artifacts are stored in a single root folder to keep the repository clean:
+## 📂 Organization
 
 ```
-.ai-workflow/                 # Root folder for all AI workflow artifacts
-├── context/                  # System and product context
-│   ├── SYSTEM.md            # Architecture and conventions
-│   ├── PRODUCT.md           # Product vision and features
-│   ├── FEATURES.md          # Feature registry
-│   ├── DECISIONS.md         # Decision log
-│   ├── TECH_DEBT.md         # Technical debt tracking
-│   ├── PATTERNS.md          # Code patterns
-│   └── CURRENT/
-│       ├── active.md        # Current work
-│       └── blockers.md      # Active blockers
-│
-├── specs/                    # Specifications
-│   ├── ideas/               # Reviewed ideas
-│   ├── features/            # Feature PRDs
-│   ├── enhancements/        # Enhancement specs
-│   ├── engineering-review/  # Technical reviews
-│   └── final/               # Final specs after implementation
-│
-├── design/                   # UI/UX designs
-│   ├── STYLE-GUIDE.md       # Extracted style guide
-│   └── [feature]-design.md  # Feature designs
-│
-├── architecture/             # Technical architecture
-│   └── [feature]-arch.md    # Architecture documents
-│
-├── plans/                    # Implementation plans
-│   └── [feature]-plan.md    # Detailed plans
-│
-├── implementation/           # Implementation tracking
-│   └── [feature]-progress.md # Progress tracking
-│
-└── knowledge/                # Learnings and patterns
-    └── [feature].md          # Feature learnings
+issues/                           # All feature issues
+├── YYYY-MM-DD-feature-name.md  # One file per feature
+├── index.md                     # Auto-generated dashboard
+└── README.md                    # Workflow documentation
+
+.ai-workflow/context/            # System-wide context (reference only)
+├── SYSTEM.md                    # Architecture and conventions
+├── PRODUCT.md                   # Product vision and features
+├── FEATURES.md                  # Feature registry
+├── DECISIONS.md                 # Decision log
+├── TECH_DEBT.md                 # Technical debt tracking
+└── PATTERNS.md                  # Code patterns
 ```
 
 ---
 
 ## 📋 The Complete Workflow
 
-### Stage 0: Initialize (First Time) `/spec-init`
+### Stage 0: Initialize Context (First Time Only) `/spec-init`
 **AI Role:** Principal Systems Architect
 
 ```bash
@@ -70,54 +48,54 @@ Run once per project to:
 
 ---
 
-### Stage 1: Idea Review `/idea`
-**AI Role:** Senior Product Manager with trading experience
+### Stage 1: New Issue with Idea Review `/new`
+**AI Role:** Senior Product Manager with domain expertise
 
 ```bash
-/idea "Add portfolio tracking with P&L calculation"
+/new "Add user authentication with SSO"
 ```
 
 The AI will:
-- Review idea through trader's lens
-- Suggest enhancements based on trading expertise
+- Analyze project to understand domain
+- Create new issue file with date prefix
+- Review idea through domain expert's lens
+- Suggest enhancements based on industry expertise
 - Ask critical questions about edge cases
-- Consider market conditions and volatility
+- Consider domain-specific conditions and requirements
 - Provide priority assessment
 
-**Output:** `.ai-workflow/specs/ideas/[feature]-review.md`
+**Output:** `issues/YYYY-MM-DD-user-authentication.md` with idea review
 
 ---
 
-### Stage 2: Create Spec `/create-spec`
-**AI Role:** Principal Product Manager with trading expertise
+### Stage 2: Create Specification `/spec`
+**AI Role:** Principal Product Manager with domain expertise
 
 ```bash
-/create-spec "Portfolio tracking feature"
+/spec issues/2025-01-15-user-authentication.md
 ```
 
-Creates either:
+Appends to issue file:
 - **Full PRD** for new features
 - **Streamlined spec** for enhancements
-
-Includes:
-- User stories with trader workflows
-- Performance requirements for trading
-- Edge cases (market volatility, disconnections)
+- User stories with domain-specific workflows
+- Performance requirements for the industry
+- Edge cases relevant to the domain
 - Success metrics
 
-**Output:** `.ai-workflow/specs/features/[name]-PRD.md` or `.ai-workflow/specs/enhancements/[name]-spec.md`
+**Output:** Specification appended to issue file
 
 ---
 
-### Stage 3: Design UI/UX `/design`
-**AI Role:** Senior Product Designer with trading interface expertise
+### Stage 3: Design UI/UX `/design-issue`
+**AI Role:** Senior Product Designer with domain-specific interface expertise
 
 ```bash
-/design
+/design-issue issues/2025-01-15-user-authentication.md
 ```
 
 The AI will:
-- Review the style guide page
+- Review the style guide
 - Analyze existing UI patterns
 - Design component layouts
 - Specify visual hierarchy
@@ -125,91 +103,92 @@ The AI will:
 - Ensure responsive design
 - Follow accessibility standards
 
-**Output:** `.ai-workflow/design/[feature-name]-design.md`
+**Output:** Design specifications appended to issue file
 
 ---
 
-### Stage 4: Engineering Review `/engineering-review`
-**AI Role:** Staff Engineer with trading systems experience
+### Stage 4: Engineering Review `/engineering-review-issue`
+**AI Role:** Staff Engineer with domain-specific systems experience
 
 ```bash
-/engineering-review
+/engineering-review-issue issues/2025-01-15-user-authentication.md
 ```
 
 The AI will:
 - **DEEPLY review all related code**
-- Review the design for technical feasibility
+- Assess technical feasibility
 - Analyze technical complexity
-- Assess performance implications
+- Identify performance implications
 - Provide implementation guidance
 - Ask technical questions
 
-**Output:** `.ai-workflow/specs/engineering-review/[feature]-review.md`
+**Output:** Engineering review appended to issue file
 
 ---
 
-### Stage 5: Architecture `/architect`
-**AI Role:** Principal Architect with trading systems expertise
+### Stage 5: Architecture `/architect-issue`
+**AI Role:** Principal Architect with domain-specific systems expertise
 
 ```bash
-/architect
+/architect-issue issues/2025-01-15-user-authentication.md
 ```
 
 The AI will:
 - **DEEPLY review codebase for patterns**
 - Design scalable architecture
 - Define data models and flows
-- Plan for high-frequency trading needs
+- Plan for domain-specific performance needs
 - Consider failover and recovery
 - Document integration points
 
-**Output:** `.ai-workflow/architecture/[feature]-[timestamp].md`
+**Output:** Architecture design appended to issue file
 
 ---
 
-### Stage 6: Planning `/plan`
-**AI Role:** Senior Tech Lead with trading platform experience
+### Stage 6: Planning `/plan-issue`
+**AI Role:** Senior Tech Lead with domain platform experience
 
 ```bash
-/plan
+/plan-issue issues/2025-01-15-user-authentication.md
 ```
 
 The AI will:
 - **DEEPLY review code for context**
 - Break work into testable phases
-- Create detailed implementation steps
+- Create detailed implementation steps with checkboxes
 - Define success criteria per phase
 - Identify checkpoints for review
 - Estimate time for each phase
 
-**Output:** `.ai-workflow/plans/[feature]-implementation.md`
+**Output:** Implementation plan with task lists appended to issue file
 
 ---
 
-### Stage 7: Implementation `/implement`
-**AI Role:** Senior Software Engineer specializing in trading systems
+### Stage 7: Implementation `/implement-issue`
+**AI Role:** Senior Software Engineer specializing in domain systems
 
 ```bash
-/implement
+/implement-issue issues/2025-01-15-user-authentication.md
 ```
 
 The AI will:
 - Execute plan phase by phase
+- **Update checkboxes in real-time** as tasks complete
+- Add timestamps to completed tasks
 - Test after each phase
+- Update progress percentage in metadata
 - Commit working code frequently
-- Stop to verify each testable part works
-- Handle edge cases properly
 - Report progress continuously
 
-**Output:** `.ai-workflow/implementation/[feature]-progress.md`
+**Output:** Updated checkboxes and progress in issue file
 
 ---
 
-### Stage 8: Update Spec `/update-spec`
-**AI Role:** Senior Technical Writer with trading systems expertise
+### Stage 8: Final Documentation `/update-spec-issue`
+**AI Role:** Senior Technical Writer with domain systems expertise
 
 ```bash
-/update-spec
+/update-spec-issue issues/2025-01-15-user-authentication.md
 ```
 
 The AI will:
@@ -220,112 +199,85 @@ The AI will:
 - Document edge cases discovered
 - Create maintenance guide
 
-**Output:** `.ai-workflow/specs/final/[feature]-final.md`
+**Output:** Final specification appended to issue file
 
 ---
 
-## 🔄 Workflow Examples
-
-### Example 1: New Trading Feature
+## 🔄 Workflow Example
 
 ```bash
-You: /idea "AI-powered trade signals based on technical indicators"
+# Create new feature
+/new "Add automated reporting dashboard"
+# Creates: issues/2025-01-15-automated-reporting.md
 
-AI: Reviews idea, suggests adding risk management, asks about latency requirements
+# Review says: "Consider data refresh rates, user permissions needed"
 
-You: "Sub-100ms latency, include stop-loss recommendations"
+# Add specification
+/spec issues/2025-01-15-automated-reporting.md
+# Appends: Comprehensive PRD with user stories
 
-You: /create-spec
+# Design the UI
+/design-issue issues/2025-01-15-automated-reporting.md
+# Appends: UI/UX design following style guide
 
-AI: Creates comprehensive PRD with trader user stories
+# Technical review
+/engineering-review-issue issues/2025-01-15-automated-reporting.md
+# Appends: Identifies performance bottlenecks, suggests solutions
 
-You: /design
+# Architecture
+/architect-issue issues/2025-01-15-automated-reporting.md
+# Appends: Scalable architecture design
 
-AI: Creates UI/UX design following style guide
+# Planning
+/plan-issue issues/2025-01-15-automated-reporting.md
+# Appends: 5 phases with checkboxes, each 1-2 hours
 
-You: /engineering-review
+# Implementation
+/implement-issue issues/2025-01-15-automated-reporting.md
+# Updates: Checkboxes in real-time as work progresses
+# - [x] Create data models <!-- ✅ 2025-01-15 10:30 -->
+# - [x] Add API endpoints <!-- ✅ 2025-01-15 11:15 -->
+# Progress: [=====     ] 50%
 
-AI: Deep code review, identifies WebSocket capacity issues, suggests solutions
+# Documentation
+/update-spec-issue issues/2025-01-15-automated-reporting.md
+# Appends: Final spec with what was built, deviations, learnings
 
-You: "Let's proceed with the WebSocket pooling approach"
+# Check status
+/status-issue issues/2025-01-15-automated-reporting.md
+# Shows: Current stage, progress, blockers
 
-You: /architect
-
-AI: Designs architecture with real-time processing pipeline
-
-You: /plan
-
-AI: Breaks into 5 testable phases, each 1-2 hours
-
-You: /implement
-
-AI: Implements phase by phase, testing each before proceeding
-
-You: /update-spec
-
-AI: Documents what was built, deviations, and learnings
-```
-
-### Example 2: Performance Enhancement
-
-```bash
-You: /idea "Optimize chart rendering for 100+ symbols"
-
-AI: Identifies virtualization opportunity, asks about priority
-
-You: "High priority, users complaining about lag"
-
-You: /create-spec
-
-AI: Creates enhancement spec with performance targets
-
-You: /engineering-review
-
-AI: Reviews rendering code, finds inefficient re-renders
-
-You: /architect
-
-AI: Designs virtualization with caching strategy
-
-You: /plan
-
-AI: 3-phase plan: measure, optimize, verify
-
-You: /implement
-
-AI: Implements with performance metrics at each step
-
-You: /update-spec
-
-AI: Records actual performance achieved and optimizations applied
+# Generate dashboard
+/index-issues
+# Creates: issues/index.md with all issues overview
 ```
 
 ---
 
 ## 📊 Key Principles
 
-### 1. Deep Code Review at Every Stage
-Each AI agent thoroughly reviews existing code before making decisions
+### 1. Single Source of Truth
+Each issue file contains the complete journey from idea to implementation.
 
-### 2. Trading Expertise Throughout
+### 2. Deep Code Review at Every Stage
+Each AI agent thoroughly reviews existing code before making decisions.
+
+### 3. Domain Expertise Throughout
 All agents understand:
-- Market microstructure
-- Technical analysis
-- Risk management
-- High-frequency requirements
-- Regulatory considerations
+- Industry-specific patterns and practices
+- Domain terminology and workflows
+- Regulatory and compliance requirements
+- Performance and scale expectations
+- User behavior and needs in this domain
 
-### 3. Testable Increments
-Every implementation phase must be independently testable
+### 4. Testable Increments
+Every implementation phase must be independently testable.
 
-### 4. No Surprises
-Specs and plans are detailed enough that implementation is straightforward
-
-### 5. Continuous Validation
-Test after every change, not just at the end
+### 5. Real-time Progress Tracking
+Implementation updates checkboxes and progress percentage as work proceeds.
 
 ### 6. Living Documentation
-Specs are updated after implementation to reflect reality
+Issue files are continuously updated throughout development.
 
 ---
 
@@ -333,46 +285,57 @@ Specs are updated after implementation to reflect reality
 
 You know the workflow is working when:
 - ✅ No regressions in existing features
-- ✅ Ideas are enhanced with trading expertise
+- ✅ Ideas are enhanced with domain expertise
 - ✅ Technical issues caught before implementation
 - ✅ Each phase completes successfully
-- ✅ Features work reliably during market volatility
+- ✅ Features work reliably under domain-specific conditions
+- ✅ Complete story readable in one file
 
 ---
 
 ## 🚀 Quick Start
 
 ```bash
-# First time on a project? Initialize the spec system
+# First time on a project? Initialize context
 /spec-init
 
-# Start with any idea
-/idea "Your trading feature idea"
+# Start new feature
+/new "Your feature idea"
 
-# Follow the complete flow
-/create-spec → /design → /engineering-review → /architect → /plan → /implement → /update-spec
+# Follow the workflow (all append to same file)
+/spec issues/[filename]
+/design-issue issues/[filename]
+/engineering-review-issue issues/[filename]
+/architect-issue issues/[filename]
+/plan-issue issues/[filename]
+/implement-issue issues/[filename]
+/update-spec-issue issues/[filename]
 
-# Check progress anytime
-/status
+# Check progress
+/status-issue                    # All issues
+/status-issue issues/[filename]  # Specific issue
+
+# Generate dashboard
+/index-issues                     # Creates index.md
 ```
 
 ---
 
-## 📝 Workflow Commands Summary
+## 📝 Workflow Commands
 
-| Stage | Command | Purpose | Output Location |
-|-------|---------|---------|-----------------|
-| 0 | `/spec-init` | Initialize context system | `.ai-workflow/context/` |
-| 1 | `/idea` | Review and enhance idea | `.ai-workflow/specs/ideas/` |
-| 2 | `/create-spec` | Create PRD or spec | `.ai-workflow/specs/features/` or `/enhancements/` |
-| 3 | `/design` | Design UI/UX | `.ai-workflow/design/` |
-| 4 | `/engineering-review` | Technical feasibility | `.ai-workflow/specs/engineering-review/` |
-| 5 | `/architect` | System architecture | `.ai-workflow/architecture/` |
-| 6 | `/plan` | Implementation roadmap | `.ai-workflow/plans/` |
-| 7 | `/implement` | Execute the plan | `.ai-workflow/implementation/` |
-| 8 | `/update-spec` | Document final state | `.ai-workflow/specs/final/` |
-| - | `/status` | Check progress | Console output |
-| - | `/style-guide` | Extract design system | `.ai-workflow/design/STYLE-GUIDE.md` |
+| Stage | Command | Purpose | Action |
+|-------|---------|---------|--------|
+| 0 | `/spec-init` | Initialize context | Creates `.ai-workflow/context/` |
+| 1 | `/new` | Start new feature | Creates issue file |
+| 2 | `/spec` | Add specification | Appends to issue |
+| 3 | `/design-issue` | Add UI/UX design | Appends to issue |
+| 4 | `/engineering-review-issue` | Add technical review | Appends to issue |
+| 5 | `/architect-issue` | Add architecture | Appends to issue |
+| 6 | `/plan-issue` | Add implementation plan | Appends to issue |
+| 7 | `/implement-issue` | Execute plan | Updates checkboxes |
+| 8 | `/update-spec-issue` | Add final docs | Appends to issue |
+| - | `/status-issue` | Check status | Shows progress |
+| - | `/index-issues` | Generate dashboard | Creates index.md |
 
 ---
 
@@ -381,18 +344,78 @@ You know the workflow is working when:
 1. **Never skip stages** - Each builds on the previous
 2. **Deep review is mandatory** - AI must understand existing code
 3. **Test continuously** - Don't wait until the end
-4. **Trading first** - Consider trader needs in every decision
-5. **Document decisions** - Future you will thank you
+4. **Domain first** - Consider domain-specific needs in every decision
+5. **Update in real-time** - Keep issue file current during implementation
 
 ---
 
 ## 🆘 When Issues Arise
 
 If blocked at any stage:
-1. Review the previous stage's output
+1. Review the previous sections in the issue file
 2. Check if questions were answered
 3. Verify code was reviewed deeply
 4. Consider if requirements changed
-5. Ask for clarification
+5. Document blockers in the issue file
+6. Ask for clarification
 
-Remember: The AI agents are your expert team. They prevent problems before they happen.
+---
+
+## 📁 Issue File Structure
+
+Each issue file evolves through stages:
+
+```markdown
+# Feature Name
+
+## Metadata
+- Status: [current stage emoji]
+- Progress: [=====     ] 50%
+- Priority: High
+- Created: YYYY-MM-DD
+- Updated: YYYY-MM-DD HH:MM
+
+---
+
+## Idea Review
+[Original idea and PM review]
+
+---
+
+## Product Requirements Document
+[Specification details]
+
+---
+
+## UI/UX Design
+[Design specifications]
+
+---
+
+## Engineering Review
+[Technical feasibility]
+
+---
+
+## System Architecture
+[Architecture design]
+
+---
+
+## Implementation Plan
+[Checkboxes that update during implementation]
+- [x] Task 1 <!-- ✅ timestamp -->
+- [ ] Task 2
+
+---
+
+## Implementation Progress
+[Phase completion reports]
+
+---
+
+## Final Specification
+[What was actually built]
+```
+
+Remember: The AI agents are your expert team. They prevent problems before they happen, and everything they do goes into one coherent file per feature.

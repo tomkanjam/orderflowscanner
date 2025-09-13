@@ -1066,7 +1066,7 @@ const AppContent: React.FC = () => {
       console.log('[App] Performance metrics:', performanceMetrics);
       lastLogTime = now;
     }
-  }, [performanceMode]);
+  }, [performanceMetrics]);
 
   // Subscribe to trader deletions to clean up worker cache
   useEffect(() => {

@@ -1022,16 +1022,6 @@ const AppContent: React.FC = () => {
   //   traders: traders.map(t => ({ id: t.id, name: t.name, enabled: t.enabled }))
   // });
   
-  // Performance optimization feature flags
-  const [performanceMode, setPerformanceMode] = useState(
-    localStorage.getItem('performanceMode') || 'shared'
-  ); // 'individual' | 'batched' | 'shared'
-  
-  const handlePerformanceModeChange = (mode: string) => {
-    localStorage.setItem('performanceMode', mode);
-    setPerformanceMode(mode);
-    window.location.reload(); // Reload to apply new mode
-  };
   
   // Always use shared trader intervals (other modes removed)
   const useTraderIntervals = useSharedTraderIntervals;
@@ -1054,24 +1044,19 @@ const AppContent: React.FC = () => {
     traderIntervalsResult.getPerformanceMetrics?.() :
     null;
   
-  // Log performance mode and test SharedArrayBuffer support
+  // Test SharedArrayBuffer support
   useEffect(() => {
-    console.log(`[App] Performance mode: ${performanceMode}`);
-    
-    // Test SharedArrayBuffer support if in shared mode
-    if (performanceMode === 'shared' && 'testSharedArrayBuffer' in traderIntervalsResult) {
+    if ('testSharedArrayBuffer' in traderIntervalsResult) {
       const test = traderIntervalsResult.testSharedArrayBuffer?.();
       if (test && !test.supported) {
         console.error('[App] SharedArrayBuffer not supported:', test);
-        // Fallback to batched mode
-        handlePerformanceModeChange('batched');
       }
     }
-  }, [performanceMode]);
+  }, []);
   
   // Log performance metrics only on significant changes (throttled)
   useEffect(() => {
-    if (!performanceMetrics || performanceMode !== 'shared') return;
+    if (!performanceMetrics) return;
     
     let lastLogTime = 0;
     const LOG_INTERVAL = 10000; // Log at most once every 10 seconds
@@ -1256,8 +1241,6 @@ const AppContent: React.FC = () => {
       {/* Performance Monitor */}
       <PerformanceMonitor
         metrics={performanceMetrics}
-        mode={performanceMode}
-        onModeChange={handlePerformanceModeChange}
       />
     </div>
   );

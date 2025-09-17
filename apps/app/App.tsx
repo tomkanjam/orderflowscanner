@@ -547,8 +547,29 @@ const AppContent: React.FC = () => {
       }
       
       // Write initial klines to SharedMarketData
+      console.log('[InitialData] Loading klines into SharedMarketData:', {
+        totalSymbols: multiIntervalData.size,
+        symbols: Array.from(multiIntervalData.keys()).slice(0, 5),
+        intervalsPerSymbol: Array.from(multiIntervalData.values())[0]?.size || 0
+      });
+      
       multiIntervalData.forEach((intervalMap, symbol) => {
         intervalMap.forEach((klines, interval) => {
+          if (klines.length > 0) {
+            const firstTime = new Date(klines[0][0]).toISOString();
+            const lastTime = new Date(klines[klines.length - 1][0]).toISOString();
+            
+            // Log if data is old
+            const lastKlineAge = (Date.now() - klines[klines.length - 1][0]) / 60000;
+            if (lastKlineAge > 10) {
+              console.warn(`[InitialData] Old kline data for ${symbol}:${interval}`, {
+                firstTime,
+                lastTime,
+                klineCount: klines.length,
+                ageMinutes: lastKlineAge.toFixed(1)
+              });
+            }
+          }
           // Batch update all klines for this symbol-interval
           sharedMarketData.updateKlines(symbol, interval, klines);
         });
@@ -740,6 +761,21 @@ const AppContent: React.FC = () => {
   }, [tickers]);
 
   const handleKlineUpdateStable = useCallback((symbol: string, interval: KlineInterval, kline: Kline, isClosed: boolean) => {
+    // Debug: Track which symbols are receiving updates
+    const now = Date.now();
+    const klineTime = kline[0];
+    const timeDiff = now - klineTime;
+    
+    // Log if kline is significantly old (more than 5 minutes)
+    if (timeDiff > 5 * 60 * 1000) {
+      console.warn(`[KlineUpdate] Old kline received for ${symbol}:${interval}`, {
+        klineTime: new Date(klineTime).toISOString(),
+        currentTime: new Date(now).toISOString(),
+        ageMinutes: (timeDiff / 60000).toFixed(1),
+        isClosed
+      });
+    }
+    
     // Emit candle close event for workflows
     if (isClosed) {
       klineEventBus.emit(symbol, interval, kline).catch(error => {

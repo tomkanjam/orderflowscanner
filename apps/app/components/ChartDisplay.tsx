@@ -331,7 +331,9 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
     destroyAllCharts();
 
-    if (!symbol || !klines || klines.length === 0 || isCalculating) {
+    // Don't proceed if we don't have the necessary data
+    // Remove isCalculating check - we'll create chart even while calculating
+    if (!symbol || !klines || klines.length === 0) {
       return;
     }
 
@@ -785,7 +787,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
   // Separate effect to update chart data without recreating the chart
   useEffect(() => {
-    if (!priceChartInstanceRef.current || !klines || klines.length === 0 || isCalculating) {
+    if (!priceChartInstanceRef.current || !klines || klines.length === 0) {
       return;
     }
 
@@ -879,7 +881,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         panelChart.update('none');
       });
     }
-  }, [klines, calculatedIndicators, indicators, isCalculating, syncIndicatorCharts]); 
+  }, [klines, calculatedIndicators, indicators, syncIndicatorCharts]); 
 
   // Update crosshair position across all charts
   useEffect(() => {

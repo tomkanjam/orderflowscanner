@@ -108,14 +108,6 @@ const MainContent: React.FC<MainContentProps> = ({
     return klines;
   }, [selectedSymbolForChart, klineInterval]);
   
-  // Debug logging for re-renders
-  console.log(`[DEBUG ${new Date().toISOString()}] MainContent rendering`, {
-    selectedSymbolForChart,
-    klineInterval,
-    chartConfigForDisplay: chartConfigForDisplay?.length || 0,
-    tickersSize: tickers.size,
-    chartKlines: chartKlines?.length || 0
-  });
   
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex h-screen overflow-hidden">

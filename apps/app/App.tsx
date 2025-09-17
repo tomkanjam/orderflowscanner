@@ -760,20 +760,20 @@ const AppContent: React.FC = () => {
     tradingManager.updateMarketPrices(tickers);
   }, [tickers]);
 
+  // Debug: Track symbols with old data (one-time check per symbol)
+  const checkedSymbols = useRef(new Set<string>());
+  
   const handleKlineUpdateStable = useCallback((symbol: string, interval: KlineInterval, kline: Kline, isClosed: boolean) => {
-    // Debug: Track which symbols are receiving updates
-    const now = Date.now();
-    const klineTime = kline[0];
-    const timeDiff = now - klineTime;
-    
-    // Log if kline is significantly old (more than 5 minutes)
-    if (timeDiff > 5 * 60 * 1000) {
-      console.warn(`[KlineUpdate] Old kline received for ${symbol}:${interval}`, {
-        klineTime: new Date(klineTime).toISOString(),
-        currentTime: new Date(now).toISOString(),
-        ageMinutes: (timeDiff / 60000).toFixed(1),
-        isClosed
-      });
+    // One-time check per symbol for missing data
+    if (interval === KlineInterval.ONE_MINUTE && !checkedSymbols.current.has(symbol)) {
+      checkedSymbols.current.add(symbol);
+      const now = Date.now();
+      const klineTime = kline[0];
+      const ageMinutes = (now - klineTime) / 60000;
+      
+      if (ageMinutes > 60) {
+        console.warn(`[MissingData] Symbol ${symbol} has old data: ${ageMinutes.toFixed(0)} minutes behind`);
+      }
     }
     
     // Emit candle close event for workflows
@@ -1097,11 +1097,6 @@ const AppContent: React.FC = () => {
     let lastLogTime = 0;
     const LOG_INTERVAL = 10000; // Log at most once every 10 seconds
     
-    const now = Date.now();
-    if (now - lastLogTime > LOG_INTERVAL) {
-      console.log('[App] Performance metrics:', performanceMetrics);
-      lastLogTime = now;
-    }
   }, [performanceMetrics]);
 
   // Subscribe to trader deletions to clean up worker cache

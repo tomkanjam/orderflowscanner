@@ -8,6 +8,8 @@
 import { KlineInterval } from '../types';
 import * as helpers from '../screenerHelpers';
 import { BitSet } from '../src/utils/BitSet';
+import { ResourceTracker } from '../src/memory/ResourceTracker';
+import { WorkerMemoryConfig } from '../src/memory/types';
 
 interface WorkerConfig {
   tickerBuffer: SharedArrayBuffer;
@@ -65,6 +67,16 @@ class PersistentTraderWorker {
   private previousResults: Map<string, any> = new Map(); // For result diffing
   private symbolMap: Map<number, string> = new Map();
   private intervalMap: Map<string, number> = new Map();
+  
+  // Resource management
+  private managedIntervals: Set<NodeJS.Timeout> = new Set();
+  private memoryConfig: WorkerMemoryConfig = {
+    maxCacheSize: 100,
+    maxResultAge: 60 * 60 * 1000, // 1 hour
+    cleanupInterval: 30 * 1000, // 30 seconds
+    maxIntervals: 5
+  };
+  private lastCacheCleanup = Date.now();
   
   private lastUpdateCount = 0;
   private isInitialized = false;
@@ -142,10 +154,18 @@ class PersistentTraderWorker {
     // Clear any existing interval first
     this.stopUpdateMonitor();
     
+    // Check if we've hit the max intervals limit
+    if (this.managedIntervals.size >= this.memoryConfig.maxIntervals) {
+      console.warn(`[Worker] Max intervals limit reached (${this.memoryConfig.maxIntervals}). Cleaning up oldest.`);
+      const oldest = this.managedIntervals.values().next().value;
+      if (oldest) {
+        clearInterval(oldest);
+        this.managedIntervals.delete(oldest);
+      }
+    }
+    
     // Create new interval and store its ID for cleanup
-    globalIntervalCount++;
-    console.log(`[Worker] Creating interval #${globalIntervalCount} - Total active: ${globalIntervalCount}`);
-    this.updateIntervalId = setInterval(() => {
+    const intervalId = setInterval(() => {
       if (this.isShuttingDown || !this.isInitialized) {
         this.stopUpdateMonitor();
         return;
@@ -165,8 +185,14 @@ class PersistentTraderWorker {
           this.runAllTraders();
         }
       }
+      
+      // Periodic cache cleanup
+      this.performCacheCleanup();
     }, 1000); // Check every 1 second (reduced from 10ms for CPU savings)
-    console.log(`[Worker] Created interval with ID: ${this.updateIntervalId}`);
+    
+    this.updateIntervalId = intervalId as any;
+    this.managedIntervals.add(intervalId as any);
+    console.log(`[Worker] Created interval - Total managed: ${this.managedIntervals.size}`);
   }
 
   /**
@@ -176,11 +202,11 @@ class PersistentTraderWorker {
     console.log(`[Worker] stopUpdateMonitor called at ${new Date().toISOString()}, current interval: ${this.updateIntervalId}`);
     if (this.updateIntervalId !== null) {
       clearInterval(this.updateIntervalId);
-      globalIntervalCount--;
-      console.log(`[Worker] Cleared interval ${this.updateIntervalId} - Total active: ${globalIntervalCount}`);
+      this.managedIntervals.delete(this.updateIntervalId as any);
+      console.log(`[Worker] Cleared interval - Total managed: ${this.managedIntervals.size}`);
       this.updateIntervalId = null;
     } else {
-      console.log(`[Worker] No interval to clear - Total active: ${globalIntervalCount}`);
+      console.log(`[Worker] No interval to clear - Total managed: ${this.managedIntervals.size}`);
     }
   }
 
@@ -247,6 +273,8 @@ class PersistentTraderWorker {
     }
     
     this.traders.delete(traderId);
+    this.previousMatches.delete(traderId);
+    this.previousResults.delete(traderId);
     this.previousMatches.delete(traderId);
     this.previousResults.delete(traderId);
   }
@@ -756,6 +784,66 @@ class PersistentTraderWorker {
   }
   
   /**
+   * Perform periodic cache cleanup
+   */
+  private performCacheCleanup() {
+    const now = Date.now();
+    
+    // Only run cleanup periodically
+    if (now - this.lastCacheCleanup < this.memoryConfig.cleanupInterval) {
+      return;
+    }
+    
+    this.lastCacheCleanup = now;
+    
+    // Clean up old results
+    if (this.previousResults.size > this.memoryConfig.maxCacheSize) {
+      const entriesToDelete = this.previousResults.size - this.memoryConfig.maxCacheSize;
+      const keys = Array.from(this.previousResults.keys()).slice(0, entriesToDelete);
+      keys.forEach(key => this.previousResults.delete(key));
+      console.log(`[Worker] Cleaned up ${entriesToDelete} old results from cache`);
+    }
+    
+    // Clean up old match history
+    if (this.previousMatches.size > this.memoryConfig.maxCacheSize) {
+      const entriesToDelete = this.previousMatches.size - this.memoryConfig.maxCacheSize;
+      const keys = Array.from(this.previousMatches.keys()).slice(0, entriesToDelete);
+      keys.forEach(key => this.previousMatches.delete(key));
+    }
+  }
+  
+  /**
+   * Clean up all resources
+   */
+  public cleanup() {
+    console.log('[Worker] Starting full cleanup');
+    this.isShuttingDown = true;
+    
+    // Stop all intervals
+    this.stopUpdateMonitor();
+    this.managedIntervals.forEach(interval => clearInterval(interval));
+    this.managedIntervals.clear();
+    
+    // Clear all Maps to free memory
+    this.traders.clear();
+    this.compiledFilters.clear();
+    this.previousMatches.clear();
+    this.previousResults.clear();
+    this.symbolMap.clear();
+    this.intervalMap.clear();
+    
+    // Nullify typed arrays
+    this.tickerView = null;
+    this.klineView = null;
+    this.metadataView = null;
+    this.updateCounter = null;
+    this.updateFlagsViewA = null;
+    this.updateFlagsViewB = null;
+    
+    console.log('[Worker] Cleanup complete');
+  }
+  
+  /**
    * Handle processing errors with recovery logic
    */
   private handleProcessingError(error: any, context: string) {
@@ -919,7 +1007,8 @@ self.addEventListener('message', (event: MessageEvent<WorkerMessage>) => {
         break;
         
       case 'CLEANUP':
-        worker['cleanup']();
+        worker.cleanup();
+        self.postMessage({ type: 'CLEANUP_COMPLETE' } as WorkerResponse);
         break;
         
       case 'PING':

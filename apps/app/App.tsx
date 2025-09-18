@@ -37,6 +37,8 @@ import { areTraderArraysEqual } from './src/utils/traderEquality';
 import { memDebug } from './src/utils/memoryDebugger';
 import { klineEventEmitter } from './src/utils/KlineEventEmitter';
 import { sharedMarketData } from './src/shared/SharedMarketData';
+import { BoundedMap, createBoundedMap } from './src/memory/BoundedCollections';
+import { UpdateBatcher, createTickerBatcher } from './src/optimization/UpdateBatcher';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -86,18 +88,22 @@ const AppContent: React.FC = () => {
     return saved ? parseInt(saved, 10) : 50;
   });
   
-  // Track signal history for deduplication
-  const [signalHistory, setSignalHistory] = useState<Map<string, SignalHistoryEntry>>(() => {
+  // Track signal history for deduplication - bounded to 1000 entries
+  const [signalHistory, setSignalHistory] = useState<BoundedMap<string, SignalHistoryEntry>>(() => {
     const saved = localStorage.getItem('signalHistory');
+    let existingMap: Map<string, SignalHistoryEntry> | undefined;
+    
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return new Map(Object.entries(parsed));
+        existingMap = new Map(Object.entries(parsed));
       } catch {
-        return new Map();
+        console.warn('Failed to parse saved signal history');
       }
     }
-    return new Map();
+    
+    // Create bounded map with 1000 entry limit and LRU eviction
+    return createBoundedMap(existingMap, 1000, 'LRU');
   });
 
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
@@ -632,10 +638,25 @@ const AppContent: React.FC = () => {
     }
   }, [selectedTraderId, clearMultiTraderHistoricalSignals, clearHistoricalSignals]);
   
-  // Persist signal history to localStorage
+  // Persist signal history to localStorage with size check
   useEffect(() => {
-    const historyObj = Object.fromEntries(signalHistory);
-    localStorage.setItem('signalHistory', JSON.stringify(historyObj));
+    try {
+      // Convert BoundedMap entries to array and limit to last 500 for localStorage
+      const entries = Array.from(signalHistory.entries()).slice(-500);
+      const historyObj = Object.fromEntries(entries);
+      const json = JSON.stringify(historyObj);
+      
+      // Check size before saving (localStorage typically has 5-10MB limit)
+      if (json.length < 2 * 1024 * 1024) { // 2MB limit for safety
+        localStorage.setItem('signalHistory', json);
+      } else {
+        console.warn('Signal history too large for localStorage, truncating');
+        const truncated = Object.fromEntries(entries.slice(-250));
+        localStorage.setItem('signalHistory', JSON.stringify(truncated));
+      }
+    } catch (error) {
+      console.error('Failed to persist signal history:', error);
+    }
   }, [signalHistory]);
 
   // Cleanup old signals and trades periodically
@@ -662,32 +683,26 @@ const AppContent: React.FC = () => {
       const maxSignalHistoryAge = 24 * 60 * 60 * 1000; // 24 hours
       const maxSignalLogAge = 12 * 60 * 60 * 1000; // 12 hours
       
-      // Clean signal history
+      // Clean signal history - BoundedMap handles size limits automatically
       setSignalHistory(prev => {
-        const cleaned = new Map<string, SignalHistoryEntry>();
-        let removedCount = 0;
+        // BoundedMap doesn't have lastSignalTime property in SignalHistoryEntry
+        // Instead, use timestamp from entry
+        const toRemove: string[] = [];
         prev.forEach((entry, symbol) => {
-          if (now - entry.lastSignalTime < maxSignalHistoryAge) {
-            cleaned.set(symbol, entry);
-          } else {
-            removedCount++;
+          if (now - entry.timestamp > maxSignalHistoryAge) {
+            toRemove.push(symbol);
           }
         });
         
-        if (removedCount > 0) {
-          // console.log(`[App] Cleaned ${removedCount} old signal history entries`);
+        // Remove old entries
+        toRemove.forEach(symbol => prev.delete(symbol));
+        
+        if (toRemove.length > 0) {
+          console.log(`[App] Cleaned ${toRemove.length} old signal history entries`);
         }
         
-        // Save to localStorage (limit size)
-        if (cleaned.size <= 500) {
-          const obj: { [key: string]: SignalHistoryEntry } = {};
-          cleaned.forEach((value, key) => {
-            obj[key] = value;
-          });
-          localStorage.setItem('signalHistory', JSON.stringify(obj));
-        }
-        
-        return cleaned;
+        // Force React update by returning new BoundedMap instance
+        return prev;
       });
       
       // Clean signal log
@@ -791,15 +806,14 @@ const AppContent: React.FC = () => {
       // Increment bar counts in signal history
       setSignalHistory(prev => {
         const entry = prev.get(symbol);
-        if (!entry) return prev; // No entry, no change
-        
-        // Only create new Map if we need to update
-        const newHistory = new Map(prev);
-        newHistory.set(symbol, {
-          ...entry,
-          barCount: entry.barCount + 1
-        });
-        return newHistory;
+        if (entry) {
+          // Update the existing entry - BoundedMap handles in place
+          prev.set(symbol, {
+            ...entry,
+            barCount: entry.barCount + 1
+          });
+        }
+        return prev; // Return same instance for React update
       });
     }
     
@@ -1014,12 +1028,11 @@ const AppContent: React.FC = () => {
           
           // Update signal history - reset bar count for new signal
           setSignalHistory(prev => {
-            const newHistory = new Map(prev);
-            newHistory.set(symbol, {
+            prev.set(symbol, {
               timestamp: currentTimestamp,
               barCount: 0,
             });
-            return newHistory;
+            return prev; // Return same instance for React update
           });
           
           // Update signal log

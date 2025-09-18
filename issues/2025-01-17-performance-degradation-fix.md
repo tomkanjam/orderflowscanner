@@ -1,6 +1,6 @@
 # Performance Degradation Fix
 
-**Status**: 🔧 implementing | Progress: [===       ] 25%  
+**Status**: 🔧 implementing | Progress: [=====     ] 50%  
 **Created**: 2025-01-17  
 **Priority**: Critical
 
@@ -544,11 +544,11 @@ Files to modify:
 - `apps/app/workers/persistentTraderWorker.ts`
 
 Actions:
-- [ ] Track all created intervals in a Set
-- [ ] Clear intervals on trader removal
-- [ ] Implement max interval limit
-- [ ] Add cleanup in worker termination
-- [ ] Log interval lifecycle for debugging
+- [x] Track all created intervals in a Set <!-- ✅ 20:40 -->
+- [x] Clear intervals on trader removal <!-- ✅ 20:40 -->
+- [x] Implement max interval limit <!-- ✅ 20:40 -->
+- [x] Add cleanup in worker termination <!-- ✅ 20:40 -->
+- [x] Log interval lifecycle for debugging <!-- ✅ 20:40 -->
 
 Test criteria:
 - Intervals properly cleared
@@ -560,11 +560,11 @@ Files to modify:
 - `apps/app/App.tsx`
 
 Actions:
-- [ ] Replace Map with BoundedMap for signalHistory
-- [ ] Implement 1000 entry limit
-- [ ] Add TTL-based expiration
-- [ ] Fix localStorage persistence with size checks
-- [ ] Create history cleanup service
+- [x] Replace Map with BoundedMap for signalHistory <!-- ✅ 20:50 -->
+- [x] Implement 1000 entry limit <!-- ✅ 20:50 -->
+- [x] Add TTL-based expiration <!-- ✅ 20:50 -->
+- [x] Fix localStorage persistence with size checks <!-- ✅ 20:50 -->
+- [x] Create history cleanup service <!-- ✅ 20:50 -->
 
 Test criteria:
 - History stays under 1000 entries

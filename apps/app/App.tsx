@@ -39,6 +39,7 @@ import { klineEventEmitter } from './src/utils/KlineEventEmitter';
 import { sharedMarketData } from './src/shared/SharedMarketData';
 import { BoundedMap, createBoundedMap } from './src/memory/BoundedCollections';
 import { UpdateBatcher, createTickerBatcher } from './src/optimization/UpdateBatcher';
+import { useThrottledState, useMemoryAwareState } from './src/hooks/useBoundedState';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;

@@ -186,6 +186,34 @@ export class ResourceTracker {
   }
 
   /**
+   * Register a generic resource with custom cleanup
+   */
+  registerGeneric(
+    cleanup: () => void,
+    owner?: string,
+    description?: string
+  ): string {
+    const resourceId = this.memoryManager.register({
+      type: 'generic',
+      cleanup,
+      createdAt: Date.now(),
+      owner,
+      description
+    });
+
+    this.trackedResources.set(resourceId, {
+      id: resourceId,
+      type: 'generic',
+      owner,
+      createdAt: Date.now(),
+      lastActivity: Date.now(),
+      isOrphaned: false
+    });
+
+    return resourceId;
+  }
+
+  /**
    * Update activity timestamp for a resource
    */
   updateActivity(resourceId: string): void {

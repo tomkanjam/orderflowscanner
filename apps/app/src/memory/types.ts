@@ -11,7 +11,7 @@ export interface CollectionMetadata {
 
 export interface ManagedResource {
   resourceId: string;
-  type: 'interval' | 'listener' | 'websocket' | 'worker' | 'timeout';
+  type: 'interval' | 'listener' | 'websocket' | 'worker' | 'timeout' | 'generic';
   cleanup: () => void;
   createdAt: number;
   owner?: string;

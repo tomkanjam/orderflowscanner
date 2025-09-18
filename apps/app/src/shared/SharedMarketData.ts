@@ -518,6 +518,122 @@ export class SharedMarketData {
   }
   
   /**
+   * Remove a symbol from tracking (cleanup memory)
+   */
+  removeSymbol(symbol: string): void {
+    const index = this.symbolIndexMap.get(symbol);
+    if (index === undefined) return;
+    
+    // Clear ticker data
+    const tickerOffset = index * TICKER_SIZE;
+    for (let i = 0; i < TICKER_SIZE; i++) {
+      this.tickerView[tickerOffset + i] = 0;
+    }
+    
+    // Clear kline data for all intervals
+    for (let intervalIndex = 0; intervalIndex < MAX_INTERVALS; intervalIndex++) {
+      const baseOffset = (index * MAX_INTERVALS * MAX_KLINES_PER_SYMBOL + 
+                          intervalIndex * MAX_KLINES_PER_SYMBOL) * KLINE_SIZE;
+      for (let i = 0; i < MAX_KLINES_PER_SYMBOL * KLINE_SIZE; i++) {
+        this.klineView[baseOffset + i] = 0;
+      }
+    }
+    
+    // Clear metadata
+    const metadataOffset = index * 256;
+    for (let i = 0; i < 256; i++) {
+      this.metadataView[metadataOffset + i] = 0;
+    }
+    
+    // Remove from maps
+    this.symbolIndexMap.delete(symbol);
+    this.indexToSymbol.delete(index);
+    this.lastUpdateTime.delete(symbol);
+    
+    console.log(`[SharedMarketData] Removed symbol ${symbol} at index ${index}`);
+  }
+  
+  /**
+   * Clean up old symbols based on last update time
+   */
+  cleanupOldSymbols(maxAgeMs: number = 5 * 60 * 1000): number {
+    const now = Date.now();
+    const symbolsToRemove: string[] = [];
+    
+    this.lastUpdateTime.forEach((updateTime, symbol) => {
+      if (now - updateTime > maxAgeMs) {
+        symbolsToRemove.push(symbol);
+      }
+    });
+    
+    symbolsToRemove.forEach(symbol => this.removeSymbol(symbol));
+    
+    if (symbolsToRemove.length > 0) {
+      console.log(`[SharedMarketData] Cleaned up ${symbolsToRemove.length} old symbols`);
+    }
+    
+    return symbolsToRemove.length;
+  }
+  
+  /**
+   * Reset all buffers and maps
+   */
+  reset(): void {
+    // Clear all typed arrays
+    this.tickerView.fill(0);
+    this.klineView.fill(0);
+    this.metadataView.fill(0);
+    this.updateCounter.fill(0);
+    this.flagsViewA.fill(0);
+    this.flagsViewB.fill(0);
+    
+    // Clear all maps
+    this.symbolIndexMap.clear();
+    this.indexToSymbol.clear();
+    this.intervalIndexMap.clear();
+    this.lastUpdateTime.clear();
+    
+    // Reset state
+    this.nextSymbolIndex = 0;
+    this.currentWriteBuffer = 'A';
+    
+    // Re-initialize interval mapping
+    const intervals = ['1m', '5m', '15m', '1h', '4h', '1d'];
+    intervals.forEach((interval, index) => {
+      this.intervalIndexMap.set(interval as KlineInterval, index);
+    });
+    
+    console.log('[SharedMarketData] Reset complete');
+  }
+  
+  /**
+   * Get memory usage statistics
+   */
+  getMemoryStats(): {
+    symbolCount: number;
+    totalMemoryMB: number;
+    tickerMemoryMB: number;
+    klineMemoryMB: number;
+    metadataMemoryMB: number;
+  } {
+    const tickerBytes = this.tickerBuffer.byteLength;
+    const klineBytes = this.klineBuffer.byteLength;
+    const metadataBytes = this.metadataBuffer.byteLength;
+    const totalBytes = tickerBytes + klineBytes + metadataBytes + 
+                      this.updateCounterBuffer.byteLength + 
+                      this.updateFlagsA.byteLength + 
+                      this.updateFlagsB.byteLength;
+    
+    return {
+      symbolCount: this.symbolIndexMap.size,
+      totalMemoryMB: totalBytes / (1024 * 1024),
+      tickerMemoryMB: tickerBytes / (1024 * 1024),
+      klineMemoryMB: klineBytes / (1024 * 1024),
+      metadataMemoryMB: metadataBytes / (1024 * 1024)
+    };
+  }
+  
+  /**
    * Add to debug history (ring buffer)
    */
   private addToHistory(symbol: string, type: 'ticker' | 'kline') {

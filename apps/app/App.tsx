@@ -181,30 +181,28 @@ const AppContent: React.FC = () => {
   // Data update tracking for StatusBar
   const dataUpdateCallbackRef = useRef<(() => void) | null>(null);
   
-  // Batched ticker updater to reduce state updates
-  const tickerBatchUpdater = useRef<BatchedUpdater<Ticker>>();
+  // Memory-aware batched ticker updater to reduce state updates and memory allocation
+  const tickerBatchUpdater = useRef<UpdateBatcher<string, Ticker>>();
   useEffect(() => {
-    tickerBatchUpdater.current = new BatchedUpdater<Ticker>(
-      (updates) => {
-        setTickers(prevTickers => {
-          const newTickers = new Map(prevTickers);
-          updates.forEach(ticker => {
-            // Add timestamp for memory cleanup tracking
-            const tickerWithTimestamp = {
-              ...ticker,
-              _lastUpdate: Date.now()
-            };
-            newTickers.set(ticker.s, tickerWithTimestamp);
-          });
-          return newTickers;
+    const batcher = createTickerBatcher((updates) => {
+      setTickers(prevTickers => {
+        const newTickers = new Map(prevTickers);
+        updates.forEach((ticker, symbol) => {
+          // Add timestamp for memory cleanup tracking
+          const tickerWithTimestamp = {
+            ...ticker,
+            _lastUpdate: Date.now()
+          };
+          newTickers.set(symbol, tickerWithTimestamp);
         });
-        // Don't call here anymore - we call directly in handleTickerUpdateStable
-      },
-      50 // Batch updates every 50ms
-    );
+        return newTickers;
+      });
+    });
+    
+    tickerBatchUpdater.current = batcher;
     
     return () => {
-      tickerBatchUpdater.current?.clear();
+      batcher.dispose();
     };
   }, []);
   
@@ -683,6 +681,14 @@ const AppContent: React.FC = () => {
       const maxSignalHistoryAge = 24 * 60 * 60 * 1000; // 24 hours
       const maxSignalLogAge = 12 * 60 * 60 * 1000; // 12 hours
       
+      // Clean up SharedArrayBuffer for inactive symbols
+      if (sharedMarketData) {
+        const removedCount = sharedMarketData.cleanupOldSymbols(5 * 60 * 1000); // 5 minutes inactive
+        if (removedCount > 0) {
+          console.log(`[App] Cleaned ${removedCount} inactive symbols from SharedArrayBuffer`);
+        }
+      }
+      
       // Clean signal history - BoundedMap handles size limits automatically
       setSignalHistory(prev => {
         // BoundedMap doesn't have lastSignalTime property in SignalHistoryEntry
@@ -743,9 +749,9 @@ const AppContent: React.FC = () => {
       dataUpdateCallbackRef.current();
     }
     
-    // Use batched updater for better performance
+    // Use memory-aware batched updater for better performance
     if (tickerBatchUpdater.current) {
-      tickerBatchUpdater.current.add(tickerUpdate);
+      tickerBatchUpdater.current.add(tickerUpdate.s, tickerUpdate);
     } else {
       // Fallback to direct update if batch updater not ready
       setTickers(prevTickers => {

@@ -25,6 +25,8 @@ class WebSocketManager {
   private reconnectDelays = new Map<string, number>();
   private maxReconnectDelay = 30000; // 30 seconds
   private initialReconnectDelay = 1000; // 1 second
+  private maxReconnectAttempts = 10; // Limit reconnection attempts
+  private reconnectAttempts = new Map<string, number>();
   private isShuttingDown = false;
   private statusListeners = new Set<(status: 'connected' | 'disconnected' | 'reconnecting') => void>();
   
@@ -97,7 +99,9 @@ class WebSocketManager {
     if (ws.readyState === WebSocket.CONNECTING) {
       const originalOnOpen = ws.onopen;
       ws.onopen = (event) => {
+        // Reset reconnection tracking on successful connection
         this.reconnectDelays.delete(key);
+        this.reconnectAttempts.delete(key);
         if (originalOnOpen) originalOnOpen(event);
       };
     }
@@ -284,13 +288,24 @@ class WebSocketManager {
     // Cancel any existing reconnect timeout
     this.cancelReconnect(key);
     
+    // Check if we've exceeded max reconnect attempts
+    const attempts = this.reconnectAttempts.get(key) || 0;
+    if (attempts >= this.maxReconnectAttempts) {
+      console.error(`[WebSocketManager] Max reconnect attempts (${this.maxReconnectAttempts}) reached for ${key}. Giving up.`);
+      this.reconnectAttempts.delete(key);
+      this.reconnectDelays.delete(key);
+      this.notifyStatus('disconnected');
+      return;
+    }
+    
     // Calculate delay with exponential backoff
     let delay = this.reconnectDelays.get(key) || this.initialReconnectDelay;
     delay = Math.min(delay * 1.5, this.maxReconnectDelay);
     this.reconnectDelays.set(key, delay);
+    this.reconnectAttempts.set(key, attempts + 1);
     
     if (DEBUG_MODE) {
-      console.log(`[WebSocketManager] Scheduling reconnect for ${key} in ${delay}ms`);
+      console.log(`[WebSocketManager] Scheduling reconnect for ${key} in ${delay}ms (attempt ${attempts + 1}/${this.maxReconnectAttempts})`);
     }
     
     const timeout = setTimeout(() => {

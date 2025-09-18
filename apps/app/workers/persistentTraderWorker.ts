@@ -46,9 +46,10 @@ interface WorkerMessage {
 }
 
 interface WorkerResponse {
-  type: 'READY' | 'RESULTS' | 'STATUS' | 'ERROR' | 'CLEANUP_COMPLETE' | 'PONG';
+  type: 'READY' | 'RESULTS' | 'STATUS' | 'ERROR' | 'CLEANUP_COMPLETE' | 'PONG' | 'MEMORY_STATS';
   data?: any;
   error?: string;
+  stats?: any;
 }
 
 class PersistentTraderWorker {
@@ -70,13 +71,17 @@ class PersistentTraderWorker {
   
   // Resource management
   private managedIntervals: Set<NodeJS.Timeout> = new Set();
-  private memoryConfig: WorkerMemoryConfig = {
+  private memoryConfig: WorkerMemoryConfig & { maxCompiledFunctions: number; maxMemoryMB: number } = {
     maxCacheSize: 100,
     maxResultAge: 60 * 60 * 1000, // 1 hour
     cleanupInterval: 30 * 1000, // 30 seconds
-    maxIntervals: 5
+    maxIntervals: 5,
+    maxCompiledFunctions: 50, // Limit compiled functions
+    maxMemoryMB: 20 // Target max memory usage
   };
   private lastCacheCleanup = Date.now();
+  private cacheAccessTimes: Map<string, number> = new Map(); // Track cache access for LRU
+  private memoryCheckInterval: NodeJS.Timeout | null = null;
   
   private lastUpdateCount = 0;
   private isInitialized = false;
@@ -336,6 +341,9 @@ class PersistentTraderWorker {
       
       for (const [traderId, trader] of this.traders) {
         const filterFunction = this.compiledFilters.get(traderId);
+      
+      // Track cache access for LRU
+      this.cacheAccessTimes.set(traderId, Date.now());
         if (!filterFunction) continue;
         
         const result = this.runTraderSelective(traderId, trader, filterFunction, updatedIndices);
@@ -435,6 +443,9 @@ class PersistentTraderWorker {
       // Process this batch for all traders
       for (const [traderId, trader] of this.traders) {
         const filterFunction = this.compiledFilters.get(traderId);
+      
+      // Track cache access for LRU
+      this.cacheAccessTimes.set(traderId, Date.now());
         if (!filterFunction) continue;
         
         const result = this.runTraderSelective(traderId, trader, filterFunction, batch);
@@ -490,6 +501,9 @@ class PersistentTraderWorker {
     
     for (const [traderId, trader] of this.traders) {
       const filterFunction = this.compiledFilters.get(traderId);
+      
+      // Track cache access for LRU
+      this.cacheAccessTimes.set(traderId, Date.now());
       if (!filterFunction) continue;
       
       const result = this.runTrader(traderId, trader, filterFunction);
@@ -751,7 +765,31 @@ class PersistentTraderWorker {
   }
   
   /**
-   * Perform periodic cache cleanup
+   * Report memory statistics
+   */
+  private reportMemoryStats() {
+    const stats = {
+      traders: this.traders.size,
+      compiledFilters: this.compiledFilters.size,
+      previousResults: this.previousResults.size,
+      previousMatches: this.previousMatches.size,
+      managedIntervals: this.managedIntervals.size,
+      cacheAccessTimes: this.cacheAccessTimes.size,
+      symbolMap: this.symbolMap.size,
+      memoryUsage: this.getMemoryUsage()
+    };
+    
+    console.log('[Worker] Memory stats:', stats);
+    
+    // Send to main thread for monitoring
+    self.postMessage({
+      type: 'MEMORY_STATS',
+      stats
+    } as WorkerResponse);
+  }
+  
+  /**
+   * Perform periodic cache cleanup with enhanced memory management
    */
   private performCacheCleanup() {
     const now = Date.now();
@@ -763,20 +801,73 @@ class PersistentTraderWorker {
     
     this.lastCacheCleanup = now;
     
-    // Clean up old results
+    // 1. Clean up old results with LRU eviction
     if (this.previousResults.size > this.memoryConfig.maxCacheSize) {
       const entriesToDelete = this.previousResults.size - this.memoryConfig.maxCacheSize;
-      const keys = Array.from(this.previousResults.keys()).slice(0, entriesToDelete);
-      keys.forEach(key => this.previousResults.delete(key));
-      console.log(`[Worker] Cleaned up ${entriesToDelete} old results from cache`);
+      
+      // Sort by access time (LRU)
+      const sortedEntries = Array.from(this.previousResults.keys())
+        .sort((a, b) => {
+          const timeA = this.cacheAccessTimes.get(a) || 0;
+          const timeB = this.cacheAccessTimes.get(b) || 0;
+          return timeA - timeB; // Oldest first
+        });
+      
+      // Delete least recently used
+      sortedEntries.slice(0, entriesToDelete).forEach(key => {
+        this.previousResults.delete(key);
+        this.cacheAccessTimes.delete(key);
+      });
+      
+      console.log(`[Worker] Cleaned up ${entriesToDelete} old results from cache (LRU)`);
     }
     
-    // Clean up old match history
+    // 2. Clean up old match history
     if (this.previousMatches.size > this.memoryConfig.maxCacheSize) {
       const entriesToDelete = this.previousMatches.size - this.memoryConfig.maxCacheSize;
       const keys = Array.from(this.previousMatches.keys()).slice(0, entriesToDelete);
       keys.forEach(key => this.previousMatches.delete(key));
     }
+    
+    // 3. Clean up compiled functions if too many
+    if (this.compiledFilters.size > this.memoryConfig.maxCompiledFunctions) {
+      const entriesToDelete = this.compiledFilters.size - this.memoryConfig.maxCompiledFunctions;
+      const sortedTraders = Array.from(this.traders.entries())
+        .sort((a, b) => {
+          // Keep active traders' functions
+          const aActive = a[1].enabled ? 1 : 0;
+          const bActive = b[1].enabled ? 1 : 0;
+          return aActive - bActive;
+        });
+      
+      // Delete compiled functions for inactive traders first
+      let deleted = 0;
+      for (const [traderId] of sortedTraders) {
+        if (deleted >= entriesToDelete) break;
+        if (!this.traders.get(traderId)?.enabled) {
+          this.compiledFilters.delete(traderId);
+          deleted++;
+        }
+      }
+      
+      if (deleted > 0) {
+        console.log(`[Worker] Cleaned up ${deleted} compiled functions`);
+      }
+    }
+    
+    // 4. Clean up stale cache access times
+    const staleAccessKeys = Array.from(this.cacheAccessTimes.keys())
+      .filter(key => !this.previousResults.has(key));
+    staleAccessKeys.forEach(key => this.cacheAccessTimes.delete(key));
+    
+    // 5. Force garbage collection hint (if available)
+    if (global.gc) {
+      global.gc();
+      console.log('[Worker] Forced garbage collection');
+    }
+    
+    // Report memory stats
+    this.reportMemoryStats();
   }
   
   /**

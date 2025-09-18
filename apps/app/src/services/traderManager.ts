@@ -13,9 +13,12 @@ export class TraderManager implements ITraderManager {
   private deleteSubscribers: Set<(traderId: string) => void> = new Set();
   private initialized = false;
   private pendingNotification: NodeJS.Timeout | null = null;
+  private cleanupInterval: NodeJS.Timeout | null = null;
+  private isShuttingDown = false;
 
   constructor() {
     this.initialize();
+    this.startCleanupScheduler();
   }
 
   private async initialize() {
@@ -56,6 +59,72 @@ export class TraderManager implements ITraderManager {
     } catch (error) {
       console.error('Failed to initialize TraderManager:', error);
     }
+  }
+
+  /**
+   * Start periodic cleanup scheduler
+   */
+  private startCleanupScheduler() {
+    // Clean up every 5 minutes
+    this.cleanupInterval = setInterval(() => {
+      if (!this.isShuttingDown) {
+        this.performCleanup();
+      }
+    }, 5 * 60 * 1000);
+  }
+
+  /**
+   * Perform periodic cleanup
+   */
+  private performCleanup() {
+    // Clean up disabled traders that haven't been used in 24 hours
+    const now = Date.now();
+    const staleThreshold = 24 * 60 * 60 * 1000; // 24 hours
+    
+    const staleTradersCount = Array.from(this.traders.values())
+      .filter(trader => 
+        !trader.enabled && 
+        trader.metrics && 
+        (now - new Date(trader.metrics.lastAnalysis || 0).getTime()) > staleThreshold
+      ).length;
+    
+    if (staleTradersCount > 0) {
+      console.log(`[TraderManager] Found ${staleTradersCount} stale disabled traders (cleanup deferred to maintain stability)`);
+    }
+    
+    // Report memory stats
+    console.log('[TraderManager] Memory stats:', {
+      traders: this.traders.size,
+      subscribers: this.subscribers.size,
+      deleteSubscribers: this.deleteSubscribers.size
+    });
+  }
+
+  /**
+   * Clean up all resources
+   */
+  public dispose() {
+    console.log('[TraderManager] Disposing...');
+    this.isShuttingDown = true;
+    
+    // Clear cleanup interval
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    
+    // Clear pending notification
+    if (this.pendingNotification) {
+      clearTimeout(this.pendingNotification);
+      this.pendingNotification = null;
+    }
+    
+    // Clear all collections
+    this.traders.clear();
+    this.subscribers.clear();
+    this.deleteSubscribers.clear();
+    
+    console.log('[TraderManager] Disposed');
   }
 
   async createTrader(

@@ -5,6 +5,108 @@ import { v4 as uuidv4 } from 'uuid';
 export class SignalManager {
   private signals: Map<string, SignalLifecycle> = new Map();
   private updateCallbacks: Set<(signals: SignalLifecycle[]) => void> = new Set();
+  private cleanupInterval: NodeJS.Timeout | null = null;
+  private maxSignals = 1000; // Maximum signals to keep
+  private maxSignalAge = 24 * 60 * 60 * 1000; // 24 hours
+  private isShuttingDown = false;
+  
+  constructor() {
+    this.startCleanupScheduler();
+  }
+  
+  /**
+   * Start periodic cleanup scheduler
+   */
+  private startCleanupScheduler() {
+    // Clean up every 30 minutes
+    this.cleanupInterval = setInterval(() => {
+      if (!this.isShuttingDown) {
+        this.performCleanup();
+      }
+    }, 30 * 60 * 1000);
+  }
+  
+  /**
+   * Perform periodic cleanup
+   */
+  private performCleanup() {
+    const now = Date.now();
+    let cleanedCount = 0;
+    
+    // Remove old signals
+    const signalsToDelete: string[] = [];
+    this.signals.forEach((signal, id) => {
+      const age = now - signal.createdAt.getTime();
+      if (age > this.maxSignalAge && signal.status !== 'in_position') {
+        signalsToDelete.push(id);
+      }
+    });
+    
+    signalsToDelete.forEach(id => {
+      this.signals.delete(id);
+      cleanedCount++;
+    });
+    
+    // Enforce max signals limit (keep newest)
+    if (this.signals.size > this.maxSignals) {
+      const sortedSignals = Array.from(this.signals.entries())
+        .sort((a, b) => b[1].createdAt.getTime() - a[1].createdAt.getTime());
+      
+      const toDelete = sortedSignals.slice(this.maxSignals);
+      toDelete.forEach(([id]) => {
+        this.signals.delete(id);
+        cleanedCount++;
+      });
+    }
+    
+    if (cleanedCount > 0) {
+      console.log(`[SignalManager] Cleaned up ${cleanedCount} old signals`);
+      this.notifyUpdate();
+    }
+    
+    // Report memory stats
+    console.log('[SignalManager] Memory stats:', {
+      signals: this.signals.size,
+      callbacks: this.updateCallbacks.size,
+      oldestSignal: this.getOldestSignalAge()
+    });
+  }
+  
+  /**
+   * Get age of oldest signal
+   */
+  private getOldestSignalAge(): string {
+    if (this.signals.size === 0) return 'N/A';
+    
+    const oldest = Array.from(this.signals.values())
+      .reduce((oldest, signal) => 
+        signal.createdAt < oldest.createdAt ? signal : oldest
+      );
+    
+    const ageMs = Date.now() - oldest.createdAt.getTime();
+    const hours = Math.floor(ageMs / (1000 * 60 * 60));
+    return `${hours}h`;
+  }
+  
+  /**
+   * Clean up all resources
+   */
+  public dispose() {
+    console.log('[SignalManager] Disposing...');
+    this.isShuttingDown = true;
+    
+    // Clear cleanup interval
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    
+    // Clear all collections
+    this.signals.clear();
+    this.updateCallbacks.clear();
+    
+    console.log('[SignalManager] Disposed');
+  }
   
   // Create a new signal from a filter result
   createSignal(filterResult: FilterResult, strategyId: string, traderId?: string, interval?: string): SignalLifecycle {

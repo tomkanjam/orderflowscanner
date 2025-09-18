@@ -704,39 +704,6 @@ class PersistentTraderWorker {
   }
 
   /**
-   * Cleanup worker resources before termination
-   */
-  private cleanup() {
-    console.log(`[Worker] CLEANUP called at ${new Date().toISOString()}, interval: ${this.updateIntervalId}`);
-    // Set shutdown flag to stop all operations
-    this.isShuttingDown = true;
-    
-    // Stop the update monitor interval
-    this.stopUpdateMonitor();
-    
-    // Clear all data structures
-    this.traders.clear();
-    this.compiledFilters.clear();
-    this.previousMatches.clear();
-    this.symbolMap.clear();
-    this.intervalMap.clear();
-    
-    // Nullify shared buffer references to allow garbage collection
-    this.tickerView = null;
-    this.klineView = null;
-    this.metadataView = null;
-    this.updateCounter = null;
-    this.config = null;
-    
-    // Mark as not initialized
-    this.isInitialized = false;
-    
-    // Send cleanup completion confirmation
-    console.log(`[Worker] Cleanup complete, sending CLEANUP_COMPLETE`);
-    self.postMessage({ type: 'CLEANUP_COMPLETE' } as WorkerResponse);
-  }
-
-  /**
    * Get worker status
    */
   getStatus() {

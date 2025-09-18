@@ -416,22 +416,6 @@ export class SharedMarketData {
     }
   }
 
-  /**
-   * Get memory usage statistics
-   */
-  getMemoryStats() {
-    const usedSymbols = this.symbolIndexMap.size;
-    const totalMemory = TICKER_BUFFER_SIZE + KLINE_BUFFER_SIZE + METADATA_BUFFER_SIZE;
-    const usedMemoryEstimate = usedSymbols * (TICKER_SIZE * 8 + MAX_INTERVALS * 250 * KLINE_SIZE * 8);
-    
-    return {
-      totalMemoryMB: (totalMemory / 1024 / 1024).toFixed(2),
-      usedMemoryMB: (usedMemoryEstimate / 1024 / 1024).toFixed(2),
-      usedSymbols,
-      maxSymbols: MAX_SYMBOLS,
-      updateCount: this.getUpdateCount()
-    };
-  }
 
   /**
    * Get symbol index (public method for hooks)

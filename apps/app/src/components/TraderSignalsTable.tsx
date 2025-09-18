@@ -33,7 +33,7 @@ interface TraderSignalsTableProps {
   onKlineHistoryConfigChange?: (config: KlineHistoryConfig) => void;
 }
 
-export function TraderSignalsTable({
+function TraderSignalsTableComponent({
   tickers,
   traders = [],
   selectedTraderId,
@@ -534,3 +534,34 @@ export function TraderSignalsTable({
     </div>
   );
 }
+
+// Memoize component to prevent unnecessary re-renders
+// Compare key props that affect rendering
+export const TraderSignalsTable = React.memo(TraderSignalsTableComponent, (prevProps, nextProps) => {
+  return (
+    // Compare basic selection props
+    prevProps.selectedTraderId === nextProps.selectedTraderId &&
+    prevProps.selectedSignalId === nextProps.selectedSignalId &&
+    
+    // Compare scanning state
+    prevProps.isHistoricalScanning === nextProps.isHistoricalScanning &&
+    prevProps.historicalScanProgress?.percentComplete === nextProps.historicalScanProgress?.percentComplete &&
+    
+    // Compare data lengths (not deep comparison for performance)
+    prevProps.historicalSignals?.length === nextProps.historicalSignals?.length &&
+    prevProps.traders?.length === nextProps.traders?.length &&
+    
+    // Compare configuration objects by reference
+    prevProps.historicalScanConfig === nextProps.historicalScanConfig &&
+    prevProps.klineHistoryConfig === nextProps.klineHistoryConfig &&
+    prevProps.signalDedupeThreshold === nextProps.signalDedupeThreshold &&
+    
+    // Reference equality for tickers Map
+    prevProps.tickers === nextProps.tickers &&
+    
+    // Flag comparisons
+    prevProps.hasActiveFilter === nextProps.hasActiveFilter
+    
+    // Note: Callbacks are assumed to be stable (wrapped in useCallback by parent)
+  );
+});

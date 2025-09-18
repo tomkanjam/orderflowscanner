@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { PrebuiltStrategy } from '../types/strategy';
 
 interface StrategyCardProps {
@@ -8,8 +8,9 @@ interface StrategyCardProps {
 }
 
 const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoading }) => {
-  const getTimeframeBadgeColor = (timeframe: string) => {
-    switch (timeframe) {
+  // Memoize timeframe badge color calculation
+  const timeframeBadgeColor = useMemo(() => {
+    switch (strategy.timeframe) {
       case '1m':
         return 'bg-[var(--nt-error)]/20 text-[var(--nt-error)] border-[var(--nt-error)]/30';
       case '5m':
@@ -21,7 +22,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoadi
       default:
         return 'bg-[var(--nt-bg-hover)]/20 text-[var(--nt-text-secondary)] border-[var(--nt-border-default)]/30';
     }
-  };
+  }, [strategy.timeframe]);
 
   return (
     <div
@@ -35,7 +36,7 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoadi
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <h3 className="text-lg font-semibold text-[var(--nt-text-primary)] nt-heading-md">{strategy.name}</h3>
-        <span className={`text-xs px-2 py-1 rounded-md border ${getTimeframeBadgeColor(strategy.timeframe)}`}>
+        <span className={`text-xs px-2 py-1 rounded-md border ${timeframeBadgeColor}`}>
           {strategy.timeframe}
         </span>
       </div>
@@ -91,4 +92,12 @@ const StrategyCard: React.FC<StrategyCardProps> = ({ strategy, onSelect, isLoadi
   );
 };
 
-export default StrategyCard;
+// Memoize component to prevent unnecessary re-renders
+// Only re-render if strategy id or isLoading changes
+export default React.memo(StrategyCard, (prevProps, nextProps) => {
+  return (
+    prevProps.strategy.id === nextProps.strategy.id &&
+    prevProps.isLoading === nextProps.isLoading
+    // onSelect is likely stable from parent, so we don't compare it
+  );
+});

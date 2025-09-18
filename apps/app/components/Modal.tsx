@@ -32,4 +32,5 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
   );
 };
 
-export default Modal;
+// Memoize Modal since props rarely change
+export default React.memo(Modal);

@@ -21,4 +21,5 @@ const Loader: React.FC<LoaderProps> = ({ text, size = 'md' }) => {
   );
 };
 
-export default Loader;
+// Memoize pure presentational component
+export default React.memo(Loader);

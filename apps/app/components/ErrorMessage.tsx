@@ -17,4 +17,5 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({ title = "Error!", message }
   );
 };
 
-export default ErrorMessage;
+// Memoize pure presentational component  
+export default React.memo(ErrorMessage);

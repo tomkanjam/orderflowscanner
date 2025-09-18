@@ -4,7 +4,7 @@ interface PerformanceMonitorProps {
   metrics?: any;
 }
 
-export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ 
+const PerformanceMonitorComponent: React.FC<PerformanceMonitorProps> = ({ 
   metrics
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -160,3 +160,9 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
     </div>
   );
 };
+
+// Memoize component with deep comparison of metrics
+export const PerformanceMonitor = React.memo(PerformanceMonitorComponent, (prevProps, nextProps) => {
+  // Deep comparison of metrics object for equality
+  return JSON.stringify(prevProps.metrics) === JSON.stringify(nextProps.metrics);
+});

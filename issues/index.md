@@ -11,10 +11,14 @@
   - **Status:** In implementation
 
 ### 🟡 Planning
-- [`2025-01-19-my-signals-click-filtering.md`](./2025-01-19-my-signals-click-filtering.md) - My Signals Click Filtering ⭐ NEW
+- [`2025-01-19-custom-signals-user-filtering.md`](./2025-01-19-custom-signals-user-filtering.md) - Custom Signals User Filtering & Click Fix ⭐ ACTIVE
+  - **Priority:** Critical
+  - **Type:** bug
+  - **Status:** In progress (20% complete)
+- [`2025-01-19-my-signals-click-filtering.md`](./2025-01-19-my-signals-click-filtering.md) - My Signals Click Filtering (Superseded)
   - **Priority:** High
   - **Type:** enhancement
-  - **Status:** Idea review complete
+  - **Status:** Merged into custom-signals-user-filtering
 
 ### 🟢 Completed
 - [`2025-09-19-indicator-chart-race-condition-fix.md`](./2025-09-19-indicator-chart-race-condition-fix.md) - Indicator Chart Race Condition Fix

@@ -378,7 +378,18 @@ export class TraderManager implements ITraderManager {
       const filter = typeof data.filter === 'string' ? JSON.parse(data.filter) : data.filter;
       const strategy = typeof data.strategy === 'string' ? JSON.parse(data.strategy) : data.strategy;
       const metrics = typeof data.metrics === 'string' ? JSON.parse(data.metrics) : data.metrics;
-      
+
+      // Debug logging for custom signal access
+      const determinedAccessTier = data.user_id ? 'anonymous' : (data.access_tier || 'free');
+      console.log(`[DEBUG] Deserializing trader:`, {
+        name: data.name,
+        user_id: data.user_id,
+        is_built_in: data.is_built_in,
+        access_tier: data.access_tier,
+        determinedAccessTier,
+        ownership_type: data.ownership_type
+      });
+
       return {
         id: data.id,
         name: data.name,
@@ -395,7 +406,8 @@ export class TraderManager implements ITraderManager {
         userId: data.user_id,
         ownershipType: data.ownership_type || 'user',
         // Custom signals should be accessible to their creators regardless of tier
-        accessTier: data.created_by ? 'anonymous' : (data.access_tier || 'free'),
+        // Check user_id to identify custom signals (user-created vs system/built-in)
+        accessTier: data.user_id ? 'anonymous' : (data.access_tier || 'free'),
         isBuiltIn: data.is_built_in || false,
         category: data.category,
         difficulty: data.difficulty,

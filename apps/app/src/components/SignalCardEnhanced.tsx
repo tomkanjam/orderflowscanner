@@ -100,7 +100,23 @@ export const SignalCardEnhanced = React.memo(function SignalCardEnhanced({
       data-variant="signal"
       data-activity={activityState}
       data-selected={isSelected}
-      onClick={() => canView && onSelect?.()}
+      onClick={() => {
+        console.log(`[DEBUG] SignalCard clicked:`, {
+          signalId: signal.id,
+          signalName: signal.name,
+          isBuiltIn: signal.isBuiltIn,
+          canView,
+          onSelectDefined: !!onSelect,
+          accessTier: signal.accessTier,
+          ownershipType: signal.ownershipType
+        });
+        if (canView && onSelect) {
+          console.log(`[DEBUG] Calling onSelect for signal: ${signal.name}`);
+          onSelect();
+        } else {
+          console.log(`[DEBUG] Click blocked - canView: ${canView}, onSelect: ${!!onSelect}`);
+        }
+      }}
     >
       {/* Card Header */}
       <div className="signal-card__header">

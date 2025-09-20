@@ -214,10 +214,20 @@ export function TraderList({
             <div className="space-y-2">
               {customSignals.map(trader => {
                 const access = getSignalAccess(trader, currentTier);
+                console.log(`[DEBUG] Custom signal access check:`, {
+                  signalName: trader.name,
+                  signalId: trader.id,
+                  accessTier: trader.accessTier,
+                  currentTier,
+                  canView: access.canView,
+                  isBuiltIn: trader.isBuiltIn,
+                  ownershipType: trader.ownershipType,
+                  createdBy: trader.createdBy
+                });
                 const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
                 const isSelected = selectedTraderId === trader.id;
                 const canEditDelete = profile?.is_admin || trader.createdBy === profile?.id;
-                
+
                 return (
                   <SignalCardEnhanced
                     key={trader.id}

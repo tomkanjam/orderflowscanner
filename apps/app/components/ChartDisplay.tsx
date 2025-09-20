@@ -881,7 +881,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         panelChart.update('none');
       });
     }
-  }, [klines, calculatedIndicators, indicators, syncIndicatorCharts, loadingStates]); 
+  }, [klines, calculatedIndicators, indicators, syncIndicatorCharts]); 
 
   // Update crosshair position across all charts
   useEffect(() => {

@@ -195,7 +195,6 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   
   // State for calculated indicator data
   const [calculatedIndicators, setCalculatedIndicators] = useState<Map<string, IndicatorDataPoint[]>>(new Map());
-  const [isCalculating, setIsCalculating] = useState(false);
 
   // Loading state management for indicators
   const [loadingStates, setLoadingStates] = useState<Map<string, { isLoading: boolean; startTime: number }>>(new Map());
@@ -318,7 +317,6 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
     let isCurrentCalculation = true;
 
     const calculateAllIndicators = async () => {
-      setIsCalculating(true);
       // console.log(`[DEBUG ${new Date().toISOString()}] Starting indicator calculation for symbol: ${symbol}`);
       try {
         const results = await calculateIndicators(indicators, klines);
@@ -346,7 +344,6 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         }
       } finally {
         if (isCurrentCalculation) {
-          setIsCalculating(false);
           // console.log(`[DEBUG ${new Date().toISOString()}] Indicator calculation finished (finally block)`);
         }
       }
@@ -381,7 +378,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
     destroyAllCharts();
 
     // Don't proceed if we don't have the necessary data
-    // Remove isCalculating check - we'll create chart even while calculating
+    // Create chart immediately - don't wait for calculations
     if (!symbol || !klines || klines.length === 0) {
       return;
     }
@@ -961,11 +958,6 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         <>
           <div className={`${priceChartHeight} relative`}>
             <canvas ref={priceCanvasRef}></canvas>
-            {isCalculating && (
-              <div className="absolute inset-0 flex items-center justify-center bg-[var(--tm-bg-secondary)] bg-opacity-75">
-                <div className="text-[var(--tm-accent)]">Calculating indicators...</div>
-              </div>
-            )}
             {/* Zoom controls */}
             <div className="absolute top-2 right-2 flex gap-2 z-10">
               <button

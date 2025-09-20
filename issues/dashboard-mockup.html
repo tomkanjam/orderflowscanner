@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Issue Tracker Dashboard - Mockup</title>
+    <style>
+        /* CSS Variables for Theming */
+        :root[data-theme="dark"] {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-hover: #222222;
+            --text-primary: #ffffff;
+            --text-muted: #888888;
+            --border: #2a2a2a;
+            --accent: #00ff88;
+            --danger: #ff3366;
+            --warning: #ffaa00;
+            --info: #00aaff;
+            --success: #00ff88;
+        }
+
+        :root[data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-hover: #eeeeee;
+            --text-primary: #000000;
+            --text-muted: #666666;
+            --border: #e0e0e0;
+            --accent: #00cc66;
+            --danger: #cc0033;
+            --warning: #ff9900;
+            --info: #0088cc;
+            --success: #00cc66;
+        }
+
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: all 0.3s ease;
+        }
+
+        /* Container */
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .dashboard-title {
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sync-status {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent);
+        }
+
+        /* Statistics Panel */
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 15px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .stat-bar {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        /* Filters Bar */
+        .filters-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+
+        /* Issues Table */
+        .issues-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .issues-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .issues-table th {
+            background: var(--bg-primary);
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .issues-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .issues-table tr:hover {
+            background: var(--bg-hover);
+            cursor: pointer;
+        }
+
+        .issue-title {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .issue-description {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .priority-critical { color: var(--danger); }
+        .priority-high { color: var(--warning); }
+        .priority-medium { color: var(--info); }
+        .priority-low { color: var(--success); }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100px;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.low { background: var(--danger); }
+        .progress-fill.medium { background: var(--warning); }
+        .progress-fill.high { background: var(--info); }
+        .progress-fill.complete { background: var(--success); }
+
+        .progress-text {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-left: 8px;
+        }
+
+        /* Footer */
+        .dashboard-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .dashboard-header {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+
+            .stats-panel {
+                grid-template-columns: 1fr;
+            }
+
+            .filters-bar {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .filter-select, .search-input {
+                width: 100%;
+            }
+
+            .issues-table {
+                font-size: 12px;
+            }
+
+            .issues-table th, .issues-table td {
+                padding: 8px;
+            }
+
+            .hide-mobile {
+                display: none;
+            }
+        }
+
+        /* Recently Updated Animation */
+        @keyframes pulse {
+            0% { background-color: var(--accent); opacity: 0.3; }
+            50% { background-color: var(--accent); opacity: 0.1; }
+            100% { background-color: transparent; }
+        }
+
+        .recently-updated {
+            animation: pulse 2s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title">
+                    Issue Tracker Dashboard
+                </h1>
+                <div class="sync-status">
+                    Last sync: 2 seconds ago · Next: in 3s · 7 issues found
+                </div>
+            </div>
+            <div class="controls">
+                <button class="btn" onclick="location.reload()">Refresh</button>
+                <button class="btn" onclick="toggleTheme()">Theme</button>
+            </div>
+        </header>
+
+        <!-- Statistics Panel -->
+        <section class="stats-panel">
+            <div class="stat-card">
+                <div class="stat-label">Total Issues</div>
+                <div class="stat-value">7</div>
+                <div class="stat-bar">
+                    <div class="stat-bar-fill" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">In Progress</div>
+                <div class="stat-value">2</div>
+                <div class="stat-bar">
+                    <div class="stat-bar-fill" style="width: 28%"></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Planning</div>
+                <div class="stat-value">3</div>
+                <div class="stat-bar">
+                    <div class="stat-bar-fill" style="width: 43%"></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Complete</div>
+                <div class="stat-value">2</div>
+                <div class="stat-bar">
+                    <div class="stat-bar-fill" style="width: 28%"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filters Bar -->
+        <section class="filters-bar">
+            <select class="filter-select">
+                <option>All Status</option>
+                <option>Idea</option>
+                <option>Spec</option>
+                <option>Design</option>
+                <option>Review</option>
+                <option>Architecture</option>
+                <option>Planning</option>
+                <option>Implementing</option>
+                <option>Complete</option>
+                <option>Blocked</option>
+            </select>
+            <select class="filter-select">
+                <option>All Priority</option>
+                <option>Critical</option>
+                <option>High</option>
+                <option>Medium</option>
+                <option>Low</option>
+            </select>
+            <select class="filter-select">
+                <option>All Types</option>
+                <option>Feature</option>
+                <option>Enhancement</option>
+                <option>Bug</option>
+                <option>Performance</option>
+            </select>
+            <input type="text" class="search-input" placeholder="Search issues...">
+        </section>
+
+        <!-- Issues Table -->
+        <main class="issues-container">
+            <table class="issues-table">
+                <thead>
+                    <tr>
+                        <th>Issue</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th class="hide-mobile">Type</th>
+                        <th>Updated</th>
+                        <th>Progress</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="recently-updated">
+                        <td>
+                            <div class="issue-title">Performance Degradation Fix</div>
+                            <div class="issue-description">Phase 4: Complete worker and service optimization</div>
+                        </td>
+                        <td><span class="status-badge" style="background: #ff9900; color: white; font-size: 10px;">IMPLEMENTING</span></td>
+                        <td><span class="priority-badge priority-critical">Critical</span></td>
+                        <td class="hide-mobile">performance</td>
+                        <td>2h ago</td>
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill high" style="width: 85%"></div>
+                                </div>
+                                <span class="progress-text">85%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="issue-title">Custom Signals User Filtering</div>
+                            <div class="issue-description">Fix signal filtering for Pro/Elite users</div>
+                        </td>
+                        <td><span class="status-badge" style="background: #0088cc; color: white; font-size: 10px;">SPEC</span></td>
+                        <td><span class="priority-badge priority-high">High</span></td>
+                        <td class="hide-mobile">bug</td>
+                        <td>1d ago</td>
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill low" style="width: 20%"></div>
+                                </div>
+                                <span class="progress-text">20%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="issue-title">Issue Tracker Dashboard</div>
+                            <div class="issue-description">Auto-generate dashboard from markdown files</div>
+                        </td>
+                        <td><span class="status-badge" style="background: #00aaff; color: white; font-size: 10px;">PLANNING</span></td>
+                        <td><span class="priority-badge priority-medium">Medium</span></td>
+                        <td class="hide-mobile">enhancement</td>
+                        <td>just now</td>
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill low" style="width: 5%"></div>
+                                </div>
+                                <span class="progress-text">5%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="issue-title">Indicator Chart Race Condition</div>
+                            <div class="issue-description">Fixed chart rendering timing issues</div>
+                        </td>
+                        <td><span class="status-badge" style="background: #00ff88; color: black; font-size: 10px;">COMPLETE</span></td>
+                        <td><span class="priority-badge priority-high">High</span></td>
+                        <td class="hide-mobile">bug</td>
+                        <td>3d ago</td>
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill complete" style="width: 100%"></div>
+                                </div>
+                                <span class="progress-text">100%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="issue-title">My Signals Click Filtering</div>
+                            <div class="issue-description">Implement click-based signal filtering</div>
+                        </td>
+                        <td><span class="status-badge" style="background: #ff6600; color: white; font-size: 10px;">ARCHITECTURE</span></td>
+                        <td><span class="priority-badge priority-high">High</span></td>
+                        <td class="hide-mobile">enhancement</td>
+                        <td>2d ago</td>
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill medium" style="width: 40%"></div>
+                                </div>
+                                <span class="progress-text">40%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="issue-title">Portfolio Tracking Example</div>
+                            <div class="issue-description">Template for portfolio management feature</div>
+                        </td>
+                        <td><span class="status-badge" style="background: #888888; color: white; font-size: 10px;">IDEA</span></td>
+                        <td><span class="priority-badge priority-low">Low</span></td>
+                        <td class="hide-mobile">feature</td>
+                        <td>5d ago</td>
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill low" style="width: 0%"></div>
+                                </div>
+                                <span class="progress-text">0%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="issue-title">WebSocket Memory Optimization</div>
+                            <div class="issue-description">Reduced memory usage in worker threads</div>
+                        </td>
+                        <td><span class="status-badge" style="background: #00ff88; color: black; font-size: 10px;">COMPLETE</span></td>
+                        <td><span class="priority-badge priority-critical">Critical</span></td>
+                        <td class="hide-mobile">performance</td>
+                        <td>7d ago</td>
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill complete" style="width: 100%"></div>
+                                </div>
+                                <span class="progress-text">100%</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </main>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <div>Showing 7 of 7 issues</div>
+            <div>Dashboard Mockup v1.0</div>
+        </footer>
+    </div>
+
+    <script>
+        // Theme Toggle Function
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+
+            // Update button text
+            const themeBtn = document.querySelector('.controls .btn:last-child');
+            themeBtn.textContent = newTheme === 'dark' ? 'Dark' : 'Light';
+        }
+
+        // Simulate filter interactions
+        document.querySelectorAll('.filter-select').forEach(select => {
+            select.addEventListener('change', (e) => {
+                console.log('Filter changed:', e.target.value);
+                // In real implementation, this would filter the table
+            });
+        });
+
+        // Simulate search
+        document.querySelector('.search-input').addEventListener('input', (e) => {
+            console.log('Search query:', e.target.value);
+            // In real implementation, this would filter the table
+        });
+
+        // Simulate row clicks
+        document.querySelectorAll('.issues-table tbody tr').forEach(row => {
+            row.addEventListener('click', () => {
+                console.log('Issue clicked:', row.querySelector('.issue-title').textContent);
+                // In real implementation, this would open the issue file
+            });
+        });
+
+        // Simulate auto-refresh counter
+        let seconds = 3;
+        setInterval(() => {
+            seconds--;
+            if (seconds === 0) {
+                seconds = 5;
+                document.querySelector('.sync-status').textContent =
+                    `Last sync: just now · Next: in ${seconds}s · 7 issues found`;
+            } else {
+                document.querySelector('.sync-status').textContent =
+                    `Last sync: ${5 - seconds} seconds ago · Next: in ${seconds}s · 7 issues found`;
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

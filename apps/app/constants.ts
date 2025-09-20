@@ -30,3 +30,49 @@ export const DEBUG_MODE = false;
 
 // Maximum number of signal log entries to keep in memory
 export const MAX_SIGNAL_LOG_ENTRIES = 100;
+
+// Stablecoin blacklist - these base assets will be filtered out
+export const STABLECOIN_BLACKLIST = [
+  'USDC',  // USD Coin
+  'BUSD',  // Binance USD
+  'TUSD',  // TrueUSD
+  'USDP',  // Pax Dollar
+  'FDUSD', // First Digital USD
+  'DAI',   // DAI
+  'FRAX',  // Frax
+  'USTC',  // TerraClassicUSD
+  'UST',   // TerraUSD
+  'AEUR',  // Anchored EUR
+  'EURT',  // Euro Tether
+  'EUROC', // Euro Coin
+  'USDD',  // Decentralized USD
+  'GUSD',  // Gemini Dollar
+  'SUSD',  // sUSD
+  'LUSD',  // Liquity USD
+  'CUSD',  // Celo Dollar
+  'MUSD',  // mStable USD
+  'OUSD',  // Origin Dollar
+  'EURS',  // STASIS EURO
+  'XSGD',  // Singapore Dollar
+  'BIDR',  // Binance IDR
+  'IDRT',  // Rupiah Token
+  'BKRW',  // Binance KRW
+  'USDX',  // USD Digital
+  'TRYB',  // BiLira
+  'VAI',   // VAI
+  'USDJ',  // JUST Stablecoin
+  'USDN',  // Neutrino USD
+  'CUSDT', // Compound USDT
+  'CUSDC', // Compound USDC
+  'CDAI',  // Compound DAI
+  'HUSD',  // HUSD
+  'RSV',   // Reserve
+  'USDK',  // OKLink USD
+  'USDQ',  // USDQ
+  'USDEX', // USDEX
+  'USDS',  // StableUSD
+  'RUSD',  // Realio USD
+  'ZUSD',  // Z.com USD
+  'DUSD',  // DefiChain USD
+  'AGEUR', // Angle EUR
+];

@@ -1,4 +1,4 @@
-import { API_BASE_URL, WS_BASE_URL, TOP_N_PAIRS_LIMIT, KLINE_HISTORY_LIMIT, DEBUG_MODE } from '../constants';
+import { API_BASE_URL, WS_BASE_URL, TOP_N_PAIRS_LIMIT, KLINE_HISTORY_LIMIT, DEBUG_MODE, STABLECOIN_BLACKLIST } from '../constants';
 import { Ticker, Kline, KlineInterval } from '../types';
 
 export async function fetchTopPairsAndInitialKlines(
@@ -14,7 +14,25 @@ export async function fetchTopPairsAndInitialKlines(
     const allApiTickers: any[] = await tickerResponse.json();
 
   const spotTickers = allApiTickers
-    .filter(t => t.symbol.endsWith('USDT') && !t.symbol.includes('_') && !t.symbol.includes('UP') && !t.symbol.includes('DOWN') && !t.symbol.includes('BEAR') && !t.symbol.includes('BULL') && parseFloat(t.quoteVolume) > 100000) // Basic filtering for spot USDT pairs with decent volume
+    .filter(t => {
+      // Basic checks for USDT pairs
+      if (!t.symbol.endsWith('USDT')) return false;
+      if (t.symbol.includes('_')) return false; // Exclude futures/options
+      if (t.symbol.includes('UP') || t.symbol.includes('DOWN')) return false; // Exclude leveraged tokens
+      if (t.symbol.includes('BEAR') || t.symbol.includes('BULL')) return false; // Exclude leveraged tokens
+      if (parseFloat(t.quoteVolume) <= 100000) return false; // Volume threshold
+
+      // Extract base asset (remove USDT suffix)
+      const baseAsset = t.symbol.slice(0, -4); // Remove 'USDT'
+
+      // Check if base asset is a stablecoin
+      if (STABLECOIN_BLACKLIST.includes(baseAsset)) {
+        if (DEBUG_MODE) console.log(`Filtering out stablecoin: ${t.symbol}`);
+        return false;
+      }
+
+      return true;
+    })
     .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
     .slice(0, TOP_N_PAIRS_LIMIT);
 

@@ -836,7 +836,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         }
 
         const dataPoints = calculatedIndicators.get(indicator.id) || [];
-        const loadingState = loadingStatesRef.current.get(indicator.id);
+        const loadingState = loadingStates.get(indicator.id);
         const isLoading = loadingState?.isLoading || false;
 
         // Update title to remove "(calculating...)" when data arrives
@@ -889,7 +889,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         panelChart.update('none');
       });
     }
-  }, [klines, calculatedIndicators, indicators, syncIndicatorCharts]); 
+  }, [klines, calculatedIndicators, indicators, syncIndicatorCharts, loadingStates]); 
 
   // Update crosshair position across all charts
   useEffect(() => {

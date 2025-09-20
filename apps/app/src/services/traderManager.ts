@@ -394,7 +394,8 @@ export class TraderManager implements ITraderManager {
         // Subscription fields
         userId: data.user_id,
         ownershipType: data.ownership_type || 'user',
-        accessTier: data.access_tier || 'elite',
+        // Custom signals should be accessible to their creators regardless of tier
+        accessTier: data.created_by ? 'anonymous' : (data.access_tier || 'free'),
         isBuiltIn: data.is_built_in || false,
         category: data.category,
         difficulty: data.difficulty,

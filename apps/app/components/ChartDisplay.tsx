@@ -321,6 +321,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
   // Create or recreate charts only when symbol or interval changes
   useEffect(() => {
+    console.log(`[DEBUG ${new Date().toISOString()}] Chart creation useEffect triggered. Symbol: ${symbol}, Interval: ${interval}, calculatedIndicators size: ${calculatedIndicators.size}`);
 
     // Save current zoom/pan state before destroying charts (if we have one)
     if (priceChartInstanceRef.current?.scales?.x) {
@@ -586,10 +587,17 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
     // --- Panel Indicators ---
     panelIndicators.forEach((indicator, idx) => {
         const canvasRef = panelCanvasRefs.current[idx];
-        if (!canvasRef) return;
+        if (!canvasRef) {
+            console.log(`[DEBUG ${new Date().toISOString()}] No canvas ref for panel indicator ${indicator.name} at index ${idx}`);
+            return;
+        }
 
         const dataPoints = calculatedIndicators.get(indicator.id) || [];
-        if (dataPoints.length === 0) return;
+        if (dataPoints.length === 0) {
+            console.log(`[DEBUG ${new Date().toISOString()}] RACE CONDITION: No data for panel indicator ${indicator.name} (id: ${indicator.id}). calculatedIndicators size: ${calculatedIndicators.size}, keys: ${Array.from(calculatedIndicators.keys()).join(', ')}`);
+            return;
+        }
+        console.log(`[DEBUG ${new Date().toISOString()}] Creating panel chart for ${indicator.name} with ${dataPoints.length} data points`);
 
         const datasets: any[] = [];
         
@@ -787,6 +795,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
   // Separate effect to update chart data without recreating the chart
   useEffect(() => {
+    console.log(`[DEBUG ${new Date().toISOString()}] Chart data update useEffect triggered. Has price chart: ${!!priceChartInstanceRef.current}, klines: ${klines?.length || 0}, calculatedIndicators size: ${calculatedIndicators.size}`);
     if (!priceChartInstanceRef.current || !klines || klines.length === 0) {
       return;
     }
@@ -843,12 +852,20 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
       
       // Update panel charts similarly
       const panelIndicators = indicators?.filter(ind => ind.panel) || [];
+      console.log(`[DEBUG ${new Date().toISOString()}] Updating panel charts. Count: ${panelIndicators.length}, Existing charts: ${panelChartInstanceRefs.current.length}`);
       panelIndicators.forEach((indicator, idx) => {
         const panelChart = panelChartInstanceRefs.current[idx];
-        if (!panelChart) return;
-        
+        if (!panelChart) {
+            console.log(`[DEBUG ${new Date().toISOString()}] WARNING: No panel chart instance for ${indicator.name} at index ${idx}. Chart was never created due to missing data!`);
+            return;
+        }
+
         const dataPoints = calculatedIndicators.get(indicator.id) || [];
-        if (dataPoints.length === 0) return;
+        if (dataPoints.length === 0) {
+            console.log(`[DEBUG ${new Date().toISOString()}] No data to update for panel ${indicator.name}`);
+            return;
+        }
+        console.log(`[DEBUG ${new Date().toISOString()}] Updating panel chart ${indicator.name} with ${dataPoints.length} points`);
         
         // Update panel chart datasets
         let panelDatasetIndex = 0;

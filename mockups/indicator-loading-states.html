@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indicator Loading States - Mockup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, 'Inter', sans-serif;
+            background: #0a0a0b;
+            color: #f5f5f7;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #f59e0b;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        .description {
+            color: #9ca3af;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .demo-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background: #131316;
+            border-radius: 8px;
+            border: 1px solid #3f3f46;
+        }
+
+        .demo-title {
+            color: #f59e0b;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .charts-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chart-panel {
+            background: #1a1a1d;
+            border: 1px solid #3f3f46;
+            border-radius: 4px;
+            height: 150px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-title {
+            position: absolute;
+            top: 8px;
+            left: 12px;
+            font-size: 11px;
+            color: #f5f5f7;
+            z-index: 10;
+            transition: color 0.3s ease;
+        }
+
+        .chart-title.loading {
+            color: #9ca3af;
+        }
+
+        .chart-grid {
+            width: 100%;
+            height: 100%;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(255,255,255,0.05) 29px, rgba(255,255,255,0.05) 30px),
+                repeating-linear-gradient(90deg, transparent, transparent 99px, rgba(255,255,255,0.05) 99px, rgba(255,255,255,0.05) 100px);
+        }
+
+        .chart-axes {
+            position: absolute;
+            bottom: 20px;
+            left: 60px;
+            right: 35px;
+            top: 30px;
+            border-left: 1px solid #3f3f46;
+            border-bottom: 1px solid #3f3f46;
+        }
+
+        .chart-data {
+            position: absolute;
+            bottom: 20px;
+            left: 60px;
+            right: 35px;
+            top: 30px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .chart-data.visible {
+            opacity: 1;
+        }
+
+        .chart-line {
+            stroke: #8efbba;
+            stroke-width: 1.5;
+            fill: none;
+        }
+
+        .chart-bar {
+            fill: #8efbba;
+            opacity: 0.7;
+        }
+
+        .demo-controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #f59e0b;
+            color: #0a0a0b;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #d97706;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            padding: 8px 12px;
+            background: #1a1a1d;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .key-points {
+            background: #1a1a1d;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+
+        .key-points h3 {
+            color: #10b981;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .key-points ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .key-points li {
+            color: #d4d4d8;
+            font-size: 13px;
+            line-height: 1.8;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .key-points li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Indicator Chart Loading States - UX Mockup</h1>
+        <p class="description">
+            This mockup demonstrates how indicator charts will display during the loading phase.
+            Charts are created immediately with empty datasets, showing grid and axes, with "(calculating...)"
+            in the title. When data arrives, it populates smoothly without recreation.
+        </p>
+
+        <!-- Demo 1: Single Indicator Loading -->
+        <div class="demo-section">
+            <h2 class="demo-title">Demo 1: Single Indicator Loading Sequence</h2>
+            <div class="charts-container">
+                <div class="chart-panel">
+                    <div class="chart-title loading" id="rsi-title">RSI (14) (calculating...)</div>
+                    <div class="chart-grid"></div>
+                    <div class="chart-axes"></div>
+                    <div class="chart-data" id="rsi-data">
+                        <svg width="100%" height="100%" viewBox="0 0 800 100">
+                            <polyline class="chart-line" points="0,50 50,45 100,30 150,25 200,35 250,60 300,70 350,65 400,55 450,40 500,30 550,35 600,45 650,60 700,70 750,65"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="demo-controls">
+                <button onclick="simulateSingleLoad()">Simulate Loading</button>
+                <button onclick="resetSingle()">Reset</button>
+                <span class="status" id="single-status">Ready to load</span>
+            </div>
+        </div>
+
+        <!-- Demo 2: Multiple Panel Indicators -->
+        <div class="demo-section">
+            <h2 class="demo-title">Demo 2: Multiple Panel Indicators (Progressive Loading)</h2>
+            <div class="charts-container">
+                <div class="chart-panel">
+                    <div class="chart-title loading" id="macd-title">MACD (12, 26, 9) (calculating...)</div>
+                    <div class="chart-grid"></div>
+                    <div class="chart-axes"></div>
+                    <div class="chart-data" id="macd-data">
+                        <svg width="100%" height="100%" viewBox="0 0 800 100">
+                            <rect class="chart-bar" x="10" y="45" width="10" height="10"/>
+                            <rect class="chart-bar" x="30" y="40" width="10" height="15"/>
+                            <rect class="chart-bar" x="50" y="35" width="10" height="20"/>
+                            <rect class="chart-bar" x="70" y="30" width="10" height="25"/>
+                            <rect class="chart-bar" x="90" y="35" width="10" height="20"/>
+                            <rect class="chart-bar" x="110" y="40" width="10" height="15"/>
+                            <rect class="chart-bar" x="130" y="45" width="10" height="10"/>
+                            <rect class="chart-bar" x="150" y="50" width="10" height="5"/>
+                            <rect class="chart-bar" x="170" y="55" width="10" height="5" fill="#ef4444"/>
+                            <rect class="chart-bar" x="190" y="55" width="10" height="10" fill="#ef4444"/>
+                            <rect class="chart-bar" x="210" y="55" width="10" height="15" fill="#ef4444"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="chart-panel">
+                    <div class="chart-title loading" id="stoch-title">Stochastic (14, 3, 3) (calculating...)</div>
+                    <div class="chart-grid"></div>
+                    <div class="chart-axes"></div>
+                    <div class="chart-data" id="stoch-data">
+                        <svg width="100%" height="100%" viewBox="0 0 800 100">
+                            <polyline class="chart-line" points="0,80 100,70 200,60 300,40 400,30 500,20 600,25 700,40 750,50"/>
+                            <polyline class="chart-line" stroke="#f59e0b" stroke-dasharray="5,5" points="0,75 100,75 200,70 300,50 400,40 500,30 600,35 700,45 750,55"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="chart-panel">
+                    <div class="chart-title loading" id="volume-title">Volume (calculating...)</div>
+                    <div class="chart-grid"></div>
+                    <div class="chart-axes"></div>
+                    <div class="chart-data" id="volume-data">
+                        <svg width="100%" height="100%" viewBox="0 0 800 100">
+                            <rect class="chart-bar" x="10" y="70" width="15" height="30" fill="#10b981"/>
+                            <rect class="chart-bar" x="30" y="60" width="15" height="40" fill="#10b981"/>
+                            <rect class="chart-bar" x="50" y="50" width="15" height="50" fill="#ef4444"/>
+                            <rect class="chart-bar" x="70" y="40" width="15" height="60" fill="#10b981"/>
+                            <rect class="chart-bar" x="90" y="55" width="15" height="45" fill="#ef4444"/>
+                            <rect class="chart-bar" x="110" y="65" width="15" height="35" fill="#10b981"/>
+                            <rect class="chart-bar" x="130" y="45" width="15" height="55" fill="#10b981"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="demo-controls">
+                <button onclick="simulateProgressiveLoad()">Simulate Progressive Loading</button>
+                <button onclick="resetMultiple()">Reset All</button>
+                <span class="status" id="multi-status">Ready to load</span>
+            </div>
+        </div>
+
+        <!-- Demo 3: Rapid Symbol Switching -->
+        <div class="demo-section">
+            <h2 class="demo-title">Demo 3: Rapid Symbol Switching (Cancellation)</h2>
+            <div class="charts-container">
+                <div class="chart-panel">
+                    <div class="chart-title" id="switch-title">RSI (14)</div>
+                    <div class="chart-grid"></div>
+                    <div class="chart-axes"></div>
+                    <div class="chart-data visible" id="switch-data">
+                        <svg width="100%" height="100%" viewBox="0 0 800 100">
+                            <polyline class="chart-line" id="switch-line" points="0,50 50,45 100,30 150,25 200,35 250,60 300,70 350,65 400,55 450,40 500,30 550,35 600,45 650,60 700,70 750,65"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="demo-controls">
+                <button onclick="rapidSwitch('BTCUSDT')">Switch to BTCUSDT</button>
+                <button onclick="rapidSwitch('ETHUSDT')">Switch to ETHUSDT</button>
+                <button onclick="rapidSwitch('BNBUSDT')">Switch to BNBUSDT</button>
+                <button onclick="simulateRapidClicks()">Simulate 5 Rapid Clicks</button>
+                <span class="status" id="switch-status">Current: BTCUSDT</span>
+            </div>
+        </div>
+
+        <!-- Key Points -->
+        <div class="demo-section">
+            <div class="key-points">
+                <h3>✅ Key Implementation Points:</h3>
+                <ul>
+                    <li>Charts render immediately with grid and axes visible</li>
+                    <li>Loading state shown in title with gray color (#9ca3af)</li>
+                    <li>No dummy or placeholder data - empty datasets only</li>
+                    <li>Smooth opacity transition when real data arrives</li>
+                    <li>Progressive loading - each indicator appears when ready</li>
+                    <li>Previous calculations cancelled on rapid switching</li>
+                    <li>No layout shift or flicker during transitions</li>
+                    <li>Professional appearance maintained throughout</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Demo 1: Single Indicator Loading
+        function simulateSingleLoad() {
+            const title = document.getElementById('rsi-title');
+            const data = document.getElementById('rsi-data');
+            const status = document.getElementById('single-status');
+
+            // Reset state
+            title.textContent = 'RSI (14) (calculating...)';
+            title.classList.add('loading');
+            data.classList.remove('visible');
+            status.textContent = 'Loading...';
+
+            // Simulate calculation time
+            setTimeout(() => {
+                title.textContent = 'RSI (14)';
+                title.classList.remove('loading');
+                data.classList.add('visible');
+                status.textContent = 'Loaded successfully';
+            }, 800);
+        }
+
+        function resetSingle() {
+            document.getElementById('rsi-title').textContent = 'RSI (14) (calculating...)';
+            document.getElementById('rsi-title').classList.add('loading');
+            document.getElementById('rsi-data').classList.remove('visible');
+            document.getElementById('single-status').textContent = 'Ready to load';
+        }
+
+        // Demo 2: Progressive Loading
+        function simulateProgressiveLoad() {
+            const indicators = [
+                { id: 'macd', name: 'MACD (12, 26, 9)', delay: 500 },
+                { id: 'stoch', name: 'Stochastic (14, 3, 3)', delay: 900 },
+                { id: 'volume', name: 'Volume', delay: 1300 }
+            ];
+
+            const status = document.getElementById('multi-status');
+            status.textContent = 'Loading indicators...';
+
+            // Reset all
+            indicators.forEach(ind => {
+                const title = document.getElementById(`${ind.id}-title`);
+                const data = document.getElementById(`${ind.id}-data`);
+                title.textContent = `${ind.name} (calculating...)`;
+                title.classList.add('loading');
+                data.classList.remove('visible');
+            });
+
+            // Load progressively
+            indicators.forEach(ind => {
+                setTimeout(() => {
+                    const title = document.getElementById(`${ind.id}-title`);
+                    const data = document.getElementById(`${ind.id}-data`);
+                    title.textContent = ind.name;
+                    title.classList.remove('loading');
+                    data.classList.add('visible');
+
+                    // Check if all loaded
+                    const allLoaded = indicators.every(i =>
+                        document.getElementById(`${i.id}-data`).classList.contains('visible')
+                    );
+                    if (allLoaded) {
+                        status.textContent = 'All indicators loaded';
+                    }
+                }, ind.delay);
+            });
+        }
+
+        function resetMultiple() {
+            const indicators = ['macd', 'stoch', 'volume'];
+            indicators.forEach(id => {
+                const title = document.getElementById(`${id}-title`);
+                const data = document.getElementById(`${id}-data`);
+                const name = title.textContent.replace(' (calculating...)', '');
+                title.textContent = `${name} (calculating...)`;
+                title.classList.add('loading');
+                data.classList.remove('visible');
+            });
+            document.getElementById('multi-status').textContent = 'Ready to load';
+        }
+
+        // Demo 3: Rapid Switching
+        let currentLoadTimeout = null;
+
+        function rapidSwitch(symbol) {
+            const title = document.getElementById('switch-title');
+            const data = document.getElementById('switch-data');
+            const status = document.getElementById('switch-status');
+            const line = document.getElementById('switch-line');
+
+            // Cancel previous load if exists
+            if (currentLoadTimeout) {
+                clearTimeout(currentLoadTimeout);
+                console.log('Cancelled previous calculation');
+            }
+
+            // Start loading new symbol
+            title.textContent = 'RSI (14) (calculating...)';
+            title.classList.add('loading');
+            data.classList.remove('visible');
+            status.textContent = `Loading ${symbol}...`;
+
+            // Generate random line data for variety
+            const points = [];
+            for (let i = 0; i <= 750; i += 50) {
+                const y = 20 + Math.random() * 60;
+                points.push(`${i},${y}`);
+            }
+
+            currentLoadTimeout = setTimeout(() => {
+                line.setAttribute('points', points.join(' '));
+                title.textContent = 'RSI (14)';
+                title.classList.remove('loading');
+                data.classList.add('visible');
+                status.textContent = `Current: ${symbol}`;
+                currentLoadTimeout = null;
+            }, 600);
+        }
+
+        function simulateRapidClicks() {
+            const symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'ADAUSDT'];
+            let index = 0;
+
+            const interval = setInterval(() => {
+                rapidSwitch(symbols[index]);
+                index++;
+                if (index >= symbols.length) {
+                    clearInterval(interval);
+                }
+            }, 200); // Click every 200ms
+        }
+    </script>
+</body>
+</html>

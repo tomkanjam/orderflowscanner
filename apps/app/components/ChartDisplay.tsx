@@ -5,6 +5,7 @@ import { CandlestickController, CandlestickElement, OhlcController, OhlcElement 
 import zoomPlugin from 'chartjs-plugin-zoom';
 import { Kline, CustomIndicatorConfig, CandlestickDataPoint, SignalLogEntry, HistoricalSignal, KlineInterval, IndicatorDataPoint } from '../types';
 import { useIndicatorWorker } from '../hooks/useIndicatorWorker';
+import { createEmptyDatasets, createIndicatorDatasets } from '../utils/chartHelpers';
 
 Chart.register(...registerables, CandlestickController, CandlestickElement, OhlcController, OhlcElement, Filler, zoomPlugin);
 
@@ -195,7 +196,11 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   // State for calculated indicator data
   const [calculatedIndicators, setCalculatedIndicators] = useState<Map<string, IndicatorDataPoint[]>>(new Map());
   const [isCalculating, setIsCalculating] = useState(false);
-  
+
+  // Loading state management for indicators
+  const [loadingStates, setLoadingStates] = useState<Map<string, { isLoading: boolean; startTime: number }>>(new Map());
+  const currentSymbolRef = useRef<string | null>(null);
+
   // State for crosshair synchronization
   const [crosshairX, setCrosshairX] = useState<number | null>(null);
   
@@ -208,7 +213,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   const zoomStateRef = useRef<{ min: number | undefined; max: number | undefined }>({ min: undefined, max: undefined });
   
   // Use the indicator worker hook
-  const { calculateIndicators } = useIndicatorWorker();
+  const { calculateIndicators, cancelCalculations } = useIndicatorWorker();
 
   const destroyAllCharts = () => {
     // Destroy panel charts
@@ -292,36 +297,79 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   useEffect(() => {
     if (!indicators || !klines || klines.length === 0) {
       setCalculatedIndicators(new Map());
+      setLoadingStates(new Map());
       return;
     }
-    
-    console.log(`[DEBUG ${new Date().toISOString()}] ChartDisplay useEffect triggered - recalculating indicators`, {
-      indicatorsLength: indicators.length,
-      klinesLength: klines.length,
-      klinesRef: klines // Log the reference to see if it changes
+
+    // Initialize loading states for all indicators
+    const newLoadingStates = new Map<string, { isLoading: boolean; startTime: number }>();
+    indicators.forEach(indicator => {
+      newLoadingStates.set(indicator.id, { isLoading: true, startTime: Date.now() });
     });
-    
+    setLoadingStates(newLoadingStates);
+
+    // Debug: Indicator calculation triggered
+    // console.log(`[DEBUG ${new Date().toISOString()}] ChartDisplay useEffect triggered - recalculating indicators`, {
+    //   indicatorsLength: indicators.length,
+    //   klinesLength: klines.length,
+    //   klinesRef: klines
+    // });
+
+    let isCurrentCalculation = true;
+
     const calculateAllIndicators = async () => {
       setIsCalculating(true);
-      console.log(`[DEBUG ${new Date().toISOString()}] Starting indicator calculation`);
+      // console.log(`[DEBUG ${new Date().toISOString()}] Starting indicator calculation for symbol: ${symbol}`);
       try {
         const results = await calculateIndicators(indicators, klines);
-        setCalculatedIndicators(results);
-        console.log(`[DEBUG ${new Date().toISOString()}] Indicator calculation completed`, results.size);
+
+        // Only update if this is still the current calculation (not cancelled)
+        if (isCurrentCalculation) {
+          setCalculatedIndicators(results);
+
+          // Clear loading states for completed indicators
+          setLoadingStates(prev => {
+            const next = new Map(prev);
+            results.forEach((_, indicatorId) => {
+              next.delete(indicatorId);
+            });
+            return next;
+          });
+
+          // console.log(`[DEBUG ${new Date().toISOString()}] Indicator calculation completed`, results.size);
+        } else {
+          // console.log(`[DEBUG ${new Date().toISOString()}] Calculation results ignored (symbol changed)`);
+        }
       } catch (error) {
-        console.error('Error calculating indicators:', error);
+        if (isCurrentCalculation) {
+          console.error('Error calculating indicators:', error);
+        }
       } finally {
-        setIsCalculating(false);
-        console.log(`[DEBUG ${new Date().toISOString()}] Indicator calculation finished (finally block)`);
+        if (isCurrentCalculation) {
+          setIsCalculating(false);
+          // console.log(`[DEBUG ${new Date().toISOString()}] Indicator calculation finished (finally block)`);
+        }
       }
     };
-    
+
     calculateAllIndicators();
-  }, [indicators, klines, calculateIndicators]);
+
+    // Cleanup: Cancel calculations if component unmounts or dependencies change
+    return () => {
+      isCurrentCalculation = false;
+      cancelCalculations(indicators.map(ind => ind.id));
+      // console.log(`[DEBUG ${new Date().toISOString()}] Cancelled pending calculations for symbol: ${symbol}`);
+    };
+  }, [indicators, klines, calculateIndicators, cancelCalculations, symbol]);
 
   // Create or recreate charts only when symbol or interval changes
   useEffect(() => {
-    console.log(`[DEBUG ${new Date().toISOString()}] Chart creation useEffect triggered. Symbol: ${symbol}, Interval: ${interval}, calculatedIndicators size: ${calculatedIndicators.size}`);
+    // console.log(`[DEBUG ${new Date().toISOString()}] Chart creation useEffect triggered. Symbol: ${symbol}, Interval: ${interval}, calculatedIndicators size: ${calculatedIndicators.size}`);
+
+    // Track current symbol for cancellation
+    if (symbol) {
+      currentSymbolRef.current = symbol;
+    }
 
     // Save current zoom/pan state before destroying charts (if we have one)
     if (priceChartInstanceRef.current?.scales?.x) {
@@ -588,100 +636,24 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
     panelIndicators.forEach((indicator, idx) => {
         const canvasRef = panelCanvasRefs.current[idx];
         if (!canvasRef) {
-            console.log(`[DEBUG ${new Date().toISOString()}] No canvas ref for panel indicator ${indicator.name} at index ${idx}`);
+            console.warn(`No canvas ref for panel indicator ${indicator.name} at index ${idx}`);
             return;
         }
 
         const dataPoints = calculatedIndicators.get(indicator.id) || [];
-        if (dataPoints.length === 0) {
-            console.log(`[DEBUG ${new Date().toISOString()}] RACE CONDITION: No data for panel indicator ${indicator.name} (id: ${indicator.id}). calculatedIndicators size: ${calculatedIndicators.size}, keys: ${Array.from(calculatedIndicators.keys()).join(', ')}`);
-            return;
-        }
-        console.log(`[DEBUG ${new Date().toISOString()}] Creating panel chart for ${indicator.name} with ${dataPoints.length} data points`);
+        const isLoading = loadingStates.has(indicator.id);
 
-        const datasets: any[] = [];
-        
-        if (indicator.chartType === 'bar') {
-            // Bar chart (e.g., Volume, MACD Histogram)
-            datasets.push({
-                type: 'bar',
-                label: indicator.name,
-                data: dataPoints.map(p => ({x: p.x, y: p.y})),
-                backgroundColor: (ctx: any) => {
-                    const point = dataPoints[ctx.dataIndex];
-                    if (point?.color) return point.color;
-                    
-                    // Default coloring based on positive/negative
-                    if (indicator.style.barColors) {
-                        const val = point?.y || 0;
-                        if (val > 0) return indicator.style.barColors.positive || '#10b981';
-                        if (val < 0) return indicator.style.barColors.negative || '#ef4444';
-                        return indicator.style.barColors.neutral || '#71717a';
-                    }
-                    
-                    return Array.isArray(indicator.style.color) 
-                        ? indicator.style.color[0] 
-                        : (indicator.style.color || '#9ca3af');
-                }
-            });
-        } else if (indicator.chartType === 'line') {
-            // Line chart (can be multi-line)
-            const hasMultipleLines = dataPoints.some(p => p.y2 !== undefined);
-            
-            if (hasMultipleLines) {
-                const colors = Array.isArray(indicator.style.color) 
-                    ? indicator.style.color 
-                    : [indicator.style.color || '#8efbba'];
-                
-                const lineNames = ['', ' Signal', ' Lower', ' 4th'];
-                ['y', 'y2', 'y3', 'y4'].forEach((key, idx) => {
-                    const yKey = key as keyof IndicatorDataPoint;
-                    if (dataPoints.some(p => p[yKey] !== undefined)) {
-                        // Special handling for histogram-like data in MACD
-                        if (idx === 2 && indicator.name.toLowerCase().includes('macd')) {
-                            // MACD histogram as bars
-                            datasets.push({
-                                type: 'bar',
-                                label: `${indicator.name} Histogram`,
-                                data: dataPoints.map(p => ({x: p.x, y: p.y3})),
-                                backgroundColor: (ctx: any) => {
-                                    const val = dataPoints[ctx.dataIndex]?.y3 || 0;
-                                    return val >= 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)';
-                                }
-                            });
-                        } else {
-                            // Regular line
-                            datasets.push({
-                                type: 'line',
-                                label: `${indicator.name}${lineNames[idx]}`,
-                                data: dataPoints.map(p => ({x: p.x, y: p[yKey]})),
-                                borderColor: colors[idx] || colors[0],
-                                borderWidth: indicator.style.lineWidth || 1.5,
-                                pointRadius: 0,
-                                fill: false,
-                                borderDash: idx > 0 && indicator.name.toLowerCase().includes('rsi') ? [5, 5] : undefined
-                            });
-                        }
-                    }
-                });
-            } else {
-                // Single line
-                datasets.push({
-                    type: 'line',
-                    label: indicator.name,
-                    data: dataPoints.map(p => ({x: p.x, y: p.y})),
-                    borderColor: Array.isArray(indicator.style.color) 
-                        ? indicator.style.color[0] 
-                        : (indicator.style.color || '#8efbba'),
-                    borderWidth: indicator.style.lineWidth || 1.5,
-                    pointRadius: 0,
-                    fill: indicator.style.fillColor ? {
-                        target: 'origin',
-                        above: indicator.style.fillColor
-                    } : false
-                });
-            }
-        }
+        // CORE FIX: Always create chart, even with empty data
+        const datasets = dataPoints.length > 0
+            ? createIndicatorDatasets(dataPoints, indicator)
+            : createEmptyDatasets(indicator);
+
+        // Dynamic title with loading state
+        const chartTitle = isLoading && dataPoints.length === 0
+            ? `${indicator.name} (calculating...)`
+            : indicator.name;
+
+        // console.log(`[DEBUG ${new Date().toISOString()}] Creating panel chart for ${indicator.name} with ${dataPoints.length} data points, loading: ${isLoading}`);
 
         const chartConfig: ChartConfiguration = {
             type: datasets[0]?.type || 'line',
@@ -698,10 +670,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 layout: { padding: { top: 0, bottom: 0, left: 60, right: 35 } },
                 plugins: {
                     legend: { display: false },
-                    title: { 
-                        display: true, 
-                        text: indicator.name, 
-                        color: '#f5f5f7', 
+                    title: {
+                        display: true,
+                        text: chartTitle,
+                        color: isLoading ? '#9ca3af' : '#f5f5f7', 
                         font: { size: 11 }, 
                         align: 'left', 
                         padding: { top: 0, bottom: 0 } 
@@ -748,11 +720,14 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                         grid: { display: false }, // Hide grid lines
                         ticks: { display: false } 
                     },
-                    y: { 
-                        type: 'linear', 
-                        display: true, 
-                        position: indicator.yAxisConfig?.position || 'left', 
-                        grid: { display: false }, // Hide grid lines
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: indicator.yAxisConfig?.position || 'left',
+                        grid: {
+                            display: dataPoints.length === 0, // Show grid for empty charts
+                            color: 'rgba(255, 255, 255, 0.05)'
+                        },
                         ticks: { 
                             color: '#d4d4d8', 
                             font: { size: 10 }, 
@@ -795,7 +770,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
   // Separate effect to update chart data without recreating the chart
   useEffect(() => {
-    console.log(`[DEBUG ${new Date().toISOString()}] Chart data update useEffect triggered. Has price chart: ${!!priceChartInstanceRef.current}, klines: ${klines?.length || 0}, calculatedIndicators size: ${calculatedIndicators.size}`);
+    // console.log(`[DEBUG ${new Date().toISOString()}] Chart data update useEffect triggered. Has price chart: ${!!priceChartInstanceRef.current}, klines: ${klines?.length || 0}, calculatedIndicators size: ${calculatedIndicators.size}`);
     if (!priceChartInstanceRef.current || !klines || klines.length === 0) {
       return;
     }
@@ -852,21 +827,37 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
       
       // Update panel charts similarly
       const panelIndicators = indicators?.filter(ind => ind.panel) || [];
-      console.log(`[DEBUG ${new Date().toISOString()}] Updating panel charts. Count: ${panelIndicators.length}, Existing charts: ${panelChartInstanceRefs.current.length}`);
+      // console.log(`[DEBUG ${new Date().toISOString()}] Updating panel charts. Count: ${panelIndicators.length}, Existing charts: ${panelChartInstanceRefs.current.length}`);
       panelIndicators.forEach((indicator, idx) => {
         const panelChart = panelChartInstanceRefs.current[idx];
         if (!panelChart) {
-            console.log(`[DEBUG ${new Date().toISOString()}] WARNING: No panel chart instance for ${indicator.name} at index ${idx}. Chart was never created due to missing data!`);
+            console.warn(`No panel chart instance for ${indicator.name} at index ${idx}`);
             return;
         }
 
         const dataPoints = calculatedIndicators.get(indicator.id) || [];
+        const loadingState = loadingStatesRef.current.get(indicator.id);
+        const isLoading = loadingState?.isLoading || false;
+
+        // Update title to remove "(calculating...)" when data arrives
+        if (panelChart.options.plugins?.title) {
+            const titleText = isLoading && dataPoints.length === 0
+                ? `${indicator.name} (calculating...)`
+                : indicator.name;
+            panelChart.options.plugins.title.text = titleText;
+            panelChart.options.plugins.title.color = isLoading && dataPoints.length === 0 ? '#9ca3af' : '#f5f5f7';
+        }
+
         if (dataPoints.length === 0) {
-            console.log(`[DEBUG ${new Date().toISOString()}] No data to update for panel ${indicator.name}`);
+            // console.log(`[DEBUG ${new Date().toISOString()}] No data to update for panel ${indicator.name} - keeping empty chart visible`);
+            // Still update the chart to ensure title changes are reflected
+            panelChart.options.scales!.x!.min = chart.scales.x.min;
+            panelChart.options.scales!.x!.max = chart.scales.x.max;
+            panelChart.update('none');
             return;
         }
-        console.log(`[DEBUG ${new Date().toISOString()}] Updating panel chart ${indicator.name} with ${dataPoints.length} points`);
-        
+        // console.log(`[DEBUG ${new Date().toISOString()}] Updating panel chart ${indicator.name} with ${dataPoints.length} points`);
+
         // Update panel chart datasets
         let panelDatasetIndex = 0;
         if (indicator.chartType === 'bar') {

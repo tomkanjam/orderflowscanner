@@ -6,6 +6,7 @@ interface IndicatorCalculation {
   klines: Kline[];
   resolve: (data: IndicatorDataPoint[]) => void;
   reject: (error: Error) => void;
+  cancelled?: boolean;
 }
 
 export function useIndicatorWorker() {
@@ -24,8 +25,14 @@ export function useIndicatorWorker() {
     workerRef.current.onmessage = (event) => {
       const { id, type, data, error } = event.data;
       const pending = pendingCalculations.current.get(id);
-      
+
       if (pending) {
+        // Skip if calculation was cancelled
+        if (pending.cancelled) {
+          pendingCalculations.current.delete(id);
+          return;
+        }
+
         if (type === 'INDICATOR_RESULT') {
           pending.resolve(data);
         } else if (type === 'INDICATOR_ERROR') {
@@ -80,11 +87,39 @@ export function useIndicatorWorker() {
     []
   );
 
-  // Calculate multiple indicators in parallel
+  // Cancel all pending calculations for specific indicators
+  const cancelCalculations = useCallback(
+    (indicatorIds?: string[]) => {
+      if (!indicatorIds) {
+        // Cancel all pending calculations
+        pendingCalculations.current.forEach(calc => {
+          calc.cancelled = true;
+        });
+        pendingCalculations.current.clear();
+        // console.log(`[DEBUG ${new Date().toISOString()}] Cancelled all pending indicator calculations`);
+      } else {
+        // Cancel specific indicators
+        pendingCalculations.current.forEach((calc, id) => {
+          if (indicatorIds.includes(calc.indicator.id)) {
+            calc.cancelled = true;
+            pendingCalculations.current.delete(id);
+          }
+        });
+        // console.log(`[DEBUG ${new Date().toISOString()}] Cancelled calculations for indicators:`, indicatorIds);
+      }
+    },
+    []
+  );
+
+  // Calculate multiple indicators in parallel with cancellation support
   const calculateIndicators = useCallback(
     async (indicators: CustomIndicatorConfig[], klines: Kline[]): Promise<Map<string, IndicatorDataPoint[]>> => {
       const results = new Map<string, IndicatorDataPoint[]>();
-      
+
+      // Cancel any existing calculations for these indicators
+      const indicatorIds = indicators.map(ind => ind.id);
+      cancelCalculations(indicatorIds);
+
       try {
         // Launch all calculations in parallel
         const calculations = indicators.map(async (indicator) => {
@@ -92,23 +127,27 @@ export function useIndicatorWorker() {
             const data = await calculateIndicator(indicator, klines);
             results.set(indicator.id, data);
           } catch (error) {
-            console.error(`Failed to calculate indicator ${indicator.name}:`, error);
+            // Don't log errors for cancelled calculations
+            if (!error.message?.includes('cancelled')) {
+              console.error(`Failed to calculate indicator ${indicator.name}:`, error);
+            }
             results.set(indicator.id, []);
           }
         });
-        
+
         await Promise.all(calculations);
       } catch (error) {
         console.error('Error calculating indicators:', error);
       }
-      
+
       return results;
     },
-    [calculateIndicator]
+    [calculateIndicator, cancelCalculations]
   );
 
   return {
     calculateIndicator,
-    calculateIndicators
+    calculateIndicators,
+    cancelCalculations
   };
 }

@@ -649,9 +649,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
             : createEmptyDatasets(indicator);
 
         // Dynamic title with loading state
-        const chartTitle = isLoading && dataPoints.length === 0
-            ? `${indicator.name} (calculating...)`
-            : indicator.name;
+        const chartTitle = indicator.name;
 
         // console.log(`[DEBUG ${new Date().toISOString()}] Creating panel chart for ${indicator.name} with ${dataPoints.length} data points, loading: ${isLoading}`);
 
@@ -839,13 +837,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
         const loadingState = loadingStates.get(indicator.id);
         const isLoading = loadingState?.isLoading || false;
 
-        // Update title to remove "(calculating...)" when data arrives
+        // Update title when data arrives
         if (panelChart.options.plugins?.title) {
-            const titleText = isLoading && dataPoints.length === 0
-                ? `${indicator.name} (calculating...)`
-                : indicator.name;
-            panelChart.options.plugins.title.text = titleText;
-            panelChart.options.plugins.title.color = isLoading && dataPoints.length === 0 ? '#9ca3af' : '#f5f5f7';
+            panelChart.options.plugins.title.text = indicator.name;
+            panelChart.options.plugins.title.color = '#f5f5f7';
         }
 
         if (dataPoints.length === 0) {

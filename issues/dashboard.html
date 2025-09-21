@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Issue Tracker Dashboard</title>
+    <style>
+        /* CSS Variables for Theming */
+        :root[data-theme="dark"] {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-hover: #222222;
+            --text-primary: #ffffff;
+            --text-muted: #888888;
+            --border: #2a2a2a;
+            --accent: #00ff88;
+            --danger: #ff3366;
+            --warning: #ffaa00;
+            --info: #00aaff;
+            --success: #00ff88;
+        }
+
+        :root[data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-hover: #eeeeee;
+            --text-primary: #000000;
+            --text-muted: #666666;
+            --border: #e0e0e0;
+            --accent: #00cc66;
+            --danger: #cc0033;
+            --warning: #ff9900;
+            --info: #0088cc;
+            --success: #00cc66;
+        }
+
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* Container */
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .dashboard-title {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .sync-status {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent);
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error State */
+        .error {
+            background: var(--danger);
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        /* Statistics Panel */
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 15px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .stat-bar {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        /* Filters Bar */
+        .filters-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+
+        /* Issues Table */
+        .issues-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .issues-scroll-container {
+            max-height: 600px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .virtual-scroll-spacer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1px;
+            pointer-events: none;
+        }
+
+        .issues-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .issues-table th {
+            background: var(--bg-primary);
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .issues-table th:hover {
+            color: var(--text-primary);
+        }
+
+        .issues-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .issues-table tr:hover {
+            background: var(--bg-hover);
+            cursor: pointer;
+        }
+
+        .issue-title {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .issue-description {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-idea { background: #888888; color: white; }
+        .status-spec { background: #0088cc; color: white; }
+        .status-design { background: #9933cc; color: white; }
+        .status-review { background: #ffcc00; color: black; }
+        .status-architecture { background: #ff6600; color: white; }
+        .status-planning { background: #00aaff; color: white; }
+        .status-implementing { background: #ff9900; color: white; }
+        .status-complete { background: #00ff88; color: black; }
+        .status-blocked { background: #ff3366; color: white; }
+
+        /* Priority Badges */
+        .priority-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .priority-critical { color: var(--danger); }
+        .priority-high { color: var(--warning); }
+        .priority-medium { color: var(--info); }
+        .priority-low { color: var(--success); }
+
+        /* Progress Bar */
+        .progress-wrapper {
+            display: flex;
+            align-items: center;
+        }
+
+        .progress-bar {
+            width: 100px;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.low { background: var(--danger); }
+        .progress-fill.medium { background: var(--warning); }
+        .progress-fill.high { background: var(--info); }
+        .progress-fill.complete { background: var(--success); }
+
+        .progress-text {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-left: 8px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        /* Footer */
+        .dashboard-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            color: var(--text-muted);
+            font-size: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* Recently Updated Animation */
+        @keyframes pulse {
+            0% { background-color: var(--accent); opacity: 0.3; }
+            50% { background-color: var(--accent); opacity: 0.1; }
+            100% { background-color: transparent; }
+        }
+
+        .recently-updated {
+            animation: pulse 2s ease-out;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .dashboard-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .stats-panel {
+                grid-template-columns: 1fr;
+            }
+
+            .filters-bar {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .filter-select, .search-input {
+                width: 100%;
+            }
+
+            .issues-table {
+                font-size: 12px;
+            }
+
+            .issues-table th, .issues-table td {
+                padding: 8px;
+            }
+
+            .hide-mobile {
+                display: none;
+            }
+
+            .progress-wrapper {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .progress-bar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div>
+                <h1 class="dashboard-title">Issue Tracker Dashboard</h1>
+                <div class="sync-status">Initializing...</div>
+            </div>
+            <div class="controls">
+                <button class="btn" id="refreshBtn">Refresh</button>
+                <button class="btn" id="themeBtn">Theme</button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <div id="mainContent">
+            <div class="loading">
+                <div class="spinner"></div>
+                <span>Loading issues...</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <div id="issueCount">Loading...</div>
+            <div>Dashboard v1.0</div>
+        </footer>
+    </div>
+
+    <script>
+        // Dashboard namespace
+        const Dashboard = {
+            // State management
+            state: {
+                issues: [],
+                filteredIssues: [],
+                loading: false,
+                error: null,
+                lastRefresh: null,
+                refreshTimer: null,
+                virtualScroll: {
+                    enabled: false,
+                    startIndex: 0,
+                    endIndex: 50,
+                    rowHeight: 80,
+                    visibleRows: 50
+                },
+                preferences: {
+                    theme: 'dark',
+                    sortBy: 'updated',
+                    sortOrder: 'desc',
+                    filters: {
+                        status: 'all',
+                        priority: 'all',
+                        type: 'all',
+                        search: ''
+                    },
+                    refreshInterval: 5000,
+                    virtualScrollThreshold: 50
+                }
+            },
+
+            // Initialize dashboard
+            init() {
+                console.log('[Dashboard] Initializing...');
+
+                // Load preferences
+                this.preferences.load();
+
+                // Set up event listeners
+                this.setupEventListeners();
+
+                // Initial data load
+                this.loadIssues();
+
+                // Start auto-refresh
+                this.refresh.startAutoRefresh();
+            },
+
+            // Set up event listeners
+            setupEventListeners() {
+                // Refresh button
+                document.getElementById('refreshBtn').addEventListener('click', () => {
+                    this.loadIssues();
+                });
+
+                // Theme toggle
+                document.getElementById('themeBtn').addEventListener('click', () => {
+                    this.preferences.toggleTheme();
+                });
+            },
+
+            // Load issues with error recovery
+            async loadIssues() {
+                console.log('[Dashboard] Loading issues...');
+                this.updateSyncStatus('Loading...');
+                this.state.loading = true;
+
+                try {
+                    // Discover and fetch all issues
+                    const issues = await this.discovery.discoverAndFetchIssues();
+
+                    // Validate issues data
+                    if (!Array.isArray(issues)) {
+                        throw new Error('Invalid issues data received');
+                    }
+
+                    // Update state
+                    this.state.issues = issues;
+                    this.state.filteredIssues = issues;
+                    this.state.lastRefresh = new Date();
+                    this.state.error = null;
+
+                    // Reset virtual scroll position
+                    this.state.virtualScroll.startIndex = 0;
+                    this.state.virtualScroll.endIndex = Math.min(50, issues.length);
+
+                    // Render the dashboard
+                    this.renderer.renderDashboard(issues);
+
+                    // Update status
+                    this.updateSyncStatus(`Last sync: ${this.formatTime(new Date())}`);
+                    document.getElementById('issueCount').textContent = `Showing ${issues.length} issues`;
+
+                } catch (error) {
+                    console.error('[Dashboard] Error loading issues:', error);
+                    this.handleLoadError(error);
+                }
+
+                this.state.loading = false;
+            },
+
+            // Error handling with recovery options
+            handleLoadError(error) {
+                this.state.error = error.message;
+
+                // Check for specific error types
+                if (error.message.includes('Live Server')) {
+                    this.renderer.renderError('Live Server not detected. Please start VS Code Live Server.');
+                } else if (error.message.includes('network')) {
+                    this.renderer.renderError('Network error. Check your connection and try again.');
+                } else {
+                    this.renderer.renderError(error.message);
+                }
+
+                // Offer retry
+                setTimeout(() => {
+                    const mainContent = document.getElementById('mainContent');
+                    if (mainContent && this.state.error) {
+                        const retryBtn = document.createElement('button');
+                        retryBtn.className = 'btn';
+                        retryBtn.textContent = 'Retry';
+                        retryBtn.style.marginTop = '20px';
+                        retryBtn.onclick = () => this.loadIssues();
+                        mainContent.appendChild(retryBtn);
+                    }
+                }, 100);
+
+                this.updateSyncStatus('Error loading issues');
+            },
+
+            // Format time for display
+            formatTime(date) {
+                const now = new Date();
+                const diff = Math.floor((now - date) / 1000);
+
+                if (diff < 5) return 'just now';
+                if (diff < 60) return `${diff} seconds ago`;
+                if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+                if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+                return `${Math.floor(diff / 86400)} days ago`;
+            },
+
+            // Update sync status
+            updateSyncStatus(status) {
+                document.querySelector('.sync-status').textContent = status;
+            },
+
+            // Preferences module
+            preferences: {
+                load() {
+                    const stored = localStorage.getItem('dashboard-preferences');
+                    if (stored) {
+                        try {
+                            const prefs = JSON.parse(stored);
+                            Object.assign(Dashboard.state.preferences, prefs);
+                        } catch (e) {
+                            console.error('[Dashboard] Failed to load preferences:', e);
+                        }
+                    }
+                    this.applyTheme(Dashboard.state.preferences.theme);
+                },
+
+                save() {
+                    try {
+                        localStorage.setItem('dashboard-preferences',
+                            JSON.stringify(Dashboard.state.preferences));
+                    } catch (e) {
+                        console.error('[Dashboard] Failed to save preferences:', e);
+                    }
+                },
+
+                toggleTheme() {
+                    const currentTheme = Dashboard.state.preferences.theme;
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                    Dashboard.state.preferences.theme = newTheme;
+                    this.applyTheme(newTheme);
+                    this.save();
+                },
+
+                applyTheme(theme) {
+                    document.documentElement.setAttribute('data-theme', theme);
+                    const themeBtn = document.getElementById('themeBtn');
+                    themeBtn.textContent = theme === 'dark' ? 'Light' : 'Dark';
+                }
+            },
+
+            // Discovery module - finds and fetches issue files
+            discovery: {
+                async discoverAndFetchIssues() {
+                    // Discover all markdown files
+                    const fileUrls = await this.fetchDirectoryListing();
+
+                    // Fetch all files in parallel (max 10 concurrent)
+                    const issues = await this.fetchAllIssues(fileUrls);
+
+                    // Sort by updated date by default
+                    issues.sort((a, b) => b.updated - a.updated);
+
+                    return issues;
+                },
+
+                async fetchDirectoryListing() {
+                    try {
+                        const response = await fetch('./');
+                        const html = await response.text();
+
+                        // Parse HTML for .md links
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+
+                        // Find all links ending in .md
+                        const links = Array.from(doc.querySelectorAll('a[href$=".md"]'));
+
+                        // Filter out README and index files, keep only issue files
+                        const issueLinks = links
+                            .filter(a => {
+                                const href = a.getAttribute('href');
+                                return !href.includes('README.md') &&
+                                       !href.includes('index.md') &&
+                                       !href.includes('CLAUDE.md');
+                            })
+                            .map(a => a.getAttribute('href'));
+
+                        console.log(`[Discovery] Found ${issueLinks.length} issue files`);
+                        return issueLinks;
+
+                    } catch (error) {
+                        console.error('[Discovery] Failed to fetch directory listing:', error);
+                        throw new Error('Failed to discover issue files. Make sure Live Server is running.');
+                    }
+                },
+
+                async fetchAllIssues(fileUrls) {
+                    const issues = [];
+
+                    // Fetch in batches of 10
+                    const batchSize = 10;
+                    for (let i = 0; i < fileUrls.length; i += batchSize) {
+                        const batch = fileUrls.slice(i, i + batchSize);
+                        const batchPromises = batch.map(url => this.fetchAndParseIssue(url));
+                        const batchResults = await Promise.all(batchPromises);
+                        issues.push(...batchResults.filter(issue => issue !== null));
+                    }
+
+                    return issues;
+                },
+
+                async fetchAndParseIssue(url) {
+                    try {
+                        const response = await fetch(url);
+                        const markdown = await response.text();
+                        return Dashboard.parser.parseIssue(markdown, url);
+                    } catch (error) {
+                        console.error(`[Discovery] Failed to fetch ${url}:`, error);
+                        return null;
+                    }
+                }
+            },
+
+            // Parser module - extracts metadata from markdown files
+            parser: {
+                parseIssue(markdown, filename) {
+                    const issue = {
+                        filename: filename.split('/').pop(),
+                        title: this.extractTitle(markdown),
+                        status: this.extractStatus(markdown),
+                        priority: this.extractPriority(markdown),
+                        type: this.extractType(markdown),
+                        created: this.extractDate(markdown, 'Created'),
+                        updated: this.extractDate(markdown, 'Updated'),
+                        progress: this.calculateProgress(markdown),
+                        description: this.extractDescription(markdown),
+                        currentStage: this.detectWorkflowStage(markdown)
+                    };
+
+                    return issue;
+                },
+
+                extractTitle(markdown) {
+                    const match = markdown.match(/^#\s+(.+)$/m);
+                    return match ? match[1] : 'Untitled';
+                },
+
+                extractStatus(markdown) {
+                    const match = markdown.match(/Status:\s*\*?\*?(.+?)\*?\*/);
+                    if (match) {
+                        const status = match[1].trim();
+                        // Map emoji statuses to text
+                        const statusMap = {
+                            '🎯 idea': 'idea',
+                            '📋 spec': 'spec',
+                            '🎨 design': 'design',
+                            '🔍 engineering-review': 'review',
+                            '🏗️ architecture': 'architecture',
+                            '📊 planning': 'planning',
+                            '🚧 implementing': 'implementing',
+                            '✅ complete': 'complete',
+                            '🚫 blocked': 'blocked'
+                        };
+                        return statusMap[status] || status.toLowerCase().replace(/[^a-z]/g, '');
+                    }
+                    return 'unknown';
+                },
+
+                extractPriority(markdown) {
+                    const match = markdown.match(/Priority:\s*\*?\*?(.+?)\*?\*/);
+                    return match ? match[1].trim() : 'Medium';
+                },
+
+                extractType(markdown) {
+                    const match = markdown.match(/Type:\s*\*?\*?(.+?)\*?\*/);
+                    return match ? match[1].trim() : 'enhancement';
+                },
+
+                extractDate(markdown, field) {
+                    const match = markdown.match(new RegExp(`${field}:\\s*\*?\*?(.+?)\*?\*`, 'i'));
+                    if (match) {
+                        const dateStr = match[1].trim();
+                        const date = new Date(dateStr);
+                        return isNaN(date.getTime()) ? new Date() : date;
+                    }
+                    return new Date();
+                },
+
+                extractDescription(markdown) {
+                    // Try to get the first paragraph after the title
+                    const lines = markdown.split('\n');
+                    for (let i = 0; i < lines.length && i < 20; i++) {
+                        const line = lines[i].trim();
+                        if (line && !line.startsWith('#') && !line.startsWith('-') &&
+                            !line.includes('Status:') && !line.includes('Priority:') &&
+                            !line.includes('Type:') && !line.includes('Created:') &&
+                            !line.includes('Updated:') && !line.includes('Progress:')) {
+                            return line.substring(0, 100);
+                        }
+                    }
+                    return '';
+                },
+
+                calculateProgress(markdown) {
+                    // Count checkboxes
+                    const totalBoxes = (markdown.match(/^[\s]*-\s*\[[ x]\]/gm) || []).length;
+                    const checkedBoxes = (markdown.match(/^[\s]*-\s*\[x\]/gm) || []).length;
+
+                    if (totalBoxes === 0) {
+                        // Try to extract from Progress: field
+                        const progressMatch = markdown.match(/Progress:\s*\*?\*?([0-9]+)%/);
+                        if (progressMatch) {
+                            return parseInt(progressMatch[1]);
+                        }
+
+                        const barMatch = markdown.match(/Progress:\s*\*?\*?\[([=\s]+)\]/);
+                        if (barMatch) {
+                            const bar = barMatch[1];
+                            const filled = (bar.match(/=/g) || []).length;
+                            const total = bar.length;
+                            return Math.round((filled / total) * 100);
+                        }
+                        return 0;
+                    }
+
+                    return Math.round((checkedBoxes / totalBoxes) * 100);
+                },
+
+                detectWorkflowStage(markdown) {
+                    // Look for stage markers in the content
+                    const stages = [
+                        'implementing', 'architecture', 'planning', 'engineering-review',
+                        'design', 'spec', 'idea', 'complete'
+                    ];
+
+                    for (const stage of stages) {
+                        if (markdown.toLowerCase().includes(`stage: ${stage}`)) {
+                            return stage;
+                        }
+                    }
+
+                    return 'unknown';
+                }
+            },
+
+            // Renderer module - handles all UI rendering
+            renderer: {
+                renderDashboard(issues) {
+                    const mainContent = document.getElementById('mainContent');
+
+                    if (!issues || issues.length === 0) {
+                        mainContent.innerHTML = `
+                            <div class="empty-state">
+                                <h3>No Issues Found</h3>
+                                <p>No markdown issue files were found in the /issues directory.</p>
+                                <p>Make sure you have .md files in the issues folder and Live Server is running.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    // Calculate statistics
+                    const stats = this.calculateStats(issues);
+
+                    // Build the dashboard HTML
+                    const html = `
+                        ${this.renderStats(stats)}
+                        ${this.renderFilters()}
+                        ${this.renderIssuesTable(issues)}
+                    `;
+
+                    mainContent.innerHTML = html;
+
+                    // Set up filter event listeners
+                    Dashboard.filters.setupFilterListeners();
+                },
+
+                calculateStats(issues) {
+                    const stats = {
+                        total: issues.length,
+                        byStatus: {},
+                        byPriority: {},
+                        byType: {}
+                    };
+
+                    issues.forEach(issue => {
+                        // Count by status
+                        stats.byStatus[issue.status] = (stats.byStatus[issue.status] || 0) + 1;
+
+                        // Count by priority
+                        stats.byPriority[issue.priority] = (stats.byPriority[issue.priority] || 0) + 1;
+
+                        // Count by type
+                        stats.byType[issue.type] = (stats.byType[issue.type] || 0) + 1;
+                    });
+
+                    return stats;
+                },
+
+                renderStats(stats) {
+                    const statusCounts = {
+                        implementing: stats.byStatus.implementing || 0,
+                        planning: stats.byStatus.planning || 0,
+                        complete: stats.byStatus.complete || 0,
+                        blocked: stats.byStatus.blocked || 0
+                    };
+
+                    return `
+                        <section class="stats-panel">
+                            <div class="stat-card">
+                                <div class="stat-label">Total Issues</div>
+                                <div class="stat-value">${stats.total}</div>
+                                <div class="stat-bar">
+                                    <div class="stat-bar-fill" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Implementing</div>
+                                <div class="stat-value">${statusCounts.implementing}</div>
+                                <div class="stat-bar">
+                                    <div class="stat-bar-fill" style="width: ${(statusCounts.implementing / stats.total) * 100}%"></div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Planning</div>
+                                <div class="stat-value">${statusCounts.planning}</div>
+                                <div class="stat-bar">
+                                    <div class="stat-bar-fill" style="width: ${(statusCounts.planning / stats.total) * 100}%"></div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Complete</div>
+                                <div class="stat-value">${statusCounts.complete}</div>
+                                <div class="stat-bar">
+                                    <div class="stat-bar-fill" style="width: ${(statusCounts.complete / stats.total) * 100}%"></div>
+                                </div>
+                            </div>
+                        </section>
+                    `;
+                },
+
+                renderFilters() {
+                    return `
+                        <section class="filters-bar">
+                            <select class="filter-select" id="statusFilter">
+                                <option value="all">All Status</option>
+                                <option value="idea">Idea</option>
+                                <option value="spec">Spec</option>
+                                <option value="design">Design</option>
+                                <option value="review">Review</option>
+                                <option value="architecture">Architecture</option>
+                                <option value="planning">Planning</option>
+                                <option value="implementing">Implementing</option>
+                                <option value="complete">Complete</option>
+                                <option value="blocked">Blocked</option>
+                            </select>
+                            <select class="filter-select" id="priorityFilter">
+                                <option value="all">All Priority</option>
+                                <option value="Critical">Critical</option>
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                            <select class="filter-select" id="typeFilter">
+                                <option value="all">All Types</option>
+                                <option value="feature">Feature</option>
+                                <option value="enhancement">Enhancement</option>
+                                <option value="bug">Bug</option>
+                                <option value="performance">Performance</option>
+                            </select>
+                            <input type="text" class="search-input" id="searchInput" placeholder="Search issues...">
+                        </section>
+                    `;
+                },
+
+                renderIssuesTable(issues) {
+                    // Enable virtual scrolling for large datasets
+                    const enableVirtual = issues.length > Dashboard.state.preferences.virtualScrollThreshold;
+                    Dashboard.state.virtualScroll.enabled = enableVirtual;
+
+                    if (enableVirtual) {
+                        return this.renderVirtualTable(issues);
+                    } else {
+                        return this.renderStandardTable(issues);
+                    }
+                },
+
+                renderStandardTable(issues) {
+                    const rows = issues.map(issue => this.renderIssueRow(issue)).join('');
+
+                    return `
+                        <main class="issues-container">
+                            <table class="issues-table">
+                                <thead>
+                                    <tr>
+                                        <th data-sort="title">Issue</th>
+                                        <th data-sort="status">Status</th>
+                                        <th data-sort="priority">Priority</th>
+                                        <th data-sort="type" class="hide-mobile">Type</th>
+                                        <th data-sort="updated">Updated</th>
+                                        <th data-sort="progress">Progress</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rows}
+                                </tbody>
+                            </table>
+                        </main>
+                    `;
+                },
+
+                renderVirtualTable(issues) {
+                    // Calculate visible range
+                    const vs = Dashboard.state.virtualScroll;
+                    const visibleIssues = issues.slice(vs.startIndex, vs.endIndex);
+                    const rows = visibleIssues.map(issue => this.renderIssueRow(issue)).join('');
+
+                    // Calculate total height for scrollbar
+                    const totalHeight = issues.length * vs.rowHeight;
+                    const spacerHeight = vs.startIndex * vs.rowHeight;
+
+                    return `
+                        <main class="issues-container">
+                            <div class="issues-scroll-container" id="scrollContainer">
+                                <div class="virtual-scroll-spacer" style="height: ${totalHeight}px;"></div>
+                                <table class="issues-table" style="transform: translateY(${spacerHeight}px); position: relative;">
+                                    <thead>
+                                        <tr>
+                                            <th data-sort="title">Issue</th>
+                                            <th data-sort="status">Status</th>
+                                            <th data-sort="priority">Priority</th>
+                                            <th data-sort="type" class="hide-mobile">Type</th>
+                                            <th data-sort="updated">Updated</th>
+                                            <th data-sort="progress">Progress</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${rows}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="padding: 10px; text-align: center; color: var(--text-muted); font-size: 12px;">
+                                Virtual scrolling enabled (${issues.length} total issues)
+                            </div>
+                        </main>
+                    `;
+                },
+
+                renderIssueRow(issue) {
+                    const statusClass = `status-${issue.status}`;
+                    const priorityClass = `priority-${issue.priority.toLowerCase()}`;
+                    const progressClass = this.getProgressClass(issue.progress);
+
+                    return `
+                        <tr data-filename="${issue.filename}">
+                            <td>
+                                <div class="issue-title">${issue.title}</div>
+                                ${issue.description ? `<div class="issue-description">${issue.description}</div>` : ''}
+                            </td>
+                            <td><span class="status-badge ${statusClass}">${issue.status.toUpperCase()}</span></td>
+                            <td><span class="priority-badge ${priorityClass}">${issue.priority}</span></td>
+                            <td class="hide-mobile">${issue.type}</td>
+                            <td>${Dashboard.formatTime(issue.updated)}</td>
+                            <td>
+                                <div class="progress-wrapper">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill ${progressClass}" style="width: ${issue.progress}%"></div>
+                                    </div>
+                                    <span class="progress-text">${issue.progress}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                },
+
+                getProgressClass(progress) {
+                    if (progress === 100) return 'complete';
+                    if (progress >= 67) return 'high';
+                    if (progress >= 34) return 'medium';
+                    return 'low';
+                },
+
+                renderError(message) {
+                    const mainContent = document.getElementById('mainContent');
+                    mainContent.innerHTML = `
+                        <div class="error">
+                            <strong>Error:</strong> ${message}
+                        </div>
+                        <div class="empty-state">
+                            <h3>Unable to Load Issues</h3>
+                            <p>Please make sure:</p>
+                            <ul style="text-align: left; display: inline-block;">
+                                <li>VS Code Live Server is running</li>
+                                <li>You're viewing the dashboard through Live Server</li>
+                                <li>The /issues directory contains .md files</li>
+                            </ul>
+                        </div>
+                    `;
+                }
+            },
+
+            // Filters module
+            filters: {
+                setupFilterListeners() {
+                    // Status filter
+                    const statusFilter = document.getElementById('statusFilter');
+                    if (statusFilter) {
+                        statusFilter.addEventListener('change', () => this.applyFilters());
+                    }
+
+                    // Priority filter
+                    const priorityFilter = document.getElementById('priorityFilter');
+                    if (priorityFilter) {
+                        priorityFilter.addEventListener('change', () => this.applyFilters());
+                    }
+
+                    // Type filter
+                    const typeFilter = document.getElementById('typeFilter');
+                    if (typeFilter) {
+                        typeFilter.addEventListener('change', () => this.applyFilters());
+                    }
+
+                    // Search input
+                    const searchInput = document.getElementById('searchInput');
+                    if (searchInput) {
+                        searchInput.addEventListener('input', () => this.applyFilters());
+                    }
+
+                    // Sort headers
+                    document.querySelectorAll('.issues-table th[data-sort]').forEach(th => {
+                        th.addEventListener('click', (e) => {
+                            const sortBy = e.target.getAttribute('data-sort');
+                            this.sortIssues(sortBy);
+                        });
+                    });
+
+                    // Virtual scroll listener
+                    this.setupVirtualScroll();
+                },
+
+                setupVirtualScroll() {
+                    // Debounced scroll handler for virtual scrolling
+                    let scrollTimeout;
+                    const handleScroll = (e) => {
+                        if (!Dashboard.state.virtualScroll.enabled) return;
+
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(() => {
+                            const container = e.target;
+                            const scrollTop = container.scrollTop;
+                            const vs = Dashboard.state.virtualScroll;
+
+                            // Calculate new visible range
+                            const newStartIndex = Math.floor(scrollTop / vs.rowHeight);
+                            const newEndIndex = newStartIndex + vs.visibleRows;
+
+                            // Only re-render if range changed significantly
+                            if (Math.abs(newStartIndex - vs.startIndex) > 5) {
+                                vs.startIndex = Math.max(0, newStartIndex - 5); // Buffer rows
+                                vs.endIndex = Math.min(Dashboard.state.filteredIssues.length, newEndIndex + 5);
+                                Dashboard.renderer.renderDashboard(Dashboard.state.filteredIssues);
+                            }
+                        }, 50);
+                    };
+
+                    // Attach to scroll container when it exists
+                    setTimeout(() => {
+                        const scrollContainer = document.getElementById('scrollContainer');
+                        if (scrollContainer) {
+                            scrollContainer.addEventListener('scroll', handleScroll);
+                        }
+                    }, 100);
+                },
+
+                applyFilters() {
+                    const statusValue = document.getElementById('statusFilter')?.value || 'all';
+                    const priorityValue = document.getElementById('priorityFilter')?.value || 'all';
+                    const typeValue = document.getElementById('typeFilter')?.value || 'all';
+                    const searchValue = document.getElementById('searchInput')?.value.toLowerCase() || '';
+
+                    let filtered = [...Dashboard.state.issues];
+
+                    // Apply status filter
+                    if (statusValue !== 'all') {
+                        filtered = filtered.filter(issue => issue.status === statusValue);
+                    }
+
+                    // Apply priority filter
+                    if (priorityValue !== 'all') {
+                        filtered = filtered.filter(issue => issue.priority === priorityValue);
+                    }
+
+                    // Apply type filter
+                    if (typeValue !== 'all') {
+                        filtered = filtered.filter(issue => issue.type === typeValue);
+                    }
+
+                    // Apply search filter
+                    if (searchValue) {
+                        filtered = filtered.filter(issue =>
+                            issue.title.toLowerCase().includes(searchValue) ||
+                            issue.description.toLowerCase().includes(searchValue)
+                        );
+                    }
+
+                    Dashboard.state.filteredIssues = filtered;
+                    Dashboard.renderer.renderDashboard(filtered);
+
+                    // Update count
+                    document.getElementById('issueCount').textContent = `Showing ${filtered.length} of ${Dashboard.state.issues.length} issues`;
+                },
+
+                sortIssues(sortBy) {
+                    const issues = [...Dashboard.state.filteredIssues];
+
+                    issues.sort((a, b) => {
+                        switch (sortBy) {
+                            case 'title':
+                                return a.title.localeCompare(b.title);
+                            case 'status':
+                                return a.status.localeCompare(b.status);
+                            case 'priority':
+                                const priorityOrder = { 'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
+                                return (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99);
+                            case 'type':
+                                return a.type.localeCompare(b.type);
+                            case 'updated':
+                                return b.updated - a.updated;
+                            case 'progress':
+                                return b.progress - a.progress;
+                            default:
+                                return 0;
+                        }
+                    });
+
+                    Dashboard.state.filteredIssues = issues;
+                    Dashboard.renderer.renderDashboard(issues);
+                }
+            },
+
+            // Refresh module - auto-refresh with change detection
+            refresh: {
+                fileHashes: new Map(), // Track file changes via content hash
+
+                startAutoRefresh() {
+                    if (Dashboard.state.refreshTimer) {
+                        clearInterval(Dashboard.state.refreshTimer);
+                    }
+
+                    // Run refresh every 5 seconds
+                    Dashboard.state.refreshTimer = setInterval(() => {
+                        this.checkForChanges();
+                    }, Dashboard.state.preferences.refreshInterval);
+
+                    console.log('[Refresh] Auto-refresh enabled (5s interval)');
+                },
+
+                stopAutoRefresh() {
+                    if (Dashboard.state.refreshTimer) {
+                        clearInterval(Dashboard.state.refreshTimer);
+                        Dashboard.state.refreshTimer = null;
+                        console.log('[Refresh] Auto-refresh disabled');
+                    }
+                },
+
+                async checkForChanges() {
+                    if (Dashboard.state.loading) {
+                        console.log('[Refresh] Skip - already loading');
+                        return;
+                    }
+
+                    try {
+                        console.log('[Refresh] Checking for changes...');
+                        const changedFiles = await this.detectChanges();
+
+                        if (changedFiles.length > 0) {
+                            console.log(`[Refresh] Found ${changedFiles.length} changed files`);
+                            await this.updateChangedFiles(changedFiles);
+
+                            // Flash animation on changed rows
+                            this.flashChangedRows(changedFiles);
+
+                            // Update sync status
+                            Dashboard.updateSyncStatus(`Updated ${changedFiles.length} files - ${Dashboard.formatTime(new Date())}`);
+                        } else {
+                            // Just update the time
+                            Dashboard.updateSyncStatus(`Last check: ${Dashboard.formatTime(new Date())}`);
+                        }
+                    } catch (error) {
+                        console.error('[Refresh] Error checking for changes:', error);
+                    }
+                },
+
+                async detectChanges() {
+                    const fileUrls = await Dashboard.discovery.fetchDirectoryListing();
+                    const changedFiles = [];
+
+                    // Check each file for changes
+                    for (const url of fileUrls) {
+                        try {
+                            const response = await fetch(url, {
+                                method: 'HEAD',
+                                cache: 'no-cache'
+                            });
+
+                            // Use Last-Modified header for change detection
+                            const lastModified = response.headers.get('Last-Modified');
+                            const etag = response.headers.get('ETag');
+                            const hash = `${lastModified}:${etag}`;
+
+                            const previousHash = this.fileHashes.get(url);
+                            if (previousHash !== hash) {
+                                changedFiles.push(url);
+                                this.fileHashes.set(url, hash);
+                            }
+                        } catch (error) {
+                            console.error(`[Refresh] Error checking ${url}:`, error);
+                        }
+                    }
+
+                    // Check for deleted files
+                    const currentUrls = new Set(fileUrls);
+                    const deletedFiles = [];
+                    for (const [url] of this.fileHashes) {
+                        if (!currentUrls.has(url)) {
+                            deletedFiles.push(url);
+                            this.fileHashes.delete(url);
+                        }
+                    }
+
+                    return [...changedFiles, ...deletedFiles];
+                },
+
+                async updateChangedFiles(changedFiles) {
+                    // Fetch and parse only the changed files
+                    const updatedIssues = [];
+
+                    for (const url of changedFiles) {
+                        const issue = await Dashboard.discovery.fetchAndParseIssue(url);
+                        if (issue) {
+                            updatedIssues.push(issue);
+                        }
+                    }
+
+                    // Merge updates into existing state
+                    const issueMap = new Map(Dashboard.state.issues.map(i => [i.filename, i]));
+
+                    // Update or add changed issues
+                    for (const issue of updatedIssues) {
+                        issueMap.set(issue.filename, issue);
+                    }
+
+                    // Remove deleted issues
+                    const currentFilenames = new Set(updatedIssues.map(i => i.filename));
+                    for (const url of changedFiles) {
+                        const filename = url.split('/').pop();
+                        if (!currentFilenames.has(filename)) {
+                            issueMap.delete(filename);
+                        }
+                    }
+
+                    // Update state and re-render
+                    Dashboard.state.issues = Array.from(issueMap.values());
+                    Dashboard.state.issues.sort((a, b) => b.updated - a.updated);
+
+                    // Apply current filters
+                    Dashboard.filters.applyFilters();
+                },
+
+                flashChangedRows(changedFiles) {
+                    const filenames = changedFiles.map(url => url.split('/').pop());
+
+                    setTimeout(() => {
+                        filenames.forEach(filename => {
+                            const row = document.querySelector(`tr[data-filename="${filename}"]`);
+                            if (row) {
+                                row.classList.add('recently-updated');
+                                setTimeout(() => {
+                                    row.classList.remove('recently-updated');
+                                }, 2000);
+                            }
+                        });
+                    }, 100);
+                }
+            }
+        };
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            Dashboard.init();
+        });
+    </script>
+</body>
+</html>

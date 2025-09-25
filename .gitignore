@@ -51,3 +51,4 @@ coverage/
 
 # AI Workflow Artifacts (uncomment to exclude from version control)
 # .ai-workflow/
+.vercel

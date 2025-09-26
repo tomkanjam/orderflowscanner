@@ -1,8 +1,20 @@
 # Issues Dashboard
 
-*Last updated: 2025-01-19 14:00:00*
+*Last updated: 2025-09-26 08:35:00*
 
 ## Active Issues
+
+### 🎯 New Ideas
+- [`2025-09-26-centralized-data-edge-execution.md`](./2025-09-26-centralized-data-edge-execution.md) - Centralized Data with Edge Execution
+  - **Priority:** Critical
+  - **Type:** performance/architecture
+  - **Status:** Idea review - 95% cost reduction, 460x efficiency gain
+
+### 🔍 In Review
+- [`2025-09-26-signal-persistence-architecture.md`](./2025-09-26-signal-persistence-architecture.md) - Signal Persistence Architecture
+  - **Priority:** Critical
+  - **Type:** performance/feature
+  - **Status:** Engineering review complete
 
 ### 🔴 In Progress
 - [`2025-01-17-performance-degradation-fix.md`](./2025-01-17-performance-degradation-fix.md) - Performance Degradation Fix
@@ -33,7 +45,9 @@
   - **Status:** Example/Template
 
 ## Quick Stats
-- **Total Issues:** 4
+- **Total Issues:** 6
+- **New Ideas:** 1
+- **In Review:** 1
 - **In Progress:** 1
 - **Planning:** 1
 - **Completed:** 1

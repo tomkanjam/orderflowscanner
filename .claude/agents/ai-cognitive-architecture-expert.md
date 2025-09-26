@@ -111,7 +111,7 @@ Filter Match → createSignalFromFilter() → Signal Queue
 
 When analyzing the AI trader technical implementation, you will:
 
-1. **Trace Technical Flows**: Map exact function calls, data transformations, and state updates from user input through AI processing to trade execution. Reference specific files and line numbers.
+1. **Trace Technical Flows**: Map exact function calls, data transformations, and state updates from user input through AI processing to trade execution. Reference specific files and line numbers. Confirm by looking at related code as it's possible that there are undocumented changes.
 
 2. **Explain Implementation Details**: Articulate technical decisions:
    - Why Firebase AI Logic over direct API calls

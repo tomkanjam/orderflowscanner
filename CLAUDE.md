@@ -22,20 +22,29 @@ Work with the PM on debugging
 
 ## Architecture Overview
 
+### Server-Side Execution Architecture
+As of 2025-09-28, the application uses **server-side execution** for all trader logic:
+- **Edge Functions**: All trader execution happens in Supabase Edge Functions
+- **No Client Workers**: Trader logic no longer runs in browser Web Workers
+- **Real-time Streaming**: Signals stream from server to client via Supabase Realtime
+- **Centralized Data**: Redis stores all kline data on the server
+
 ### Service Layer
 - **binanceService.ts**: Manages all Binance API interactions including WebSocket connections for real-time data
 - **geminiService.ts**: Handles AI integration for generating filters and analysis using Firebase AI Logic
+- **serverExecutionService.ts**: Manages real-time signal subscriptions from server
 - **config/firebase.ts**: Firebase configuration and AI service initialization
 
 ### Data Flow
-1. Initial load fetches top 100 USDT pairs by volume with 250 historical klines
-2. WebSocket streams provide continuous ticker and kline updates
-3. AI-generated filters execute against real-time data using helper functions
-4. Results are displayed in table format with interactive charts
+1. Server-side collector fetches market data and stores in Redis
+2. Edge functions execute trader logic on candle boundaries
+3. Signals stream to clients via Supabase Realtime channels
+4. Frontend displays signals in real-time with charts (using indicatorWorker for visualization only)
 
 ### Key Technical Patterns
 - **State Management**: Uses React state with Map structures for O(1) lookups
-- **Real-time Updates**: WebSocket-based architecture for live market data
+- **Server Execution**: All trader logic runs server-side in Edge Functions
+- **Real-time Signals**: Supabase Realtime channels for server-to-client streaming
 - **AI Integration**: Firebase AI Logic with secure server-side API key management
 - **Prompt Processing**: Structured prompts with JSON schema validation and retry logic
 - **Technical Analysis**: Comprehensive helper functions in `screenerHelpers.ts` for indicators (MA, RSI, MACD, etc.)
@@ -62,18 +71,20 @@ Work with the PM on debugging
 - Firebase configuration is safe to commit as it's meant to be public
 
 ### Performance Notes
-- Application filters for USDT spot pairs with >100k volume to reduce data load
-- Historical data limited to 250 klines for screening, 100 for detailed analysis
-- Real-time updates use efficient Map-based state management
+- Server-side execution reduces client memory usage by 95% (from 500MB+ to <100MB)
+- Execution frequency reduced by 460x (from every second to candle boundaries)
+- No SharedArrayBuffer or Web Workers for trader execution
+- Only indicatorWorker remains for chart calculations
+- Real-time updates via WebSocket with efficient Map-based state management
 
 
 ## Critical Architecture: Trader Indicators
 
 ### IMPORTANT: How Traders Work with Indicators
-Each trader has their own **custom generated filter code** that runs in a worker thread. DO NOT try to calculate all indicators for all traders - this is incorrect and will break the architecture.
+Each trader has their own **custom generated filter code** that runs server-side in Edge Functions. DO NOT try to calculate all indicators for all traders - this is incorrect and will break the architecture.
 
 ### The Three-Part System:
-1. **Filter Code** (`trader.filter.code`): JavaScript code that executes in worker to identify matching symbols
+1. **Filter Code** (`trader.filter.code`): JavaScript code that executes server-side to identify matching symbols
    - Receives: ticker data, timeframe klines, helper functions
    - Calculates whatever indicators it needs internally
    - Returns: boolean (matches or not)

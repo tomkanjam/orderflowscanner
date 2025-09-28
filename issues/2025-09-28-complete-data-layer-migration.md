@@ -1,12 +1,12 @@
 # Complete Data Layer Migration for Server-Side Execution
 
 ## Metadata
-- **Status:** 🔍 engineering-review
+- **Status:** 🏗️ architecture
 - **Created:** 2025-09-28 13:25
-- **Updated:** 2025-09-28 13:45
+- **Updated:** 2025-09-28 14:00
 - **Priority:** Critical
 - **Type:** enhancement
-- **Progress:** [==        ] 20%
+- **Progress:** [===       ] 30%
 
 ---
 
@@ -441,3 +441,499 @@ const getKlinesForInterval = useCallback(async (symbol: string, interval: KlineI
 
 ---
 *[End of engineering review. Next: /architect issues/2025-09-28-complete-data-layer-migration.md]*
+
+---
+
+## System Architecture
+*Stage: architecture | Date: 2025-09-28 14:00*
+
+### Executive Summary
+Complete the server-side execution migration by implementing a robust data pipeline that fetches market data from Upstash Redis and delivers it to clients efficiently. This architecture restores full charting and analysis functionality while maintaining the 95% memory reduction achieved through server-side execution.
+
+### System Design
+
+#### Data Models
+```typescript
+// Kline data format from Redis (Binance format)
+interface RedisKlineData {
+  t: number;  // Open time
+  T: number;  // Close time
+  s: string;  // Symbol
+  i: string;  // Interval
+  o: string;  // Open price
+  c: string;  // Close price
+  h: string;  // High price
+  l: string;  // Low price
+  v: string;  // Base volume
+  n: number;  // Number of trades
+  x: boolean; // Is closed
+  q: string;  // Quote volume
+}
+
+// Parsed kline format for client
+interface ParsedKline {
+  openTime: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  closeTime: number;
+  quoteVolume: number;
+  trades: number;
+  isClosed: boolean;
+}
+
+// Data fetch request
+interface KlineRequest {
+  symbol: string;
+  interval: KlineInterval;
+  limit?: number;
+  useCache?: boolean;
+}
+
+// Data fetch response
+interface KlineResponse {
+  symbol: string;
+  interval: string;
+  klines: ParsedKline[];
+  ticker?: Ticker;
+  cached?: boolean;
+  timestamp: number;
+}
+
+// Cache entry structure
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
+
+// Real-time update message
+interface KlineUpdate {
+  type: 'kline' | 'ticker';
+  symbol: string;
+  interval?: string;
+  data: ParsedKline | Ticker;
+  timestamp: number;
+}
+```
+
+#### Component Architecture
+**New Components:**
+- `KlineDataProvider`: Context provider for centralized data management
+- `ConnectionIndicator`: Visual feedback for data connection status
+- `DataErrorBoundary`: Graceful error handling for data failures
+
+**Modified Components:**
+- `App.tsx`: Replace empty data returns with service calls
+- `ChartDisplay.tsx`: Connect to KlineDataProvider instead of props
+- `MainContent.tsx`: Use data hooks instead of direct access
+
+**Component Hierarchy:**
+```
+App
+└── KlineDataProvider
+    ├── DataErrorBoundary
+    │   └── MainContent
+    │       └── ChartDisplay (consumes kline data)
+    └── ConnectionIndicator
+```
+
+#### Service Layer
+**New Services:**
+```typescript
+// Core data service
+class KlineDataService {
+  private cache: LRUCache<string, KlineResponse>;
+  private pendingRequests: Map<string, Promise<KlineResponse>>;
+
+  constructor() {
+    this.cache = new LRUCache({ max: 100, ttl: 60000 });
+    this.pendingRequests = new Map();
+  }
+
+  async fetchKlines(request: KlineRequest): Promise<KlineResponse> {
+    const cacheKey = `${request.symbol}:${request.interval}`;
+
+    // Check cache first
+    if (request.useCache !== false) {
+      const cached = this.cache.get(cacheKey);
+      if (cached) return { ...cached, cached: true };
+    }
+
+    // Dedup concurrent requests
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey)!;
+    }
+
+    // Fetch from edge function
+    const promise = this.fetchFromServer(request);
+    this.pendingRequests.set(cacheKey, promise);
+
+    try {
+      const result = await promise;
+      this.cache.set(cacheKey, result);
+      return result;
+    } finally {
+      this.pendingRequests.delete(cacheKey);
+    }
+  }
+
+  private async fetchFromServer(request: KlineRequest): Promise<KlineResponse> {
+    const { data } = await supabase.functions.invoke('get-klines', {
+      body: request
+    });
+    return this.parseResponse(data);
+  }
+
+  subscribeToUpdates(symbol: string, callback: (update: KlineUpdate) => void): () => void {
+    // Subscribe to Supabase Realtime
+    const channel = supabase.channel(`klines:${symbol}`)
+      .on('broadcast', { event: 'update' }, callback)
+      .subscribe();
+
+    return () => channel.unsubscribe();
+  }
+}
+
+// Enhanced server execution service
+class ServerExecutionService {
+  // ... existing code ...
+
+  // New methods for data access
+  async fetchKlines(symbol: string, interval: KlineInterval, limit = 100): Promise<KlineResponse> {
+    return this.klineService.fetchKlines({ symbol, interval, limit });
+  }
+
+  async fetchMultipleKlines(requests: KlineRequest[]): Promise<KlineResponse[]> {
+    return Promise.all(requests.map(r => this.klineService.fetchKlines(r)));
+  }
+
+  prefetchRelatedSymbols(symbol: string): void {
+    // Intelligent prefetching based on correlation
+    const related = this.getRelatedSymbols(symbol);
+    related.forEach(s => {
+      this.klineService.fetchKlines({
+        symbol: s,
+        interval: '5m',
+        useCache: true
+      });
+    });
+  }
+}
+```
+
+**API Endpoints:**
+- `POST /functions/v1/get-klines`: Fetch historical klines
+- `POST /functions/v1/get-ticker`: Get current ticker data
+- `WS /realtime/v1/kline-updates`: Real-time kline streams
+
+#### Data Flow
+```
+1. Initial Chart Load
+   └── ChartDisplay.useEffect()
+       └── useKlineData(symbol, interval)
+           └── KlineDataService.fetchKlines()
+               ├── Check LRU Cache (TTL: 60s)
+               ├── If miss: Edge Function call
+               ├── Parse & transform data
+               ├── Update cache
+               └── Return to component
+
+2. Real-time Updates
+   └── Supabase Realtime Channel
+       ├── Redis publishes update
+       ├── Edge function broadcasts
+       ├── Client receives via WebSocket
+       ├── Differential merge with cached data
+       └── Trigger re-render
+
+3. Symbol Navigation
+   └── User selects new symbol
+       ├── Check cache (instant if hit)
+       ├── Fetch if cache miss
+       ├── Prefetch correlated symbols
+       └── Update all dependent charts
+```
+
+#### State Management
+**State Structure:**
+```typescript
+interface KlineDataState {
+  data: Map<string, Map<KlineInterval, ParsedKline[]>>;
+  tickers: Map<string, Ticker>;
+  loading: Set<string>;
+  errors: Map<string, Error>;
+  metadata: {
+    lastUpdate: Map<string, number>;
+    cacheHits: number;
+    cacheMisses: number;
+  };
+}
+```
+
+**State Updates:**
+- Synchronous: Cache hits, prefetched data
+- Asynchronous: Server fetches, real-time updates
+- Optimistic: Immediate UI feedback during fetch
+
+### Technical Specifications
+
+#### API Contracts
+```typescript
+// get-klines request
+interface GetKlinesRequest {
+  symbol: string;
+  timeframe: string;
+  limit?: number; // default: 100, max: 500
+}
+
+// get-klines response
+interface GetKlinesResponse {
+  klines: RedisKlineData[];
+  ticker?: TickerData;
+  symbol: string;
+  timeframe: string;
+  timestamp: number;
+}
+
+// Error response
+interface ErrorResponse {
+  error: string;
+  code: 'REDIS_ERROR' | 'INVALID_SYMBOL' | 'RATE_LIMIT';
+  details?: any;
+}
+```
+
+#### Caching Strategy
+- **Client Memory Cache**:
+  - LRU with 100 symbol capacity
+  - 60 second TTL for kline data
+  - 5 second TTL for ticker data
+
+- **Prefetch Cache**:
+  - Top 10 correlated symbols
+  - Triggered on symbol selection
+  - Background fetch, no UI block
+
+- **Cache Invalidation**:
+  - TTL expiration
+  - Manual refresh action
+  - Real-time update received
+
+### Integration Points
+
+#### Existing Systems
+- **Upstash Redis**: Direct reads via Edge Functions
+- **Binance WebSocket**: Keep for ticker updates only
+- **Supabase Realtime**: New channel for kline updates
+- **Data Collector**: Continues writing to Redis unchanged
+
+#### Event Flow
+```typescript
+// Events emitted
+emit('data:fetching', { symbol, interval })
+emit('data:fetched', { symbol, interval, count })
+emit('data:error', { symbol, error })
+emit('cache:hit', { symbol, interval })
+emit('cache:miss', { symbol, interval })
+
+// Events consumed
+on('symbol:selected', prefetchRelated)
+on('interval:changed', updateCharts)
+on('realtime:update', mergeUpdate)
+```
+
+### Non-Functional Requirements
+
+#### Performance Targets
+- **Initial Load**: <200ms for cached, <500ms for fetch
+- **Chart Switch**: <100ms for cached symbols
+- **Memory Usage**: <100MB total (including cache)
+- **Network**: <1MB/min for 100 symbols
+
+#### Scalability Plan
+- **Concurrent Users**: 1000 simultaneous
+- **Symbols**: 100 active per user
+- **Cache Size**: Auto-eviction at 100 entries
+- **Request Coalescing**: Dedup identical requests
+
+#### Reliability
+- **Retry Strategy**: Exponential backoff (1s, 2s, 4s)
+- **Fallback**: Stale cache data during outages
+- **Circuit Breaker**: Open after 5 failures in 30s
+- **Health Check**: Ping endpoint every 10s
+
+### Implementation Guidelines
+
+#### Code Organization
+```
+src/
+  features/
+    market-data/
+      index.ts                 // Public exports
+      types.ts                 // TypeScript definitions
+      components/
+        KlineDataProvider.tsx
+        ConnectionIndicator.tsx
+        DataErrorBoundary.tsx
+      services/
+        klineDataService.ts
+        klineDataService.test.ts
+      hooks/
+        useKlineData.ts
+        useTickerData.ts
+        usePrefetch.ts
+      utils/
+        dataTransformers.ts
+        cacheHelpers.ts
+      constants.ts            // TTLs, limits
+```
+
+#### Design Patterns
+- **Singleton**: KlineDataService instance
+- **Provider Pattern**: KlineDataProvider for React
+- **Request Deduplication**: Pending promise cache
+- **LRU Cache**: Automatic memory management
+
+#### Error Handling
+```typescript
+try {
+  const data = await klineDataService.fetchKlines(request);
+  return data;
+} catch (error) {
+  if (error.code === 'REDIS_ERROR') {
+    // Try stale cache
+    const stale = cache.getStale(cacheKey);
+    if (stale) {
+      console.warn('Using stale data due to Redis error');
+      return { ...stale, stale: true };
+    }
+  }
+
+  // Log to monitoring
+  logger.error('Kline fetch failed', { symbol, interval, error });
+
+  // User feedback
+  showNotification('error', 'Unable to load chart data. Retrying...');
+
+  // Throw for component error boundary
+  throw error;
+}
+```
+
+### Security Considerations
+
+#### Data Validation
+```typescript
+const KlineRequestSchema = z.object({
+  symbol: z.string().regex(/^[A-Z]{2,10}USDT$/),
+  interval: z.enum(['1m', '5m', '15m', '1h', '4h', '1d']),
+  limit: z.number().min(1).max(500).optional()
+});
+
+// Validate in edge function
+const validated = KlineRequestSchema.parse(request);
+```
+
+#### Authorization
+- Public data endpoints (no auth needed initially)
+- Rate limiting: 100 requests/minute per IP
+- Future: User-based quotas
+
+### Deployment Considerations
+
+#### Configuration
+```yaml
+# Edge Function environment
+UPSTASH_REDIS_URL: ${secret}
+UPSTASH_REDIS_TOKEN: ${secret}
+MAX_KLINES_PER_REQUEST: 500
+CACHE_TTL_SECONDS: 60
+
+# Client environment
+VITE_SUPABASE_URL: ${public}
+VITE_SUPABASE_ANON_KEY: ${public}
+VITE_ENABLE_PREFETCH: true
+VITE_CACHE_SIZE: 100
+```
+
+#### Feature Flags
+- `features.klineCache.enabled`: Toggle client caching
+- `features.prefetch.enabled`: Toggle prefetching
+- `features.realtime.enabled`: Toggle real-time updates
+
+#### Monitoring
+- **Metrics**:
+  - Cache hit ratio
+  - Fetch latency p50/p95/p99
+  - Error rate by type
+  - Active WebSocket connections
+
+- **Alerts**:
+  - Cache hit ratio <50%
+  - Fetch latency p95 >1s
+  - Error rate >1%
+  - Redis connection lost
+
+### Migration Strategy
+
+#### Phase 1: Emergency Fix (Day 1)
+1. Deploy get-klines edge function
+2. Add fetchKlines to serverExecutionService
+3. Quick fix in App.tsx to restore basic charts
+
+#### Phase 2: Robust Implementation (Week 1)
+1. Build KlineDataService with caching
+2. Create React hooks and providers
+3. Implement error boundaries
+4. Add monitoring
+
+#### Phase 3: Optimization (Week 2)
+1. Add prefetching logic
+2. Implement differential updates
+3. Optimize cache strategy
+4. Load testing
+
+### Testing Strategy
+
+#### Test Coverage Requirements
+- Unit: >80% for services and utils
+- Integration: All edge function calls
+- E2E: Chart loading and switching
+
+#### Critical Test Scenarios
+1. **Cache Performance**: Verify <100ms for cache hits
+2. **Concurrent Requests**: Ensure deduplication works
+3. **Error Recovery**: Test Redis outage handling
+4. **Memory Management**: Verify cache eviction
+5. **Real-time Updates**: Test differential merging
+
+### Decision Log
+
+| Decision | Rationale | Alternatives Considered |
+|----------|-----------|------------------------|
+| LRU Cache | Automatic memory management | TTL-only cache, no cache |
+| 60s TTL | Balance freshness vs performance | 30s (too fresh), 300s (too stale) |
+| Edge Functions | Existing infrastructure | Direct Redis access, API Gateway |
+| Request Dedup | Prevent thundering herd | Rate limiting, queue |
+
+### Open Technical Questions
+
+1. Should we implement compression for large responses?
+2. What's the acceptable staleness for cached data during outages?
+3. Should prefetching be opt-in or automatic?
+
+### Success Criteria
+
+- [x] All charts display data correctly
+- [ ] <200ms load time for cached symbols
+- [ ] <500ms load time for new symbols
+- [ ] Zero data gaps during normal operation
+- [ ] Graceful degradation during outages
+- [ ] Memory usage stays under 100MB
+- [ ] Support 1000 concurrent users
+
+---
+*[End of architecture. Next: /plan issues/2025-09-28-complete-data-layer-migration.md]*

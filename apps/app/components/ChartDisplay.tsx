@@ -208,8 +208,8 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   // State for wheel zoom management and horizontal pan
   const [wheelZoomEnabled, setWheelZoomEnabled] = useState(true);
 
-  // Get data context for cache stats and refresh
-  const { cacheStats, invalidateSymbol } = useKlineDataContext();
+  // Get data context for cache stats, refresh, and prefetching
+  const { cacheStats, invalidateSymbol, prefetchCorrelated } = useKlineDataContext();
 
   // Use kline data hook for additional data management
   const {
@@ -223,7 +223,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
     interval,
     enabled: !!symbol && (!klines || klines.length === 0),
     onSuccess: () => {
-      // Data loaded successfully
+      // Data loaded successfully - trigger prefetch for related symbols
+      if (symbol) {
+        prefetchCorrelated(symbol, interval);
+      }
     }
   });
   const wheelZoomTimeoutRef = useRef<NodeJS.Timeout>();
@@ -234,6 +237,15 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   
   // Use the indicator worker hook
   const { calculateIndicators, cancelCalculations } = useIndicatorWorker();
+
+  // Trigger prefetch when symbol changes
+  useEffect(() => {
+    if (symbol && symbol !== currentSymbolRef.current) {
+      // New symbol selected, prefetch correlated
+      prefetchCorrelated(symbol, interval);
+      currentSymbolRef.current = symbol;
+    }
+  }, [symbol, interval, prefetchCorrelated]);
 
   const destroyAllCharts = () => {
     // Destroy panel charts

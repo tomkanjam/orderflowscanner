@@ -7,12 +7,14 @@ import React, { createContext, useContext, useState, useCallback, useRef, useEff
 import { serverExecutionService } from '../services/serverExecutionService';
 import { KlineResponse, KlineUpdate, klineDataService } from '../services/klineDataService';
 import { Kline, KlineInterval } from '../../types';
+import { prefetchStrategy, getCorrelatedSymbols } from '../utils/correlationMap';
 
 // Context value interface
 export interface KlineDataContextValue {
   fetchKlines: (symbol: string, interval: KlineInterval, limit?: number) => Promise<KlineResponse>;
   getCached: (symbol: string, interval: KlineInterval) => KlineResponse | null;
   prefetch: (symbols: string[], interval: KlineInterval) => void;
+  prefetchCorrelated: (baseSymbol: string, interval: KlineInterval) => void;
   invalidateSymbol: (symbol: string) => void;
   subscribeToUpdates: (
     symbol: string,
@@ -168,23 +170,65 @@ export const KlineDataProvider: React.FC<KlineDataProviderProps> = ({
   }, [getCacheKey, maxCacheAge]);
 
   /**
-   * Prefetch multiple symbols in background
+   * Prefetch multiple symbols in background with intelligent prioritization
    */
   const prefetch = useCallback((
     symbols: string[],
     interval: KlineInterval
   ): void => {
-    // Don't block UI, just fire and forget
-    Promise.all(
-      symbols.map(symbol =>
-        fetchKlines(symbol, interval, 100).catch(err => {
-          console.warn(`[KlineDataProvider] Prefetch failed for ${symbol}:`, err);
-        })
-      )
-    ).then(() => {
-      console.log(`[KlineDataProvider] Prefetched ${symbols.length} symbols`);
+    // Check which symbols actually need prefetching
+    const symbolsToFetch = symbols.filter(symbol => {
+      const cached = getCached(symbol, interval);
+      return !cached; // Only prefetch if not already cached
     });
-  }, [fetchKlines]);
+
+    if (symbolsToFetch.length === 0) {
+      return; // All already cached
+    }
+
+    // Don't block UI, just fire and forget with batching
+    const batchSize = 3; // Fetch 3 at a time to avoid overwhelming
+    const batches: string[][] = [];
+
+    for (let i = 0; i < symbolsToFetch.length; i += batchSize) {
+      batches.push(symbolsToFetch.slice(i, i + batchSize));
+    }
+
+    // Process batches sequentially to avoid network congestion
+    const processBatches = async () => {
+      for (const batch of batches) {
+        await Promise.all(
+          batch.map(symbol =>
+            fetchKlines(symbol, interval, 100).catch(err => {
+              console.warn(`[KlineDataProvider] Prefetch failed for ${symbol}:`, err);
+            })
+          )
+        );
+      }
+      console.log(`[KlineDataProvider] Prefetched ${symbolsToFetch.length} symbols`);
+    };
+
+    processBatches();
+  }, [fetchKlines, getCached]);
+
+  /**
+   * Intelligent prefetch based on symbol correlations
+   */
+  const prefetchCorrelated = useCallback((
+    baseSymbol: string,
+    interval: KlineInterval
+  ): void => {
+    // Record view for pattern analysis
+    prefetchStrategy.recordView(baseSymbol);
+
+    // Get correlated symbols
+    const correlatedSymbols = getCorrelatedSymbols(baseSymbol, 5);
+
+    // Prefetch with delay to not interfere with main loading
+    setTimeout(() => {
+      prefetch(correlatedSymbols, interval);
+    }, 500);
+  }, [prefetch]);
 
   /**
    * Invalidate cache for a specific symbol
@@ -271,6 +315,7 @@ export const KlineDataProvider: React.FC<KlineDataProviderProps> = ({
     fetchKlines,
     getCached,
     prefetch,
+    prefetchCorrelated,
     invalidateSymbol,
     subscribeToUpdates,
     cacheStats,

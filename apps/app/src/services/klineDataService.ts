@@ -10,6 +10,7 @@
 import { Kline, KlineInterval } from '../../types';
 import { createClient, RealtimeChannel } from '@supabase/supabase-js';
 import { performanceMonitor } from '../utils/performanceMonitor';
+import { withRetry, ErrorRecovery } from '../utils/errorHandler';
 
 // Cache configuration
 const CACHE_MAX_SIZE = 100; // Maximum number of symbols to cache

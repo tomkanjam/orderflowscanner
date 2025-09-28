@@ -22,9 +22,14 @@ import { signalManager } from './src/services/signalManager';
 import { tradeManager } from './src/services/tradeManager';
 import { traderManager } from './src/services/traderManager';
 import { Trader } from './src/abstractions/trader.interfaces';
-// REMOVED: Worker imports - migrating to server-side execution
+// Server-side execution imports
+import { useServerSignals } from './hooks/useServerSignals';
+import { serverExecutionService } from './src/services/serverExecutionService';
+import { useConnectionStatus } from './hooks/useConnectionStatus';
+// Keep indicatorWorker for charts only
 import { useIndicatorWorker } from './hooks/useIndicatorWorker';
 import ActivityPanel from './src/components/ActivityPanel';
+import { ConnectionStatus } from './src/components/ConnectionStatus';
 import { klineEventBus } from './src/services/klineEventBus';
 import { workflowManager } from './src/services/workflowManager';
 import { tradingManager } from './src/services/tradingManager';
@@ -139,6 +144,9 @@ const AppContent: React.FC = () => {
     maxSignalsPerSymbol: 5,
     includeIndicatorSnapshots: false,
   });
+
+  // Connection status for server-side execution
+  const connectionStatus = useConnectionStatus();
 
   // Kline history limits configuration
   const [klineHistoryConfig, setKlineHistoryConfig] = useState<KlineHistoryConfig>(() => {
@@ -445,6 +453,23 @@ const AppContent: React.FC = () => {
   const clearMultiTraderHistoricalSignals = () => {};
 
   // Multi-trader screener will be initialized after handleNewSignal is defined
+
+  // Initialize server execution service
+  useEffect(() => {
+    console.log('[App] Initializing server execution service');
+    serverExecutionService.initializeRealtime()
+      .then(() => {
+        console.log('[App] Server execution service initialized successfully');
+      })
+      .catch((error) => {
+        console.error('[App] Failed to initialize server execution service:', error);
+      });
+
+    return () => {
+      console.log('[App] Cleaning up server execution service');
+      // Service cleanup happens automatically
+    };
+  }, []);
 
   // Save kline history config to localStorage
   useEffect(() => {
@@ -1091,19 +1116,37 @@ const AppContent: React.FC = () => {
   // });
   
   
-  // REMOVED: useTraderIntervals - migrating to server-side execution
-  /* const useTraderIntervals = useSharedTraderIntervals;
-
-  const traderIntervalsResult = useTraderIntervals({
+  // Server-side signal subscription
+  const { clearTraderCache } = useServerSignals({
     traders,
-    symbols: allSymbols,
-    tickers,
-    onResults: handleMultiTraderResults,
+    onResults: (signals) => {
+      console.log('[App] Received server signals:', signals);
+      // Process server signals through signal manager
+      signals.forEach(signal => {
+        if (signal.symbols && signal.symbols.length > 0) {
+          // Convert server signal format to expected format
+          signal.symbols.forEach(symbol => {
+            const ticker = tickers.get(symbol);
+            if (ticker) {
+              const trader = traders.find(t => t.id === signal.trader_id);
+              if (trader) {
+                console.log(`[App] Creating signal for ${symbol} from trader ${trader.name}`);
+                createSignalFromFilter({
+                  symbol,
+                  price: parseFloat(ticker.c),
+                  change: parseFloat(ticker.P),
+                  volume: parseFloat(ticker.q),
+                  filterDesc: trader.filter.description || [`Trader: ${trader.name}`],
+                  trader
+                });
+              }
+            }
+          });
+        }
+      });
+    },
     enabled: screenerEnabled
   });
-
-  const clearTraderCache = traderIntervalsResult.clearTraderCache; */
-  const clearTraderCache = () => {}; // Placeholder for now
   
   // REMOVED: performance metrics - part of worker infrastructure
   const performanceMetrics = null;
@@ -1239,6 +1282,10 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen relative">
+      {/* Connection Status Indicator */}
+      <div className="absolute top-2 right-2 z-50">
+        <ConnectionStatus />
+      </div>
       <Sidebar
         onSelectedTraderChange={setSelectedTraderId}
         tickerCount={tickers.size}

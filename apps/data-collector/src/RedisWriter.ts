@@ -7,6 +7,7 @@ export class RedisWriter {
   private pipelineTimer: NodeJS.Timeout | null = null;
   private readonly pipelineFlushInterval = 100; // Flush every 100ms
   private readonly maxKlinesPerSymbol = 500; // Store last 500 klines per interval
+  private pendingSymbols: Set<string> = new Set(); // Track symbols in current pipeline
 
   constructor(redisUrl?: string, redisToken?: string) {
     const url = redisUrl || process.env.UPSTASH_REDIS_URL;
@@ -38,17 +39,22 @@ export class RedisWriter {
 
     try {
       const startTime = Date.now();
+      const symbolCount = this.pendingSymbols.size;
+      const symbols = Array.from(this.pendingSymbols).join(', ');
+
       await this.pipeline.exec();
       const latency = Date.now() - startTime;
 
       if (latency > 10) {
-        console.warn(`Pipeline flush took ${latency}ms`);
+        console.warn(`Pipeline flush took ${latency}ms - ${symbolCount} symbols: ${symbols}`);
       }
 
       this.pipeline = null;
+      this.pendingSymbols.clear();
     } catch (error) {
       console.error('Pipeline flush error:', error);
       this.pipeline = null;
+      this.pendingSymbols.clear();
     }
   }
 
@@ -67,6 +73,9 @@ async writeKline(symbol: string, interval: string, kline: KlineData): Promise<vo
 
     const key = `klines:${symbol}:${interval}`;
     const pipeline = this.getPipeline();
+
+    // Track this symbol in the pending set
+    this.pendingSymbols.add(symbol);
 
     // Add to sorted set (score is the close time)
     pipeline.zadd(key, {

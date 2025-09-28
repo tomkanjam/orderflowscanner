@@ -50,6 +50,7 @@ import { KlineDataProvider } from './src/contexts/KlineDataProvider';
 import { useKlineData } from './src/hooks/useKlineData';
 import { usePrefetch } from './src/hooks/usePrefetch';
 import { useKlineManager } from './src/hooks/useKlineManager';
+import { performanceMonitor } from './src/utils/performanceMonitor';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -193,6 +194,20 @@ const AppContent: React.FC = () => {
   // Data update tracking for StatusBar
   const dataUpdateCallbackRef = useRef<(() => void) | null>(null);
   
+  // Initialize performance monitoring
+  useEffect(() => {
+    performanceMonitor.start((metrics) => {
+      // Optional: send to analytics service in production
+      if (process.env.NODE_ENV === 'production') {
+        // analyticsService.track('performance_metrics', metrics);
+      }
+    });
+
+    return () => {
+      performanceMonitor.stop();
+    };
+  }, []);
+
   // Memory-aware batched ticker updater to reduce state updates and memory allocation
   const tickerBatchUpdater = useRef<UpdateBatcher<string, Ticker>>();
   useEffect(() => {

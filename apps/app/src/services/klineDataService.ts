@@ -9,6 +9,7 @@
 
 import { Kline, KlineInterval } from '../../types';
 import { createClient, RealtimeChannel } from '@supabase/supabase-js';
+import { performanceMonitor } from '../utils/performanceMonitor';
 
 // Cache configuration
 const CACHE_MAX_SIZE = 100; // Maximum number of symbols to cache
@@ -140,6 +141,7 @@ export class KlineDataService {
       CACHE_MAX_SIZE,
       (key, entry) => {
         this.stats.evictions++;
+        performanceMonitor.trackCacheEviction();
         console.log(`[KlineDataService] Evicted cache entry: ${key}`);
       }
     );
@@ -177,10 +179,12 @@ export class KlineDataService {
     const cached = this.getFromCache(cacheKey);
     if (cached) {
       this.stats.hits++;
+      performanceMonitor.trackCacheHit();
       return { ...cached, cached: true };
     }
 
     this.stats.misses++;
+    performanceMonitor.trackCacheMiss();
 
     // Check for pending request (deduplication)
     const pending = this.pendingRequests.get(cacheKey);
@@ -253,6 +257,9 @@ export class KlineDataService {
       // Estimate: ~1KB per kline, plus overhead
       memoryUsage += entry.data.klines.length * 1024;
     }
+
+    // Update performance monitor
+    performanceMonitor.updateCacheSize(this.cache.size);
 
     return {
       ...this.stats,
@@ -532,6 +539,9 @@ export class KlineDataService {
         takerBuyQuoteVolume: k.takerBuyQuoteVolume
       }));
 
+      const latency = Date.now() - startTime;
+      performanceMonitor.trackNetworkRequest(latency, true);
+
       return {
         klines,
         ticker: data.ticker,
@@ -539,10 +549,12 @@ export class KlineDataService {
         timeframe: data.timeframe,
         count: klines.length,
         cached: false,
-        latency: Date.now() - startTime
+        latency
       };
 
     } catch (error) {
+      const latency = Date.now() - startTime;
+      performanceMonitor.trackNetworkRequest(latency, false);
       console.error('[KlineDataService] Server fetch failed:', error);
 
       // Return empty response on error

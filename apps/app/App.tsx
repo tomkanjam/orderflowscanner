@@ -9,8 +9,9 @@ import { fetchTopPairsAndInitialKlines, connectWebSocket, connectMultiIntervalWe
 import { getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS, MAX_SIGNAL_LOG_ENTRIES } from './constants';
 import * as screenerHelpers from './screenerHelpers';
-import { useHistoricalScanner } from './hooks/useHistoricalScanner';
-import { useMultiTraderHistoricalScanner } from './hooks/useMultiTraderHistoricalScanner';
+// REMOVED: Historical scanner hooks - migrating to server-side execution
+// import { useHistoricalScanner } from './hooks/useHistoricalScanner';
+// import { useMultiTraderHistoricalScanner } from './hooks/useMultiTraderHistoricalScanner';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { useAuth } from './src/hooks/useAuth';
 import { observability } from './services/observabilityService';
@@ -21,8 +22,7 @@ import { signalManager } from './src/services/signalManager';
 import { tradeManager } from './src/services/tradeManager';
 import { traderManager } from './src/services/traderManager';
 import { Trader } from './src/abstractions/trader.interfaces';
-import { useSharedTraderIntervals } from './hooks/useSharedTraderIntervals';
-import { TraderResult } from './workers/multiTraderScreenerWorker';
+// REMOVED: Worker imports - migrating to server-side execution
 import { useIndicatorWorker } from './hooks/useIndicatorWorker';
 import ActivityPanel from './src/components/ActivityPanel';
 import { klineEventBus } from './src/services/klineEventBus';
@@ -36,7 +36,7 @@ import { useSubscription } from './src/contexts/SubscriptionContext';
 import { areTraderArraysEqual } from './src/utils/traderEquality';
 import { memDebug } from './src/utils/memoryDebugger';
 import { klineEventEmitter } from './src/utils/KlineEventEmitter';
-import { sharedMarketData } from './src/shared/SharedMarketData';
+// REMOVED: sharedMarketData import - migrating to server-side execution
 import { BoundedMap, createBoundedMap } from './src/memory/BoundedCollections';
 import { UpdateBatcher, createTickerBatcher } from './src/optimization/UpdateBatcher';
 import { useThrottledState, useMemoryAwareState } from './src/hooks/useBoundedState';
@@ -74,7 +74,8 @@ const AppContent: React.FC = () => {
   
   // Helper to get klines for a specific interval
   const getKlinesForInterval = useCallback((symbol: string, interval: KlineInterval): Kline[] => {
-    return sharedMarketData.getKlines(symbol, interval);
+    // REMOVED: sharedMarketData.getKlines - will be replaced with server data
+    return [];
   }, []);
   
   const [klineInterval, setKlineInterval] = useState<KlineInterval>(DEFAULT_KLINE_INTERVAL);
@@ -214,7 +215,8 @@ const AppContent: React.FC = () => {
       memoryMonitor.registerMetric('tickersSize', () => tickers.size);
       memoryMonitor.registerMetric('sharedDataSize', () => {
         // Track SharedMarketData usage instead
-        const stats = sharedMarketData.getMemoryStats();
+        // REMOVED: sharedMarketData.getMemoryStats
+        const stats = null;
         return stats.usedSymbols;
       });
       memoryMonitor.registerMetric('signalLogSize', () => signalLog.length);
@@ -317,10 +319,11 @@ const AppContent: React.FC = () => {
       }
       
       // Get klines directly from SharedMarketData for the appropriate interval
-      const klines = sharedMarketData.getKlines(symbol, interval);
+      // REMOVED: sharedMarketData.getKlines - will be replaced with server data
+      const klines: any[] = [];
       if (!klines || klines.length === 0) {
         // Fallback to 1m if specific interval has no data
-        const fallbackKlines = sharedMarketData.getKlines(symbol, KlineInterval.ONE_MINUTE);
+        const fallbackKlines: any[] = [];
         if (!fallbackKlines || fallbackKlines.length === 0) {
           return null;
         }
@@ -354,8 +357,8 @@ const AppContent: React.FC = () => {
     },
   });
 
-  // Historical scanner hook
-  const {
+  // REMOVED: Historical scanner - migrating to server-side execution
+  /* const {
     isScanning: isHistoricalScanning,
     progress: historicalScanProgress,
     signals: historicalScanResults,
@@ -377,7 +380,14 @@ const AppContent: React.FC = () => {
     if (historicalScanResults.length > 0) {
       setHistoricalSignals(historicalScanResults);
     }
-  }, [historicalScanResults]);
+  }, [historicalScanResults]); */
+  // Placeholder variables for now
+  const isHistoricalScanning = false;
+  const historicalScanProgress = null;
+  const historicalScanError = null;
+  const startHistoricalScan = () => {};
+  const cancelHistoricalScan = () => {};
+  const clearHistoricalSignals = () => {};
 
 
   // Subscribe to traders
@@ -403,8 +413,8 @@ const AppContent: React.FC = () => {
     return unsubscribe;
   }, [updateTraders]);
 
-  // Multi-trader historical scanner
-  const {
+  // REMOVED: Multi-trader historical scanner - migrating to server-side execution
+  /* const {
     isScanning: isMultiTraderHistoricalScanning,
     progress: multiTraderHistoricalProgress,
     signals: multiTraderHistoricalSignals,
@@ -425,7 +435,14 @@ const AppContent: React.FC = () => {
     if (multiTraderHistoricalSignals.length > 0) {
       setHistoricalSignals(multiTraderHistoricalSignals);
     }
-  }, [multiTraderHistoricalSignals]);
+  }, [multiTraderHistoricalSignals]); */
+  // Placeholder variables for multi-trader historical scanner
+  const isMultiTraderHistoricalScanning = false;
+  const multiTraderHistoricalProgress = null;
+  const multiTraderHistoricalError = null;
+  const startMultiTraderHistoricalScan = () => {};
+  const cancelMultiTraderHistoricalScan = () => {};
+  const clearMultiTraderHistoricalSignals = () => {};
 
   // Multi-trader screener will be initialized after handleNewSignal is defined
 
@@ -576,7 +593,7 @@ const AppContent: React.FC = () => {
             }
           }
           // Batch update all klines for this symbol-interval
-          sharedMarketData.updateKlines(symbol, interval, klines);
+          // REMOVED: sharedMarketData.updateKlines - will be replaced with server data
         });
       });
       
@@ -682,13 +699,7 @@ const AppContent: React.FC = () => {
       const maxSignalHistoryAge = 24 * 60 * 60 * 1000; // 24 hours
       const maxSignalLogAge = 12 * 60 * 60 * 1000; // 12 hours
       
-      // Clean up SharedArrayBuffer for inactive symbols
-      if (sharedMarketData) {
-        const removedCount = sharedMarketData.cleanupOldSymbols(5 * 60 * 1000); // 5 minutes inactive
-        if (removedCount > 0) {
-          console.log(`[App] Cleaned ${removedCount} inactive symbols from SharedArrayBuffer`);
-        }
-      }
+      // REMOVED: SharedArrayBuffer cleanup - no longer using shared memory
       
       // Clean signal history - BoundedMap handles size limits automatically
       setSignalHistory(prev => {
@@ -832,7 +843,7 @@ const AppContent: React.FC = () => {
     }
     
     // Write directly to SharedMarketData (no state cloning!)
-    sharedMarketData.updateKline(symbol, interval, kline);
+    // REMOVED: sharedMarketData.updateKline - will be replaced with server data
     
     // Emit lightweight event for UI updates
     klineEventEmitter.emit(symbol, interval);
@@ -842,7 +853,7 @@ const AppContent: React.FC = () => {
       memDebug.takeSnapshot('After kline update', { 
         symbol, 
         interval,
-        sharedDataStats: sharedMarketData.getMemoryStats()
+        sharedDataStats: null // REMOVED: sharedMarketData.getMemoryStats
       });
     }
   }, []);
@@ -984,7 +995,8 @@ const AppContent: React.FC = () => {
 
 
   // Multi-trader screener hook
-  const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
+  // REMOVED: handleMultiTraderResults - migrating to server-side execution
+  /* const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
     results.forEach(result => {
       
       result.signalSymbols.forEach(symbol => {
@@ -1067,7 +1079,7 @@ const AppContent: React.FC = () => {
         }
       });
     });
-  }, [traders, tickers, activeStrategy, klineInterval, signalHistory, signalDedupeThreshold, createSignalFromFilter]);
+  }, [traders, tickers, activeStrategy, klineInterval, signalHistory, signalDedupeThreshold, createSignalFromFilter]); */
 
   const screenerEnabled = multiTraderEnabled && traders.some(t => t.enabled);
   // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Multi-trader screener status:`, {
@@ -1079,9 +1091,9 @@ const AppContent: React.FC = () => {
   // });
   
   
-  // Always use shared trader intervals (other modes removed)
-  const useTraderIntervals = useSharedTraderIntervals;
-  
+  // REMOVED: useTraderIntervals - migrating to server-side execution
+  /* const useTraderIntervals = useSharedTraderIntervals;
+
   const traderIntervalsResult = useTraderIntervals({
     traders,
     symbols: allSymbols,
@@ -1089,26 +1101,14 @@ const AppContent: React.FC = () => {
     onResults: handleMultiTraderResults,
     enabled: screenerEnabled
   });
+
+  const clearTraderCache = traderIntervalsResult.clearTraderCache; */
+  const clearTraderCache = () => {}; // Placeholder for now
   
-  const clearTraderCache = traderIntervalsResult.clearTraderCache;
+  // REMOVED: performance metrics - part of worker infrastructure
+  const performanceMetrics = null;
   
-  // Get performance metrics if available
-  const performanceMetrics = 
-    'getPerformanceComparison' in traderIntervalsResult ? 
-    traderIntervalsResult.getPerformanceComparison?.() : 
-    'getPerformanceMetrics' in traderIntervalsResult ?
-    traderIntervalsResult.getPerformanceMetrics?.() :
-    null;
-  
-  // Test SharedArrayBuffer support
-  useEffect(() => {
-    if ('testSharedArrayBuffer' in traderIntervalsResult) {
-      const test = traderIntervalsResult.testSharedArrayBuffer?.();
-      if (test && !test.supported) {
-        console.error('[App] SharedArrayBuffer not supported:', test);
-      }
-    }
-  }, []);
+  // REMOVED: SharedArrayBuffer test - no longer using shared memory
   
   // Log performance metrics only on significant changes (throttled)
   useEffect(() => {
@@ -1170,7 +1170,8 @@ const AppContent: React.FC = () => {
     // Get all intervals for the symbol from SharedMarketData
     const klineData = new Map<KlineInterval, Kline[]>();
     ['1m', '5m', '15m', '1h', '4h', '1d'].forEach((interval) => {
-      const klines = sharedMarketData.getKlines(symbol, interval as KlineInterval);
+      // REMOVED: sharedMarketData.getKlines - will be replaced with server data
+      const klines: any[] = [];
       if (klines.length > 0) {
         klineData.set(interval as KlineInterval, klines);
       }

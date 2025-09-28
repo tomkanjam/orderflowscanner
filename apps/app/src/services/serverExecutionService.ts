@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { klineDataService, KlineRequest, KlineResponse } from './klineDataService';
+import { KlineInterval } from '../../types';
 
 // Initialize Supabase client - using import.meta.env for Vite
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -221,6 +223,128 @@ class ServerExecutionService {
   }
 
   /**
+   * Fetch klines data using the klineDataService
+   */
+  async fetchKlines(symbol: string, timeframe: KlineInterval, limit: number = 100): Promise<KlineResponse> {
+    const request: KlineRequest = {
+      symbol,
+      timeframe,
+      limit
+    };
+
+    try {
+      const response = await klineDataService.fetchKlines(request);
+
+      // Log cache statistics periodically
+      const stats = klineDataService.getStats();
+      if (stats.hits + stats.misses > 0 && (stats.hits + stats.misses) % 100 === 0) {
+        const hitRate = ((stats.hits / (stats.hits + stats.misses)) * 100).toFixed(1);
+        console.log(`[ServerExecutionService] Cache stats - Hit rate: ${hitRate}%, Size: ${stats.size}/${100}, Memory: ${(stats.memoryUsage / 1024 / 1024).toFixed(2)}MB`);
+      }
+
+      return response;
+    } catch (error) {
+      console.error(`[ServerExecutionService] Failed to fetch klines for ${symbol}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch klines for multiple symbols in batch
+   */
+  async fetchMultipleKlines(
+    symbols: string[],
+    timeframe: KlineInterval,
+    limit: number = 100
+  ): Promise<Map<string, KlineResponse>> {
+    const requests: KlineRequest[] = symbols.map(symbol => ({
+      symbol,
+      timeframe,
+      limit
+    }));
+
+    try {
+      const results = await klineDataService.fetchMultipleKlines(requests);
+      return results;
+    } catch (error) {
+      console.error('[ServerExecutionService] Batch fetch failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Prefetch related symbols in background
+   */
+  async prefetchRelatedSymbols(
+    baseSymbol: string,
+    relatedSymbols: string[],
+    timeframe: KlineInterval
+  ): Promise<void> {
+    // Filter out symbols that are too different
+    const symbolsToFetch = relatedSymbols.filter(symbol => {
+      // Only prefetch USDT pairs similar to base
+      return symbol.endsWith('USDT') && symbol !== baseSymbol;
+    }).slice(0, 5); // Limit to 5 related symbols
+
+    if (symbolsToFetch.length > 0) {
+      console.log(`[ServerExecutionService] Prefetching ${symbolsToFetch.length} related symbols for ${baseSymbol}`);
+      await klineDataService.prefetchRelatedSymbols(baseSymbol, symbolsToFetch, timeframe);
+    }
+  }
+
+  /**
+   * Check connection health
+   */
+  async checkHealth(): Promise<{
+    redis: boolean;
+    supabase: boolean;
+    latency: number;
+  }> {
+    const startTime = Date.now();
+    let redisHealthy = false;
+    let supabaseHealthy = false;
+
+    // Check Redis via edge function
+    try {
+      const response = await this.fetchKlines('BTCUSDT', '5m' as KlineInterval, 1);
+      redisHealthy = response.klines.length > 0 || response.error === undefined;
+    } catch {
+      redisHealthy = false;
+    }
+
+    // Check Supabase
+    try {
+      if (supabase) {
+        const { error } = await supabase.from('traders').select('id').limit(1);
+        supabaseHealthy = !error;
+      }
+    } catch {
+      supabaseHealthy = false;
+    }
+
+    return {
+      redis: redisHealthy,
+      supabase: supabaseHealthy,
+      latency: Date.now() - startTime
+    };
+  }
+
+  /**
+   * Clear cache for specific symbol
+   */
+  clearSymbolCache(symbol: string): void {
+    klineDataService.invalidateSymbol(symbol);
+    console.log(`[ServerExecutionService] Cache cleared for ${symbol}`);
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats() {
+    return klineDataService.getStats();
+  }
+
+  /**
    * Clean up resources
    */
   async cleanup(): Promise<void> {
@@ -229,6 +353,9 @@ class ServerExecutionService {
       this.signalChannel = null;
     }
     this.signalCallbacks.clear();
+
+    // Clear cache on cleanup
+    klineDataService.clearCache();
   }
 }
 

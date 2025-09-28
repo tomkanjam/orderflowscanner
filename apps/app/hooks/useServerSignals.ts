@@ -28,11 +28,11 @@ export function useServerSignals({
   // Handle trader subscriptions
   useEffect(() => {
     if (!enabled) {
-      console.log('[useServerSignals] Hook disabled');
+      // Hook disabled
       return;
     }
 
-    console.log(`[useServerSignals] Setting up subscriptions for ${traders.length} traders`);
+    // Setting up subscriptions for traders
 
     // Clean up previous subscriptions
     cleanupFnsRef.current.forEach(fn => fn());
@@ -42,12 +42,12 @@ export function useServerSignals({
     const cleanups = traders
       .filter(trader => trader.enabled)
       .map(trader => {
-        console.log(`[useServerSignals] Subscribing to trader: ${trader.name} (${trader.id})`);
+        // Subscribing to trader
 
         return serverExecutionService.onTraderSignal(
           trader.id,
           (signal) => {
-            console.log(`[useServerSignals] Received signal for trader ${trader.id}:`, signal);
+            // Received signal for trader
             // Wrap signal in array to match old interface
             onResultsRef.current([signal]);
           }
@@ -58,7 +58,7 @@ export function useServerSignals({
 
     // Cleanup function
     return () => {
-      console.log('[useServerSignals] Cleaning up subscriptions');
+      // Cleaning up subscriptions
       cleanupFnsRef.current.forEach(fn => fn());
       cleanupFnsRef.current = [];
     };
@@ -66,7 +66,7 @@ export function useServerSignals({
 
   // Return clearTraderCache function for compatibility
   const clearTraderCache = useCallback((traderId?: string) => {
-    console.log(`[useServerSignals] Clear cache requested for trader: ${traderId || 'all'}`);
+    // Clear cache requested
     // In server-side execution, cache is managed server-side
     // This is a no-op for compatibility
   }, []);

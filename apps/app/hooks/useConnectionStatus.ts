@@ -29,7 +29,7 @@ export function useConnectionStatus(): UseConnectionStatusResult {
 
   useEffect(() => {
     if (!supabase) {
-      console.warn('[useConnectionStatus] Supabase client not configured');
+      // Supabase client not configured
       setStatus('disconnected');
       return;
     }
@@ -39,12 +39,12 @@ export function useConnectionStatus(): UseConnectionStatusResult {
     // Create a test channel to monitor connection
     const channel = supabase.channel('connection-status')
       .on('system', { event: '*' }, (payload) => {
-        console.log('[useConnectionStatus] System event:', payload);
+        // System event received
       })
       .subscribe((status) => {
         if (!isSubscribed) return;
 
-        console.log('[useConnectionStatus] Channel status:', status);
+        // Channel status changed
 
         if (status === 'SUBSCRIBED') {
           setStatus('connected');
@@ -77,7 +77,7 @@ export function useConnectionStatus(): UseConnectionStatusResult {
             setLastPing(new Date());
           }
         } catch (error) {
-          console.warn('[useConnectionStatus] Ping failed:', error);
+          // Ping failed, will retry
           if (isSubscribed) {
             setStatus('reconnecting');
           }
@@ -94,7 +94,7 @@ export function useConnectionStatus(): UseConnectionStatusResult {
 
     // Handle window focus/blur for connection monitoring
     const handleFocus = () => {
-      console.log('[useConnectionStatus] Window focused, checking connection');
+      // Window focused, checking connection
       // Re-establish connection on focus
       if (status === 'disconnected') {
         setStatus('reconnecting');
@@ -102,7 +102,7 @@ export function useConnectionStatus(): UseConnectionStatusResult {
     };
 
     const handleBlur = () => {
-      console.log('[useConnectionStatus] Window blurred');
+      // Window blurred
     };
 
     window.addEventListener('focus', handleFocus);

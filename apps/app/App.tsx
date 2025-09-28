@@ -73,7 +73,6 @@ const AppContent: React.FC = () => {
   const { currentTier } = useSubscription();
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
-  // REMOVED: historicalData state - now using SharedMarketData directly to prevent memory leaks
   const [traders, setTraders] = useState<Trader[]>([]);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
   
@@ -221,12 +220,7 @@ const AppContent: React.FC = () => {
     if (process.env.NODE_ENV === 'development') {
       // Register custom metrics to track data structure sizes
       memoryMonitor.registerMetric('tickersSize', () => tickers.size);
-      memoryMonitor.registerMetric('sharedDataSize', () => {
-        // Track SharedMarketData usage instead
-        // REMOVED: sharedMarketData.getMemoryStats
-        const stats = null;
-        return stats.usedSymbols;
-      });
+      // Removed SharedMarketData metric - using server-side execution
       memoryMonitor.registerMetric('signalLogSize', () => signalLog.length);
       memoryMonitor.registerMetric('signalHistorySize', () => signalHistory.size);
       memoryMonitor.registerMetric('klineUpdateCountSize', () => klineUpdateCountRef.current.size);
@@ -271,7 +265,6 @@ const AppContent: React.FC = () => {
   
   // Use refs to avoid stale closures
   const tickersRef = useRef(tickers);
-  // Removed historicalDataRef - using SharedMarketData directly
   const tradersRef = useRef(traders);
   
   // Update refs when state changes
@@ -279,7 +272,6 @@ const AppContent: React.FC = () => {
     tickersRef.current = tickers;
   }, [tickers]);
   
-  // Removed historicalData ref update - using SharedMarketData directly
   
   useEffect(() => {
     tradersRef.current = traders;
@@ -326,7 +318,6 @@ const AppContent: React.FC = () => {
         }
       }
       
-      // Get klines directly from SharedMarketData for the appropriate interval
       // REMOVED: sharedMarketData.getKlines - will be replaced with server data
       const klines: any[] = [];
       if (!klines || klines.length === 0) {
@@ -495,14 +486,12 @@ const AppContent: React.FC = () => {
         
         return {
           tickers: tickersRef.current,
-          // Historical data now in SharedMarketData,
           activeSymbols,
           prioritySymbols: selectedSymbols
         };
       },
       (state) => {
         if (state.tickers) setTickers(state.tickers);
-        // Historical data now in SharedMarketData, no need to restore
       },
       30000 // Clean up every 30 seconds
     );
@@ -593,7 +582,6 @@ const AppContent: React.FC = () => {
         });
       }
       
-      // Write initial klines to SharedMarketData
       console.log('[InitialData] Loading klines into SharedMarketData:', {
         totalSymbols: multiIntervalData.size,
         symbols: Array.from(multiIntervalData.keys()).slice(0, 5),
@@ -639,7 +627,6 @@ const AppContent: React.FC = () => {
       setInitialError(`Failed to load initial market data: ${errorMessage}`);
       setAllSymbols([]);
       setTickers(new Map());
-      // SharedMarketData is already empty on error
       setStatusText('Error');
       setStatusLightClass('bg-[var(--nt-error)]');
     } finally {
@@ -724,7 +711,6 @@ const AppContent: React.FC = () => {
       const maxSignalHistoryAge = 24 * 60 * 60 * 1000; // 24 hours
       const maxSignalLogAge = 12 * 60 * 60 * 1000; // 12 hours
       
-      // REMOVED: SharedArrayBuffer cleanup - no longer using shared memory
       
       // Clean signal history - BoundedMap handles size limits automatically
       setSignalHistory(prev => {
@@ -867,7 +853,6 @@ const AppContent: React.FC = () => {
       tradeManager.updatePrice(symbol, currentPrice);
     }
     
-    // Write directly to SharedMarketData (no state cloning!)
     // REMOVED: sharedMarketData.updateKline - will be replaced with server data
     
     // Emit lightweight event for UI updates
@@ -1148,10 +1133,8 @@ const AppContent: React.FC = () => {
     enabled: screenerEnabled
   });
   
-  // REMOVED: performance metrics - part of worker infrastructure
   const performanceMetrics = null;
   
-  // REMOVED: SharedArrayBuffer test - no longer using shared memory
   
   // Log performance metrics only on significant changes (throttled)
   useEffect(() => {
@@ -1162,7 +1145,6 @@ const AppContent: React.FC = () => {
     
   }, [performanceMetrics]);
 
-  // Subscribe to trader deletions to clean up worker cache
   useEffect(() => {
     const unsubscribe = traderManager.subscribeToDeletes((traderId) => {
       console.log(`[App] Trader ${traderId} deleted, clearing worker cache`);
@@ -1210,7 +1192,6 @@ const AppContent: React.FC = () => {
     setIsModalOpen(true);
 
     const tickerData = tickers.get(symbol);
-    // Get all intervals for the symbol from SharedMarketData
     const klineData = new Map<KlineInterval, Kline[]>();
     ['1m', '5m', '15m', '1h', '4h', '1d'].forEach((interval) => {
       // REMOVED: sharedMarketData.getKlines - will be replaced with server data

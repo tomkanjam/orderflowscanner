@@ -1,8 +1,15 @@
 # Issues Dashboard
 
-*Last updated: 2025-09-26 08:35:00*
+*Last updated: 2025-09-28 13:25:00*
 
 ## Active Issues
+
+### 🔴 Critical - Immediate Action Required
+- [`2025-09-28-complete-data-layer-migration.md`](./2025-09-28-complete-data-layer-migration.md) - Complete Data Layer Migration
+  - **Priority:** Critical
+  - **Type:** enhancement
+  - **Status:** Charts/analysis broken - needs immediate fix
+  - **Impact:** Core functionality non-operational
 
 ### 🎯 New Ideas
 - [`2025-09-26-centralized-data-edge-execution.md`](./2025-09-26-centralized-data-edge-execution.md) - Centralized Data with Edge Execution

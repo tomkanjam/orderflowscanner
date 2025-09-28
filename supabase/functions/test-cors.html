@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Security Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .test {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #333;
+        }
+        .pass {
+            color: #00ff00;
+            border-color: #00ff00;
+        }
+        .fail {
+            color: #ff0000;
+            border-color: #ff0000;
+        }
+        .info {
+            color: #ffff00;
+        }
+        button {
+            background: #333;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #00ff00;
+            color: #000;
+        }
+        pre {
+            background: #0a0a0a;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔒 CORS Security Test Suite</h1>
+    <p class="info">Testing CORS configuration for Edge Functions</p>
+
+    <div id="config">
+        <h2>Configuration</h2>
+        <label>Supabase Project URL:</label>
+        <input type="text" id="projectUrl" placeholder="https://yourproject.supabase.co" style="width: 400px; background: #333; color: #0f0; border: 1px solid #0f0; padding: 5px;">
+        <br><br>
+        <label>Test Origin:</label>
+        <select id="testOrigin" style="background: #333; color: #0f0; border: 1px solid #0f0; padding: 5px;">
+            <option value="current">Current Origin (should pass)</option>
+            <option value="evil">https://evil.com (should fail)</option>
+            <option value="localhost">http://localhost:5173 (should pass in dev)</option>
+        </select>
+    </div>
+
+    <div id="controls">
+        <h2>Tests</h2>
+        <button onclick="testGetKlines()">Test get-klines</button>
+        <button onclick="testBroadcastUpdates()">Test broadcast-updates</button>
+        <button onclick="testLangfuseProxy()">Test langfuse-proxy</button>
+        <button onclick="testAllEndpoints()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+
+        function getProjectUrl() {
+            return document.getElementById('projectUrl').value || 'https://YOUR_PROJECT.supabase.co';
+        }
+
+        function getTestOrigin() {
+            const selected = document.getElementById('testOrigin').value;
+            if (selected === 'current') return window.location.origin;
+            if (selected === 'evil') return 'https://evil.com';
+            return 'http://localhost:5173';
+        }
+
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test ${type}`;
+            div.innerHTML = `<pre>${new Date().toISOString()} - ${message}</pre>`;
+            resultsDiv.appendChild(div);
+        }
+
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+        }
+
+        async function testCors(endpoint, body, headers = {}) {
+            const url = `${getProjectUrl()}/functions/v1/${endpoint}`;
+            const origin = getTestOrigin();
+
+            log(`Testing ${endpoint} from origin: ${origin}`);
+
+            try {
+                // Test preflight
+                log(`Sending OPTIONS preflight request...`);
+                const preflightResponse = await fetch(url, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'content-type'
+                    },
+                    mode: 'cors'
+                });
+
+                if (preflightResponse.status === 204) {
+                    const corsOrigin = preflightResponse.headers.get('Access-Control-Allow-Origin');
+                    if (corsOrigin === origin || corsOrigin === '*') {
+                        log(`✅ Preflight PASSED - Origin allowed: ${corsOrigin}`, 'pass');
+                    } else if (!corsOrigin) {
+                        log(`🚫 Preflight BLOCKED - No Access-Control-Allow-Origin header`, 'fail');
+                        return;
+                    }
+                }
+
+                // Test actual request
+                log(`Sending POST request...`);
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': origin,
+                        ...headers
+                    },
+                    body: JSON.stringify(body),
+                    mode: 'cors'
+                });
+
+                const corsOrigin = response.headers.get('Access-Control-Allow-Origin');
+                const data = await response.json();
+
+                if (corsOrigin === origin || corsOrigin === '*') {
+                    log(`✅ Request PASSED - Origin allowed: ${corsOrigin}`, 'pass');
+                    log(`Response: ${JSON.stringify(data, null, 2)}`, 'info');
+                } else if (!corsOrigin) {
+                    log(`🚫 Request BLOCKED - No Access-Control-Allow-Origin header`, 'fail');
+                } else {
+                    log(`⚠️ Unexpected CORS header: ${corsOrigin}`, 'fail');
+                }
+
+                // Check security headers
+                const securityHeaders = [
+                    'X-Content-Type-Options',
+                    'X-Frame-Options',
+                    'X-XSS-Protection',
+                    'Strict-Transport-Security'
+                ];
+
+                log('Security Headers Check:', 'info');
+                securityHeaders.forEach(header => {
+                    const value = response.headers.get(header);
+                    if (value) {
+                        log(`  ✅ ${header}: ${value}`, 'pass');
+                    } else {
+                        log(`  ⚠️ ${header}: Missing`, 'info');
+                    }
+                });
+
+            } catch (error) {
+                if (error.message.includes('CORS')) {
+                    log(`🚫 CORS BLOCKED - ${error.message}`, 'fail');
+                } else {
+                    log(`❌ Error: ${error.message}`, 'fail');
+                }
+            }
+        }
+
+        async function testGetKlines() {
+            log('=== Testing get-klines ===', 'info');
+            await testCors('get-klines', {
+                symbol: 'BTCUSDT',
+                timeframe: '1h',
+                limit: 10
+            });
+        }
+
+        async function testBroadcastUpdates() {
+            log('=== Testing broadcast-updates ===', 'info');
+            // This will likely fail without auth, but we're testing CORS
+            await testCors('broadcast-updates', {
+                channel: 'test',
+                event: 'test',
+                payload: { test: true }
+            }, {
+                'Authorization': 'Bearer test-token'
+            });
+        }
+
+        async function testLangfuseProxy() {
+            log('=== Testing langfuse-proxy ===', 'info');
+            await testCors('langfuse-proxy', {
+                type: 'generation',
+                timestamp: Date.now(),
+                metadata: {
+                    model: 'test',
+                    response: { test: true }
+                }
+            }, {
+                'Authorization': 'Bearer test-token'
+            });
+        }
+
+        async function testAllEndpoints() {
+            clearResults();
+            log('🔒 Starting CORS Security Test Suite', 'info');
+            log(`Current Origin: ${window.location.origin}`, 'info');
+            log(`Test Origin: ${getTestOrigin()}`, 'info');
+            log('---', 'info');
+
+            await testGetKlines();
+            log('---', 'info');
+
+            await testBroadcastUpdates();
+            log('---', 'info');
+
+            await testLangfuseProxy();
+            log('---', 'info');
+
+            log('✅ Test Suite Complete', 'info');
+        }
+
+        // Auto-populate project URL if running locally
+        if (window.location.hostname === 'localhost') {
+            document.getElementById('projectUrl').value = 'http://localhost:54321';
+        }
+    </script>
+</body>
+</html>

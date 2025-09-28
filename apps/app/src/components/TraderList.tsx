@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Trader } from '../abstractions/trader.interfaces';
 import { traderManager } from '../services/traderManager';
 import { Plus, Activity } from 'lucide-react';
@@ -16,15 +16,28 @@ interface TraderListProps {
   selectedTraderId?: string | null;
 }
 
-export function TraderList({ 
-  onCreateTrader, 
-  onEditTrader, 
+export const TraderList = React.memo(function TraderList({
+  onCreateTrader,
+  onEditTrader,
   onSelectTrader,
-  selectedTraderId 
+  selectedTraderId
 }: TraderListProps) {
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentTier, preferences, canCreateSignal, remainingSignals, toggleFavoriteSignal, profile } = useSubscription();
+
+  // Memoize callbacks to prevent unnecessary re-renders
+  const handleSelectTrader = useCallback((traderId: string | null) => {
+    onSelectTrader?.(traderId);
+  }, [onSelectTrader]);
+
+  const handleEditTrader = useCallback((trader: Trader) => {
+    onEditTrader(trader);
+  }, [onEditTrader]);
+
+  const handleToggleFavorite = useCallback(async (signalId: string) => {
+    await toggleFavoriteSignal(signalId);
+  }, [toggleFavoriteSignal]);
 
   useEffect(() => {
     // Subscribe to trader updates
@@ -106,14 +119,6 @@ export function TraderList({
       </div>
     );
   }
-
-  const handleToggleFavorite = async (signalId: string) => {
-    try {
-      await toggleFavoriteSignal(signalId);
-    } catch (error) {
-      console.error('Failed to toggle favorite:', error);
-    }
-  };
 
   return (
     <div className="p-4 space-y-6">
@@ -214,16 +219,6 @@ export function TraderList({
             <div className="space-y-2">
               {customSignals.map(trader => {
                 const access = getSignalAccess(trader, currentTier);
-                console.log(`[DEBUG] Custom signal access check:`, {
-                  signalName: trader.name,
-                  signalId: trader.id,
-                  accessTier: trader.accessTier,
-                  currentTier,
-                  canView: access.canView,
-                  isBuiltIn: trader.isBuiltIn,
-                  ownershipType: trader.ownershipType,
-                  createdBy: trader.createdBy
-                });
                 const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
                 const isSelected = selectedTraderId === trader.id;
                 const canEditDelete = profile?.is_admin || trader.createdBy === profile?.id;
@@ -239,9 +234,9 @@ export function TraderList({
                     showEnableToggle={true}
                     showEditDelete={canEditDelete}
                     showAIFeatures={currentTier === 'elite'} // Pass tier info
-                    onSelect={() => onSelectTrader?.(isSelected ? null : trader.id)}
+                    onSelect={() => handleSelectTrader(isSelected ? null : trader.id)}
                     onToggleEnable={() => handleToggleTrader(trader)}
-                    onEdit={() => onEditTrader(trader)}
+                    onEdit={() => handleEditTrader(trader)}
                     onDelete={() => handleDeleteTrader(trader)}
                     onToggleFavorite={() => handleToggleFavorite(trader.id)}
                   />
@@ -253,4 +248,4 @@ export function TraderList({
       </TierGate>
     </div>
   );
-}
+});

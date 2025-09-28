@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { Redis } from 'https://esm.sh/@upstash/redis@1.34.3';
+import { deriveTickerFromKlines, parseKlineFromRedis, type KlineData, type DerivedTicker } from '../_shared/deriveTickerFromKlines.ts';
 
 // Initialize clients
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -26,21 +27,9 @@ interface Trader {
   user_id?: string;
 }
 
-interface KlineData {
-  t: number;
-  T: number;
-  s: string;
-  i: string;
-  o: string;
-  c: string;
-  h: string;
-  l: string;
-  v: string;
-  n: number;
-  x: boolean;
-  q: string;
-}
+// KlineData and DerivedTicker types are imported from shared module
 
+// Legacy TickerData interface (for backward compatibility)
 interface TickerData {
   s: string;
   c: string;
@@ -95,23 +84,40 @@ async function executeTraderFilter(
 
   for (const symbol of symbols) {
     try {
-      // Fetch ticker data
-      const tickerKey = `ticker:${symbol}`;
-      const tickerData = await redis.get(tickerKey) as TickerData | null;
+      // Fetch 1m klines for ticker derivation (24h = 1440 minutes)
+      const klines1mKey = `klines:${symbol}:1m`;
+      const klines1mRaw = await redis.zrange(klines1mKey, -1440, -1) as string[];
 
+      // Parse klines
+      const klines1m = klines1mRaw
+        .map(k => parseKlineFromRedis(k))
+        .filter(k => k !== null) as KlineData[];
+
+      if (!klines1m || klines1m.length === 0) {
+        results.push({ symbol, matched: false, error: 'No kline data available' });
+        continue;
+      }
+
+      // Derive ticker from 1m klines
+      const tickerData = deriveTickerFromKlines(symbol, klines1m);
       if (!tickerData) {
-        results.push({ symbol, matched: false, error: 'No ticker data' });
+        results.push({ symbol, matched: false, error: 'Failed to derive ticker data' });
         continue;
       }
 
       // Fetch kline data for required timeframes
-      const klinesData: Record<string, KlineData[]> = {};
+      const klinesData: Record<string, KlineData[]> = {
+        '1m': klines1m  // We already have 1m klines
+      };
+      // Fetch other required timeframes (skip 1m as we already have it)
       for (const timeframe of trader.filter.requiredTimeframes || ['5m']) {
+        if (timeframe === '1m') continue; // Already fetched
+
         const klineKey = `klines:${symbol}:${timeframe}`;
         const klines = await redis.zrange(klineKey, -100, -1) as string[];
-        klinesData[timeframe] = klines.map(k =>
-          typeof k === 'string' ? JSON.parse(k) : k
-        );
+        klinesData[timeframe] = klines
+          .map(k => parseKlineFromRedis(k))
+          .filter(k => k !== null) as KlineData[];
       }
 
       // Create execution context

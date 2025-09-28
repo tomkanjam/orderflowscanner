@@ -5,7 +5,9 @@ import MainContent from './components/MainContent';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
 import Modal from './components/Modal';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
-import { fetchTopPairsAndInitialKlines, connectWebSocket, connectMultiIntervalWebSocket } from './services/binanceService';
+// MIGRATION: Removed direct Binance WebSocket imports
+// import { fetchTopPairsAndInitialKlines, connectWebSocket, connectMultiIntervalWebSocket } from './services/binanceService';
+import { fetchTopPairsAndInitialKlines } from './services/binanceService'; // Keep for initial data fetch
 import { getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS, MAX_SIGNAL_LOG_ENTRIES } from './constants';
 import * as screenerHelpers from './screenerHelpers';
@@ -44,9 +46,12 @@ import { memDebug } from './src/utils/memoryDebugger';
 import { klineEventEmitter } from './src/utils/KlineEventEmitter';
 // REMOVED: sharedMarketData import - migrating to server-side execution
 import { BoundedMap, createBoundedMap } from './src/memory/BoundedCollections';
-import { UpdateBatcher, createTickerBatcher } from './src/optimization/UpdateBatcher';
+// MIGRATION: Removed UpdateBatcher - using server-side data flow
+// import { UpdateBatcher, createTickerBatcher } from './src/optimization/UpdateBatcher';
 import { useThrottledState, useMemoryAwareState } from './src/hooks/useBoundedState';
 import { KlineDataProvider } from './src/contexts/KlineDataProvider';
+import { MarketDataProvider, useMarketDataSubscription } from './src/contexts/MarketDataContext';
+import { klineDataService } from './src/services/klineDataService';
 import { useKlineData } from './src/hooks/useKlineData';
 import { usePrefetch } from './src/hooks/usePrefetch';
 import { useKlineManager } from './src/hooks/useKlineManager';
@@ -208,30 +213,9 @@ const AppContent: React.FC = () => {
     };
   }, []);
 
-  // Memory-aware batched ticker updater to reduce state updates and memory allocation
-  const tickerBatchUpdater = useRef<UpdateBatcher<string, Ticker>>();
-  useEffect(() => {
-    const batcher = createTickerBatcher((updates) => {
-      setTickers(prevTickers => {
-        const newTickers = new Map(prevTickers);
-        updates.forEach((ticker, symbol) => {
-          // Add timestamp for memory cleanup tracking
-          const tickerWithTimestamp = {
-            ...ticker,
-            _lastUpdate: Date.now()
-          };
-          newTickers.set(symbol, tickerWithTimestamp);
-        });
-        return newTickers;
-      });
-    });
-    
-    tickerBatchUpdater.current = batcher;
-    
-    return () => {
-      batcher.dispose();
-    };
-  }, []);
+  // MIGRATION: Removed UpdateBatcher - now using MarketDataContext
+  // Ticker updates now handled through server-side data flow
+  // This reduces re-renders and improves performance
   
   // Register memory monitoring metrics
   useEffect(() => {
@@ -789,32 +773,27 @@ const AppContent: React.FC = () => {
     if (dataUpdateCallbackRef.current) {
       dataUpdateCallbackRef.current();
     }
-    
-    // Use memory-aware batched updater for better performance
-    if (tickerBatchUpdater.current) {
-      tickerBatchUpdater.current.add(tickerUpdate.s, tickerUpdate);
-    } else {
-      // Fallback to direct update if batch updater not ready
-      setTickers(prevTickers => {
-        // Only create new Map if the value actually changed
-        const currentTicker = prevTickers.get(tickerUpdate.s);
-        if (currentTicker && 
-            currentTicker.c === tickerUpdate.c && 
-            currentTicker.P === tickerUpdate.P && 
-            currentTicker.q === tickerUpdate.q) {
-          return prevTickers; // No change, return same reference
-        }
-        // Value changed, create new Map
-        const newTickers = new Map(prevTickers);
-        // Add timestamp for memory cleanup tracking
-        const tickerWithTimestamp = {
-          ...tickerUpdate,
-          _lastUpdate: Date.now()
-        };
-        newTickers.set(tickerUpdate.s, tickerWithTimestamp);
-        return newTickers;
-      });
-    }
+
+    // MIGRATION: Direct update without batching (server already batches)
+    setTickers(prevTickers => {
+      // Only create new Map if the value actually changed
+      const currentTicker = prevTickers.get(tickerUpdate.s);
+      if (currentTicker &&
+          currentTicker.c === tickerUpdate.c &&
+          currentTicker.P === tickerUpdate.P &&
+          currentTicker.q === tickerUpdate.q) {
+        return prevTickers; // No change, return same reference
+      }
+      // Value changed, create new Map
+      const newTickers = new Map(prevTickers);
+      // Add timestamp for memory cleanup tracking
+      const tickerWithTimestamp = {
+        ...tickerUpdate,
+        _lastUpdate: Date.now()
+      };
+      newTickers.set(tickerUpdate.s, tickerWithTimestamp);
+      return newTickers;
+    });
   }, []);
   
   // Update trading manager with ticker data for demo mode
@@ -886,139 +865,99 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // Separate WebSocket connection effect with stable dependencies
+  // MIGRATION: Replace WebSocket with server-side data flow
   useEffect(() => {
-    // Only proceed if we have symbols and no error
     if (allSymbols.length === 0) {
       return;
     }
 
-    let isCleanedUp = false;
-    
-    // Add a small delay to avoid React StrictMode rapid cleanup
-    const connectionTimer = setTimeout(() => {
-      if (isCleanedUp) {
-        return;
+    const subscriptions: Array<() => void> = [];
+    let isActive = true;
+
+    // Determine which intervals are needed by active traders
+    const activeIntervals = new Set<KlineInterval>();
+    traders.forEach(trader => {
+      if (trader.enabled) {
+        const requiredTimeframes = trader.filter?.requiredTimeframes || [trader.filter?.refreshInterval || KlineInterval.ONE_MINUTE];
+        requiredTimeframes.forEach(tf => activeIntervals.add(tf));
       }
+    });
 
-      const handleTickerUpdate = (tickerUpdate: Ticker) => {
-        if (!isCleanedUp) {
-          handleTickerUpdateStable(tickerUpdate);
-        }
-      };
+    // Always include 1m as default/fallback
+    activeIntervals.add(KlineInterval.ONE_MINUTE);
 
-      const handleKlineUpdate = (symbol: string, interval: KlineInterval, kline: Kline, isClosed: boolean) => {
-        if (!isCleanedUp) {
-          handleKlineUpdateStable(symbol, interval, kline, isClosed);
-        }
-      };
-      
-      // Determine which intervals are needed by active traders
-      const activeIntervals = new Set<KlineInterval>();
-      traders.forEach(trader => {
-        if (trader.enabled) {
-          // Add all required timeframes for this trader
-          const requiredTimeframes = trader.filter?.requiredTimeframes || [trader.filter?.refreshInterval || KlineInterval.ONE_MINUTE];
-          requiredTimeframes.forEach(tf => activeIntervals.add(tf));
-        }
-      });
-      
-      // Always include 1m as default/fallback
-      activeIntervals.add(KlineInterval.ONE_MINUTE);
-      
-      // Create WebSocket URL for multi-interval connection
-      const tickerStreams = allSymbols.map(s => `${s.toLowerCase()}@ticker`);
-      const klineStreams: string[] = [];
-      allSymbols.forEach(symbol => {
-        activeIntervals.forEach(interval => {
-          klineStreams.push(`${symbol.toLowerCase()}@kline_${interval}`);
-        });
-      });
-      const allStreams = [...tickerStreams, ...klineStreams].join('/');
-      const wsUrl = `wss://stream.binance.com:9443/stream?streams=${allStreams}`;
-      
-      // Connect using WebSocket manager
+    // Fetch initial data and subscribe to updates for each symbol
+    const setupDataSubscriptions = async () => {
       try {
-        webSocketManager.connect(
-          'main-connection',
-          wsUrl,
-          {
-            onOpen: () => {
-              if (!isCleanedUp) {
-                setStatusText('Live');
-                setStatusLightClass('bg-[var(--nt-success)]');
-              }
-            },
-            onMessage: (event) => {
-              if (isCleanedUp) return;
-              
-              try {
-                const message = JSON.parse(event.data as string);
-                
-                // Debug: Log first message of any type
-                
-                if (message.stream && message.data) {
-                  if (message.stream.includes('@ticker')) {
-                    const tickerData = message.data;
-                    // Debug: Log first ticker message
-                    handleTickerUpdate({
-                      s: tickerData.s,
-                      P: tickerData.P,
-                      c: tickerData.c,
-                      q: tickerData.q,
-                      ...tickerData
-                    });
-                  } else if (message.stream.includes('@kline')) {
-                    const klineData = message.data;
-                    const k = klineData.k;
-                    
-                    // Extract interval from stream name
-                    const streamParts = message.stream.split('_');
-                    const interval = streamParts[streamParts.length - 1] as KlineInterval;
-                    
-                    const kline: Kline = [
-                      k.t, k.o, k.h, k.l, k.c, k.v, k.T, k.q, k.n, k.V, k.Q, k.B
-                    ];
-                    handleKlineUpdate(klineData.s, interval, kline, k.x);
+        setStatusText('Loading');
+        setStatusLightClass('bg-[var(--nt-warning)]');
+
+        // Fetch initial data for all symbols
+        await Promise.all(
+          allSymbols.map(symbol =>
+            Array.from(activeIntervals).map(interval =>
+              klineDataService.fetchKlines({
+                symbol,
+                timeframe: interval,
+                limit: 100
+              })
+            )
+          ).flat()
+        );
+
+        if (!isActive) return;
+
+        // Subscribe to real-time updates
+        allSymbols.forEach(symbol => {
+          activeIntervals.forEach(interval => {
+            const unsubscribe = klineDataService.subscribeToUpdates(
+              symbol,
+              interval,
+              (update) => {
+                if (isActive) {
+                  // Handle kline update
+                  handleKlineUpdateStable(
+                    update.symbol,
+                    update.timeframe as KlineInterval,
+                    update.kline,
+                    update.type === 'close'
+                  );
+
+                  // Update ticker from kline close price
+                  if (update.type === 'close' || update.type === 'update') {
+                    const ticker: Ticker = {
+                      s: update.symbol,
+                      c: update.kline.close,
+                      P: '0', // Calculate if needed
+                      q: update.kline.quoteVolume
+                    };
+                    handleTickerUpdateStable(ticker);
                   }
                 }
-              } catch (e) {
-                console.error("Error processing WebSocket message:", e);
               }
-            },
-            onError: (error) => {
-              if (!isCleanedUp) {
-                console.error("WebSocket Error:", error);
-                setStatusText('WS Error');
-                setStatusLightClass('bg-[var(--nt-error)]');
-              }
-            },
-            onClose: () => {
-              if (!isCleanedUp) {
-                setStatusText('Disconnected');
-                setStatusLightClass('bg-[var(--nt-warning)]');
-              }
-            }
-          },
-          true // Enable auto-reconnect
-        );
-      } catch (e) {
-        console.error("[StatusBar Debug] Failed to connect WebSocket:", e);
-        console.error("[StatusBar Debug] WebSocket error details:", {
-          message: e instanceof Error ? e.message : 'Unknown error',
-          type: e?.constructor?.name || 'Unknown'
+            );
+            subscriptions.push(unsubscribe);
+          });
         });
-        setStatusText('WS Failed');
+
+        setStatusText('Live');
+        setStatusLightClass('bg-[var(--nt-success)]');
+
+      } catch (error) {
+        console.error('[App] Failed to setup data subscriptions:', error);
+        setStatusText('Data Error');
         setStatusLightClass('bg-[var(--nt-error)]');
       }
-    }, 500); // 500ms delay to ensure React StrictMode completes and all components are mounted
+    };
+
+    // Start with a small delay to avoid React StrictMode issues
+    const timer = setTimeout(setupDataSubscriptions, 500);
 
     return () => {
-      isCleanedUp = true;
-      clearTimeout(connectionTimer);
-      webSocketManager.disconnect('main-connection');
+      isActive = false;
+      clearTimeout(timer);
+      subscriptions.forEach(unsub => unsub());
     };
-  // Only re-run when symbols, required intervals, or handlers change
   }, [allSymbols, traderIntervalsKey, handleTickerUpdateStable, handleKlineUpdateStable]); 
 
 
@@ -1383,9 +1322,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <KlineDataProvider>
-      <AppContent />
-    </KlineDataProvider>
+    <MarketDataProvider>
+      <KlineDataProvider>
+        <AppContent />
+      </KlineDataProvider>
+    </MarketDataProvider>
   );
 };
 

@@ -11,6 +11,8 @@ import { Kline, KlineInterval } from '../../types';
 import { createClient, RealtimeChannel } from '@supabase/supabase-js';
 import { performanceMonitor } from '../utils/performanceMonitor';
 import { withRetry, ErrorRecovery } from '../utils/errorHandler';
+import { errorMonitor, ErrorCategory } from '../utils/errorMonitor';
+import { fallbackManager, FallbackMode } from '../utils/fallbackManager';
 
 // Cache configuration
 const CACHE_MAX_SIZE = 100; // Maximum number of symbols to cache
@@ -135,6 +137,7 @@ export class KlineDataService {
   private supabase: any;
   private subscriptions: Map<string, RealtimeChannel>;
   private updateCallbacks: Map<string, Set<(update: KlineUpdate) => void>>;
+  private priorityQueue: Set<string>; // High priority symbols to load first
 
   constructor() {
     // Initialize cache with eviction callback
@@ -150,6 +153,7 @@ export class KlineDataService {
     this.pendingRequests = new Map();
     this.subscriptions = new Map();
     this.updateCallbacks = new Map();
+    this.priorityQueue = new Set();
     this.stats = {
       hits: 0,
       misses: 0,
@@ -168,6 +172,15 @@ export class KlineDataService {
       // Initialize Supabase client for real-time
       this.supabase = createClient(this.supabaseUrl, this.supabaseKey);
     }
+  }
+
+  /**
+   * Set high priority symbols for progressive loading
+   */
+  setPrioritySymbols(symbols: string[]): void {
+    this.priorityQueue.clear();
+    symbols.forEach(s => this.priorityQueue.add(s));
+    console.log(`[KlineDataService] Set ${symbols.length} priority symbols`);
   }
 
   /**
@@ -194,10 +207,22 @@ export class KlineDataService {
       return pending;
     }
 
+    // Add priority delay for non-priority symbols
+    const isPriority = this.priorityQueue.has(request.symbol);
+    const delay = isPriority ? 0 : 100; // 100ms delay for non-priority
+
     // Create new request with deduplication
-    const requestPromise = this.dedupRequest(cacheKey, () =>
-      this.fetchFromServer(request)
-    );
+    const requestPromise = this.dedupRequest(cacheKey, async () => {
+      if (delay > 0) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      return this.fetchFromServer(request);
+    });
+
+    // Clear from priority queue after fetch
+    if (isPriority) {
+      this.priorityQueue.delete(request.symbol);
+    }
 
     return requestPromise;
   }
@@ -492,6 +517,31 @@ export class KlineDataService {
     }
 
     const startTime = Date.now();
+    const fallbackState = fallbackManager.getState();
+
+    // Use fallback if in degraded mode
+    if (fallbackState.mode === FallbackMode.DIRECT_API) {
+      console.log('[KlineDataService] Using fallback API for', request.symbol);
+      try {
+        const klines = await fallbackManager.fetchKlinesFallback(
+          request.symbol,
+          request.timeframe,
+          request.limit || 100
+        );
+        return {
+          klines,
+          ticker: null,
+          symbol: request.symbol,
+          timeframe: request.timeframe,
+          count: klines.length,
+          cached: false,
+          latency: Date.now() - startTime
+        };
+      } catch (fallbackError) {
+        console.error('[KlineDataService] Fallback also failed:', fallbackError);
+        // Continue to try Edge Function
+      }
+    }
 
     try {
       // Build the edge function URL
@@ -519,8 +569,10 @@ export class KlineDataService {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(error.error || `HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        const error = new Error(errorData.error || `HTTP ${response.status}`);
+        errorMonitor.trackNetworkError(url, response.status, error.message);
+        throw error;
       }
 
       const data = await response.json();
@@ -557,6 +609,16 @@ export class KlineDataService {
       const latency = Date.now() - startTime;
       performanceMonitor.trackNetworkRequest(latency, false);
       console.error('[KlineDataService] Server fetch failed:', error);
+
+      // Track error
+      errorMonitor.trackDataFetchError(
+        request.symbol,
+        request.timeframe,
+        error instanceof Error ? error : new Error(String(error))
+      );
+
+      // Track Edge Function failure for fallback
+      fallbackManager.trackFailure('edge_function');
 
       // Return empty response on error
       return {

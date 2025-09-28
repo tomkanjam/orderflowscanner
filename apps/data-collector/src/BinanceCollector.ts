@@ -16,18 +16,7 @@ export interface KlineData {
   q: string;  // Quote asset volume
 }
 
-export interface TickerData {
-  s: string;  // Symbol
-  c: string;  // Close price
-  o: string;  // Open price
-  h: string;  // High price
-  l: string;  // Low price
-  v: string;  // Total traded base asset volume
-  q: string;  // Total traded quote asset volume
-  p: string;  // Price change
-  P: string;  // Price change percent
-  n: number;  // Count of trades
-}
+// Removed TickerData interface - ticker data is now derived from klines
 
 export class BinanceCollector {
   private ws: WebSocket | null = null;
@@ -38,7 +27,7 @@ export class BinanceCollector {
   private readonly reconnectDelay = 5000;
   private readonly pingInterval = 30000;
   private pingTimer: NodeJS.Timeout | null = null;
-  private lastTickerWrite = new Map<string, number>(); // Throttle ticker writes
+  // Removed: lastTickerWrite - no longer tracking ticker updates
 
   constructor(
     private readonly redisWriter: RedisWriter,
@@ -75,16 +64,13 @@ export class BinanceCollector {
     if (this.isShuttingDown) return;
 
     try {
-      // Build stream names
+      // Build stream names (klines only, no tickers)
       const streams: string[] = [];
 
       for (const symbol of this.symbols) {
         const sym = symbol.toLowerCase();
 
-        // Add ticker stream
-        streams.push(`${sym}@ticker`);
-
-        // Add kline streams for each interval
+        // Only subscribe to kline streams (removed ticker streams)
         for (const interval of this.intervals) {
           streams.push(`${sym}@kline_${interval}`);
         }
@@ -134,9 +120,8 @@ export class BinanceCollector {
       if (message.stream && message.data) {
         const streamType = message.stream.split('@')[1];
 
-        if (streamType === 'ticker') {
-          this.handleTicker(message.data);
-        } else if (streamType?.startsWith('kline_')) {
+        // Only handle kline streams (removed ticker handling)
+        if (streamType?.startsWith('kline_')) {
           this.handleKline(message.data);
         }
       }
@@ -145,34 +130,9 @@ export class BinanceCollector {
     }
   }
 
-  private async handleTicker(data: any): Promise<void> {
-    // Throttle ticker writes to once per second per symbol
-    const now = Date.now();
-    const lastWrite = this.lastTickerWrite.get(data.s) || 0;
+  // Removed handleTicker method - no longer needed
 
-    if (now - lastWrite < 1000) {
-      return; // Skip if written within last second
-    }
-
-    this.lastTickerWrite.set(data.s, now);
-
-    const ticker: TickerData = {
-      s: data.s,
-      c: data.c,
-      o: data.o,
-      h: data.h,
-      l: data.l,
-      v: data.v,
-      q: data.q,
-      p: data.p,
-      P: data.P,
-      n: data.n
-    };
-
-    await this.redisWriter.writeTicker(ticker.s, ticker);
-  }
-
-  private async handleKline(data: any): Promise<void> {
+private async handleKline(data: any): Promise<void> {
     const kline: KlineData = {
       t: data.k.t,
       T: data.k.T,
@@ -234,7 +194,7 @@ export class BinanceCollector {
       connected: this.ws?.readyState === WebSocket.OPEN,
       connectionCount: this.connectionCount,
       symbolCount: this.symbols.length,
-      streamCount: this.symbols.length * (1 + this.intervals.length)
+      streamCount: this.symbols.length * this.intervals.length // Only kline streams now
     };
   }
 }

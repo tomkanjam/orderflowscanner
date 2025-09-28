@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Redis } from 'https://esm.sh/@upstash/redis@1.34.3';
 import { z } from 'https://esm.sh/zod@3.22.4';
+import { deriveTickerFromKlines, parseKlineFromRedis } from '../_shared/deriveTickerFromKlines.ts';
+import { getCorsHeaders, handleCorsPreflightRequest, withCorsHeaders } from '../_shared/cors.ts';
 
 // Input validation schema
 const requestSchema = z.object({
@@ -24,13 +26,6 @@ try {
 } catch (error) {
   console.error('Failed to initialize Redis client:', error);
 }
-
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
 
 // Transform kline data from string format to proper numeric format
 function transformKline(klineStr: string): any {
@@ -59,9 +54,13 @@ function transformKline(klineStr: string): any {
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  const preflightResponse = handleCorsPreflightRequest(req);
+  if (preflightResponse) {
+    return preflightResponse;
   }
+
+  // Get CORS headers for this request
+  const corsHeaders = getCorsHeaders(req);
 
   // Only allow POST requests
   if (req.method !== 'POST') {
@@ -141,21 +140,31 @@ serve(async (req) => {
           .filter(k => k !== null);
       }
 
-      // Fetch current ticker data
-      const tickerKey = `ticker:${symbol}`;
-      tickerData = await redis.get(tickerKey);
+      // Derive ticker data from 1m klines instead of fetching from Redis
+      // Fetch 1m klines for ticker derivation (24h = 1440 minutes)
+      const klines1mKey = `klines:${symbol}:1m`;
+      const klines1mRaw = await redis.zrange(klines1mKey, -1440, -1) as string[];
 
-      // Transform ticker data if it exists
-      if (tickerData && typeof tickerData === 'object') {
-        tickerData = {
-          symbol: tickerData.symbol || symbol,
-          price: parseFloat(tickerData.price || tickerData.lastPrice || 0),
-          volume: parseFloat(tickerData.volume || 0),
-          quoteVolume: parseFloat(tickerData.quoteVolume || 0),
-          priceChangePercent: parseFloat(tickerData.priceChangePercent || 0),
-          high24h: parseFloat(tickerData.high24h || tickerData.highPrice || 0),
-          low24h: parseFloat(tickerData.low24h || tickerData.lowPrice || 0)
-        };
+      if (klines1mRaw && klines1mRaw.length > 0) {
+        const klines1m = klines1mRaw
+          .map(k => parseKlineFromRedis(k))
+          .filter(k => k !== null);
+
+        // Derive ticker from 1m klines
+        const derivedTicker = deriveTickerFromKlines(symbol, klines1m);
+
+        if (derivedTicker) {
+          // Transform to match expected format
+          tickerData = {
+            symbol: derivedTicker.s,
+            price: parseFloat(derivedTicker.c),
+            volume: parseFloat(derivedTicker.v),
+            quoteVolume: parseFloat(derivedTicker.q),
+            priceChangePercent: parseFloat(derivedTicker.P),
+            high24h: parseFloat(derivedTicker.h),
+            low24h: parseFloat(derivedTicker.l)
+          };
+        }
       }
     } catch (redisError) {
       console.error('Redis operation failed:', redisError);

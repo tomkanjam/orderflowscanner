@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis';
-import type { KlineData, TickerData } from './BinanceCollector';
+import type { KlineData } from './BinanceCollector';
 
 export class RedisWriter {
   private redis: Redis;
@@ -15,6 +15,9 @@ export class RedisWriter {
     if (!url || !token) {
       throw new Error('Redis connection details required (UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN)');
     }
+
+    console.log('Initializing Redis with URL:', url.substring(0, 30) + '...');
+    console.log('Token length:', token ? token.length : 0);
 
     this.redis = new Redis({
       url,
@@ -56,18 +59,9 @@ export class RedisWriter {
     return this.pipeline;
   }
 
-  async writeTicker(symbol: string, ticker: TickerData): Promise<void> {
-    const key = `ticker:${symbol}`;
-    const pipeline = this.getPipeline();
+  // Removed writeTicker method - no longer storing ticker data
 
-    // Store ticker data with 60s TTL (will be refreshed every second anyway)
-    pipeline.setex(key, 60, JSON.stringify(ticker));
-
-    // Update last update timestamp
-    pipeline.set(`ticker:${symbol}:lastUpdate`, Date.now());
-  }
-
-  async writeKline(symbol: string, interval: string, kline: KlineData): Promise<void> {
+async writeKline(symbol: string, interval: string, kline: KlineData): Promise<void> {
     // Only store closed klines for historical data
     if (!kline.x) return;
 
@@ -107,19 +101,9 @@ export class RedisWriter {
     });
   }
 
-  async getTicker(symbol: string): Promise<TickerData | null> {
-    const key = `ticker:${symbol}`;
-    const data = await this.redis.get(key);
+  // Removed getTicker method - ticker data now derived from klines
 
-    if (!data) return null;
-
-    if (typeof data === 'string') {
-      return JSON.parse(data) as TickerData;
-    }
-    return data as TickerData;
-  }
-
-  async getSymbolsWithNewCandles(_interval: string, _since: number): Promise<string[]> {
+async getSymbolsWithNewCandles(_interval: string, _since: number): Promise<string[]> {
     // This would scan for symbols that have new closed candles since a timestamp
     // For now, return empty array - this will be implemented when we add execution tracking
     return [];
@@ -136,9 +120,11 @@ export class RedisWriter {
 
   async ping(): Promise<boolean> {
     try {
-      await this.redis.ping();
-      return true;
-    } catch {
+      const result = await this.redis.ping();
+      console.log('Redis ping result:', result);
+      return result === 'PONG';
+    } catch (error) {
+      console.error('Redis ping error:', error);
       return false;
     }
   }

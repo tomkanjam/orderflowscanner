@@ -1,10 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Initialize Supabase client - using import.meta.env for Vite
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+// Only initialize if we have the required env vars
+const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export interface ServerTrader {
   id: string;
@@ -48,6 +52,11 @@ class ServerExecutionService {
    * Initialize Realtime subscription for signal updates
    */
   async initializeRealtime(): Promise<void> {
+    if (!supabase) {
+      console.warn('[ServerExecutionService] Supabase not initialized - skipping realtime setup');
+      return;
+    }
+
     // Clean up existing subscription
     if (this.signalChannel) {
       await this.signalChannel.unsubscribe();
@@ -83,6 +92,9 @@ class ServerExecutionService {
    * Save a trader to the database
    */
   async saveTrader(trader: Omit<ServerTrader, 'id'>): Promise<ServerTrader> {
+    if (!supabase) {
+      throw new Error('Supabase not initialized');
+    }
     const { data, error } = await supabase
       .from('traders')
       .insert(trader)
@@ -100,6 +112,9 @@ class ServerExecutionService {
    * Update an existing trader
    */
   async updateTrader(id: string, updates: Partial<ServerTrader>): Promise<ServerTrader> {
+    if (!supabase) {
+      throw new Error('Supabase not initialized');
+    }
     const { data, error } = await supabase
       .from('traders')
       .update(updates)
@@ -118,6 +133,10 @@ class ServerExecutionService {
    * Get all traders for the current user
    */
   async getUserTraders(): Promise<ServerTrader[]> {
+    if (!supabase) {
+      console.warn('Supabase not initialized');
+      return [];
+    }
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

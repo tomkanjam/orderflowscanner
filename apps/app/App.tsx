@@ -46,6 +46,10 @@ import { klineEventEmitter } from './src/utils/KlineEventEmitter';
 import { BoundedMap, createBoundedMap } from './src/memory/BoundedCollections';
 import { UpdateBatcher, createTickerBatcher } from './src/optimization/UpdateBatcher';
 import { useThrottledState, useMemoryAwareState } from './src/hooks/useBoundedState';
+import { KlineDataProvider } from './src/contexts/KlineDataProvider';
+import { useKlineData } from './src/hooks/useKlineData';
+import { usePrefetch } from './src/hooks/usePrefetch';
+import { useKlineManager } from './src/hooks/useKlineManager';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -76,12 +80,9 @@ const AppContent: React.FC = () => {
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
   const [traders, setTraders] = useState<Trader[]>([]);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
-  
-  // Helper to get klines for a specific interval
-  const getKlinesForInterval = useCallback((symbol: string, interval: KlineInterval): Kline[] => {
-    // REMOVED: sharedMarketData.getKlines - will be replaced with server data
-    return [];
-  }, []);
+
+  // Use the kline manager hook for data access
+  const { getKlinesForInterval, prefetchSymbols } = useKlineManager();
   
   const [klineInterval, setKlineInterval] = useState<KlineInterval>(DEFAULT_KLINE_INTERVAL);
   const [selectedGeminiModel, setSelectedGeminiModel] = useState<GeminiModelOption>(DEFAULT_GEMINI_MODEL);
@@ -1366,7 +1367,11 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  return <AppContent />;
+  return (
+    <KlineDataProvider>
+      <AppContent />
+    </KlineDataProvider>
+  );
 };
 
 export default App;

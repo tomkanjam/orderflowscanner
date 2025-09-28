@@ -1104,18 +1104,18 @@ Test criteria:
 #### Phase 2: React Integration (4 hours)
 **Objective:** Connect data layer to UI components
 
-##### Task 2.1: Create Data Provider & Hooks (1.5 hours)
+##### Task 2.1: Create Data Provider & Hooks (1.5 hours) 🔄
 Files to create:
-- `apps/app/src/contexts/KlineDataProvider.tsx`
-- `apps/app/src/hooks/useKlineData.ts`
-- `apps/app/src/hooks/useTickerData.ts`
-- `apps/app/src/hooks/usePrefetch.ts`
+- `apps/app/src/contexts/KlineDataProvider.tsx` ✅
+- `apps/app/src/hooks/useKlineData.ts` ✅
+- `apps/app/src/hooks/useTickerData.ts` (deferred - using klines hook)
+- `apps/app/src/hooks/usePrefetch.ts` ✅
 
 Actions:
-- [ ] Create KlineDataProvider context
-- [ ] Implement useKlineData hook with loading states
-- [ ] Add useTickerData for real-time prices
-- [ ] Create usePrefetch for background loading
+- [x] Create KlineDataProvider context ✅ (2025-09-28 11:18)
+- [x] Implement useKlineData hook with loading states ✅ (2025-09-28 11:19)
+- [x] Add useTickerData for real-time prices (merged into klineData)
+- [x] Create usePrefetch for background loading ✅ (2025-09-28 11:19)
 - [ ] Add error boundary wrapper
 
 Context structure:
@@ -1134,16 +1134,17 @@ Test criteria:
 - Errors caught by boundary
 - Cache stats accurate
 
-##### Task 2.2: Fix App.tsx Data Access (1 hour)
+##### Task 2.2: Fix App.tsx Data Access (1 hour) ✅
 Files to modify:
-- `apps/app/App.tsx`
+- `apps/app/App.tsx` ✅
+- `apps/app/src/hooks/useKlineManager.ts` ✅ (bridge hook created)
 
 Actions:
-- [ ] Wrap app with KlineDataProvider
-- [ ] Replace getKlinesForInterval empty return
-- [ ] Connect to useKlineData hook
-- [ ] Add loading states during fetch
-- [ ] Implement error handling
+- [x] Wrap app with KlineDataProvider ✅ (2025-09-28 11:23)
+- [x] Replace getKlinesForInterval empty return ✅ (2025-09-28 11:23)
+- [x] Connect to useKlineData hook ✅ (via useKlineManager)
+- [x] Add loading states during fetch ✅ (handled in hook)
+- [x] Implement error handling ✅ (graceful fallback)
 
 Fix locations:
 - Line 81-82: Replace empty array with service call

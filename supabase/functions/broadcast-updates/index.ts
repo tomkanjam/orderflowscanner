@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 import { getCorsHeaders, handleCorsPreflightRequest } from '../_shared/cors.ts';
+import { validateAuth, checkRateLimit, rateLimitResponse, logAuthSuccess, unauthorizedResponse, forbiddenResponse } from '../_shared/auth.ts';
 
 interface KlineUpdate {
   symbol: string;
@@ -38,17 +39,26 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   try {
-    // Verify authentication (service role key required)
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    // Validate authentication - requires at least Pro tier for broadcasting
+    const authResult = await validateAuth(req, {
+      requireAuth: true,
+      allowAnonymous: false,
+      minimumTier: 'pro'
+    });
+
+    if (!authResult.success) {
+      return unauthorizedResponse(authResult.error || 'Authentication required', corsHeaders);
     }
+
+    const authContext = authResult.context!;
+
+    // Check rate limits
+    if (!checkRateLimit(authContext, 'broadcast-updates')) {
+      return rateLimitResponse(authContext, corsHeaders);
+    }
+
+    // Log successful authentication
+    logAuthSuccess(authContext, 'broadcast-updates');
 
     const body: BroadcastRequest = await req.json();
     const { channel, event, payload } = body;

@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Langfuse } from 'https://esm.sh/langfuse@3'
 import { getCorsHeaders, handleCorsPreflightRequest } from '../_shared/cors.ts'
+import { validateAuth, checkRateLimit, rateLimitResponse, logAuthSuccess, unauthorizedResponse } from '../_shared/auth.ts'
 
 interface BatchEvent {
   events: Array<{
@@ -22,23 +23,25 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req)
 
   try {
-    // Auth verification
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-    
-    const supabase = createClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    )
+    // Validate authentication
+    const authResult = await validateAuth(req, {
+      requireAuth: true,
+      allowAnonymous: false
+    })
 
-    const { data: { user }, error } = await supabase.auth.getUser()
-    if (error || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (!authResult.success) {
+      return unauthorizedResponse(authResult.error || 'Authentication required', corsHeaders)
     }
+
+    const authContext = authResult.context!
+
+    // Check rate limits
+    if (!checkRateLimit(authContext, 'langfuse-batch')) {
+      return rateLimitResponse(authContext, corsHeaders)
+    }
+
+    // Log successful authentication
+    logAuthSuccess(authContext, 'langfuse-batch')
 
     // Initialize Langfuse
     const langfuseSecretKey = Deno.env.get('LANGFUSE_SECRET_KEY')
@@ -65,10 +68,11 @@ serve(async (req) => {
     // Create a single trace for the batch
     const batchTrace = langfuse.trace({
       name: 'batch-events',
-      userId: user.id,
-      sessionId: `${user.id}-${new Date().toISOString().split('T')[0]}`,
+      userId: authContext.userId || 'anonymous',
+      sessionId: `${authContext.userId || 'anon'}-${new Date().toISOString().split('T')[0]}`,
       metadata: {
         eventCount: events.length,
+        userTier: authContext.userTier,
         timestamp: new Date().toISOString(),
       }
     })

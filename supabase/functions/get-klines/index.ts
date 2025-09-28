@@ -3,6 +3,7 @@ import { Redis } from 'https://esm.sh/@upstash/redis@1.34.3';
 import { z } from 'https://esm.sh/zod@3.22.4';
 import { deriveTickerFromKlines, parseKlineFromRedis } from '../_shared/deriveTickerFromKlines.ts';
 import { getCorsHeaders, handleCorsPreflightRequest, withCorsHeaders } from '../_shared/cors.ts';
+import { validateAuth, checkRateLimit, rateLimitResponse, logAuthSuccess, unauthorizedResponse } from '../_shared/auth.ts';
 
 // Input validation schema
 const requestSchema = z.object({
@@ -74,6 +75,26 @@ serve(async (req) => {
   }
 
   const startTime = Date.now();
+
+  // Validate authentication - allow anonymous but with rate limits
+  const authResult = await validateAuth(req, {
+    requireAuth: false,
+    allowAnonymous: true
+  });
+
+  if (!authResult.success) {
+    return unauthorizedResponse(authResult.error || 'Authentication failed', corsHeaders);
+  }
+
+  const authContext = authResult.context!;
+
+  // Check rate limits based on user tier
+  if (!checkRateLimit(authContext, 'get-klines')) {
+    return rateLimitResponse(authContext, corsHeaders);
+  }
+
+  // Log successful authentication
+  logAuthSuccess(authContext, 'get-klines');
 
   try {
     // Parse and validate request body
@@ -190,7 +211,7 @@ serve(async (req) => {
       );
     }
 
-    // Return successful response
+    // Return successful response with auth context
     return new Response(
       JSON.stringify({
         klines,
@@ -199,14 +220,19 @@ serve(async (req) => {
         timeframe,
         count: klines.length,
         cached: false,
-        latency: Date.now() - startTime
+        latency: Date.now() - startTime,
+        auth: {
+          tier: authContext.userTier,
+          authenticated: authContext.isAuthenticated
+        }
       }),
       {
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',
           'Cache-Control': 'public, max-age=5',
-          'X-Response-Time': `${Date.now() - startTime}ms`
+          'X-Response-Time': `${Date.now() - startTime}ms`,
+          'X-User-Tier': authContext.userTier
         },
         status: 200
       }

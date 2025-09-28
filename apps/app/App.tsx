@@ -30,6 +30,7 @@ import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useIndicatorWorker } from './hooks/useIndicatorWorker';
 import ActivityPanel from './src/components/ActivityPanel';
 import { ConnectionStatus } from './src/components/ConnectionStatus';
+import DataLoadingMockup from './components/DataLoadingMockup';
 import { klineEventBus } from './src/services/klineEventBus';
 import { workflowManager } from './src/services/workflowManager';
 import { tradingManager } from './src/services/tradingManager';
@@ -132,6 +133,7 @@ const AppContent: React.FC = () => {
   
   // Activity panel state
   const [isActivityPanelOpen, setIsActivityPanelOpen] = useState<boolean>(true); // Always open
+  const [showDataMockup, setShowDataMockup] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
   
   // Historical signals state
@@ -1261,10 +1263,47 @@ const AppContent: React.FC = () => {
   // Calculate active signal count
   const activeSignalCount = allSignals.filter(signal => signal.status === 'active').length;
 
+  // Add mockup toggle to keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Alt + M to toggle mockup
+      if (e.altKey && e.key === 'm') {
+        setShowDataMockup(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
+  // Show mockup if enabled
+  if (showDataMockup) {
+    return (
+      <div className="min-h-screen bg-gray-900">
+        <div className="absolute top-4 right-4 z-50">
+          <button
+            onClick={() => setShowDataMockup(false)}
+            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            Back to App (Alt+M)
+          </button>
+        </div>
+        <DataLoadingMockup />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen relative">
       {/* Connection Status Indicator */}
-      <div className="absolute top-2 right-2 z-50">
+      <div className="absolute top-2 right-2 z-50 flex gap-2">
+        <button
+          onClick={() => setShowDataMockup(true)}
+          className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition-colors"
+          title="View Data Loading Mockup (Alt+M)"
+        >
+          📊 Mockup
+        </button>
         <ConnectionStatus />
       </div>
       <Sidebar

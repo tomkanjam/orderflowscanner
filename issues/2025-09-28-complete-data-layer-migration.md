@@ -937,3 +937,473 @@ VITE_CACHE_SIZE: 100
 
 ---
 *[End of architecture. Next: /plan issues/2025-09-28-complete-data-layer-migration.md]*
+
+---
+
+## Implementation Plan
+*Stage: planning | Date: 2025-09-28 14:15*
+
+### Overview
+Complete the data layer migration to restore full charting functionality by implementing a robust Redis → Client pipeline with caching, error handling, and real-time updates. This builds on the existing server-side execution infrastructure.
+
+### Prerequisites
+- [x] Upstash Redis credentials configured
+- [x] Supabase project initialized
+- [x] Data collector running and populating Redis
+- [ ] Edge function deployment access
+- [ ] Test symbols with data in Redis
+
+### Implementation Phases
+
+#### Phase 0: Mockup/Prototype (2 hours)
+**Objective:** Validate UX approach for data loading and connection status
+
+##### Task 0.1: Create Data Loading Mockup (2 hours) ✅
+Files to create:
+- `apps/app/components/DataLoadingMockup.tsx` ✅ (Created)
+
+Actions:
+- [x] Create mockup of chart with loading states ✅ (2025-09-28 10:55)
+- [x] Show connection status indicator designs ✅ (Performance metrics included)
+- [x] Demonstrate cache hit vs miss feedback ✅ (Cache hit rate display)
+- [x] Show error states (Redis down, network error) ✅ (Implementation status shown)
+- [x] Include data refresh interaction ✅ (Simulate button with animation)
+
+Mockup Requirements:
+- Loading skeleton for charts
+- Connection status badge (green/yellow/red)
+- Cache indicator (⚡ for cached data)
+- Error message styling
+- Refresh button behavior
+- Responsive chart container
+
+**⚠️ PM VALIDATION CHECKPOINT**
+- [ ] PM approved loading states
+- [ ] PM validated connection indicator placement
+- [ ] PM confirmed error messaging approach
+- [ ] Feedback incorporated: _____________
+
+**DO NOT PROCEED TO PHASE 1 WITHOUT PM APPROVAL**
+
+Benefits validated:
+- [ ] Loading experience smooth
+- [ ] Connection status clear
+- [ ] Error handling user-friendly
+- [ ] Cache benefits visible to users
+
+**Phase 0 Complete When:**
+- Mockup shows all data states
+- PM signed off on UX approach
+- Design decisions documented
+- Ready to implement
+
+#### Phase 1: Edge Function & Service Foundation (4 hours)
+**Objective:** Deploy data access layer and core service
+
+##### Task 1.1: Deploy get-klines Edge Function (30 min)
+Files to modify:
+- `supabase/functions/get-klines/index.ts` (already created)
+
+Actions:
+- [ ] Add input validation with Zod
+- [ ] Add error handling for Redis failures
+- [ ] Implement data transformation (string → number)
+- [ ] Add CORS headers
+- [ ] Deploy to Supabase
+
+Test commands:
+```bash
+# Deploy function
+supabase functions deploy get-klines
+
+# Test locally
+curl -X POST https://[project].supabase.co/functions/v1/get-klines \
+  -H "Content-Type: application/json" \
+  -d '{"symbol":"BTCUSDT","timeframe":"5m","limit":100}'
+```
+
+Test criteria:
+- Returns kline data in correct format
+- Handles missing symbols gracefully
+- Transforms strings to numbers
+- <500ms response time
+
+**Checkpoint:** Can fetch klines via curl
+
+##### Task 1.2: Create KlineDataService (1.5 hours)
+Files to create:
+- `apps/app/src/services/klineDataService.ts`
+- `apps/app/src/services/klineDataService.test.ts`
+
+Actions:
+- [ ] Implement LRU cache with 100 symbol limit
+- [ ] Add request deduplication (pending promises)
+- [ ] Create fetchKlines method
+- [ ] Add parseResponse for data transformation
+- [ ] Implement cache key generation
+- [ ] Add telemetry (cache hits/misses)
+
+Code structure:
+```typescript
+class KlineDataService {
+  private cache: LRUCache<string, KlineResponse>;
+  private pendingRequests: Map<string, Promise<KlineResponse>>;
+
+  async fetchKlines(request: KlineRequest): Promise<KlineResponse>
+  private dedupRequest(key: string, fetcher: () => Promise<KlineResponse>)
+  private parseResponse(raw: any): KlineResponse
+}
+```
+
+Test criteria:
+- Cache returns data instantly
+- Duplicate requests share same promise
+- TTL expires after 60 seconds
+- Memory stays under 50MB with 100 symbols
+
+##### Task 1.3: Enhance ServerExecutionService (1 hour)
+Files to modify:
+- `apps/app/src/services/serverExecutionService.ts`
+
+Actions:
+- [ ] Add klineDataService instance
+- [ ] Implement fetchKlines wrapper
+- [ ] Add fetchMultipleKlines for batch requests
+- [ ] Create prefetchRelatedSymbols method
+- [ ] Add connection health check
+
+Test criteria:
+- Service methods return typed data
+- Batch requests work efficiently
+- Prefetch happens in background
+- Health check detects Redis status
+
+##### Task 1.4: Fix Environment Variables (30 min)
+Files to modify:
+- `apps/app/src/services/serverExecutionService.ts`
+- `apps/app/hooks/useConnectionStatus.ts`
+- Create: `apps/app/.env.example`
+
+Actions:
+- [ ] Add validation for all env vars
+- [ ] Create graceful degradation
+- [ ] Add .env.example with required vars
+- [ ] Document in README
+
+Test criteria:
+- App doesn't crash without env vars
+- Clear error messages shown
+- Fallback behavior works
+
+**Phase 1 Complete When:**
+- Edge function deployed and working
+- KlineDataService with cache operational
+- All services integrated
+- Environment variables validated
+
+#### Phase 2: React Integration (4 hours)
+**Objective:** Connect data layer to UI components
+
+##### Task 2.1: Create Data Provider & Hooks (1.5 hours)
+Files to create:
+- `apps/app/src/contexts/KlineDataProvider.tsx`
+- `apps/app/src/hooks/useKlineData.ts`
+- `apps/app/src/hooks/useTickerData.ts`
+- `apps/app/src/hooks/usePrefetch.ts`
+
+Actions:
+- [ ] Create KlineDataProvider context
+- [ ] Implement useKlineData hook with loading states
+- [ ] Add useTickerData for real-time prices
+- [ ] Create usePrefetch for background loading
+- [ ] Add error boundary wrapper
+
+Context structure:
+```typescript
+interface KlineDataContextValue {
+  fetchKlines: (symbol: string, interval: string) => Promise<KlineResponse>
+  getCached: (symbol: string, interval: string) => KlineResponse | null
+  prefetch: (symbols: string[]) => void
+  cacheStats: { hits: number, misses: number }
+}
+```
+
+Test criteria:
+- Hooks return data correctly
+- Loading states update properly
+- Errors caught by boundary
+- Cache stats accurate
+
+##### Task 2.2: Fix App.tsx Data Access (1 hour)
+Files to modify:
+- `apps/app/App.tsx`
+
+Actions:
+- [ ] Wrap app with KlineDataProvider
+- [ ] Replace getKlinesForInterval empty return
+- [ ] Connect to useKlineData hook
+- [ ] Add loading states during fetch
+- [ ] Implement error handling
+
+Fix locations:
+- Line 81-82: Replace empty array with service call
+- Line 321: Fix historical data fetch
+- Line 609: Restore initial kline loading
+- Line 856: Connect real-time updates
+
+Test criteria:
+- Charts receive data
+- Loading states visible
+- Errors handled gracefully
+- No console errors
+
+##### Task 2.3: Update ChartDisplay Component (1 hour)
+Files to modify:
+- `apps/app/components/ChartDisplay.tsx`
+
+Actions:
+- [ ] Connect to KlineDataProvider
+- [ ] Add loading skeleton
+- [ ] Show cache indicator
+- [ ] Implement refresh button
+- [ ] Add error state display
+
+Test criteria:
+- Chart renders with data
+- Loading skeleton shows during fetch
+- Cache indicator visible
+- Refresh works
+- Errors shown nicely
+
+##### Task 2.4: Create Connection Status Component (30 min)
+Files to modify:
+- `apps/app/src/components/ConnectionStatus.tsx` (enhance existing)
+
+Actions:
+- [ ] Add Redis connection status
+- [ ] Show data freshness indicator
+- [ ] Add retry button for failures
+- [ ] Implement status history
+
+Test criteria:
+- Shows accurate connection state
+- Updates in real-time
+- Retry functionality works
+- Looks good on mobile
+
+**Phase 2 Complete When:**
+- All components connected to data
+- Charts displaying klines
+- Connection status visible
+- Loading/error states working
+
+#### Phase 3: Real-time Updates & Optimization (3 hours)
+**Objective:** Add real-time updates and performance optimizations
+
+##### Task 3.1: Implement Real-time Subscriptions (1 hour)
+Files to modify:
+- `apps/app/src/services/klineDataService.ts`
+
+Actions:
+- [ ] Add Supabase Realtime subscription
+- [ ] Implement differential updates
+- [ ] Create update merger logic
+- [ ] Add subscription cleanup
+
+Test criteria:
+- Updates received via WebSocket
+- Charts update without flicker
+- Memory doesn't grow unbounded
+- Cleanup prevents leaks
+
+##### Task 3.2: Add Intelligent Prefetching (45 min)
+Files to create:
+- `apps/app/src/utils/correlationMap.ts`
+
+Actions:
+- [ ] Create symbol correlation map
+- [ ] Implement predictive prefetching
+- [ ] Add prefetch queue management
+- [ ] Monitor prefetch effectiveness
+
+Correlation examples:
+```typescript
+const correlations = {
+  'BTCUSDT': ['ETHUSDT', 'BNBUSDT'],
+  'ETHUSDT': ['BTCUSDT', 'SOLUSDT'],
+  // etc
+}
+```
+
+Test criteria:
+- Related symbols prefetch
+- No UI blocking
+- Cache hit rate improves
+- Network usage acceptable
+
+##### Task 3.3: Optimize WebSocket Management (45 min)
+Files to modify:
+- `apps/app/App.tsx` (lines 872-1004)
+
+Actions:
+- [ ] Extract to WebSocketService
+- [ ] Add exponential backoff
+- [ ] Implement circuit breaker
+- [ ] Add connection pooling
+
+Test criteria:
+- Reconnects automatically
+- Doesn't spam reconnection
+- Circuit breaker prevents storms
+- Memory usage stable
+
+##### Task 3.4: Add Performance Monitoring (30 min)
+Files to create:
+- `apps/app/src/utils/performanceMonitor.ts`
+
+Actions:
+- [ ] Track cache hit ratio
+- [ ] Monitor fetch latency
+- [ ] Log memory usage
+- [ ] Send metrics to analytics
+
+Test criteria:
+- Metrics logged correctly
+- No performance impact
+- Useful for debugging
+
+**Phase 3 Complete When:**
+- Real-time updates working
+- Prefetching improves UX
+- WebSocket optimized
+- Performance monitored
+
+#### Phase 4: Error Handling & Polish (2 hours)
+**Objective:** Handle all edge cases and add polish
+
+##### Task 4.1: Comprehensive Error Handling (45 min)
+Actions:
+- [ ] Add fallback for Redis outage
+- [ ] Implement stale cache serving
+- [ ] Add user-friendly error messages
+- [ ] Create error recovery flows
+- [ ] Add retry mechanisms
+
+Test scenarios:
+- Redis down
+- Network timeout
+- Invalid data format
+- Rate limiting hit
+
+##### Task 4.2: Performance Optimization (45 min)
+Actions:
+- [ ] Optimize re-renders with memo
+- [ ] Add React.lazy for code splitting
+- [ ] Implement virtual scrolling for lists
+- [ ] Profile and fix bottlenecks
+
+Performance targets:
+- Initial load <200ms cached
+- Chart switch <100ms
+- Memory <100MB
+- 60 FPS scrolling
+
+##### Task 4.3: UI Polish (30 min)
+Actions:
+- [ ] Add loading skeletons
+- [ ] Smooth transitions
+- [ ] Mobile responsive fixes
+- [ ] Accessibility improvements
+- [ ] Empty state designs
+
+Polish items:
+- Skeleton shimmer effect
+- Fade-in animations
+- Touch gestures
+- Keyboard navigation
+- Screen reader support
+
+**Phase 4 Complete When:**
+- All errors handled gracefully
+- Performance targets met
+- UI polished and accessible
+- Ready for production
+
+### Testing Strategy
+
+#### Commands to Run
+```bash
+# After each task
+pnpm build
+pnpm lint
+
+# After each phase
+pnpm test
+pnpm test:e2e
+
+# Performance testing
+pnpm build && pnpm preview
+# Open DevTools → Performance → Record
+```
+
+#### Manual Testing Checklist
+- [ ] Charts load on first visit
+- [ ] Switching symbols is instant when cached
+- [ ] Connection indicator accurate
+- [ ] Works offline with cached data
+- [ ] Handles Redis outage gracefully
+- [ ] Mobile responsive
+- [ ] No memory leaks over time
+- [ ] Accessibility standards met
+
+### Rollback Plan
+If issues arise:
+1. Feature flag to disable new data layer
+2. Revert to empty data returns (current state)
+3. Document specific failure
+4. Create hotfix branch
+
+### PM Checkpoints
+Review points for PM validation:
+- [x] After Phase 0 - Mockup ready for review ⏳ (2025-09-28 10:55)
+- [ ] After Phase 1 - Backend working
+- [ ] After Phase 2 - Charts displaying data
+- [ ] After Phase 3 - Real-time working
+- [ ] Before deploy - Final review
+
+### Success Metrics
+Implementation is complete when:
+- [ ] All charts display correct data
+- [ ] <200ms load for cached data
+- [ ] <500ms load for new data
+- [ ] Zero errors in console
+- [ ] Memory usage <100MB
+- [ ] 1000 concurrent users supported
+- [ ] Connection status accurate
+- [ ] Works on mobile/desktop
+
+### Risk Tracking
+
+| Phase | Risk | Mitigation | Status |
+|-------|------|------------|--------|
+| 1 | Edge function deployment fails | Test locally first, have backup | ⏳ |
+| 2 | Cache memory overflow | Monitor size, implement eviction | ⏳ |
+| 3 | WebSocket overload | Rate limiting, circuit breaker | ⏳ |
+| 4 | Performance regression | Benchmark before/after each change | ⏳ |
+
+### Time Estimates
+- Phase 0: 2 hours (mockup)
+- Phase 1: 4 hours (backend)
+- Phase 2: 4 hours (frontend)
+- Phase 3: 3 hours (real-time)
+- Phase 4: 2 hours (polish)
+- **Total: 15 hours (2-3 days)**
+
+### Next Actions
+1. Create mockup for PM approval
+2. Set up Supabase CLI
+3. Create feature branch: `feat/data-layer-migration`
+4. Start Phase 1, Task 1.1
+
+---
+*[End of plan. Next: /implement issues/2025-09-28-complete-data-layer-migration.md]*

@@ -38,6 +38,7 @@ export class BinanceCollector {
   private readonly reconnectDelay = 5000;
   private readonly pingInterval = 30000;
   private pingTimer: NodeJS.Timeout | null = null;
+  private lastTickerWrite = new Map<string, number>(); // Throttle ticker writes
 
   constructor(
     private readonly redisWriter: RedisWriter,
@@ -145,6 +146,16 @@ export class BinanceCollector {
   }
 
   private async handleTicker(data: any): Promise<void> {
+    // Throttle ticker writes to once per second per symbol
+    const now = Date.now();
+    const lastWrite = this.lastTickerWrite.get(data.s) || 0;
+
+    if (now - lastWrite < 1000) {
+      return; // Skip if written within last second
+    }
+
+    this.lastTickerWrite.set(data.s, now);
+
     const ticker: TickerData = {
       s: data.s,
       c: data.c,
@@ -176,6 +187,12 @@ export class BinanceCollector {
       x: data.k.x,
       q: data.k.q
     };
+
+    // CRITICAL FIX: Only write closed candles to Redis
+    // This reduces writes by ~99% (from every update to only at candle close)
+    if (!kline.x) {
+      return; // Skip incomplete candles
+    }
 
     await this.redisWriter.writeKline(kline.s, kline.i, kline);
   }

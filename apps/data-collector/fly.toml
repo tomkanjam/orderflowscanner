@@ -1,8 +1,8 @@
 # fly.toml app configuration file
 # See https://fly.io/docs/reference/configuration/
 
-app = "ai-crypto-data-collector"
-primary_region = "iad"
+app = "vyx-data-collector"
+primary_region = "ams"  # Amsterdam - Binance-friendly region
 kill_signal = "SIGTERM"
 kill_timeout = "30s"
 
@@ -17,8 +17,9 @@ kill_timeout = "30s"
   protocol = "tcp"
   internal_port = 3001
   auto_stop_machines = false
-  auto_start_machines = true
+  auto_start_machines = false  # Prevent auto-scaling
   min_machines_running = 1
+  max_machines_running = 1     # Hard limit: never more than 1 machine
 
   [[services.ports]]
     port = 80
@@ -46,6 +47,6 @@ kill_timeout = "30s"
     path = "/health"
 
 [[vm]]
-  memory = "512mb"
+  memory = "256mb"
   cpu_kind = "shared"
   cpus = 1

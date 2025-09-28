@@ -1,0 +1,53 @@
+# Ignore node_modules (Vercel will install them)
+node_modules
+.pnpm
+
+# Ignore development files
+.env
+.env.local
+.env.*.local
+
+# Ignore git files
+.git
+.gitignore
+
+# Ignore IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Ignore test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+coverage
+.nyc_output
+
+# Ignore source control
+.svn
+.hg
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore build outputs (will be built on Vercel)
+dist
+build
+.turbo
+
+# Ignore documentation
+*.md
+docs
+
+# Ignore worker files (not needed for production)
+workers/*.js
+workers/*.js.map
+
+# Ignore large unnecessary files
+*.log
+*.lock
+yarn.lock
+package-lock.json

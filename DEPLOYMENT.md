@@ -42,10 +42,10 @@ curl -L https://fly.io/install.sh | sh
 fly auth login
 
 # Create the app
-fly apps create ai-crypto-data-collector
+fly apps create vyx-data-collector
 
 # Set Redis secrets
-fly secrets set UPSTASH_REDIS_URL="your-url" UPSTASH_REDIS_TOKEN="your-token"
+fly secrets set UPSTASH_REDIS_URL="https://dashing-gorilla-12954.upstash.io" UPSTASH_REDIS_TOKEN="ATKaAAIncDJhNjNkYzlhNzg0MGU0YmNlYjIzY2FkZTVjMTMwZTMxY3AyMTI5NTQ"
 
 # Deploy
 fly deploy

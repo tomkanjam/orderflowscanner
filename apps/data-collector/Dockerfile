@@ -7,10 +7,10 @@ WORKDIR /app
 RUN npm install -g pnpm@9
 
 # Copy package files
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json ./
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies (no lock file needed for workspace member)
+RUN pnpm install --no-frozen-lockfile
 
 # Copy source code
 COPY tsconfig.json ./
@@ -28,10 +28,10 @@ WORKDIR /app
 RUN npm install -g pnpm@9
 
 # Copy package files
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json ./
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
+# Install production dependencies only (no lock file needed for workspace member)
+RUN pnpm install --no-frozen-lockfile --prod
 
 # Copy built application
 COPY --from=builder /app/dist ./dist

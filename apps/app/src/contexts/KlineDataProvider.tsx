@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { serverExecutionService } from '../services/serverExecutionService';
-import { KlineResponse } from '../services/klineDataService';
+import { KlineResponse, KlineUpdate, klineDataService } from '../services/klineDataService';
 import { Kline, KlineInterval } from '../../types';
 
 // Context value interface
@@ -14,6 +14,11 @@ export interface KlineDataContextValue {
   getCached: (symbol: string, interval: KlineInterval) => KlineResponse | null;
   prefetch: (symbols: string[], interval: KlineInterval) => void;
   invalidateSymbol: (symbol: string) => void;
+  subscribeToUpdates: (
+    symbol: string,
+    interval: KlineInterval,
+    callback: (update: KlineUpdate) => void
+  ) => () => void;
   cacheStats: {
     hits: number;
     misses: number;
@@ -60,14 +65,23 @@ export const KlineDataProvider: React.FC<KlineDataProviderProps> = ({
   // React-level cache for immediate updates
   const reactCache = useRef<Map<string, ReactCacheEntry>>(new Map());
 
-  // Update cache stats periodically
+  // Store active subscriptions
+  const activeSubscriptions = useRef<Map<string, () => void>>(new Map());
+
+  // Update cache stats periodically and cleanup
   useEffect(() => {
     const interval = setInterval(() => {
       const stats = serverExecutionService.getCacheStats();
       setCacheStats(stats);
     }, 5000); // Update every 5 seconds
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+
+      // Cleanup all subscriptions on unmount
+      activeSubscriptions.current.forEach(unsub => unsub());
+      activeSubscriptions.current.clear();
+    };
   }, []);
 
   /**
@@ -191,12 +205,74 @@ export const KlineDataProvider: React.FC<KlineDataProviderProps> = ({
     console.log(`[KlineDataProvider] Invalidated cache for ${symbol}`);
   }, []);
 
+  /**
+   * Subscribe to real-time updates for a symbol
+   */
+  const subscribeToUpdates = useCallback((
+    symbol: string,
+    interval: KlineInterval,
+    callback: (update: KlineUpdate) => void
+  ): (() => void) => {
+    const subscriptionKey = `${symbol}:${interval}`;
+
+    // Unsubscribe previous if exists
+    const existing = activeSubscriptions.current.get(subscriptionKey);
+    if (existing) {
+      existing();
+    }
+
+    // Create new subscription
+    const unsubscribe = klineDataService.subscribeToUpdates(
+      symbol,
+      interval,
+      (update: KlineUpdate) => {
+        // Update React cache when we get an update
+        const cacheKey = getCacheKey(symbol, interval);
+        const entry = reactCache.current.get(cacheKey);
+
+        if (entry) {
+          // Update the cached data with the new kline
+          const klines = [...entry.data.klines];
+          const updateKline = update.kline;
+          const existingIndex = klines.findIndex(k => k.openTime === updateKline.openTime);
+
+          if (existingIndex >= 0) {
+            klines[existingIndex] = updateKline;
+          } else if (update.type === 'new') {
+            klines.push(updateKline);
+            klines.sort((a, b) => a.openTime - b.openTime);
+            if (klines.length > 250) {
+              klines.splice(0, klines.length - 250);
+            }
+          }
+
+          // Update cache with new data
+          entry.data = { ...entry.data, klines };
+          entry.timestamp = Date.now();
+        }
+
+        // Notify the callback
+        callback(update);
+      }
+    );
+
+    // Store the unsubscribe function
+    activeSubscriptions.current.set(subscriptionKey, unsubscribe);
+
+    // Return cleanup function
+    return () => {
+      unsubscribe();
+      activeSubscriptions.current.delete(subscriptionKey);
+    };
+  }, [getCacheKey]);
+
   // Context value
   const value: KlineDataContextValue = {
     fetchKlines,
     getCached,
     prefetch,
     invalidateSymbol,
+    subscribeToUpdates,
     cacheStats,
     isLoading,
     error

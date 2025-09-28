@@ -8,6 +8,7 @@
  */
 
 import { Kline, KlineInterval } from '../../types';
+import { createClient, RealtimeChannel } from '@supabase/supabase-js';
 
 // Cache configuration
 const CACHE_MAX_SIZE = 100; // Maximum number of symbols to cache
@@ -30,6 +31,14 @@ export interface KlineResponse {
   cached: boolean;
   latency: number;
   error?: string;
+}
+
+export interface KlineUpdate {
+  symbol: string;
+  timeframe: string;
+  kline: Kline;
+  type: 'update' | 'close' | 'new';
+  timestamp: number;
 }
 
 export interface CacheEntry {
@@ -121,6 +130,9 @@ export class KlineDataService {
   private stats: CacheStats;
   private supabaseUrl: string;
   private supabaseKey: string;
+  private supabase: any;
+  private subscriptions: Map<string, RealtimeChannel>;
+  private updateCallbacks: Map<string, Set<(update: KlineUpdate) => void>>;
 
   constructor() {
     // Initialize cache with eviction callback
@@ -133,6 +145,8 @@ export class KlineDataService {
     );
 
     this.pendingRequests = new Map();
+    this.subscriptions = new Map();
+    this.updateCallbacks = new Map();
     this.stats = {
       hits: 0,
       misses: 0,
@@ -147,6 +161,9 @@ export class KlineDataService {
 
     if (!this.supabaseUrl || !this.supabaseKey) {
       console.warn('[KlineDataService] Supabase configuration missing');
+    } else {
+      // Initialize Supabase client for real-time
+      this.supabase = createClient(this.supabaseUrl, this.supabaseKey);
     }
   }
 
@@ -245,6 +262,118 @@ export class KlineDataService {
   }
 
   /**
+   * Subscribe to real-time kline updates
+   */
+  subscribeToUpdates(
+    symbol: string,
+    timeframe: KlineInterval,
+    callback: (update: KlineUpdate) => void
+  ): () => void {
+    if (!this.supabase) {
+      console.warn('[KlineDataService] Cannot subscribe - Supabase not configured');
+      return () => {};
+    }
+
+    const channelKey = `klines:${symbol}:${timeframe}`;
+
+    // Add callback to the set for this channel
+    if (!this.updateCallbacks.has(channelKey)) {
+      this.updateCallbacks.set(channelKey, new Set());
+    }
+    this.updateCallbacks.get(channelKey)!.add(callback);
+
+    // Create subscription if not exists
+    if (!this.subscriptions.has(channelKey)) {
+      console.log(`[KlineDataService] Creating subscription for ${channelKey}`);
+
+      const channel = this.supabase
+        .channel(channelKey)
+        .on('broadcast', { event: 'kline_update' }, (payload: any) => {
+          const update: KlineUpdate = payload.payload;
+
+          // Merge update into cached data
+          this.mergeKlineUpdate(update);
+
+          // Notify all callbacks for this channel
+          const callbacks = this.updateCallbacks.get(channelKey);
+          if (callbacks) {
+            callbacks.forEach(cb => cb(update));
+          }
+        })
+        .subscribe((status: string) => {
+          console.log(`[KlineDataService] Subscription ${channelKey} status:`, status);
+        });
+
+      this.subscriptions.set(channelKey, channel);
+    }
+
+    // Return unsubscribe function
+    return () => {
+      const callbacks = this.updateCallbacks.get(channelKey);
+      if (callbacks) {
+        callbacks.delete(callback);
+
+        // If no more callbacks, unsubscribe the channel
+        if (callbacks.size === 0) {
+          this.unsubscribeChannel(channelKey);
+        }
+      }
+    };
+  }
+
+  /**
+   * Merge real-time update into cached data
+   */
+  private mergeKlineUpdate(update: KlineUpdate): void {
+    const cacheKey = `${update.symbol}:${update.timeframe}:100`;
+    const entry = this.cache.get(cacheKey);
+
+    if (!entry) {
+      return; // No cached data to update
+    }
+
+    const klines = entry.data.klines;
+    const updateKline = update.kline;
+
+    // Find the kline to update based on openTime
+    const existingIndex = klines.findIndex(k => k.openTime === updateKline.openTime);
+
+    if (existingIndex >= 0) {
+      // Update existing kline
+      if (update.type === 'update' || update.type === 'close') {
+        klines[existingIndex] = updateKline;
+      }
+    } else if (update.type === 'new') {
+      // Add new kline, maintaining sort order
+      klines.push(updateKline);
+      klines.sort((a, b) => a.openTime - b.openTime);
+
+      // Keep only the latest N klines
+      if (klines.length > 250) {
+        klines.splice(0, klines.length - 250);
+      }
+    }
+
+    // Update cache timestamp to extend TTL
+    entry.timestamp = Date.now();
+
+    console.log(`[KlineDataService] Merged ${update.type} update for ${update.symbol}`);
+  }
+
+  /**
+   * Unsubscribe from a channel
+   */
+  private unsubscribeChannel(channelKey: string): void {
+    const channel = this.subscriptions.get(channelKey);
+    if (channel) {
+      channel.unsubscribe();
+      this.subscriptions.delete(channelKey);
+      this.updateCallbacks.delete(channelKey);
+      console.log(`[KlineDataService] Unsubscribed from ${channelKey}`);
+    }
+  }
+
+  /**
    * Clear cache
    */
   clearCache(): void {
@@ -257,6 +386,23 @@ export class KlineDataService {
       memoryUsage: 0
     };
     console.log('[KlineDataService] Cache cleared');
+  }
+
+  /**
+   * Cleanup all subscriptions
+   */
+  cleanup(): void {
+    // Unsubscribe from all channels
+    this.subscriptions.forEach((channel, key) => {
+      channel.unsubscribe();
+      console.log(`[KlineDataService] Unsubscribed from ${key}`);
+    });
+
+    this.subscriptions.clear();
+    this.updateCallbacks.clear();
+    this.clearCache();
+
+    console.log('[KlineDataService] Service cleaned up');
   }
 
   /**

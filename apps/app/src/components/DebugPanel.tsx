@@ -48,12 +48,28 @@ export function DebugPanel() {
       const realtime = supabase.realtime;
       const channels = realtime.getChannels();
 
+      let status = 'NOT_INITIALIZED';
+      let lastError = undefined;
+
+      if (realtime.ws) {
+        switch (realtime.ws.readyState) {
+          case 0: status = 'CONNECTING'; break;
+          case 1: status = 'CONNECTED'; break;
+          case 2: status = 'CLOSING'; break;
+          case 3: status = 'CLOSED'; break;
+          default: status = 'UNKNOWN';
+        }
+      } else {
+        // Check if there are channels trying to connect
+        if (channels.length > 0) {
+          status = 'INITIALIZING';
+        }
+      }
+
       setWsStatus({
         url: `wss://${envInfo.supabaseUrl.replace('https://', '')}/realtime/v1/websocket`,
-        status: realtime.ws?.readyState === 1 ? 'CONNECTED' :
-                realtime.ws?.readyState === 0 ? 'CONNECTING' :
-                realtime.ws?.readyState === 2 ? 'CLOSING' :
-                realtime.ws?.readyState === 3 ? 'CLOSED' : 'UNKNOWN',
+        status,
+        lastError,
         connectedAt: realtime.ws?.readyState === 1 ? new Date().toISOString() : undefined,
         subscriptions: channels.map(ch => ({
           channel: ch.topic,
@@ -77,6 +93,12 @@ export function DebugPanel() {
           request.onsuccess = () => resolve(request.result);
           request.onerror = () => reject(request.error);
         });
+
+        // Check if the klines object store exists
+        if (!db.objectStoreNames.contains('klines')) {
+          db.close();
+          return;
+        }
 
         const transaction = db.transaction(['klines'], 'readonly');
         const store = transaction.objectStore('klines');
@@ -134,11 +156,14 @@ export function DebugPanel() {
       case 'joined':
         return 'text-green-400';
       case 'CONNECTING':
+      case 'INITIALIZING':
       case 'joining':
         return 'text-yellow-400';
       case 'CLOSED':
       case 'error':
         return 'text-red-400';
+      case 'NOT_INITIALIZED':
+        return 'text-orange-400';
       default:
         return 'text-gray-400';
     }

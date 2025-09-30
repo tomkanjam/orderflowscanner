@@ -283,12 +283,13 @@ export class FallbackManager {
    */
   private async testNormalMode(): Promise<boolean> {
     try {
-      // Test Edge Function availability
-      const testUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health`;
+      // Test Supabase REST API availability with ping endpoint
+      const testUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/ping`;
       const response = await fetch(testUrl, {
-        method: 'GET',
+        method: 'POST',
         headers: {
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+          'Content-Type': 'application/json'
         }
       });
 

@@ -1,0 +1,39 @@
+app = "vyx-kline-server"
+primary_region = "ams"
+kill_signal = "SIGINT"
+kill_timeout = "5s"
+
+[env]
+  PORT = "8080"
+  # Start with 50 symbols for testing, can scale to 500+
+  SYMBOLS = "BTCUSDT,ETHUSDT,BNBUSDT,XRPUSDT,SOLUSDT,ADAUSDT,DOGEUSDT,AVAXUSDT,TRXUSDT,MATICUSDT,LINKUSDT,UNIUSDT,LTCUSDT,NEARUSDT,ATOMUSDT,FILUSDT,ICPUSDT,SHIBUSDT,DOTUSDT,TONCOINUSDT,PEPEUSDT,WLDUSDT,ARBUSDT,APTUSDT,INJUSDT,OPUSDT,LDOUSDT,IMXUSDT,HBARUSDT,STXUSDT,CFXUSDT,FTMUSDT,AAVEUSDT,ALGOUSDT,SANDUSDT,MANAUSDT,QNTUSDT,EGLDUSDT,AXSUSDT,MKRUSDT,RNDRUSDT,GMTUSDT,CRVUSDT,LRCUSDT,CHZUSDT,APEUSDT,KAVAULSDT,KLAYUSDT,MINAUSDT,CKBUSDT"
+
+[experimental]
+  auto_rollback = true
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[http_service.concurrency]
+  type = "connections"
+  hard_limit = 1000
+  soft_limit = 500
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[checks]]
+  name = "health"
+  type = "http"
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"

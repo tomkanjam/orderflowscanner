@@ -652,6 +652,25 @@
 
                 async fetchDirectoryListing() {
                     try {
+                        // First try manifest.json
+                        try {
+                            const response = await fetch('./manifest.json');
+                            if (response.ok) {
+                                const files = await response.json();
+                                const issueLinks = files.filter(f =>
+                                    f.endsWith('.md') &&
+                                    !f.includes('README.md') &&
+                                    !f.includes('index.md') &&
+                                    !f.includes('CLAUDE.md')
+                                );
+                                console.log(`[Discovery] Found ${issueLinks.length} issue files from manifest`);
+                                return issueLinks;
+                            }
+                        } catch (e) {
+                            console.log('[Discovery] No manifest.json, trying directory listing...');
+                        }
+
+                        // Fallback to directory listing
                         const response = await fetch('./');
                         const html = await response.text();
 
@@ -672,7 +691,7 @@
                             })
                             .map(a => a.getAttribute('href'));
 
-                        console.log(`[Discovery] Found ${issueLinks.length} issue files`);
+                        console.log(`[Discovery] Found ${issueLinks.length} issue files from directory`);
                         return issueLinks;
 
                     } catch (error) {
@@ -733,7 +752,13 @@
                 },
 
                 extractStatus(markdown) {
-                    const match = markdown.match(/Status:\s*\*?\*?(.+?)\*?\*/);
+                    // Try bullet format: - **Status:** ✅ complete
+                    let match = markdown.match(/[-*]\s*\*\*Status:\*\*\s*(.+?)$/m);
+                    if (!match) {
+                        // Try inline format: Status: **complete**
+                        match = markdown.match(/Status:\s*\*?\*?(.+?)\*?\*/);
+                    }
+
                     if (match) {
                         const status = match[1].trim();
                         // Map emoji statuses to text
@@ -748,23 +773,47 @@
                             '✅ complete': 'complete',
                             '🚫 blocked': 'blocked'
                         };
+
+                        // Try exact match first
+                        for (const [key, value] of Object.entries(statusMap)) {
+                            if (status.toLowerCase().includes(value)) {
+                                return value;
+                            }
+                        }
+
                         return statusMap[status] || status.toLowerCase().replace(/[^a-z]/g, '');
                     }
                     return 'unknown';
                 },
 
                 extractPriority(markdown) {
-                    const match = markdown.match(/Priority:\s*\*?\*?(.+?)\*?\*/);
+                    // Try bullet format: - **Priority:** High
+                    let match = markdown.match(/[-*]\s*\*\*Priority:\*\*\s*(.+?)$/m);
+                    if (!match) {
+                        // Try inline format
+                        match = markdown.match(/Priority:\s*\*?\*?(.+?)\*?\*/);
+                    }
                     return match ? match[1].trim() : 'Medium';
                 },
 
                 extractType(markdown) {
-                    const match = markdown.match(/Type:\s*\*?\*?(.+?)\*?\*/);
+                    // Try bullet format: - **Type:** bug/performance
+                    let match = markdown.match(/[-*]\s*\*\*Type:\*\*\s*(.+?)$/m);
+                    if (!match) {
+                        // Try inline format
+                        match = markdown.match(/Type:\s*\*?\*?(.+?)\*?\*/);
+                    }
                     return match ? match[1].trim() : 'enhancement';
                 },
 
                 extractDate(markdown, field) {
-                    const match = markdown.match(new RegExp(`${field}:\\s*\*?\*?(.+?)\*?\*`, 'i'));
+                    // Try bullet format: - **Created:** 2025-09-29 14:21
+                    let match = markdown.match(new RegExp(`[-*]\\s*\\*\\*${field}:\\*\\*\\s*(.+?)$`, 'im'));
+                    if (!match) {
+                        // Try inline format
+                        match = markdown.match(new RegExp(`${field}:\\s*\\*?\\*?(.+?)\\*?\\*`, 'i'));
+                    }
+
                     if (match) {
                         const dateStr = match[1].trim();
                         const date = new Date(dateStr);
@@ -789,28 +838,36 @@
                 },
 
                 calculateProgress(markdown) {
-                    // Count checkboxes
+                    // Try bullet format with percentage: - **Progress:** [██████████] 100%
+                    let progressMatch = markdown.match(/[-*]\s*\*\*Progress:\*\*\s*\[.*?\]\s*([0-9]+)%/);
+                    if (progressMatch) {
+                        return parseInt(progressMatch[1]);
+                    }
+
+                    // Try just percentage
+                    progressMatch = markdown.match(/Progress:\s*\*?\*?([0-9]+)%/);
+                    if (progressMatch) {
+                        return parseInt(progressMatch[1]);
+                    }
+
+                    // Try progress bar with = signs
+                    const barMatch = markdown.match(/Progress:\s*\*?\*?\[([=█\s]+)\]/);
+                    if (barMatch) {
+                        const bar = barMatch[1];
+                        const filled = (bar.match(/[=█]/g) || []).length;
+                        const total = bar.length;
+                        return Math.round((filled / total) * 100);
+                    }
+
+                    // Count checkboxes as fallback
                     const totalBoxes = (markdown.match(/^[\s]*-\s*\[[ x]\]/gm) || []).length;
                     const checkedBoxes = (markdown.match(/^[\s]*-\s*\[x\]/gm) || []).length;
 
-                    if (totalBoxes === 0) {
-                        // Try to extract from Progress: field
-                        const progressMatch = markdown.match(/Progress:\s*\*?\*?([0-9]+)%/);
-                        if (progressMatch) {
-                            return parseInt(progressMatch[1]);
-                        }
-
-                        const barMatch = markdown.match(/Progress:\s*\*?\*?\[([=\s]+)\]/);
-                        if (barMatch) {
-                            const bar = barMatch[1];
-                            const filled = (bar.match(/=/g) || []).length;
-                            const total = bar.length;
-                            return Math.round((filled / total) * 100);
-                        }
-                        return 0;
+                    if (totalBoxes > 0) {
+                        return Math.round((checkedBoxes / totalBoxes) * 100);
                     }
 
-                    return Math.round((checkedBoxes / totalBoxes) * 100);
+                    return 0;
                 },
 
                 detectWorkflowStage(markdown) {

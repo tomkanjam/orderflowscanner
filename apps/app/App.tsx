@@ -44,6 +44,7 @@ import { useSubscription } from './src/contexts/SubscriptionContext';
 import { areTraderArraysEqual } from './src/utils/traderEquality';
 import { memDebug } from './src/utils/memoryDebugger';
 import { klineEventEmitter } from './src/utils/KlineEventEmitter';
+import { DebugPanel } from './src/components/DebugPanel';
 // REMOVED: sharedMarketData import - migrating to server-side execution
 import { BoundedMap, createBoundedMap } from './src/memory/BoundedCollections';
 // MIGRATION: Removed UpdateBatcher - using server-side data flow
@@ -1316,6 +1317,9 @@ const AppContent: React.FC = () => {
       <PerformanceMonitor
         metrics={performanceMetrics}
       />
+
+      {/* Debug Panel */}
+      <DebugPanel />
     </div>
   );
 };

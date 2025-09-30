@@ -50,6 +50,7 @@ async function triggerTraderExecutions(symbols: string[]) {
 
   // Execute each trader
   const promises = traders.map(async (trader: Trader) => {
+    const traderStartTime = Date.now();
     try {
       const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
@@ -69,17 +70,27 @@ async function triggerTraderExecutions(symbols: string[]) {
       }
 
       const result = await response.json();
-      console.log(`Trader ${trader.name}: ${result.matches?.length || 0} matches`);
+      const executionTimeMs = Date.now() - traderStartTime;
+      console.log(`Trader ${trader.name}: ${result.matches?.length || 0} matches in ${executionTimeMs}ms`);
+
+      return { success: true, traderId: trader.id, executionTimeMs, matches: result.matches?.length || 0 };
 
     } catch (error) {
+      const executionTimeMs = Date.now() - traderStartTime;
       console.error(`Failed to execute trader ${trader.id}:`, error);
+      return { success: false, traderId: trader.id, executionTimeMs, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   });
 
-  await Promise.allSettled(promises);
+  const results = await Promise.allSettled(promises);
+
+  // Aggregate metrics
+  return results.map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean);
 }
 
 serve(async (req) => {
+  const startTime = Date.now();
+
   try {
     // This can be triggered by:
     // 1. Cron job (every minute)
@@ -100,15 +111,31 @@ serve(async (req) => {
     // Trigger trader executions
     // The Go server already tracks closed candles, so we just trigger all traders
     // They will check the latest data and execute if conditions match
-    await triggerTraderExecutions(symbols);
+    const traderResults = await triggerTraderExecutions(symbols);
+
+    const totalExecutionTime = Date.now() - startTime;
+    const successCount = traderResults.filter((r: any) => r.success).length;
+    const failureCount = traderResults.filter((r: any) => !r.success).length;
+    const avgExecutionTime = traderResults.length > 0
+      ? traderResults.reduce((sum: number, r: any) => sum + r.executionTimeMs, 0) / traderResults.length
+      : 0;
 
     const summary = {
       timestamp: new Date().toISOString(),
       symbolsChecked: symbols.length,
-      message: 'Traders triggered successfully'
+      tradersExecuted: traderResults.length,
+      successCount,
+      failureCount,
+      totalExecutionTimeMs: totalExecutionTime,
+      avgTraderExecutionTimeMs: Math.round(avgExecutionTime),
+      message: 'Traders triggered successfully',
+      details: traderResults
     };
 
-    console.log('Execution summary:', summary);
+    console.log('Execution summary:', {
+      ...summary,
+      details: `${successCount} successful, ${failureCount} failed`
+    });
 
     return new Response(
       JSON.stringify(summary),
@@ -123,7 +150,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        executionTimeMs: Date.now() - startTime
       }),
       {
         status: 500,

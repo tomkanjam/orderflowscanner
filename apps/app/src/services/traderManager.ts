@@ -356,10 +356,10 @@ export class TraderManager implements ITraderManager {
       description: trader.description,
       enabled: trader.enabled,
       mode: trader.mode,
-      exchange_config: trader.exchangeConfig ? JSON.stringify(trader.exchangeConfig) : null,
-      filter: JSON.stringify(trader.filter),
-      strategy: JSON.stringify(trader.strategy),
-      metrics: JSON.stringify(trader.metrics),
+      exchange_config: trader.exchangeConfig || null,
+      filter: trader.filter,  // PostgreSQL JSONB handles serialization
+      strategy: trader.strategy,  // PostgreSQL JSONB handles serialization
+      metrics: trader.metrics,  // PostgreSQL JSONB handles serialization
       created_at: trader.createdAt.toISOString(),
       updated_at: trader.updatedAt.toISOString(),
       // Subscription fields

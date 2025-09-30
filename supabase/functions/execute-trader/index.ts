@@ -80,6 +80,36 @@ const helpers = `
     const sum = volumes.slice(-period).reduce((a, b) => a + b, 0);
     return sum / period;
   };
+
+  // Helper functions with "get" prefix (used by filter code)
+  const getLatestBollingerBands = (klines, period, stdDev) => {
+    if (!klines || klines.length < period) return null;
+    const closes = klines.map(k => parseFloat(k[4]));
+    const recentCloses = closes.slice(-period);
+    const sma = recentCloses.reduce((a, b) => a + b, 0) / period;
+    const variance = recentCloses.reduce((sum, price) => sum + Math.pow(price - sma, 2), 0) / period;
+    const std = Math.sqrt(variance);
+    return {
+      upper: sma + (std * stdDev),
+      middle: sma,
+      lower: sma - (std * stdDev)
+    };
+  };
+
+  const getLatestRSI = (klines, period = 14) => {
+    if (!klines || klines.length < period + 1) return null;
+    const closes = klines.map(k => parseFloat(k[4]));
+    return calculateRSI(closes, period);
+  };
+
+  // Create helpers object for filter code access
+  const helpers = {
+    calculateMA,
+    calculateRSI,
+    calculateVolumeMA,
+    getLatestBollingerBands,
+    getLatestRSI
+  };
 `;
 
 async function executeTraderFilter(
@@ -128,25 +158,31 @@ async function executeTraderFilter(
       };
 
       // Process klines for each timeframe
+      // Filter code expects array format: [[openTime, open, high, low, close, volume, ...], ...]
       const klines: Record<string, any> = {};
       for (const [timeframe, data] of Object.entries(klinesData)) {
         if (data.length > 0) {
-          klines[timeframe] = {
-            prices: data.map(k => k.close),
-            opens: data.map(k => k.open),
-            highs: data.map(k => k.high),
-            lows: data.map(k => k.low),
-            volumes: data.map(k => k.volume),
-            timestamps: data.map(k => k.openTime),
-            closes: data.map(k => k.close)
-          };
+          // Convert to array format that filter code expects
+          klines[timeframe] = data.map(k => [
+            k.openTime,           // [0]
+            k.open.toString(),    // [1]
+            k.high.toString(),    // [2]
+            k.low.toString(),     // [3]
+            k.close.toString(),   // [4] - filter code uses parseFloat(kline[4])
+            k.volume.toString(),  // [5]
+            k.closeTime,          // [6]
+            k.quoteAssetVolume.toString(),     // [7]
+            k.numberOfTrades,     // [8]
+            k.takerBuyBaseAssetVolume.toString(), // [9]
+            k.takerBuyQuoteAssetVolume.toString() // [10]
+          ]);
         }
       }
 
       // Execute filter code in sandboxed context
       const filterFunction = new Function(
         'ticker',
-        'klines',
+        'timeframes',  // Match parameter name expected by filter code
         helpers + '\n' + trader.filter.code
       );
 
@@ -167,6 +203,9 @@ async function executeTraderFilter(
 }
 
 serve(async (req) => {
+  const startTime = Date.now();
+  let executionId: string | null = null;
+
   try {
     // Parse request
     const { traderId, symbols, userId } = await req.json();
@@ -198,6 +237,21 @@ serve(async (req) => {
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Create execution history record
+    const { data: executionRecord, error: executionError } = await supabase
+      .from('execution_history')
+      .insert({
+        trader_id: traderId,
+        started_at: new Date().toISOString(),
+        symbols_checked: symbols.length
+      })
+      .select('id')
+      .single();
+
+    if (!executionError && executionRecord) {
+      executionId = executionRecord.id;
     }
 
     // Execute filter for all symbols
@@ -239,6 +293,19 @@ serve(async (req) => {
       });
     }
 
+    // Update execution history with completion time
+    const executionTimeMs = Date.now() - startTime;
+    if (executionId) {
+      await supabase
+        .from('execution_history')
+        .update({
+          completed_at: new Date().toISOString(),
+          symbols_matched: matches.length,
+          execution_time_ms: executionTimeMs
+        })
+        .eq('id', executionId);
+    }
+
     // Return results
     return new Response(
       JSON.stringify({
@@ -246,7 +313,8 @@ serve(async (req) => {
         timestamp: new Date().toISOString(),
         totalSymbols: symbols.length,
         matches,
-        results
+        results,
+        executionTimeMs
       }),
       {
         status: 200,
@@ -256,6 +324,20 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Edge function error:', error);
+
+    // Update execution history with error
+    const executionTimeMs = Date.now() - startTime;
+    if (executionId) {
+      await supabase
+        .from('execution_history')
+        .update({
+          completed_at: new Date().toISOString(),
+          execution_time_ms: executionTimeMs,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        })
+        .eq('id', executionId);
+    }
+
     return new Response(
       JSON.stringify({
         error: 'Internal server error',

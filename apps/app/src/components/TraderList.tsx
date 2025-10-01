@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Trader } from '../abstractions/trader.interfaces';
 import { traderManager } from '../services/traderManager';
-import { Plus, Activity } from 'lucide-react';
+import { Plus, Activity, Cloud } from 'lucide-react';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { getSignalAccess } from '../utils/tierAccess';
 import { TierGate } from './TierGate';
@@ -9,6 +9,7 @@ import { UpgradePrompt } from './UpgradePrompt';
 import { SubscriptionTier } from '../types/subscription.types';
 import { SignalCardEnhanced } from './SignalCardEnhanced';
 import { useCloudExecution } from '../hooks/useCloudExecution';
+import { CloudExecutionPanel } from './cloud/CloudExecutionPanel';
 
 interface TraderListProps {
   onCreateTrader: () => void;
@@ -25,6 +26,7 @@ export function TraderList({
 }: TraderListProps) {
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCloudPanel, setShowCloudPanel] = useState(false);
   const { currentTier, preferences, canCreateSignal, remainingSignals, toggleFavoriteSignal, profile } = useSubscription();
   const cloudExecution = useCloudExecution();
 
@@ -210,10 +212,25 @@ export function TraderList({
                   {remainingSignals} remaining
                 </span>
               )}
+
+              {/* Cloud Machine Button - Elite Only */}
+              {cloudExecution.isEliteTier && (
+                <button
+                  onClick={() => setShowCloudPanel(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[var(--nt-bg-primary)] text-blue-400
+                    border border-blue-400 rounded hover:bg-blue-400 hover:text-[var(--nt-bg-primary)]
+                    transition-all text-sm font-medium"
+                  title="Manage cloud execution machine"
+                >
+                  <Cloud className="h-4 w-4" />
+                  Cloud Machine
+                </button>
+              )}
+
               <button
                 onClick={onCreateTrader}
                 disabled={!canCreateSignal()}
-                className="flex items-center gap-2 px-3 py-1.5 bg-[var(--nt-bg-primary)] text-[var(--nt-accent-lime)] 
+                className="flex items-center gap-2 px-3 py-1.5 bg-[var(--nt-bg-primary)] text-[var(--nt-accent-lime)]
                   border border-[var(--nt-accent-lime)] rounded hover:bg-[var(--nt-accent-lime)] hover:text-[var(--nt-bg-primary)]
                   transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -279,6 +296,15 @@ export function TraderList({
           )}
         </div>
       </TierGate>
+
+      {/* Cloud Execution Panel Modal */}
+      {showCloudPanel && cloudExecution.isEliteTier && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="max-w-2xl w-full">
+            <CloudExecutionPanel onClose={() => setShowCloudPanel(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

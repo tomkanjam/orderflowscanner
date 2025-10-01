@@ -20,7 +20,7 @@ import {
 import { cloudWebSocketClient } from '../../services/cloudWebSocketClient';
 import { useAuth } from '../../hooks/useAuth';
 import { useSubscription } from '../../contexts/SubscriptionContext';
-import { supabase } from '../../config/firebase';
+import { supabase } from '../../config/supabase';
 
 interface CloudExecutionPanelProps {
   onClose?: () => void;

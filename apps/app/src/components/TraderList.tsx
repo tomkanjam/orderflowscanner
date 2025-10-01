@@ -28,6 +28,14 @@ export function TraderList({
   const { currentTier, preferences, canCreateSignal, remainingSignals, toggleFavoriteSignal, profile } = useSubscription();
   const cloudExecution = useCloudExecution();
 
+  // Debug cloud execution state
+  console.log('[TraderList] Cloud execution state:', {
+    isEliteTier: cloudExecution.isEliteTier,
+    currentTier,
+    machineStatus: cloudExecution.machineStatus,
+    isConnected: cloudExecution.isConnected
+  });
+
   useEffect(() => {
     // Subscribe to trader updates
     const unsubscribe = traderManager.subscribe((updatedTraders) => {

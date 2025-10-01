@@ -51,7 +51,18 @@ export const SignalCardEnhanced = React.memo(function SignalCardEnhanced({
   onToggleCloudExecution
 }: SignalCardEnhancedProps) {
   const [expanded, setExpanded] = useState(false);
-  
+
+  // Debug cloud execution props
+  if (!signal.isBuiltIn) {
+    console.log(`[SignalCard] ${signal.name} - Cloud props:`, {
+      showCloudExecution,
+      cloudMachineStatus,
+      isBuiltIn: signal.isBuiltIn,
+      hasCloudConfig: !!signal.cloud_config,
+      cloudConfig: signal.cloud_config
+    });
+  }
+
   // Get activity state
   const activityState = activityTracker.getActivityState(signal.id);
   

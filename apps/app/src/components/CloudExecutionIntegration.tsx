@@ -5,7 +5,12 @@
 
 import React, { useState } from 'react';
 import { Cloud } from 'lucide-react';
-import { CloudStatusBadge, CloudExecutionPanel, MachineHealthDashboard } from './cloud';
+import {
+  CloudStatusBadge,
+  CloudExecutionPanel,
+  MachineHealthDashboard,
+  CloudErrorBoundary
+} from './cloud';
 import { useCloudExecution } from '../hooks/useCloudExecution';
 
 export function CloudExecutionIntegration() {
@@ -18,7 +23,8 @@ export function CloudExecutionIntegration() {
   }
 
   return (
-    <div className="space-y-4">
+    <CloudErrorBoundary>
+      <div className="space-y-4">
       {/* Status Badge in Header/Navbar */}
       <div className="flex items-center gap-4">
         <CloudStatusBadge
@@ -93,6 +99,7 @@ export function CloudExecutionIntegration() {
           </ol>
         </div>
       </div>
-    </div>
+      </div>
+    </CloudErrorBoundary>
   );
 }

@@ -67,6 +67,11 @@ func (m Model) renderHeader() string {
 
 // Render body
 func (m Model) renderBody() string {
+	// If deployment panel is focused, show full-screen deployment panel
+	if m.focusedPanel == PanelDeploy {
+		return m.renderDeployPanel()
+	}
+
 	// Calculate panel dimensions
 	leftWidth := (m.width - 6) / 2
 	rightWidth := m.width - leftWidth - 6
@@ -282,6 +287,7 @@ func (m Model) renderFooter() string {
 		styles.FooterKeyStyle.Render("[4]") + " Positions",
 		styles.FooterKeyStyle.Render("[5]") + " AI",
 		styles.FooterKeyStyle.Render("[6]") + " Logs",
+		styles.FooterKeyStyle.Render("[7]") + " Deploy",
 		styles.FooterKeyStyle.Render("[?]") + " Help",
 		styles.FooterKeyStyle.Render("[Q]") + " Quit",
 	}
@@ -301,17 +307,24 @@ func (m Model) renderHelp() string {
 ╚════════════════════════════════════════════════════════════════╝
 
 NAVIGATION:
-  1-6         Switch between panels
+  1-7         Switch between panels
   Tab         Next panel
   Shift+Tab   Previous panel
   ↑/↓         Navigate within tables
   Enter       Select/Action on item
 
+PANELS:
+  1           Market Overview
+  2           Active Traders
+  3           Active Signals
+  4           Open Positions
+  5           AI Analysis
+  6           Live Logs
+  7           Cloud Deployment
+
 ACTIONS:
   r           Refresh data
   c           Create new trader
-  e           Execute trade (when position selected)
-  v           View detailed chart
 
 GENERAL:
   ?           Toggle this help

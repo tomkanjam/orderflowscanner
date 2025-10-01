@@ -16,6 +16,7 @@ const (
 	PanelPositions
 	PanelAI
 	PanelLogs
+	PanelDeploy
 )
 
 // Model represents the TUI application state
@@ -33,13 +34,13 @@ type Model struct {
 	aiViewport     viewport.Model
 
 	// State
-	focusedPanel   int
-	activeTab      string
-	authenticated  bool
-	userEmail      string
-	balance        float64
-	totalPNL       float64
-	totalPNLPct    float64
+	focusedPanel  int
+	activeTab     string
+	authenticated bool
+	userEmail     string
+	balance       float64
+	totalPNL      float64
+	totalPNLPct   float64
 
 	// Data
 	markets   []MarketData
@@ -48,6 +49,15 @@ type Model struct {
 	positions []PositionData
 	logs      []LogEntry
 	aiMessage string
+
+	// Engine connection (optional)
+	engine interface{} // Will be *engine.Engine when connected
+
+	// Deployment state
+	deployStatus string // "local", "deploying", "deployed"
+	cloudURL     string
+	cloudStatus  string
+	deployLogs   []string
 
 	// Config
 	refreshRate time.Duration
@@ -77,30 +87,30 @@ type TraderData struct {
 
 // Signal data
 type SignalData struct {
-	ID         string
-	Symbol     string
-	Status     string
-	EntryPrice float64
+	ID           string
+	Symbol       string
+	Status       string
+	EntryPrice   float64
 	CurrentPrice float64
-	Confidence int
-	AIReasoning string
-	CreatedAt  time.Time
+	Confidence   int
+	AIReasoning  string
+	CreatedAt    time.Time
 }
 
 // Position data
 type PositionData struct {
-	ID         string
-	Symbol     string
-	Side       string
-	EntryPrice float64
+	ID           string
+	Symbol       string
+	Side         string
+	EntryPrice   float64
 	CurrentPrice float64
-	Size       float64
-	PNL        float64
-	PNLPct     float64
-	StopLoss   float64
-	TakeProfit float64
-	Sparkline  string
-	OpenedAt   time.Time
+	Size         float64
+	PNL          float64
+	PNLPct       float64
+	StopLoss     float64
+	TakeProfit   float64
+	Sparkline    string
+	OpenedAt     time.Time
 }
 
 // Log entry
@@ -131,8 +141,8 @@ type tradeExecutedMsg struct {
 // Initialize the model
 func New() Model {
 	m := Model{
-		refreshRate: 100 * time.Millisecond,
-		activeTab:   "dashboard",
+		refreshRate:  100 * time.Millisecond,
+		activeTab:    "dashboard",
 		focusedPanel: PanelMarket,
 
 		// Mock data for initial display
@@ -179,11 +189,15 @@ Confidence: ███████████████░░░ 78%
 
 [Gemini Flash 2.0 • 1.2s response time]`,
 
-		balance: 50000,
-		totalPNL: 785,
-		totalPNLPct: 1.57,
-		userEmail: "elite@trader.com",
+		balance:       50000,
+		totalPNL:      785,
+		totalPNLPct:   1.57,
+		userEmail:     "elite@trader.com",
 		authenticated: true,
+
+		// Deployment state
+		deployStatus: "local",
+		deployLogs:   []string{},
 	}
 
 	// Initialize tables
@@ -192,6 +206,13 @@ Confidence: ███████████████░░░ 78%
 	m.signalsTable = m.createSignalsTable()
 	m.positionsTable = m.createPositionsTable()
 
+	return m
+}
+
+// NewWithEngine creates a model with a connected trading engine
+func NewWithEngine(engine interface{}) Model {
+	m := New()
+	m.engine = engine
 	return m
 }
 

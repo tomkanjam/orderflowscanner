@@ -11,11 +11,11 @@ var (
 	Foreground = lipgloss.Color("#c0caf5")
 
 	// Status colors
-	Profit    = lipgloss.Color("#9ece6a") // Green
-	Loss      = lipgloss.Color("#f7768e") // Red
-	Warning   = lipgloss.Color("#e0af68") // Yellow
-	Info      = lipgloss.Color("#7aa2f7") // Blue
-	AI        = lipgloss.Color("#bb9af7") // Purple
+	Profit  = lipgloss.Color("#9ece6a") // Green
+	Loss    = lipgloss.Color("#f7768e") // Red
+	Warning = lipgloss.Color("#e0af68") // Yellow
+	Info    = lipgloss.Color("#7aa2f7") // Blue
+	AI      = lipgloss.Color("#bb9af7") // Purple
 
 	// UI colors
 	Border    = lipgloss.Color("#565f89")

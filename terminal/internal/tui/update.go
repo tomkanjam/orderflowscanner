@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"time"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -28,7 +30,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Add timestamp to new logs
-		now := tea.Time{}
+		now := time.Now()
 		for i := range m.logs {
 			if m.logs[i].Time.IsZero() {
 				m.logs[i].Time = now
@@ -122,11 +124,11 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "tab":
-		m.focusedPanel = (m.focusedPanel + 1) % 6
+		m.focusedPanel = (m.focusedPanel + 1) % 7
 		return m, nil
 
 	case "shift+tab":
-		m.focusedPanel = (m.focusedPanel - 1 + 6) % 6
+		m.focusedPanel = (m.focusedPanel - 1 + 7) % 7
 		return m, nil
 
 	case "1":
@@ -151,6 +153,10 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "6":
 		m.focusedPanel = PanelLogs
+		return m, nil
+
+	case "7":
+		m.focusedPanel = PanelDeploy
 		return m, nil
 
 	case "r":
@@ -188,7 +194,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // Helper to add log entry
 func (m *Model) addLog(level, message string) {
 	m.logs = append([]LogEntry{{
-		Time:    tea.Time{},
+		Time:    time.Now(),
 		Level:   level,
 		Message: message,
 	}}, m.logs...)

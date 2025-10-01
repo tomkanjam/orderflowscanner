@@ -20,6 +20,7 @@ import {
 import { cloudWebSocketClient } from '../../services/cloudWebSocketClient';
 import { useAuth } from '../../hooks/useAuth';
 import { useSubscription } from '../../contexts/SubscriptionContext';
+import { supabase } from '../../config/firebase';
 
 interface CloudExecutionPanelProps {
   onClose?: () => void;
@@ -123,28 +124,32 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
     setError('');
 
     try {
-      // TODO: Call Supabase Edge Function to provision machine
-      // const response = await supabase.functions.invoke('provision-machine', {
-      //   body: {
-      //     userId: user.id,
-      //     region: config.region,
-      //     cpuPriority: config.cpuPriority
-      //   }
-      // });
+      // Call Supabase Edge Function to provision machine
+      const response = await supabase.functions.invoke('provision-machine', {
+        body: {
+          userId: user.id,
+          region: config.region,
+          cpuPriority: config.cpuPriority
+        }
+      });
 
-      // For now, simulate provisioning
-      setStatus('provisioning');
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to provision machine');
+      }
 
+      const { machineId, websocketUrl, status: machineStatus } = response.data;
+
+      console.log('[CloudExecution] Machine provisioned:', machineId);
+
+      setStatus(machineStatus);
+
+      // Connect to WebSocket
+      cloudWebSocketClient.connect(machineId, websocketUrl, user.id);
+
+      // Simulate transition to running for demo
+      // TODO: Remove this once Fly machine is actually deployed
       setTimeout(() => {
         setStatus('starting');
-
-        // Connect to WebSocket (mock URL for now)
-        // TODO: Use actual machine WebSocket URL from response
-        const mockMachineId = `machine_${user?.id}`;
-        const mockWebSocketUrl = `wss://trademind-screener-${user?.id}.fly.dev`;
-
-        cloudWebSocketClient.connect(mockMachineId, mockWebSocketUrl, user?.id || '');
-
         setTimeout(() => {
           setStatus('running');
           setLoading(false);
@@ -170,11 +175,25 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
     setError('');
 
     try {
-      // TODO: Call Supabase Edge Function to stop machine
+      // Call Supabase Edge Function to stop machine
+      const response = await supabase.functions.invoke('stop-machine', {
+        body: {
+          userId: user.id
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to stop machine');
+      }
+
+      console.log('[CloudExecution] Machine stopped');
+
       setStatus('stopping');
 
+      // Disconnect WebSocket
       cloudWebSocketClient.disconnect();
 
+      // Simulate transition to stopped
       setTimeout(() => {
         setStatus('stopped');
         setLoading(false);

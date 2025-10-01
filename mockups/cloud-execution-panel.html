@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Execution Panel - Mockup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1419;
+            color: #e7e9ea;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #1d9bf0;
+        }
+
+        .subtitle {
+            color: #71767b;
+            margin-bottom: 30px;
+        }
+
+        /* State Selector for Demo */
+        .state-selector {
+            background: #16181c;
+            border: 1px solid #2f3336;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .state-selector h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #1d9bf0;
+        }
+
+        .state-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .state-btn {
+            padding: 8px 16px;
+            background: #1d9bf0;
+            border: none;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .state-btn:hover {
+            background: #1a8cd8;
+        }
+
+        .state-btn.active {
+            background: #1a8cd8;
+            box-shadow: 0 0 0 2px #0f1419, 0 0 0 4px #1d9bf0;
+        }
+
+        /* Main Panel */
+        .cloud-panel {
+            background: #16181c;
+            border: 1px solid #2f3336;
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        /* Status Banner */
+        .status-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .status-banner.stopped {
+            background: #2f3336;
+            border: 1px solid #3e4347;
+        }
+
+        .status-banner.provisioning {
+            background: #1a3a52;
+            border: 1px solid #1d9bf0;
+        }
+
+        .status-banner.running {
+            background: #0d3520;
+            border: 1px solid #00ba7c;
+        }
+
+        .status-banner.error {
+            background: #4a1f1f;
+            border: 1px solid #f4212e;
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-icon.stopped {
+            background: #71767b;
+            animation: none;
+        }
+
+        .status-icon.provisioning {
+            background: #1d9bf0;
+        }
+
+        .status-icon.running {
+            background: #00ba7c;
+        }
+
+        .status-icon.error {
+            background: #f4212e;
+        }
+
+        .status-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .status-title {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .status-subtitle {
+            font-size: 14px;
+            color: #71767b;
+        }
+
+        /* Primary Button */
+        .primary-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 24px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .primary-btn.start {
+            background: #1d9bf0;
+            color: white;
+        }
+
+        .primary-btn.start:hover {
+            background: #1a8cd8;
+        }
+
+        .primary-btn.stop {
+            background: #f4212e;
+            color: white;
+        }
+
+        .primary-btn.stop:hover {
+            background: #dc1a27;
+        }
+
+        .primary-btn:disabled {
+            background: #2f3336;
+            color: #71767b;
+            cursor: not-allowed;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: #1e2126;
+            border: 1px solid #2f3336;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .metric-label {
+            font-size: 13px;
+            color: #71767b;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #e7e9ea;
+        }
+
+        .metric-unit {
+            font-size: 14px;
+            color: #71767b;
+            margin-left: 4px;
+        }
+
+        .metric-trend {
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .metric-trend.up {
+            color: #00ba7c;
+        }
+
+        .metric-trend.down {
+            color: #f4212e;
+        }
+
+        /* CPU Progress Bar */
+        .cpu-bar {
+            width: 100%;
+            height: 8px;
+            background: #2f3336;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .cpu-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ba7c, #1d9bf0);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        /* Configuration Section */
+        .config-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #2f3336;
+        }
+
+        .config-section h3 {
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+
+        .config-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .config-item label {
+            font-size: 14px;
+            color: #71767b;
+        }
+
+        .config-item select,
+        .config-item input[type="number"] {
+            background: #1e2126;
+            border: 1px solid #2f3336;
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: #e7e9ea;
+            font-size: 14px;
+        }
+
+        .config-item select:focus,
+        .config-item input[type="number"]:focus {
+            outline: none;
+            border-color: #1d9bf0;
+        }
+
+        /* Toggle Switch */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #1e2126;
+            border-radius: 8px;
+        }
+
+        .toggle-label {
+            font-size: 14px;
+            color: #e7e9ea;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #2f3336;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #1d9bf0;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Hidden State */
+        .hidden {
+            display: none;
+        }
+
+        /* Loading Animation */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #2f3336;
+            border-top-color: #1d9bf0;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cloud Execution Panel</h1>
+        <p class="subtitle">Elite Tier Feature - Dedicated Fly.io Machine</p>
+
+        <!-- State Selector (Demo Only) -->
+        <div class="state-selector">
+            <h2>Demo State Selector</h2>
+            <div class="state-buttons">
+                <button class="state-btn" onclick="setState('stopped')">Stopped</button>
+                <button class="state-btn" onclick="setState('provisioning')">Provisioning</button>
+                <button class="state-btn" onclick="setState('starting')">Starting</button>
+                <button class="state-btn" onclick="setState('running')">Running</button>
+                <button class="state-btn" onclick="setState('error')">Error</button>
+            </div>
+        </div>
+
+        <!-- Main Cloud Panel -->
+        <div class="cloud-panel">
+            <!-- Status Banner -->
+            <div id="statusBanner" class="status-banner stopped">
+                <div class="status-info">
+                    <div id="statusIcon" class="status-icon stopped"></div>
+                    <div class="status-text">
+                        <div id="statusTitle" class="status-title">Cloud Execution Stopped</div>
+                        <div id="statusSubtitle" class="status-subtitle">Start your dedicated machine to enable 24/7 trading</div>
+                    </div>
+                </div>
+                <button id="primaryBtn" class="primary-btn start" onclick="handlePrimaryAction()">
+                    Start Cloud Execution
+                </button>
+            </div>
+
+            <!-- Metrics (Hidden when stopped) -->
+            <div id="metricsSection" class="hidden">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">CPU Usage</div>
+                        <div class="metric-value">
+                            <span id="cpuValue">2.4</span>
+                            <span class="metric-unit">vCPUs</span>
+                        </div>
+                        <div class="cpu-bar">
+                            <div id="cpuFill" class="cpu-fill" style="width: 30%"></div>
+                        </div>
+                        <div class="metric-trend up">↗ Auto-scaled</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">Active Signals</div>
+                        <div class="metric-value" id="signalCount">12</div>
+                        <div class="metric-trend up">↗ +3 in last hour</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">Analysis Queue</div>
+                        <div class="metric-value" id="queueCount">4</div>
+                        <div class="metric-trend">Processing...</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">Uptime</div>
+                        <div class="metric-value" id="uptime">2h 34m</div>
+                        <div class="metric-trend">Since 14:26 UTC</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">Region</div>
+                        <div class="metric-value" style="font-size: 18px;" id="region">Singapore</div>
+                        <div class="metric-trend">23ms ping</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-label">Cost Today</div>
+                        <div class="metric-value">
+                            <span id="costValue">$0.42</span>
+                        </div>
+                        <div class="metric-trend">Est. $12.60/mo</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Section -->
+            <div class="config-section">
+                <h3>Configuration</h3>
+                <div class="config-grid">
+                    <div class="config-item">
+                        <label for="regionSelect">Preferred Region</label>
+                        <select id="regionSelect">
+                            <option value="sin">Singapore (sin)</option>
+                            <option value="iad">Ashburn, VA (iad)</option>
+                            <option value="fra">Frankfurt (fra)</option>
+                        </select>
+                    </div>
+
+                    <div class="config-item">
+                        <label for="cpuPriority">CPU Priority</label>
+                        <select id="cpuPriority">
+                            <option value="low">Low (1-2 vCPUs)</option>
+                            <option value="normal" selected>Normal (1-4 vCPUs)</option>
+                            <option value="high">High (1-8 vCPUs)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+                    <div class="toggle-container">
+                        <span class="toggle-label">Notify on New Signals</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-container">
+                        <span class="toggle-label">Notify on Analysis Complete</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-container">
+                        <span class="toggle-label">Auto-restart on Error</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const states = {
+            stopped: {
+                bannerClass: 'stopped',
+                iconClass: 'stopped',
+                title: 'Cloud Execution Stopped',
+                subtitle: 'Start your dedicated machine to enable 24/7 trading',
+                btnClass: 'start',
+                btnText: 'Start Cloud Execution',
+                btnDisabled: false,
+                showMetrics: false
+            },
+            provisioning: {
+                bannerClass: 'provisioning',
+                iconClass: 'provisioning',
+                title: 'Provisioning Machine...',
+                subtitle: 'Setting up your dedicated infrastructure (30-60 seconds)',
+                btnClass: 'start',
+                btnText: 'Provisioning...',
+                btnDisabled: true,
+                showMetrics: false
+            },
+            starting: {
+                bannerClass: 'provisioning',
+                iconClass: 'provisioning',
+                title: 'Starting Machine...',
+                subtitle: 'Connecting to Binance and loading traders',
+                btnClass: 'start',
+                btnText: 'Starting...',
+                btnDisabled: true,
+                showMetrics: true
+            },
+            running: {
+                bannerClass: 'running',
+                iconClass: 'running',
+                title: 'Cloud Execution Running',
+                subtitle: 'Machine is actively monitoring markets and executing strategies',
+                btnClass: 'stop',
+                btnText: 'Stop Cloud Execution',
+                btnDisabled: false,
+                showMetrics: true
+            },
+            error: {
+                bannerClass: 'error',
+                iconClass: 'error',
+                title: 'Machine Error',
+                subtitle: 'Connection failed. Check logs or restart machine.',
+                btnClass: 'start',
+                btnText: 'Restart Machine',
+                btnDisabled: false,
+                showMetrics: false
+            }
+        };
+
+        let currentState = 'stopped';
+
+        function setState(state) {
+            currentState = state;
+            const config = states[state];
+
+            // Update state selector buttons
+            document.querySelectorAll('.state-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update status banner
+            const banner = document.getElementById('statusBanner');
+            banner.className = `status-banner ${config.bannerClass}`;
+
+            const icon = document.getElementById('statusIcon');
+            icon.className = `status-icon ${config.iconClass}`;
+
+            document.getElementById('statusTitle').textContent = config.title;
+            document.getElementById('statusSubtitle').textContent = config.subtitle;
+
+            // Update button
+            const btn = document.getElementById('primaryBtn');
+            btn.className = `primary-btn ${config.btnClass}`;
+            btn.textContent = config.btnText;
+            btn.disabled = config.btnDisabled;
+
+            // Show/hide metrics
+            const metrics = document.getElementById('metricsSection');
+            if (config.showMetrics) {
+                metrics.classList.remove('hidden');
+
+                // Simulate live metrics for running state
+                if (state === 'running') {
+                    startMetricsSimulation();
+                } else {
+                    stopMetricsSimulation();
+                }
+            } else {
+                metrics.classList.add('hidden');
+                stopMetricsSimulation();
+            }
+        }
+
+        let metricsInterval;
+
+        function startMetricsSimulation() {
+            stopMetricsSimulation();
+
+            metricsInterval = setInterval(() => {
+                // Simulate CPU changes
+                const cpu = (2 + Math.random() * 3).toFixed(1);
+                document.getElementById('cpuValue').textContent = cpu;
+                document.getElementById('cpuFill').style.width = (cpu / 8 * 100) + '%';
+
+                // Simulate signal count changes
+                const signals = 10 + Math.floor(Math.random() * 8);
+                document.getElementById('signalCount').textContent = signals;
+
+                // Simulate queue changes
+                const queue = Math.floor(Math.random() * 6);
+                document.getElementById('queueCount').textContent = queue;
+
+                // Simulate cost increment
+                const cost = (0.30 + Math.random() * 0.50).toFixed(2);
+                document.getElementById('costValue').textContent = '$' + cost;
+            }, 2000);
+        }
+
+        function stopMetricsSimulation() {
+            if (metricsInterval) {
+                clearInterval(metricsInterval);
+                metricsInterval = null;
+            }
+        }
+
+        function handlePrimaryAction() {
+            if (currentState === 'stopped' || currentState === 'error') {
+                setState('provisioning');
+                setTimeout(() => setState('starting'), 2000);
+                setTimeout(() => setState('running'), 4000);
+            } else if (currentState === 'running') {
+                if (confirm('Are you sure you want to stop cloud execution? Active monitoring will pause.')) {
+                    setState('stopped');
+                }
+            }
+        }
+
+        // Set initial state
+        setState('stopped');
+    </script>
+</body>
+</html>

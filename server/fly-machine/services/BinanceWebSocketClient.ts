@@ -318,4 +318,14 @@ export class BinanceWebSocketClient extends EventEmitter implements IBinanceWebS
       timestamp: Date.now()
     };
   }
+
+  getStats() {
+    return {
+      isConnected: this.ws !== null && this.isConnected,
+      symbolCount: this.symbols.length,
+      tickerCount: this.tickers.size,
+      klineCount: this.klines.size,
+      reconnectAttempts: this.reconnectAttempts
+    };
+  }
 }

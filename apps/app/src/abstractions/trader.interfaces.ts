@@ -31,13 +31,26 @@ export interface Trader {
   // Metadata
   createdAt: Date;
   updatedAt: Date;
-  
+
+  // Cloud execution configuration (Elite tier only)
+  version?: number; // For optimistic locking
+  cloud_config?: CloudConfig;
+
   // Display configuration (optional) - for UI customization
   displayConfig?: {
     variant?: 'compact' | 'standard' | 'detailed';
     priority?: 'high' | 'normal' | 'low';
     lastActivity?: number; // Timestamp of last activity for UI indicators
   };
+}
+
+// Cloud execution configuration
+export interface CloudConfig {
+  enabledInCloud: boolean;
+  preferredRegion?: 'sin' | 'iad' | 'fra';
+  cpuPriority?: 'low' | 'normal' | 'high';
+  notifyOnSignal?: boolean;
+  notifyOnAnalysis?: boolean;
 }
 
 export interface TraderFilter {

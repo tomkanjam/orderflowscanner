@@ -8,6 +8,7 @@ import { TierGate } from './TierGate';
 import { UpgradePrompt } from './UpgradePrompt';
 import { SubscriptionTier } from '../types/subscription.types';
 import { SignalCardEnhanced } from './SignalCardEnhanced';
+import { useCloudExecution } from '../hooks/useCloudExecution';
 
 interface TraderListProps {
   onCreateTrader: () => void;
@@ -16,15 +17,16 @@ interface TraderListProps {
   selectedTraderId?: string | null;
 }
 
-export function TraderList({ 
-  onCreateTrader, 
-  onEditTrader, 
+export function TraderList({
+  onCreateTrader,
+  onEditTrader,
   onSelectTrader,
-  selectedTraderId 
+  selectedTraderId
 }: TraderListProps) {
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentTier, preferences, canCreateSignal, remainingSignals, toggleFavoriteSignal, profile } = useSubscription();
+  const cloudExecution = useCloudExecution();
 
   useEffect(() => {
     // Subscribe to trader updates
@@ -112,6 +114,21 @@ export function TraderList({
       await toggleFavoriteSignal(signalId);
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
+    }
+  };
+
+  const handleToggleCloudExecution = async (trader: Trader) => {
+    try {
+      const newValue = !trader.cloud_config?.enabledInCloud;
+      await traderManager.updateCloudConfig(trader.id, { enabledInCloud: newValue });
+
+      // Sync with cloud machine if it's running
+      if (cloudExecution.machineStatus === 'running') {
+        const allTraders = await traderManager.getTraders();
+        cloudExecution.updateConfig(allTraders, Date.now());
+      }
+    } catch (error) {
+      console.error('Failed to toggle cloud execution:', error);
     }
   };
 
@@ -239,11 +256,14 @@ export function TraderList({
                     showEnableToggle={true}
                     showEditDelete={canEditDelete}
                     showAIFeatures={currentTier === 'elite'} // Pass tier info
+                    showCloudExecution={cloudExecution.isEliteTier} // Show cloud controls for Elite users
+                    cloudMachineStatus={cloudExecution.machineStatus}
                     onSelect={() => onSelectTrader?.(isSelected ? null : trader.id)}
                     onToggleEnable={() => handleToggleTrader(trader)}
                     onEdit={() => onEditTrader(trader)}
                     onDelete={() => handleDeleteTrader(trader)}
                     onToggleFavorite={() => handleToggleFavorite(trader.id)}
+                    onToggleCloudExecution={() => handleToggleCloudExecution(trader)}
                   />
                 );
               })}

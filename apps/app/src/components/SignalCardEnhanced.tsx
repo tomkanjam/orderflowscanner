@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Trader } from '../abstractions/trader.interfaces';
-import { Power, Edit2, Trash2, Star, StarOff, ChevronDown } from 'lucide-react';
+import { Power, Edit2, Trash2, Star, StarOff, ChevronDown, Cloud, CloudOff } from 'lucide-react';
 import { SignalAccessIndicator } from './SignalAccessIndicator';
 import { ActivityIndicator } from './cards/ActivityIndicator';
 import { TriggerHistory, TriggerRecord } from './cards/TriggerHistory';
@@ -17,11 +17,14 @@ interface SignalCardEnhancedProps {
   showEditDelete?: boolean;
   showAccessIndicator?: boolean;
   showAIFeatures?: boolean;
+  showCloudExecution?: boolean; // Show cloud execution controls for Elite custom traders
+  cloudMachineStatus?: 'stopped' | 'provisioning' | 'starting' | 'running' | 'stopping' | 'error';
   onSelect?: () => void;
   onToggleEnable?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   onToggleFavorite?: () => void;
+  onToggleCloudExecution?: () => void;
 }
 
 /**
@@ -38,11 +41,14 @@ export const SignalCardEnhanced = React.memo(function SignalCardEnhanced({
   showEditDelete = false,
   showAccessIndicator = false,
   showAIFeatures = false,
+  showCloudExecution = false,
+  cloudMachineStatus = 'stopped',
   onSelect,
   onToggleEnable,
   onEdit,
   onDelete,
-  onToggleFavorite
+  onToggleFavorite,
+  onToggleCloudExecution
 }: SignalCardEnhancedProps) {
   const [expanded, setExpanded] = useState(false);
   
@@ -134,15 +140,45 @@ export const SignalCardEnhanced = React.memo(function SignalCardEnhanced({
                 onToggleEnable?.();
               }}
               className={`p-1 rounded transition-colors ${
-                signal.enabled 
-                  ? 'text-green-500 hover:bg-green-500/20' 
+                signal.enabled
+                  ? 'text-green-500 hover:bg-green-500/20'
                   : 'text-gray-500 hover:bg-gray-500/20'
               }`}
+              title={signal.enabled ? 'Disable signal' : 'Enable signal'}
             >
               <Power className="h-4 w-4" />
             </button>
           )}
-          
+
+          {/* Cloud Execution Toggle - Only for custom traders */}
+          {showCloudExecution && !signal.isBuiltIn && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCloudExecution?.();
+              }}
+              disabled={cloudMachineStatus !== 'running'}
+              className={`p-1 rounded transition-colors ${
+                signal.cloud_config?.enabledInCloud
+                  ? 'text-blue-500 hover:bg-blue-500/20'
+                  : 'text-gray-500 hover:bg-gray-500/20'
+              } ${cloudMachineStatus !== 'running' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title={
+                cloudMachineStatus !== 'running'
+                  ? 'Start your cloud machine to enable'
+                  : signal.cloud_config?.enabledInCloud
+                  ? 'Deployed to cloud'
+                  : 'Deploy to cloud'
+              }
+            >
+              {signal.cloud_config?.enabledInCloud ? (
+                <Cloud className="h-4 w-4" />
+              ) : (
+                <CloudOff className="h-4 w-4" />
+              )}
+            </button>
+          )}
+
           <h4 className="signal-card__title">
             {signal.name || 'Unnamed Signal'}
           </h4>
@@ -152,7 +188,15 @@ export const SignalCardEnhanced = React.memo(function SignalCardEnhanced({
               DEMO
             </span>
           )}
-          
+
+          {/* Cloud Deployment Status Badge */}
+          {showCloudExecution && !signal.isBuiltIn && signal.cloud_config?.enabledInCloud && cloudMachineStatus === 'running' && (
+            <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded flex items-center gap-1">
+              <Cloud className="h-3 w-3" />
+              Cloud
+            </span>
+          )}
+
           {showAccessIndicator && <SignalAccessIndicator signal={signal} />}
         </div>
 

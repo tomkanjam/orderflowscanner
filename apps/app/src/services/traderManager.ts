@@ -240,6 +240,25 @@ export class TraderManager implements ITraderManager {
     await this.updateTrader(id, { enabled: false });
   }
 
+  async updateCloudConfig(id: string, cloudConfigUpdates: Partial<import('../abstractions/trader.interfaces').CloudConfig>): Promise<void> {
+    const trader = this.traders.get(id);
+    if (!trader) {
+      throw new Error(`Trader ${id} not found`);
+    }
+
+    const updatedCloudConfig = {
+      enabledInCloud: false,
+      notifyOnSignal: true,
+      notifyOnAnalysis: true,
+      ...trader.cloud_config,
+      ...cloudConfigUpdates,
+    };
+
+    await this.updateTrader(id, {
+      cloud_config: updatedCloudConfig,
+    });
+  }
+
   async updateMetrics(id: string, metrics: Partial<TraderMetrics>): Promise<void> {
     const trader = this.traders.get(id);
     if (!trader) return;

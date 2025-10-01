@@ -216,6 +216,57 @@ func NewWithEngine(engine interface{}) Model {
 	return m
 }
 
+// refreshFromEngine updates the model with live data from the engine
+func (m *Model) refreshFromEngine() {
+	// Type assert the engine
+	type EngineInterface interface {
+		GetMarketData() interface{}
+		GetTraders() (interface{}, error)
+		GetPositions() (interface{}, error)
+		GetSignals(int) (interface{}, error)
+		GetBalance() float64
+		GetStatus() map[string]interface{}
+	}
+
+	eng, ok := m.engine.(EngineInterface)
+	if !ok {
+		return
+	}
+
+	// Get status for balance and PNL
+	status := eng.GetStatus()
+	if running, ok := status["running"].(bool); ok && running {
+		// Update balance
+		m.balance = eng.GetBalance()
+
+		// Get total PNL from status
+		if totalPnL, ok := status["total_pnl"].(float64); ok {
+			m.totalPNL = totalPnL
+			m.totalPNLPct = (totalPnL / m.balance) * 100
+		}
+	}
+
+	// Update market data
+	if marketData := eng.GetMarketData(); marketData != nil {
+		m.updateMarketData(marketData)
+	}
+
+	// Update traders
+	if traders, err := eng.GetTraders(); err == nil && traders != nil {
+		m.updateTraders(traders)
+	}
+
+	// Update positions
+	if positions, err := eng.GetPositions(); err == nil && positions != nil {
+		m.updatePositions(positions)
+	}
+
+	// Update signals
+	if signals, err := eng.GetSignals(50); err == nil && signals != nil {
+		m.updateSignals(signals)
+	}
+}
+
 // Init implements tea.Model
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
@@ -228,4 +279,28 @@ func tickCmd() tea.Cmd {
 	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
+}
+
+// updateMarketData updates market data from engine snapshot
+func (m *Model) updateMarketData(data interface{}) {
+	// TODO: Convert engine market data to TUI market data format
+	// For now, keep mock data
+}
+
+// updateTraders updates traders from engine
+func (m *Model) updateTraders(data interface{}) {
+	// TODO: Convert engine traders to TUI trader data format
+	// For now, keep mock data
+}
+
+// updatePositions updates positions from engine
+func (m *Model) updatePositions(data interface{}) {
+	// TODO: Convert engine positions to TUI position data format
+	// For now, keep mock data
+}
+
+// updateSignals updates signals from engine
+func (m *Model) updateSignals(data interface{}) {
+	// TODO: Convert engine signals to TUI signal data format
+	// For now, keep mock data
 }

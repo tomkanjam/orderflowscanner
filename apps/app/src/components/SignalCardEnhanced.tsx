@@ -163,14 +163,14 @@ export const SignalCardEnhanced = React.memo(function SignalCardEnhanced({
 
           {/* DEBUG: Show why cloud toggle is hidden */}
           {!signal.isBuiltIn && !showCloudExecution && (
-            <span className="text-[10px] text-red-500 px-1" title="Cloud toggle hidden - Not Elite tier">
-              🚫
-            </span>
+            <div className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded" title="Cloud toggle hidden - Not Elite tier">
+              NOT ELITE
+            </div>
           )}
           {signal.isBuiltIn && (
-            <span className="text-[10px] text-gray-500 px-1" title="Built-in signals don't support cloud execution">
-              📦
-            </span>
+            <div className="px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded" title="Built-in signals don't support cloud execution">
+              BUILT-IN
+            </div>
           )}
 
           {/* Cloud Execution Toggle - Only for custom traders */}

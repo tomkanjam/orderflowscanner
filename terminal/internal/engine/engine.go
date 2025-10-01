@@ -265,6 +265,73 @@ func (e *Engine) GetStatus() map[string]interface{} {
 	return status
 }
 
+// GetMarketData returns the current market data snapshot from WebSocket
+func (e *Engine) GetMarketData() *types.MarketDataSnapshot {
+	if e.websocketMgr == nil {
+		return nil
+	}
+	return e.websocketMgr.GetSnapshot()
+}
+
+// GetTraders returns all active traders for the user
+func (e *Engine) GetTraders() ([]*types.Trader, error) {
+	if e.storage == nil {
+		return nil, fmt.Errorf("storage not initialized")
+	}
+
+	traders, err := e.storage.GetActiveTraders(e.ctx, e.config.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert storage traders to types traders
+	result := make([]*types.Trader, len(traders))
+	for i, t := range traders {
+		result[i] = convertStorageTrader(&t)
+	}
+	return result, nil
+}
+
+// GetSignals returns recent signals for the user
+func (e *Engine) GetSignals(limit int) ([]*types.Signal, error) {
+	if e.storage == nil {
+		return nil, fmt.Errorf("storage not initialized")
+	}
+
+	// For now, return empty slice
+	// TODO: Implement GetRecentSignals in storage interface
+	return []*types.Signal{}, nil
+}
+
+// GetPositions returns all open positions for the user
+func (e *Engine) GetPositions() ([]*types.Position, error) {
+	if e.storage == nil {
+		return nil, fmt.Errorf("storage not initialized")
+	}
+
+	positions, err := e.storage.GetOpenPositions(e.ctx, e.config.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert storage positions to types positions
+	result := make([]*types.Position, len(positions))
+	for i, p := range positions {
+		result[i] = convertStoragePosition(&p)
+	}
+	return result, nil
+}
+
+// GetBalance returns the current trading balance (paper or real)
+func (e *Engine) GetBalance() float64 {
+	if e.tradeExec == nil {
+		return 10000.0 // Default paper trading balance
+	}
+
+	// TODO: Implement GetBalance in trade executor
+	return 10000.0
+}
+
 // DetectMode determines the execution mode based on environment
 func DetectMode(daemon, deploy, monitor bool) Mode {
 	// Check if running on Fly.io

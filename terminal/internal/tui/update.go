@@ -21,12 +21,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKeyPress(msg)
 
 	case tickMsg:
-		// Simulate price updates
-		for i := range m.markets {
-			// Small random price change
-			change := (float64(i%3) - 1) * 10
-			m.markets[i].Price += change
-			m.markets[i].Change24h += change
+		// Refresh data from engine if available
+		if m.engine != nil {
+			m.refreshFromEngine()
+		} else {
+			// Simulate price updates for mock data
+			for i := range m.markets {
+				// Small random price change
+				change := (float64(i%3) - 1) * 10
+				m.markets[i].Price += change
+				m.markets[i].Change24h += change
+			}
 		}
 
 		// Add timestamp to new logs
@@ -37,18 +42,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		// Update current prices in positions
-		for i := range m.positions {
-			for _, market := range m.markets {
-				if m.positions[i].Symbol == market.Symbol {
-					m.positions[i].CurrentPrice = market.Price
-					// Recalculate PNL
-					if m.positions[i].Side == "LONG" {
-						m.positions[i].PNL = (m.positions[i].CurrentPrice - m.positions[i].EntryPrice) * m.positions[i].Size
-					} else {
-						m.positions[i].PNL = (m.positions[i].EntryPrice - m.positions[i].CurrentPrice) * m.positions[i].Size
+		// Update current prices in positions (for mock data)
+		if m.engine == nil {
+			for i := range m.positions {
+				for _, market := range m.markets {
+					if m.positions[i].Symbol == market.Symbol {
+						m.positions[i].CurrentPrice = market.Price
+						// Recalculate PNL
+						if m.positions[i].Side == "LONG" {
+							m.positions[i].PNL = (m.positions[i].CurrentPrice - m.positions[i].EntryPrice) * m.positions[i].Size
+						} else {
+							m.positions[i].PNL = (m.positions[i].EntryPrice - m.positions[i].CurrentPrice) * m.positions[i].Size
+						}
+						m.positions[i].PNLPct = (m.positions[i].PNL / (m.positions[i].EntryPrice * m.positions[i].Size)) * 100
 					}
-					m.positions[i].PNLPct = (m.positions[i].PNL / (m.positions[i].EntryPrice * m.positions[i].Size)) * 100
 				}
 			}
 		}

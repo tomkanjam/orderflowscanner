@@ -122,8 +122,8 @@ func (b *Bus) SubscribeError(fn func(string, string, error)) error {
 }
 
 // Unsubscribe removes all subscriptions for a topic
-func (b *Bus) Unsubscribe(topic string) {
-	b.bus.Unsubscribe(topic)
+func (b *Bus) Unsubscribe(topic string, handler interface{}) error {
+	return b.bus.Unsubscribe(topic, handler)
 }
 
 // WaitAsync waits for all async event handlers to complete

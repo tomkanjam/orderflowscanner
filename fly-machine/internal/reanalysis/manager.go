@@ -253,7 +253,7 @@ func (rm *Manager) reanalyzeSignal(ctx context.Context, trader *types.Trader, si
 		}
 
 		// Publish event
-		rm.eventBus.PublishAnalysisCompleted(signal.ID, decision.Decision)
+		rm.eventBus.PublishAnalysisCompleted(signal, decision)
 
 	case "close_watch":
 		log.Info().
@@ -314,7 +314,7 @@ func (rm *Manager) reanalyzePosition(ctx context.Context, trader *types.Trader, 
 			return fmt.Errorf("failed to execute trade: %w", err)
 		}
 
-		rm.eventBus.PublishAnalysisCompleted(signal.ID, decision.Decision)
+		rm.eventBus.PublishAnalysisCompleted(signal, decision)
 
 	case "update_stop_loss":
 		if newStopLoss, ok := decision.Metadata["stopLoss"].(float64); ok {

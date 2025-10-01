@@ -341,17 +341,6 @@ func (c *Client) GetSignal(ctx context.Context, signalID string) (*types.Signal,
 	return &s, nil
 }
 
-// CloseSignal marks a signal as closed
-func (c *Client) CloseSignal(ctx context.Context, signalID, reason string) error {
-	query := `
-		UPDATE signals
-		SET status = 'closed', close_reason = $1, closed_at = NOW()
-		WHERE id = $2
-	`
-	_, err := c.pool.Exec(ctx, query, reason, signalID)
-	return err
-}
-
 // Analysis History
 
 // CreateAnalysis creates a new analysis history record

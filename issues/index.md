@@ -1,10 +1,14 @@
 # Issues Dashboard
 
-*Last updated: 2025-09-26 08:35:00*
+*Last updated: 2025-09-30 14:30:00*
 
 ## Active Issues
 
 ### 🎯 New Ideas
+- [`2025-09-30-fly-machine-elite-trader-execution.md`](./2025-09-30-fly-machine-elite-trader-execution.md) - Fly Machine Elite Trader Execution ⭐ NEW
+  - **Priority:** High
+  - **Type:** feature
+  - **Status:** Idea review - Cloud infrastructure for 24/7 Elite tier trading
 - [`2025-09-26-centralized-data-edge-execution.md`](./2025-09-26-centralized-data-edge-execution.md) - Centralized Data with Edge Execution
   - **Priority:** Critical
   - **Type:** performance/architecture
@@ -45,8 +49,8 @@
   - **Status:** Example/Template
 
 ## Quick Stats
-- **Total Issues:** 6
-- **New Ideas:** 1
+- **Total Issues:** 7
+- **New Ideas:** 2
 - **In Review:** 1
 - **In Progress:** 1
 - **Planning:** 1

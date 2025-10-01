@@ -103,6 +103,22 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
   };
 
   const handleStart = async () => {
+    // Validation
+    if (!user) {
+      setError('User not authenticated');
+      return;
+    }
+
+    if (!isEliteTier) {
+      setError('Elite tier required for cloud execution');
+      return;
+    }
+
+    if (status === 'running' || status === 'starting' || status === 'provisioning') {
+      setError('Machine is already running or starting');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -144,6 +160,12 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
   };
 
   const handleStop = async () => {
+    // Validation
+    if (status !== 'running') {
+      setError('Machine is not running');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -166,10 +188,18 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
   };
 
   const handlePause = () => {
+    if (status !== 'running') {
+      setError('Cannot pause: machine is not running');
+      return;
+    }
     cloudWebSocketClient.pauseExecution();
   };
 
   const handleResume = () => {
+    if (status !== 'running') {
+      setError('Cannot resume: machine is not running');
+      return;
+    }
     cloudWebSocketClient.resumeExecution();
   };
 

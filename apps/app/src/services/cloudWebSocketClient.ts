@@ -97,6 +97,20 @@ class CloudWebSocketClient extends EventEmitter {
   private reconnectDelay = 1000; // Start with 1 second
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private pingInterval: NodeJS.Timeout | null = null;
+  private healthCheckInterval: NodeJS.Timeout | null = null;
+  private lastPongTime = 0;
+  private connectionHealthy = true;
+
+  // Message queue for offline scenario
+  private messageQueue: BrowserToMachineMessage[] = [];
+  private maxQueueSize = 50;
+
+  // Circuit breaker pattern
+  private failureCount = 0;
+  private circuitBreakerThreshold = 3;
+  private circuitBreakerResetTime = 60000; // 1 minute
+  private circuitBreakerOpen = false;
+  private circuitBreakerResetTimeout: NodeJS.Timeout | null = null;
 
   // State
   private machineStatus: CloudMachineStatus | null = null;
@@ -112,6 +126,13 @@ class CloudWebSocketClient extends EventEmitter {
   connect(machineId: string, websocketUrl: string, userId: string): void {
     if (this.ws && this.isConnected) {
       console.warn('[CloudWebSocket] Already connected');
+      return;
+    }
+
+    // Check circuit breaker
+    if (this.circuitBreakerOpen) {
+      console.warn('[CloudWebSocket] Circuit breaker is open, connection attempt blocked');
+      this.emit('connection_blocked', { reason: 'circuit_breaker' });
       return;
     }
 
@@ -132,9 +153,18 @@ class CloudWebSocketClient extends EventEmitter {
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
+        this.failureCount = 0;
+        this.connectionHealthy = true;
+        this.lastPongTime = Date.now();
 
         // Start ping interval
         this.startPingInterval();
+
+        // Start health check
+        this.startHealthCheck();
+
+        // Flush message queue
+        this.flushMessageQueue();
 
         this.emit('connected');
       };
@@ -150,17 +180,30 @@ class CloudWebSocketClient extends EventEmitter {
 
       this.ws.onerror = (error) => {
         console.error('[CloudWebSocket] Error:', error);
+        this.failureCount++;
         this.emit('error', error);
+
+        // Check circuit breaker
+        if (this.failureCount >= this.circuitBreakerThreshold) {
+          this.openCircuitBreaker();
+        }
       };
 
       this.ws.onclose = () => {
         console.log('[CloudWebSocket] Disconnected');
         this.isConnected = false;
+        this.connectionHealthy = false;
 
         // Stop ping interval
         if (this.pingInterval) {
           clearInterval(this.pingInterval);
           this.pingInterval = null;
+        }
+
+        // Stop health check
+        if (this.healthCheckInterval) {
+          clearInterval(this.healthCheckInterval);
+          this.healthCheckInterval = null;
         }
 
         this.emit('disconnected');
@@ -203,7 +246,8 @@ class CloudWebSocketClient extends EventEmitter {
    */
   send(message: BrowserToMachineMessage): void {
     if (!this.ws || !this.isConnected) {
-      console.warn('[CloudWebSocket] Not connected, cannot send message');
+      console.warn('[CloudWebSocket] Not connected, queueing message');
+      this.queueMessage(message);
       return;
     }
 
@@ -211,7 +255,41 @@ class CloudWebSocketClient extends EventEmitter {
       this.ws.send(JSON.stringify(message));
     } catch (error) {
       console.error('[CloudWebSocket] Failed to send message:', error);
+      this.queueMessage(message);
     }
+  }
+
+  /**
+   * Queue message for later delivery
+   */
+  private queueMessage(message: BrowserToMachineMessage): void {
+    if (this.messageQueue.length >= this.maxQueueSize) {
+      console.warn('[CloudWebSocket] Message queue full, dropping oldest message');
+      this.messageQueue.shift();
+    }
+    this.messageQueue.push(message);
+  }
+
+  /**
+   * Flush message queue when connection restored
+   */
+  private flushMessageQueue(): void {
+    if (this.messageQueue.length === 0) return;
+
+    console.log(`[CloudWebSocket] Flushing ${this.messageQueue.length} queued messages`);
+
+    const messages = [...this.messageQueue];
+    this.messageQueue = [];
+
+    messages.forEach(message => {
+      try {
+        if (this.ws && this.isConnected) {
+          this.ws.send(JSON.stringify(message));
+        }
+      } catch (error) {
+        console.error('[CloudWebSocket] Failed to send queued message:', error);
+      }
+    });
   }
 
   /**
@@ -279,6 +357,13 @@ class CloudWebSocketClient extends EventEmitter {
    * Handle incoming message from Fly machine
    */
   private handleMessage(message: MachineToBrowserMessage): void {
+    // Update pong time for health check
+    if ((message as any).type === 'pong') {
+      this.lastPongTime = Date.now();
+      this.connectionHealthy = true;
+      return;
+    }
+
     switch (message.type) {
       case 'status_update':
         this.machineStatus = {
@@ -356,6 +441,88 @@ class CloudWebSocketClient extends EventEmitter {
 
     // Exponential backoff
     this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30000);
+  }
+
+  /**
+   * Start connection health check
+   */
+  private startHealthCheck(): void {
+    // Check connection health every 10 seconds
+    this.healthCheckInterval = setInterval(() => {
+      const timeSinceLastPong = Date.now() - this.lastPongTime;
+
+      // If no pong in 60 seconds, consider connection unhealthy
+      if (timeSinceLastPong > 60000) {
+        console.warn('[CloudWebSocket] Connection appears unhealthy, reconnecting...');
+        this.connectionHealthy = false;
+        this.emit('connection_unhealthy');
+
+        // Force reconnect
+        if (this.ws) {
+          this.ws.close();
+        }
+      }
+    }, 10000);
+  }
+
+  /**
+   * Open circuit breaker
+   */
+  private openCircuitBreaker(): void {
+    console.error('[CloudWebSocket] Opening circuit breaker due to repeated failures');
+    this.circuitBreakerOpen = true;
+    this.emit('circuit_breaker_opened');
+
+    // Reset circuit breaker after timeout
+    this.circuitBreakerResetTimeout = setTimeout(() => {
+      console.log('[CloudWebSocket] Resetting circuit breaker');
+      this.circuitBreakerOpen = false;
+      this.failureCount = 0;
+      this.emit('circuit_breaker_reset');
+    }, this.circuitBreakerResetTime);
+  }
+
+  /**
+   * Get connection health status
+   */
+  getConnectionHealth(): {
+    isHealthy: boolean;
+    isConnected: boolean;
+    reconnectAttempts: number;
+    circuitBreakerOpen: boolean;
+    queuedMessages: number;
+  } {
+    return {
+      isHealthy: this.connectionHealthy,
+      isConnected: this.isConnected,
+      reconnectAttempts: this.reconnectAttempts,
+      circuitBreakerOpen: this.circuitBreakerOpen,
+      queuedMessages: this.messageQueue.length
+    };
+  }
+
+  /**
+   * Clear message queue
+   */
+  clearMessageQueue(): void {
+    console.log(`[CloudWebSocket] Clearing ${this.messageQueue.length} queued messages`);
+    this.messageQueue = [];
+  }
+
+  /**
+   * Manually reset circuit breaker
+   */
+  resetCircuitBreaker(): void {
+    console.log('[CloudWebSocket] Manually resetting circuit breaker');
+    this.circuitBreakerOpen = false;
+    this.failureCount = 0;
+
+    if (this.circuitBreakerResetTimeout) {
+      clearTimeout(this.circuitBreakerResetTimeout);
+      this.circuitBreakerResetTimeout = null;
+    }
+
+    this.emit('circuit_breaker_reset');
   }
 }
 

@@ -1,0 +1,24 @@
+app = "trader-machines"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+[env]
+  LOG_LEVEL = "info"
+
+[experimental]
+  auto_rollback = true
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

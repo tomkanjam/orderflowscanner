@@ -193,8 +193,8 @@ serve(async (req) => {
     // Call Fly.io API to provision machine
     const flyToken = Deno.env.get('FLY_API_TOKEN');
     const flyAppName = Deno.env.get('FLY_APP_NAME') || 'vyx-app';
-    // Use specific deployment tag for immutability and guaranteed fresh code
-    const dockerImage = Deno.env.get('DOCKER_IMAGE') || 'registry.fly.io/vyx-app:deployment-01K6NX8XAC5KFQHMJ58DH6TFDA';
+    // Use specific deployment tag with multi-interval support
+    const dockerImage = Deno.env.get('DOCKER_IMAGE') || 'registry.fly.io/vyx-app:deployment-01K6NZMSHC7PQH57EMZN1R8CZG';
 
     console.log(`[${new Date().toISOString()}] Using deployment image: ${dockerImage}`);
 

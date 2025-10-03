@@ -15,7 +15,7 @@ const MAX_RECONNECT_ATTEMPTS = 10;
 export class BinanceWebSocketClient extends EventEmitter implements IBinanceWebSocketClient {
   private ws: WebSocket | null = null;
   private symbols: string[] = [];
-  private interval: KlineInterval = '5m' as KlineInterval;
+  private intervals: Set<KlineInterval> = new Set();
   private tickers: Map<string, Ticker> = new Map();
   private klines: Map<string, Map<KlineInterval, Kline[]>> = new Map();
 
@@ -31,14 +31,26 @@ export class BinanceWebSocketClient extends EventEmitter implements IBinanceWebS
     super();
   }
 
-  async connect(symbols: string[], interval: KlineInterval = '5m' as KlineInterval): Promise<void> {
+  async connect(symbols: string[], intervals: KlineInterval[] | KlineInterval = ['1m' as KlineInterval]): Promise<void> {
     if (symbols.length === 0) {
       throw new Error('Cannot connect WebSocket with no symbols');
     }
 
     this.symbols = symbols;
-    this.interval = interval;
+
+    // Support both single interval (backward compat) and array of intervals
+    if (Array.isArray(intervals)) {
+      this.intervals = new Set(intervals);
+    } else {
+      this.intervals = new Set([intervals]);
+    }
+
+    // Always include 1m as fallback
+    this.intervals.add('1m' as KlineInterval);
+
     this.isShuttingDown = false;
+
+    console.log(`[BinanceWS] Connecting to ${this.symbols.length} symbols with ${this.intervals.size} intervals: ${Array.from(this.intervals).join(', ')}`);
 
     return new Promise((resolve, reject) => {
       this.createWebSocket(resolve, reject);
@@ -50,11 +62,11 @@ export class BinanceWebSocketClient extends EventEmitter implements IBinanceWebS
     onError?: (error: Error) => void
   ): void {
     try {
-      // Build combined stream URL
-      const streams = this.buildStreamNames(this.symbols, this.interval);
+      // Build combined stream URL with multiple intervals
+      const streams = this.buildStreamNames(this.symbols, this.intervals);
       const url = `${WS_BASE_URL}/stream?streams=${streams.join('/')}`;
 
-      console.log(`[BinanceWS] Connecting to ${this.symbols.length} symbols...`);
+      console.log(`[BinanceWS] Connecting with ${streams.length} total streams...`);
 
       this.ws = new WebSocket(url);
       this.connectionStatus = 'reconnecting';
@@ -105,16 +117,21 @@ export class BinanceWebSocketClient extends EventEmitter implements IBinanceWebS
     }
   }
 
-  private buildStreamNames(symbols: string[], interval: KlineInterval): string[] {
+  private buildStreamNames(symbols: string[], intervals: Set<KlineInterval>): string[] {
     const streams: string[] = [];
 
     symbols.forEach(symbol => {
       const lowerSymbol = symbol.toLowerCase();
-      // Add ticker stream
+      // Add ticker stream (only once per symbol)
       streams.push(`${lowerSymbol}@ticker`);
-      // Add kline stream
-      streams.push(`${lowerSymbol}@kline_${interval}`);
+
+      // Add kline stream for each interval
+      intervals.forEach(interval => {
+        streams.push(`${lowerSymbol}@kline_${interval}`);
+      });
     });
+
+    console.log(`[BinanceWS] Building ${streams.length} streams (${symbols.length} symbols × ${intervals.size} intervals + tickers)`);
 
     return streams;
   }
@@ -280,7 +297,7 @@ export class BinanceWebSocketClient extends EventEmitter implements IBinanceWebS
     }
 
     await this.disconnect();
-    await this.connect(uniqueSymbols, this.interval);
+    await this.connect(uniqueSymbols, Array.from(this.intervals) as any);
   }
 
   // Remove symbols from the connection (requires reconnect)
@@ -297,7 +314,7 @@ export class BinanceWebSocketClient extends EventEmitter implements IBinanceWebS
     }
 
     await this.disconnect();
-    await this.connect(remainingSymbols, this.interval);
+    await this.connect(remainingSymbols, Array.from(this.intervals) as any);
   }
 
   getMarketData(): MarketData {

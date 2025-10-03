@@ -220,10 +220,14 @@ export class Orchestrator extends EventEmitter {
       // 7. Start WebSocket server
       await this.wsServer.start();
 
-      // 8. Connect to Binance WebSocket
-      await this.binance.connect(this.config.symbols, this.config.klineInterval as any);
+      // 8. Determine required intervals from traders (like browser does)
+      const requiredIntervals = this.determineRequiredIntervals();
+      console.log(`[Orchestrator] Required kline intervals: ${requiredIntervals.join(', ')}`);
 
-      // 9. Update machine status
+      // 9. Connect to Binance WebSocket with all required intervals
+      await this.binance.connect(this.config.symbols, requiredIntervals as any);
+
+      // 10. Update machine status
       await this.synchronizer.updateMachineStatus('running');
 
       // 10. Start screening loop
@@ -267,6 +271,35 @@ export class Orchestrator extends EventEmitter {
       'info',
       `Loaded ${this.traders.length} traders`
     );
+  }
+
+  private determineRequiredIntervals(): string[] {
+    const intervals = new Set<string>();
+
+    // Collect intervals from all enabled traders (matching browser behavior)
+    this.traders.forEach(trader => {
+      if (trader.enabled) {
+        const traderAny = trader as any;
+
+        // Add refresh interval
+        const refreshInterval = traderAny.refreshInterval ||
+                              traderAny.filter?.refreshInterval ||
+                              traderAny.filter?.interval ||
+                              '1m';
+        intervals.add(refreshInterval);
+
+        // Add all required timeframes
+        const requiredTimeframes = traderAny.requiredTimeframes ||
+                                  traderAny.filter?.requiredTimeframes ||
+                                  [];
+        requiredTimeframes.forEach((tf: string) => intervals.add(tf));
+      }
+    });
+
+    // Always include 1m as fallback (matching browser)
+    intervals.add('1m');
+
+    return Array.from(intervals);
   }
 
   private startScreeningLoop(): void {

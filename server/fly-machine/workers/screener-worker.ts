@@ -171,10 +171,13 @@ function executeFilter(
     const newSignals = matches.length;
     const continuingMatches = totalMatching - newSignals;
 
-    if (totalMatching > 0 || matches.length > 0) {
-      console.log(`[Worker] Trader "${trader.name}": ${totalMatching} symbols matching (${newSignals} new signals, ${continuingMatches} continuing)`);
+    // ALWAYS log trader screening activity (even if no matches)
+    console.log(`[Worker] Trader "${trader.name}" (${trader.id}): screened ${marketData.symbols.length} symbols → ${totalMatching} matching (${newSignals} new, ${continuingMatches} continuing)`);
+
+    if (totalMatching > 0) {
+      console.log(`[Worker]   Matching symbols: ${Array.from(currentSymbols).slice(0, 10).join(', ')}${currentSymbols.size > 10 ? '...' : ''}`);
       if (matches.length > 0) {
-        console.log(`[Worker]   New signals: ${matches.map(m => m.symbol).join(', ')}`);
+        console.log(`[Worker]   NEW SIGNALS: ${matches.map(m => m.symbol).join(', ')}`);
       }
     }
 

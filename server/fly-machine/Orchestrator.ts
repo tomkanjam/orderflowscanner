@@ -313,11 +313,18 @@ export class Orchestrator extends EventEmitter {
   }
 
   private async handleScreeningResults(results: Map<string, TraderResult>): Promise<void> {
+    console.log(`[Orchestrator] Processing ${results.size} trader results...`);
+
+    let totalNewSignals = 0;
+
     for (const [traderId, result] of results.entries()) {
       if (result.error) {
         console.error(`[Orchestrator] Trader ${result.traderName} error:`, result.error);
         continue;
       }
+
+      // Log trader result summary
+      console.log(`[Orchestrator]   Trader "${result.traderName}": ${result.matches.length} new signals`);
 
       // Process matches
       for (const match of result.matches) {
@@ -331,6 +338,8 @@ export class Orchestrator extends EventEmitter {
           status: 'pending_analysis',
           created_at: new Date()
         };
+
+        console.log(`[Orchestrator]     → Queueing signal: ${match.symbol} @ $${match.price}`);
 
         // Queue signal for database write
         this.synchronizer.queueSignal(signal);
@@ -348,8 +357,11 @@ export class Orchestrator extends EventEmitter {
         });
 
         this.metrics.totalSignals++;
+        totalNewSignals++;
       }
     }
+
+    console.log(`[Orchestrator] Total new signals this cycle: ${totalNewSignals}`);
   }
 
   private handleAnalysisComplete(result: any): void {

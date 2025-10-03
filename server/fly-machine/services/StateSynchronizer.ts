@@ -113,22 +113,26 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
       this.signalQueue.shift();
     }
 
-    this.signalQueue.push({
+    const queuedSignal = {
       id: signal.id,
-      trader_id: signal.traderId,
+      trader_id: signal.trader_id,
       symbol: signal.symbol,
       price: signal.price,
-      matched_conditions: signal.matchedConditions || [],
-      created_at: signal.createdAt || new Date(),
+      matched_conditions: signal.matched_conditions || [],
+      created_at: signal.created_at || new Date(),
       status: signal.status || 'new',
       source: 'cloud' as const, // Always 'cloud' for Fly machine
       machine_id: this.machineId // Reference to cloud_machines.id (UUID)
-    });
+    };
 
+    this.signalQueue.push(queuedSignal);
     this.metricsCounters.signalsCreated++;
+
+    console.log(`[StateSynchronizer] Queued signal: ${queuedSignal.symbol} (queue size: ${this.signalQueue.length})`);
 
     // Flush immediately if batch size reached
     if (this.signalQueue.length >= this.config.maxBatchSize) {
+      console.log(`[StateSynchronizer] Batch size reached (${this.signalQueue.length}), flushing immediately`);
       this.flush().catch(err =>
         console.error('[StateSynchronizer] Auto-flush failed:', err)
       );
@@ -193,6 +197,8 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
       return; // Nothing to flush
     }
 
+    console.log(`[StateSynchronizer] Flushing queues: ${this.signalQueue.length} signals, ${this.metricsQueue.length} metrics, ${this.eventQueue.length} events`);
+
     const signalsToWrite = this.signalQueue.splice(0, this.config.maxBatchSize);
     const metricsToWrite = this.metricsQueue.splice(0, 1); // Only write latest metrics
     const eventsToWrite = this.eventQueue.splice(0, 50); // Max 50 events per batch
@@ -201,16 +207,25 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
 
     // Write signals
     if (signalsToWrite.length > 0) {
-      console.log(`[StateSynchronizer] Writing ${signalsToWrite.length} signals to database`);
+      console.log(`[StateSynchronizer] Writing ${signalsToWrite.length} signals to database...`);
+      console.log(`[StateSynchronizer]   Sample signal:`, JSON.stringify(signalsToWrite[0], null, 2));
+
       const promise = (async () => {
-        const { error } = await this.supabase
+        const { data, error } = await this.supabase
           .from('signals')
-          .insert(signalsToWrite);
+          .insert(signalsToWrite)
+          .select();
 
         if (error) {
-          console.error('[StateSynchronizer] Failed to write signals:', error);
+          console.error('[StateSynchronizer] ❌ Failed to write signals:', error);
+          console.error('[StateSynchronizer]   Error details:', JSON.stringify(error, null, 2));
           // Re-queue on failure
           this.signalQueue.unshift(...signalsToWrite);
+        } else {
+          console.log(`[StateSynchronizer] ✅ Successfully wrote ${signalsToWrite.length} signals to database`);
+          if (data && data.length > 0) {
+            console.log(`[StateSynchronizer]   Sample written signal ID:`, data[0].id);
+          }
         }
       })();
       promises.push(promise);

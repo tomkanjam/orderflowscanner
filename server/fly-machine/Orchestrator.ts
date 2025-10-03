@@ -250,6 +250,17 @@ export class Orchestrator extends EventEmitter {
 
     console.log(`[Orchestrator] Loaded ${this.traders.length} traders`);
 
+    // Log trader configurations
+    for (const trader of this.traders) {
+      const traderAny = trader as any;
+      console.log(`[Orchestrator]   Trader "${trader.name}":`);
+      console.log(`[Orchestrator]     Refresh interval: ${traderAny.refreshInterval || traderAny.filter?.refreshInterval || 'unknown'}`);
+      const timeframes = traderAny.requiredTimeframes || traderAny.filter?.requiredTimeframes;
+      if (timeframes && timeframes.length > 0) {
+        console.log(`[Orchestrator]     Required timeframes: ${timeframes.join(', ')}`);
+      }
+    }
+
     // Update synchronizer event
     this.synchronizer.queueEvent(
       'config_synced',
@@ -281,6 +292,11 @@ export class Orchestrator extends EventEmitter {
       // Get current market data
       const marketData = this.binance.getMarketData();
 
+      // Log kline data stats every minute
+      if (this.metrics.totalScreenings % 1 === 0) { // Every screening (every minute)
+        this.logKlineDataStats(marketData);
+      }
+
       // Execute filters in parallel
       const results = await this.screener.executeFilters(this.traders, marketData);
 
@@ -309,6 +325,60 @@ export class Orchestrator extends EventEmitter {
       console.error('[Orchestrator] Screening failed:', error);
       this.healthMonitor.recordError('orchestrator', `Screening failed: ${error}`);
       this.metrics.errors++;
+    }
+  }
+
+  private logKlineDataStats(marketData: MarketData): void {
+    const symbolsWithKlines = Array.from(marketData.klines.keys());
+    const totalSymbols = symbolsWithKlines.length;
+
+    if (totalSymbols === 0) {
+      console.warn('[Orchestrator] ⚠️  NO KLINE DATA AVAILABLE!');
+      return;
+    }
+
+    // Sample first 3 symbols to check kline availability
+    const sampleSymbols = symbolsWithKlines.slice(0, 3);
+    const klineStats: any[] = [];
+
+    for (const symbol of sampleSymbols) {
+      const intervals = marketData.klines.get(symbol);
+      if (intervals) {
+        const intervalData: any = {};
+        intervals.forEach((klines, interval) => {
+          intervalData[interval] = klines.length;
+        });
+        klineStats.push({ symbol, intervals: intervalData });
+      }
+    }
+
+    console.log(`[Orchestrator] 📊 Kline Data Stats:`);
+    console.log(`[Orchestrator]   Symbols with data: ${totalSymbols}/${marketData.symbols.length}`);
+    console.log(`[Orchestrator]   Sample kline counts:`, JSON.stringify(klineStats, null, 2));
+
+    // Check if traders need specific intervals
+    const traderIntervals = new Set<string>();
+    this.traders.forEach(trader => {
+      const traderAny = trader as any;
+      const timeframes = traderAny.requiredTimeframes || traderAny.filter?.requiredTimeframes;
+      if (timeframes) {
+        timeframes.forEach((interval: string) => traderIntervals.add(interval));
+      }
+    });
+
+    if (traderIntervals.size > 0) {
+      console.log(`[Orchestrator]   Traders require intervals: ${Array.from(traderIntervals).join(', ')}`);
+
+      // Check if any required intervals are missing
+      const firstSymbol = symbolsWithKlines[0];
+      const availableIntervals = marketData.klines.get(firstSymbol);
+      if (availableIntervals) {
+        const available = Array.from(availableIntervals.keys());
+        const missing = Array.from(traderIntervals).filter(interval => !available.includes(interval));
+        if (missing.length > 0) {
+          console.error(`[Orchestrator]   ❌ MISSING INTERVALS: ${missing.join(', ')}`);
+        }
+      }
     }
   }
 

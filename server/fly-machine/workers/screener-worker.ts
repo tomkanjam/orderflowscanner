@@ -166,6 +166,18 @@ function executeFilter(
     // Update previous matches
     previousMatches.set(trader.id, currentSymbols);
 
+    // Log screening results for debugging
+    const totalMatching = currentSymbols.size;
+    const newSignals = matches.length;
+    const continuingMatches = totalMatching - newSignals;
+
+    if (totalMatching > 0 || matches.length > 0) {
+      console.log(`[Worker] Trader "${trader.name}": ${totalMatching} symbols matching (${newSignals} new signals, ${continuingMatches} continuing)`);
+      if (matches.length > 0) {
+        console.log(`[Worker]   New signals: ${matches.map(m => m.symbol).join(', ')}`);
+      }
+    }
+
     return {
       traderId: trader.id,
       traderName: trader.name,

@@ -193,7 +193,11 @@ serve(async (req) => {
     // Call Fly.io API to provision machine
     const flyToken = Deno.env.get('FLY_API_TOKEN');
     const flyAppName = Deno.env.get('FLY_APP_NAME') || 'vyx-app';
+    // Use :latest tag - Fly will pull fresh image each time
+    // Alternative: Use specific deployment tag for immutability
     const dockerImage = Deno.env.get('DOCKER_IMAGE') || 'registry.fly.io/vyx-app:latest';
+
+    console.log(`[${new Date().toISOString()}] NOTE: Using :latest tag - image will be pulled fresh on provision`);
 
     console.log(`[${new Date().toISOString()}] Environment check:`);
     console.log(`  - FLY_API_TOKEN: ${flyToken ? `EXISTS (length: ${flyToken.length})` : 'MISSING ❌'}`);
@@ -247,6 +251,8 @@ serve(async (req) => {
               SUPABASE_SERVICE_KEY: supabaseServiceKey,
               GEMINI_API_KEY: Deno.env.get('GEMINI_API_KEY') || '',
               CPU_PRIORITY: cpuPriority,
+              // Add timestamp to ensure fresh image pull
+              IMAGE_TIMESTAMP: new Date().toISOString(),
             },
             services: [
               {

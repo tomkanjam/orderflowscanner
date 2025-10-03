@@ -1,12 +1,12 @@
 # Fly.io Configuration for AI-Powered Crypto Screener Machine
 # Documentation: https://fly.io/docs/reference/configuration/
 
-app = "trademind-screener"
-primary_region = "sin" # Singapore - closest to Binance servers
+app = "vyx-app"
+primary_region = "sjc" # San Jose - US West Coast (will be overridden per machine)
 
 # Build configuration
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = "Dockerfile.prod"
 
 # Environment variables (non-sensitive)
 [env]

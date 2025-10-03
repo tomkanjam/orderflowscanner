@@ -1,6 +1,8 @@
-# Fly Machine - Cloud Execution for Elite Tier
+# Vyx Fly Machine - Cloud Execution Engine
 
-This directory contains the Node.js application that runs on Fly.io machines to provide 24/7 cloud-based signal detection for Elite tier users.
+Dedicated cloud infrastructure for Elite tier users, providing 24/7 signal detection and AI-powered analysis on Fly.io.
+
+> **PRODUCTION READY** - Use `Dockerfile.prod` and deployment scripts in `scripts/` directory.
 
 ## Architecture
 
@@ -70,37 +72,67 @@ Optional:
 - `KLINE_INTERVAL`: Kline interval (1m/5m/15m/1h, default: 5m)
 - `SCREENING_INTERVAL_MS`: Screening interval in ms (default: 60000)
 
-## Deployment to Fly.io
+## 🚀 Quick Deployment
 
 ### Prerequisites
 
-1. Install Fly CLI: https://fly.io/docs/hands-on/install-flyctl/
-2. Authenticate: `flyctl auth login`
-3. Create Fly app (first time only):
+1. **Fly.io CLI** installed:
+   ```bash
+   curl -L https://fly.io/install.sh | sh
+   ```
 
+2. **Docker** installed and running
+
+3. **Environment Variables** in project root `.env.local`:
+   ```bash
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   GEMINI_API_KEY=your-gemini-api-key
+   ```
+
+### Deployment Steps
+
+#### 1. Login to Fly.io
 ```bash
-flyctl apps create trademind-screener-{user_id}
+fly auth login
 ```
 
-### Set Secrets
-
+#### 2. Set Secrets (First Time Only)
 ```bash
-flyctl secrets set \
-  USER_ID="user_123" \
-  SUPABASE_URL="https://xxx.supabase.co" \
-  SUPABASE_SERVICE_KEY="eyJ..." \
-  MACHINE_REGION="sin"
+./scripts/setup-secrets.sh
 ```
 
-### Deploy
+This will set:
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `GEMINI_API_KEY`
+
+#### 3. Deploy
+```bash
+./scripts/deploy.sh
+```
+
+Deploys to `vyx-app` (configure via `FLY_APP_NAME` environment variable).
+
+#### 4. Verify
+```bash
+fly status --app vyx-app
+fly logs --app vyx-app
+```
+
+### Local Testing
+
+Test Docker image locally before deploying:
 
 ```bash
-# Deploy from this directory
-flyctl deploy
+# Build image
+./scripts/build.sh
 
-# Or deploy with specific config
-flyctl deploy --config fly.toml
+# Test locally (requires .env.local)
+./scripts/test-local.sh
 ```
+
+Health check: http://localhost:8080/health
 
 ### Scaling
 
@@ -216,14 +248,14 @@ pnpm dev
 
 ```bash
 # Build locally
-docker build -t trademind-screener .
+docker build -t vyx-screener .
 
 # Run locally
 docker run -p 8080:8080 \
   -e USER_ID="user_test" \
   -e SUPABASE_URL="http://host.docker.internal:54321" \
   -e SUPABASE_SERVICE_KEY="test_key" \
-  trademind-screener
+  vyx-screener
 ```
 
 ## Architecture Decisions

@@ -6,7 +6,7 @@
 import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 import { IBinanceWebSocketClient, MarketData } from '../types';
-import { Ticker, Kline, KlineInterval } from '../../../apps/app/types';
+import { Ticker, Kline, KlineInterval } from '../shared/types/types';
 
 const WS_BASE_URL = 'wss://stream.binance.com:9443';
 const RECONNECT_DELAY = 5000; // 5 seconds

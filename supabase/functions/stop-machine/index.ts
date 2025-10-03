@@ -60,28 +60,114 @@ serve(async (req) => {
       );
     }
 
-    // TODO: In production, this would call Fly.io API to actually stop the machine
-    // For now, we'll update to stopped status immediately
-    // The actual Fly machine stopping will be done via flyctl CLI for beta testing
+    // Call Fly.io API to stop machine
+    const flyToken = Deno.env.get('FLY_API_TOKEN');
+    const flyAppName = Deno.env.get('FLY_APP_NAME') || 'vyx-app';
 
-    // Simulate stopping delay, then update to stopped
-    setTimeout(async () => {
-      await supabase
-        .from('cloud_machines')
-        .update({ status: 'stopped' })
-        .eq('id', machine.id);
-    }, 2000);
+    if (flyToken) {
+      try {
+        console.log(`Calling Fly.io API to stop machine ${machine.machine_id}...`);
 
-    console.log('Machine stop initiated:', machine.machine_id);
+        const flyResponse = await fetch(
+          `https://api.machines.dev/v1/apps/${flyAppName}/machines/${machine.machine_id}/stop`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${flyToken}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
 
-    return new Response(
-      JSON.stringify({
-        machineId: machine.machine_id,
-        status: 'stopping',
-        message: 'Machine stop initiated'
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+        if (!flyResponse.ok) {
+          const errorText = await flyResponse.text();
+          throw new Error(`Fly API error (${flyResponse.status}): ${errorText}`);
+        }
+
+        console.log('Fly machine stopped successfully:', machine.machine_id);
+
+        // Update to stopped status
+        await supabase
+          .from('cloud_machines')
+          .update({ status: 'stopped' })
+          .eq('id', machine.id);
+
+        // Log success event
+        await supabase
+          .from('cloud_events')
+          .insert({
+            machine_id: machine.machine_id,
+            event_type: 'stop',
+            message: 'Machine stopped successfully on Fly.io',
+            user_id: userId,
+          });
+
+        return new Response(
+          JSON.stringify({
+            machineId: machine.machine_id,
+            status: 'stopped',
+            message: 'Machine stopped successfully on Fly.io'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
+      } catch (flyError) {
+        console.error('Fly.io stop failed:', flyError);
+
+        // Update machine status to 'error'
+        await supabase
+          .from('cloud_machines')
+          .update({
+            status: 'error',
+            error_message: flyError instanceof Error ? flyError.message : 'Fly.io stop failed',
+            error_count: (machine.error_count || 0) + 1,
+          })
+          .eq('id', machine.id);
+
+        // Log error event
+        await supabase
+          .from('cloud_events')
+          .insert({
+            machine_id: machine.machine_id,
+            event_type: 'error',
+            severity: 'error',
+            message: 'Failed to stop machine on Fly.io',
+            details: { error: flyError instanceof Error ? flyError.message : String(flyError) },
+            user_id: userId,
+          });
+
+        return new Response(
+          JSON.stringify({
+            error: 'Failed to stop machine on Fly.io',
+            message: flyError instanceof Error ? flyError.message : 'Unknown error',
+            machineId: machine.machine_id,
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // FLY_API_TOKEN not set - simulate stop for development
+      console.warn('FLY_API_TOKEN not set - running in simulation mode');
+
+      // Simulate stopping delay
+      setTimeout(async () => {
+        await supabase
+          .from('cloud_machines')
+          .update({ status: 'stopped' })
+          .eq('id', machine.id);
+      }, 2000);
+
+      console.log('Machine stop initiated (simulation mode):', machine.machine_id);
+
+      return new Response(
+        JSON.stringify({
+          machineId: machine.machine_id,
+          status: 'stopping',
+          message: 'Machine stop initiated (simulation mode - FLY_API_TOKEN not set)'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
   } catch (error) {
     console.error('Stop machine error:', error);

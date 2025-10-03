@@ -49,10 +49,10 @@ export class ConcurrentAnalyzer extends EventEmitter implements IConcurrentAnaly
 
     // Initialize Supabase client
     const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
+      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_KEY must be set');
     }
 
     this.supabase = createClient(supabaseUrl, supabaseKey);

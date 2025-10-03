@@ -1,0 +1,16 @@
+# Ignore everything by default
+*
+
+# Include only what we need
+!apps/app/types.ts
+!apps/app/screenerHelpers.ts
+!apps/app/src
+!apps/app/src/abstractions
+!apps/app/src/abstractions/trader.interfaces.ts
+!server
+!server/fly-machine
+!server/fly-machine/**
+
+# But exclude node_modules and build artifacts even in allowed directories
+server/fly-machine/node_modules
+server/fly-machine/dist

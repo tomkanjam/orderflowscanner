@@ -4,8 +4,8 @@
  */
 
 import { parentPort, workerData } from 'worker_threads';
-import { Ticker, Kline, KlineInterval } from '../../../apps/app/types';
-import * as helpers from '../../../apps/app/screenerHelpers';
+import { Ticker, Kline, KlineInterval } from '../shared/types/types';
+import * as helpers from '../shared/helpers/screenerHelpers';
 
 interface WorkerMessage {
   type: 'RUN_FILTERS';

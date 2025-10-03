@@ -20,6 +20,8 @@ interface PendingSignal {
   matched_conditions: string[];
   created_at: Date;
   status: string;
+  source: 'cloud'; // Always 'cloud' for Fly machine signals
+  machine_id: string; // Reference to cloud_machines table (UUID from cloud_machines.id)
 }
 
 interface PendingMetrics {
@@ -76,10 +78,10 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
 
     // Initialize Supabase client
     const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
+      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_KEY must be set');
     }
 
     this.supabase = createClient(supabaseUrl, supabaseKey);
@@ -118,7 +120,9 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
       price: signal.price,
       matched_conditions: signal.matchedConditions || [],
       created_at: signal.createdAt || new Date(),
-      status: signal.status || 'new'
+      status: signal.status || 'new',
+      source: 'cloud' as const, // Always 'cloud' for Fly machine
+      machine_id: this.machineId // Reference to cloud_machines.id (UUID)
     });
 
     this.metricsCounters.signalsCreated++;

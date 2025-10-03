@@ -3,8 +3,8 @@
  * Based on: issues/2025-09-30-fly-machine-elite-trader-execution.md
  */
 
-import { Trader, TraderMetrics } from '../../../apps/app/src/abstractions/trader.interfaces';
-import { Ticker, Kline } from '../../../apps/app/types';
+import { Trader, TraderMetrics } from '../shared/abstractions/trader.interfaces';
+import { Ticker, Kline } from '../shared/types/types';
 
 // ============================================================================
 // Fly Machine Configuration

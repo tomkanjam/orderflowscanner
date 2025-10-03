@@ -52,17 +52,6 @@ export const SignalCardEnhanced = React.memo(function SignalCardEnhanced({
 }: SignalCardEnhancedProps) {
   const [expanded, setExpanded] = useState(false);
 
-  // Debug cloud execution props
-  if (!signal.isBuiltIn) {
-    console.log(`[SignalCard] ${signal.name} - Cloud props:`, {
-      showCloudExecution,
-      cloudMachineStatus,
-      isBuiltIn: signal.isBuiltIn,
-      hasCloudConfig: !!signal.cloud_config,
-      cloudConfig: signal.cloud_config
-    });
-  }
-
   // Get activity state
   const activityState = activityTracker.getActivityState(signal.id);
   
@@ -118,20 +107,8 @@ export const SignalCardEnhanced = React.memo(function SignalCardEnhanced({
       data-activity={activityState}
       data-selected={isSelected}
       onClick={() => {
-        console.log(`[DEBUG] SignalCard clicked:`, {
-          signalId: signal.id,
-          signalName: signal.name,
-          isBuiltIn: signal.isBuiltIn,
-          canView,
-          onSelectDefined: !!onSelect,
-          accessTier: signal.accessTier,
-          ownershipType: signal.ownershipType
-        });
         if (canView && onSelect) {
-          console.log(`[DEBUG] Calling onSelect for signal: ${signal.name}`);
           onSelect();
-        } else {
-          console.log(`[DEBUG] Click blocked - canView: ${canView}, onSelect: ${!!onSelect}`);
         }
       }}
     >

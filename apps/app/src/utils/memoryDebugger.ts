@@ -25,13 +25,14 @@ class MemoryDebugger {
       };
       
       this.snapshots.push(snapshot);
-      
+
       // Keep only last 100 snapshots
       if (this.snapshots.length > 100) {
         this.snapshots.shift();
       }
-      
-      console.log(`[MemDebug] ${label}: ${(memory.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`, details);
+
+      // Disabled: Too noisy
+      // console.log(`[MemDebug] ${label}: ${(memory.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`, details);
     }
   }
   
@@ -59,11 +60,12 @@ class MemoryDebugger {
     
     const previousSize = this.dataStructureSizes.get(name) || 0;
     this.dataStructureSizes.set(name, size);
-    
+
+    // Disabled: Too noisy
     // Log if size increased significantly
-    if (size > previousSize * 1.1 || size > previousSize + 1000) {
-      console.log(`[MemDebug] ${name} grew: ${previousSize} → ${size} (+${size - previousSize})`);
-    }
+    // if (size > previousSize * 1.1 || size > previousSize + 1000) {
+    //   console.log(`[MemDebug] ${name} grew: ${previousSize} → ${size} (+${size - previousSize})`);
+    // }
   }
   
   getGrowthRate() {

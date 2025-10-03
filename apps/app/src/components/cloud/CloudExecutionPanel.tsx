@@ -3,12 +3,11 @@
  * Main control panel for Elite users to manage their Fly machine
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Cloud,
   Power,
   Pause,
-  Play,
   Settings,
   Activity,
   TrendingUp,
@@ -17,91 +16,42 @@ import {
   CheckCircle2,
   Clock
 } from 'lucide-react';
-import { cloudWebSocketClient } from '../../services/cloudWebSocketClient';
 import { useAuth } from '../../hooks/useAuth';
 import { useSubscription } from '../../contexts/SubscriptionContext';
+import { useCloudExecution } from '../../hooks/useCloudExecution';
+import { cloudWebSocketClient } from '../../services/cloudWebSocketClient';
 import { supabase } from '../../config/supabase';
 
 interface CloudExecutionPanelProps {
   onClose?: () => void;
 }
 
-type MachineStatus = 'stopped' | 'provisioning' | 'starting' | 'running' | 'stopping' | 'error';
-
 export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
   const { user } = useAuth();
-  const { profile, currentTier } = useSubscription();
+  const { currentTier } = useSubscription();
 
-  // State
-  const [status, setStatus] = useState<MachineStatus>('stopped');
-  const [isConnected, setIsConnected] = useState(false);
-  const [metrics, setMetrics] = useState({
-    activeSignals: 0,
-    queueDepth: 0,
-    cpuUsage: 0,
-    memoryUsage: 0,
-    uptime: 0
-  });
+  // Use cloud execution hook for state management
+  const cloudExecution = useCloudExecution();
+
+  // Local UI state
   const [config, setConfig] = useState({
-    region: 'sin' as 'sin' | 'iad' | 'fra',
+    region: cloudExecution.region || 'sin' as 'sin' | 'iad' | 'fra',
     cpuPriority: 'normal' as 'low' | 'normal' | 'high',
     notificationsEnabled: true
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Check if user is Elite tier
-  const isEliteTier = currentTier === 'elite';
-
-  useEffect(() => {
-    if (!isEliteTier || !user) return;
-
-    // TODO: Fetch machine status from Supabase
-    // For now, start in stopped state
-
-    // Setup WebSocket event listeners
-    cloudWebSocketClient.on('connected', handleConnected);
-    cloudWebSocketClient.on('disconnected', handleDisconnected);
-    cloudWebSocketClient.on('status_update', handleStatusUpdate);
-    cloudWebSocketClient.on('metrics_update', handleMetricsUpdate);
-    cloudWebSocketClient.on('machine_error', handleMachineError);
-
-    return () => {
-      cloudWebSocketClient.off('connected', handleConnected);
-      cloudWebSocketClient.off('disconnected', handleDisconnected);
-      cloudWebSocketClient.off('status_update', handleStatusUpdate);
-      cloudWebSocketClient.off('metrics_update', handleMetricsUpdate);
-      cloudWebSocketClient.off('machine_error', handleMachineError);
-    };
-  }, [isEliteTier, user]);
-
-  const handleConnected = () => {
-    setIsConnected(true);
-    setError('');
-  };
-
-  const handleDisconnected = () => {
-    setIsConnected(false);
-  };
-
-  const handleStatusUpdate = (data: any) => {
-    setStatus(data.status);
-    setMetrics(prev => ({ ...prev, uptime: data.uptime }));
-  };
-
-  const handleMetricsUpdate = (data: any) => {
-    setMetrics(prev => ({
-      ...prev,
-      activeSignals: data.activeSignals,
-      queueDepth: data.queueDepth,
-      cpuUsage: data.cpuUsage,
-      memoryUsage: data.memoryUsage
-    }));
-  };
-
-  const handleMachineError = (data: any) => {
-    setError(data.message);
-  };
+  // Extract values from hook
+  const {
+    machineStatus: status,
+    isConnected,
+    metrics,
+    loading: fetchingStatus,
+    error: hookError,
+    machineId,
+    isEliteTier
+  } = cloudExecution;
 
   const handleStart = async () => {
     // Validation
@@ -124,6 +74,13 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
     setError('');
 
     try {
+      console.log('[CloudExecution] Calling provision-machine with:', {
+        userId: user.id,
+        userEmail: user.email,
+        region: config.region,
+        cpuPriority: config.cpuPriority
+      });
+
       // Call Supabase Edge Function to provision machine
       const response = await supabase.functions.invoke('provision-machine', {
         body: {
@@ -133,33 +90,57 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
         }
       });
 
+      console.log('[CloudExecution] Full response:', response);
+      console.log('[CloudExecution] Response data:', response.data);
+      console.log('[CloudExecution] Response error:', response.error);
+
       if (response.error) {
+        // Try to get more details from the error
+        const errorContext = (response.error as any).context;
+        console.error('[CloudExecution] Error context:', errorContext);
+
+        // If context is a Response object, try to read the body
+        if (errorContext && typeof errorContext.text === 'function') {
+          try {
+            const errorBody = await errorContext.text();
+            console.error('[CloudExecution] Error response body:', errorBody);
+
+            // Try to parse as JSON
+            try {
+              const errorJson = JSON.parse(errorBody);
+              console.error('[CloudExecution] Parsed error:', errorJson);
+              throw new Error(errorJson.error || errorJson.message || response.error.message);
+            } catch (e) {
+              // Not JSON, just throw the text
+              throw new Error(errorBody || response.error.message);
+            }
+          } catch (e) {
+            console.error('[CloudExecution] Could not read error body:', e);
+          }
+        }
+
         throw new Error(response.error.message || 'Failed to provision machine');
+      }
+
+      // Check for error in response data
+      if (response.data?.error) {
+        console.error('[CloudExecution] Data error:', response.data);
+        throw new Error(response.data.error || response.data.message || 'Failed to provision machine');
       }
 
       const { machineId, websocketUrl, status: machineStatus } = response.data;
 
       console.log('[CloudExecution] Machine provisioned:', machineId);
 
-      setStatus(machineStatus);
-
-      // Connect to WebSocket
+      // Status will be updated via WebSocket events from the hook
+      // Connect to WebSocket - hook will handle status updates
       cloudWebSocketClient.connect(machineId, websocketUrl, user.id);
 
-      // Simulate transition to running for demo
-      // TODO: Remove this once Fly machine is actually deployed
-      setTimeout(() => {
-        setStatus('starting');
-        setTimeout(() => {
-          setStatus('running');
-          setLoading(false);
-        }, 2000);
-      }, 3000);
+      setLoading(false);
 
     } catch (err) {
       console.error('Failed to start machine:', err);
       setError(err instanceof Error ? err.message : 'Failed to start machine');
-      setStatus('error');
       setLoading(false);
     }
   };
@@ -188,16 +169,11 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
 
       console.log('[CloudExecution] Machine stopped');
 
-      setStatus('stopping');
-
       // Disconnect WebSocket
       cloudWebSocketClient.disconnect();
 
-      // Simulate transition to stopped
-      setTimeout(() => {
-        setStatus('stopped');
-        setLoading(false);
-      }, 2000);
+      // Status will be updated via database/WebSocket
+      setLoading(false);
 
     } catch (err) {
       console.error('Failed to stop machine:', err);
@@ -211,7 +187,7 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
       setError('Cannot pause: machine is not running');
       return;
     }
-    cloudWebSocketClient.pauseExecution();
+    cloudExecution.pauseExecution();
   };
 
   const handleResume = () => {
@@ -219,7 +195,7 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
       setError('Cannot resume: machine is not running');
       return;
     }
-    cloudWebSocketClient.resumeExecution();
+    cloudExecution.resumeExecution();
   };
 
   const formatUptime = (ms: number) => {
@@ -231,43 +207,43 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
   const getStatusIcon = () => {
     switch (status) {
       case 'running':
-        return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+        return <CheckCircle2 className="w-5 h-5 text-[var(--nt-success)]" />;
       case 'provisioning':
       case 'starting':
       case 'stopping':
-        return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
+        return <Loader2 className="w-5 h-5 text-[var(--nt-info)] animate-spin" />;
       case 'error':
-        return <AlertCircle className="w-5 h-5 text-red-500" />;
+        return <AlertCircle className="w-5 h-5 text-[var(--nt-error)]" />;
       default:
-        return <Power className="w-5 h-5 text-gray-500" />;
+        return <Power className="w-5 h-5 text-[var(--nt-text-muted)]" />;
     }
   };
 
   const getStatusColor = () => {
     switch (status) {
       case 'running':
-        return 'bg-green-100 text-green-800';
+        return 'bg-[var(--nt-success-light)] text-[var(--nt-success)]';
       case 'provisioning':
       case 'starting':
       case 'stopping':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-[var(--nt-info-light)] text-[var(--nt-info)]';
       case 'error':
-        return 'bg-red-100 text-red-800';
+        return 'bg-[var(--nt-error-light)] text-[var(--nt-error)]';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-[var(--nt-bg-elevated)] text-[var(--nt-text-muted)]';
     }
   };
 
   if (!isEliteTier) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-[var(--nt-bg-tertiary)] rounded-lg shadow-lg p-6 border border-[var(--nt-border-default)]">
         <div className="text-center">
-          <Cloud className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Cloud Execution</h3>
-          <p className="text-gray-600 mb-4">
+          <Cloud className="w-16 h-16 text-[var(--nt-text-muted)] mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2 text-[var(--nt-text-primary)]">Cloud Execution</h3>
+          <p className="text-[var(--nt-text-secondary)] mb-4">
             Available for Elite tier users only
           </p>
-          <button className="btn-primary">
+          <button className="px-4 py-2 bg-[var(--nt-bg-primary)] text-[var(--nt-accent-lime)] border border-[var(--nt-accent-lime)] rounded hover:bg-[var(--nt-accent-lime)] hover:text-[var(--nt-bg-primary)] transition-all">
             Upgrade to Elite
           </button>
         </div>
@@ -276,21 +252,21 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg">
+    <div className="bg-[var(--nt-bg-tertiary)] rounded-lg shadow-lg border border-[var(--nt-border-default)]">
       {/* Header */}
-      <div className="border-b border-gray-200 p-6">
+      <div className="border-b border-[var(--nt-border-default)] p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Cloud className="w-6 h-6 text-blue-500" />
+            <Cloud className="w-6 h-6 text-[var(--nt-accent-cyan)]" />
             <div>
-              <h2 className="text-xl font-semibold">Cloud Execution</h2>
-              <p className="text-sm text-gray-600">24/7 signal detection on dedicated infrastructure</p>
+              <h2 className="text-xl font-semibold text-[var(--nt-text-primary)]">Cloud Execution</h2>
+              <p className="text-sm text-[var(--nt-text-secondary)]">24/7 signal detection on dedicated infrastructure</p>
             </div>
           </div>
           {onClose && (
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition"
+              className="p-2 hover:bg-[var(--nt-bg-hover)] rounded-lg transition text-[var(--nt-text-secondary)] text-2xl leading-none"
             >
               ×
             </button>
@@ -299,24 +275,35 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
       </div>
 
       {/* Status Bar */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {getStatusIcon()}
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Status:</span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor()}`}>
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </span>
-              </div>
+      <div className="p-6 border-b border-[var(--nt-border-default)]">
+        {fetchingStatus ? (
+          <div className="flex items-center gap-3 text-[var(--nt-text-secondary)]">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Loading machine status...</span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {getStatusIcon()}
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-[var(--nt-text-primary)]">Status:</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor()}`}>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </span>
+                  {machineId && (
+                    <span className="text-xs text-[var(--nt-text-muted)] ml-2">
+                      ({machineId})
+                    </span>
+                  )}
+                </div>
               {status === 'running' && (
-                <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
+                <div className="flex items-center gap-2 mt-1 text-sm text-[var(--nt-text-secondary)]">
                   <Clock className="w-4 h-4" />
                   <span>Uptime: {formatUptime(metrics.uptime)}</span>
                   {isConnected && (
                     <span className="ml-2 flex items-center gap-1">
-                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                      <span className="w-2 h-2 bg-[var(--nt-success)] rounded-full animate-pulse"></span>
                       Connected
                     </span>
                   )}
@@ -331,7 +318,9 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
               <button
                 onClick={handleStart}
                 disabled={loading}
-                className="btn-primary flex items-center gap-2"
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--nt-bg-primary)] text-[var(--nt-accent-lime)]
+                  border border-[var(--nt-accent-lime)] rounded hover:bg-[var(--nt-accent-lime)] hover:text-[var(--nt-bg-primary)]
+                  transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -342,11 +331,42 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
               </button>
             )}
 
+            {(status === 'starting' || status === 'provisioning') && (
+              <div className="text-sm text-[var(--nt-text-secondary)]">
+                Machine is starting, please wait...
+              </div>
+            )}
+
+            {status === 'stopping' && (
+              <div className="text-sm text-[var(--nt-text-secondary)]">
+                Machine is stopping...
+              </div>
+            )}
+
+            {status === 'error' && (
+              <button
+                onClick={() => cloudExecution.retry()}
+                disabled={fetchingStatus}
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--nt-bg-primary)] text-[var(--nt-accent-lime)]
+                  border border-[var(--nt-accent-lime)] rounded hover:bg-[var(--nt-accent-lime)] hover:text-[var(--nt-bg-primary)]
+                  transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {fetchingStatus ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Power className="w-4 h-4" />
+                )}
+                Retry
+              </button>
+            )}
+
             {status === 'running' && (
               <>
                 <button
                   onClick={handlePause}
-                  className="btn-secondary flex items-center gap-2"
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--nt-bg-primary)] text-[var(--nt-accent-cyan)]
+                    border border-[var(--nt-accent-cyan)] rounded hover:bg-[var(--nt-accent-cyan)] hover:text-[var(--nt-bg-primary)]
+                    transition-all"
                 >
                   <Pause className="w-4 h-4" />
                   Pause
@@ -354,7 +374,9 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
                 <button
                   onClick={handleStop}
                   disabled={loading}
-                  className="btn-secondary flex items-center gap-2"
+                  className="flex items-center gap-2 px-4 py-2 bg-[var(--nt-bg-primary)] text-[var(--nt-error)]
+                    border border-[var(--nt-error)] rounded hover:bg-[var(--nt-error)] hover:text-[var(--nt-bg-primary)]
+                    transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -367,12 +389,13 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
             )}
           </div>
         </div>
+        )}
 
-        {error && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+        {(error || hookError) && (
+          <div className="mt-4 p-3 bg-[var(--nt-error-light)] border border-[var(--nt-error)] rounded-lg flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-[var(--nt-error)] flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm text-red-800">{error}</p>
+              <p className="text-sm text-[var(--nt-error)]">{error || hookError}</p>
             </div>
           </div>
         )}
@@ -381,48 +404,48 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
       {/* Metrics */}
       {status === 'running' && (
         <div className="p-6 grid grid-cols-2 gap-4">
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-[var(--nt-bg-secondary)] rounded-lg p-4 border border-[var(--nt-border-default)]">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Active Signals</span>
-              <Activity className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-[var(--nt-text-secondary)]">Active Signals</span>
+              <Activity className="w-4 h-4 text-[var(--nt-text-muted)]" />
             </div>
-            <p className="text-2xl font-semibold mt-1">{metrics.activeSignals}</p>
+            <p className="text-2xl font-semibold mt-1 text-[var(--nt-text-primary)]">{metrics.activeSignals}</p>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-[var(--nt-bg-secondary)] rounded-lg p-4 border border-[var(--nt-border-default)]">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Queue Depth</span>
-              <TrendingUp className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-[var(--nt-text-secondary)]">Queue Depth</span>
+              <TrendingUp className="w-4 h-4 text-[var(--nt-text-muted)]" />
             </div>
-            <p className="text-2xl font-semibold mt-1">{metrics.queueDepth}</p>
+            <p className="text-2xl font-semibold mt-1 text-[var(--nt-text-primary)]">{metrics.queueDepth}</p>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-[var(--nt-bg-secondary)] rounded-lg p-4 border border-[var(--nt-border-default)]">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">CPU Usage</span>
-              <Activity className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-[var(--nt-text-secondary)]">CPU Usage</span>
+              <Activity className="w-4 h-4 text-[var(--nt-text-muted)]" />
             </div>
             <div className="flex items-baseline gap-2 mt-1">
-              <p className="text-2xl font-semibold">{metrics.cpuUsage.toFixed(1)}%</p>
-              <div className="flex-1 bg-gray-200 rounded-full h-2">
+              <p className="text-2xl font-semibold text-[var(--nt-text-primary)]">{metrics.cpuUsage.toFixed(1)}%</p>
+              <div className="flex-1 bg-[var(--nt-bg-primary)] rounded-full h-2">
                 <div
-                  className="bg-blue-500 h-2 rounded-full transition-all"
+                  className="bg-[var(--nt-accent-cyan)] h-2 rounded-full transition-all"
                   style={{ width: `${metrics.cpuUsage}%` }}
                 />
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-[var(--nt-bg-secondary)] rounded-lg p-4 border border-[var(--nt-border-default)]">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Memory Usage</span>
-              <Activity className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-[var(--nt-text-secondary)]">Memory Usage</span>
+              <Activity className="w-4 h-4 text-[var(--nt-text-muted)]" />
             </div>
             <div className="flex items-baseline gap-2 mt-1">
-              <p className="text-2xl font-semibold">{metrics.memoryUsage.toFixed(1)}%</p>
-              <div className="flex-1 bg-gray-200 rounded-full h-2">
+              <p className="text-2xl font-semibold text-[var(--nt-text-primary)]">{metrics.memoryUsage.toFixed(1)}%</p>
+              <div className="flex-1 bg-[var(--nt-bg-primary)] rounded-full h-2">
                 <div
-                  className="bg-purple-500 h-2 rounded-full transition-all"
+                  className="bg-[var(--nt-accent-lime)] h-2 rounded-full transition-all"
                   style={{ width: `${metrics.memoryUsage}%` }}
                 />
               </div>
@@ -434,20 +457,21 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
       {/* Configuration (when stopped) */}
       {status === 'stopped' && (
         <div className="p-6">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <h3 className="font-semibold mb-4 flex items-center gap-2 text-[var(--nt-text-primary)]">
             <Settings className="w-5 h-5" />
             Configuration
           </h3>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-[var(--nt-text-primary)] mb-2">
                 Region
               </label>
               <select
                 value={config.region}
                 onChange={(e) => setConfig({ ...config, region: e.target.value as any })}
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full p-2 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg
+                  text-[var(--nt-text-primary)] focus:border-[var(--nt-accent-lime)] focus:outline-none transition-colors"
               >
                 <option value="sin">Singapore (Closest to Binance)</option>
                 <option value="iad">US East (Virginia)</option>
@@ -456,13 +480,14 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-[var(--nt-text-primary)] mb-2">
                 CPU Priority
               </label>
               <select
                 value={config.cpuPriority}
                 onChange={(e) => setConfig({ ...config, cpuPriority: e.target.value as any })}
-                className="w-full p-2 border border-gray-300 rounded-lg"
+                className="w-full p-2 bg-[var(--nt-bg-secondary)] border border-[var(--nt-border-default)] rounded-lg
+                  text-[var(--nt-text-primary)] focus:border-[var(--nt-accent-lime)] focus:outline-none transition-colors"
               >
                 <option value="low">Low (Cost-optimized)</option>
                 <option value="normal">Normal (Balanced)</option>
@@ -471,7 +496,7 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-[var(--nt-text-primary)]">
                 Push Notifications
               </span>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -481,7 +506,7 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
                   onChange={(e) => setConfig({ ...config, notificationsEnabled: e.target.checked })}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <div className="w-11 h-6 bg-[var(--nt-bg-primary)] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--nt-accent-lime-glow)] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--nt-bg-elevated)] after:border-[var(--nt-border-default)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--nt-accent-lime)] border border-[var(--nt-border-default)]"></div>
               </label>
             </div>
           </div>

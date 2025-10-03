@@ -30,17 +30,50 @@ function validateEnvironment(): void {
   }
 }
 
-// Get symbols to monitor (top 100 USDT pairs by default)
+// Get symbols to monitor (top 100 USDT pairs by volume, matching browser behavior)
 async function getSymbols(): Promise<string[]> {
-  // TODO: Fetch from Binance API or configuration
-  // For now, return hardcoded list
-  return [
-    'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'DOGEUSDT',
-    'XRPUSDT', 'DOTUSDT', 'UNIUSDT', 'LINKUSDT', 'LTCUSDT',
-    'SOLUSDT', 'MATICUSDT', 'AVAXUSDT', 'ATOMUSDT', 'ETCUSDT',
-    'ALGOUSDT', 'XLMUSDT', 'VETUSDT', 'FILUSDT', 'TRXUSDT',
-    // Add more as needed
-  ];
+  try {
+    console.log('[Main] Fetching top USDT pairs from Binance...');
+
+    const response = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+    if (!response.ok) {
+      throw new Error(`Binance API error: ${response.status}`);
+    }
+
+    const allTickers = await response.json() as any[];
+
+    // Filter and sort exactly like the browser does
+    const spotTickers = allTickers
+      .filter(t => {
+        // Basic checks for USDT pairs
+        if (!t.symbol.endsWith('USDT')) return false;
+        if (t.symbol.includes('_')) return false; // Exclude futures/options
+        if (t.symbol.includes('UP') || t.symbol.includes('DOWN')) return false; // Exclude leveraged tokens
+        if (t.symbol.includes('BEAR') || t.symbol.includes('BULL')) return false; // Exclude leveraged tokens
+        if (parseFloat(t.quoteVolume) <= 100000) return false; // Volume threshold
+
+        return true;
+      })
+      .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+      .slice(0, 100)
+      .map(t => t.symbol);
+
+    console.log(`[Main] Loaded ${spotTickers.length} symbols (top by volume)`);
+    console.log('[Main] Sample symbols:', spotTickers.slice(0, 10).join(', '));
+
+    return spotTickers;
+
+  } catch (error) {
+    console.error('[Main] Failed to fetch symbols from Binance, falling back to hardcoded list:', error);
+
+    // Fallback to hardcoded list if API fails
+    return [
+      'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'DOGEUSDT',
+      'XRPUSDT', 'DOTUSDT', 'UNIUSDT', 'LINKUSDT', 'LTCUSDT',
+      'SOLUSDT', 'MATICUSDT', 'AVAXUSDT', 'ATOMUSDT', 'ETCUSDT',
+      'ALGOUSDT', 'XLMUSDT', 'VETUSDT', 'FILUSDT', 'TRXUSDT',
+    ];
+  }
 }
 
 // Main function

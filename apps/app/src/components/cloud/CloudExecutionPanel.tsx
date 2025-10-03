@@ -132,9 +132,14 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
 
       console.log('[CloudExecution] Machine provisioned:', machineId);
 
-      // Status will be updated via WebSocket events from the hook
-      // Connect to WebSocket - hook will handle status updates
-      cloudWebSocketClient.connect(machineId, websocketUrl, user.id);
+      // Update hook state immediately with new machine info
+      // Hook will start polling for status updates and connect WebSocket when ready
+      cloudExecution.setMachineProvisioned(
+        machineId,
+        websocketUrl,
+        machineStatus,
+        config.region
+      );
 
       setLoading(false);
 
@@ -167,12 +172,14 @@ export function CloudExecutionPanel({ onClose }: CloudExecutionPanelProps) {
         throw new Error(response.error.message || 'Failed to stop machine');
       }
 
-      console.log('[CloudExecution] Machine stopped');
+      console.log('[CloudExecution] Machine stopping');
+
+      // Update hook state to 'stopping' and start polling
+      cloudExecution.setMachineStopping();
 
       // Disconnect WebSocket
       cloudWebSocketClient.disconnect();
 
-      // Status will be updated via database/WebSocket
       setLoading(false);
 
     } catch (err) {

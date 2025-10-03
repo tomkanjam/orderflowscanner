@@ -308,6 +308,51 @@ export function useCloudExecution() {
     }
   }, [user, startPolling]);
 
+  // Method to manually update machine state after provisioning
+  const setMachineProvisioned = useCallback((
+    machineId: string,
+    websocketUrl: string,
+    status: MachineStatus,
+    region: string
+  ) => {
+    console.log(`[useCloudExecution] Machine provisioned: ${machineId}, status: ${status}`);
+
+    setState(prev => ({
+      ...prev,
+      machineId,
+      websocketUrl,
+      machineStatus: status,
+      region,
+      loading: false,
+      error: null,
+      lastFetchTimestamp: Date.now()
+    }));
+
+    // Start polling if in transitional state
+    if (isTransitionalStatus(status)) {
+      console.log(`[useCloudExecution] Starting poll for transitional state: ${status}`);
+      startPolling();
+    } else if (status === 'running') {
+      // Auto-connect if already running (shouldn't happen for fresh provision)
+      console.log('[useCloudExecution] Machine already running, connecting WebSocket');
+      cloudWebSocketClient.connect(machineId, websocketUrl, user?.id || '');
+    }
+  }, [startPolling, user]);
+
+  // Method to set machine as stopping
+  const setMachineStopping = useCallback(() => {
+    console.log('[useCloudExecution] Setting machine to stopping state');
+
+    setState(prev => ({
+      ...prev,
+      machineStatus: 'stopping',
+      lastFetchTimestamp: Date.now()
+    }));
+
+    // Start polling to track stopping -> stopped transition
+    startPolling();
+  }, [startPolling]);
+
   return {
     ...state,
     isEliteTier,
@@ -317,6 +362,8 @@ export function useCloudExecution() {
     pauseExecution,
     resumeExecution,
     forceSync,
-    retry
+    retry,
+    setMachineProvisioned,
+    setMachineStopping
   };
 }

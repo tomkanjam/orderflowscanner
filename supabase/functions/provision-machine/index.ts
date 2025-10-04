@@ -228,6 +228,73 @@ serve(async (req) => {
 
     if (flyToken) {
       try {
+        // First, check if a machine with this name already exists and delete it
+        console.log(`[${new Date().toISOString()}] Checking for existing Fly machine with name: ${machine.machine_id}`);
+
+        const listResponse = await fetch(
+          `https://api.machines.dev/v1/apps/${flyAppName}/machines`,
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${flyToken}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (listResponse.ok) {
+          const existingMachines = await listResponse.json();
+          const existingMachine = existingMachines.find((m: any) => m.name === machine.machine_id);
+
+          if (existingMachine) {
+            console.log(`[${new Date().toISOString()}] Found existing machine ${existingMachine.id}, deleting it...`);
+
+            // Stop the machine first
+            try {
+              await fetch(
+                `https://api.machines.dev/v1/apps/${flyAppName}/machines/${existingMachine.id}/stop`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${flyToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                }
+              );
+              console.log(`[${new Date().toISOString()}] Stopped machine ${existingMachine.id}`);
+
+              // Wait a moment for it to stop
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } catch (stopError) {
+              console.warn(`[${new Date().toISOString()}] Could not stop machine (may already be stopped):`, stopError);
+            }
+
+            // Delete the machine
+            const deleteResponse = await fetch(
+              `https://api.machines.dev/v1/apps/${flyAppName}/machines/${existingMachine.id}?force=true`,
+              {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${flyToken}`,
+                  'Content-Type': 'application/json',
+                },
+              }
+            );
+
+            if (deleteResponse.ok) {
+              console.log(`[${new Date().toISOString()}] ✅ Deleted existing machine ${existingMachine.id}`);
+            } else {
+              const deleteError = await deleteResponse.text();
+              console.warn(`[${new Date().toISOString()}] Could not delete machine: ${deleteError}`);
+            }
+
+            // Wait a moment for deletion to complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            console.log(`[${new Date().toISOString()}] No existing machine found with this name`);
+          }
+        }
+
         console.log(`[${new Date().toISOString()}] Calling Fly.io API to create machine in ${region}...`);
         console.log(`[${new Date().toISOString()}]   App: ${flyAppName}`);
         console.log(`[${new Date().toISOString()}]   Machine name: ${machine.machine_id}`);

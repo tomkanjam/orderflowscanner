@@ -330,7 +330,7 @@ export interface IBinanceWebSocketClient {
   getConnectionStatus(): 'connected' | 'disconnected' | 'reconnecting';
 
   // Historical data methods
-  fetchHistoricalKlines(symbols: string[], intervals: string[], primaryInterval: string): Promise<void>;
+  fetchHistoricalKlines(symbols: string[], intervals: string[]): Promise<void>;
 
   // Dynamic interval management
   updateIntervals(newIntervals: string[]): Promise<void>;

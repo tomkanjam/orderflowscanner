@@ -330,20 +330,20 @@ export class BinanceWebSocketClient extends EventEmitter implements IBinanceWebS
 
   /**
    * Fetch historical klines for multiple symbols and intervals
+   * All intervals get 1440 klines (24 hours of data)
    * Uses rate limiting and parallel execution for efficiency
    * @param symbols Array of symbols to fetch
    * @param intervals Array of intervals to fetch
-   * @param primaryInterval Primary interval (gets 1440 klines, others get 100)
    */
   async fetchHistoricalKlines(
     symbols: string[],
-    intervals: KlineInterval[],
-    primaryInterval: KlineInterval
+    intervals: KlineInterval[]
   ): Promise<void> {
     const startTime = Date.now();
     console.log(`[BinanceWS] Starting historical fetch for ${symbols.length} symbols × ${intervals.length} intervals`);
+    console.log(`[BinanceWS] Fetching 1440 klines (24 hours) for all intervals`);
 
-    // Build all requests
+    // Build all requests - 1440 klines for ALL intervals
     const requests: Array<{
       symbol: string;
       interval: KlineInterval;
@@ -352,8 +352,7 @@ export class BinanceWebSocketClient extends EventEmitter implements IBinanceWebS
 
     for (const symbol of symbols) {
       for (const interval of intervals) {
-        const limit = interval === primaryInterval ? 1440 : 100;
-        requests.push({ symbol, interval, limit });
+        requests.push({ symbol, interval, limit: 1440 });
       }
     }
 

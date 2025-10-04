@@ -6,6 +6,7 @@ primary_region = "sjc" # San Jose - US West Coast (will be overridden per machin
 
 # Build configuration
 [build]
+  # Dockerfile is in project root, fly.toml is in server/fly-machine/
   dockerfile = "../../Dockerfile.fly-machine"
 
 # Environment variables (non-sensitive)

@@ -228,7 +228,8 @@ export class Orchestrator extends EventEmitter {
       await this.binance.connect(this.config.symbols, requiredIntervals as any);
 
       // 10. Fetch historical klines for all symbols and intervals
-      const primaryInterval = this.config.klineInterval as any;
+      // Use first required interval as primary (matching browser behavior)
+      const primaryInterval = requiredIntervals[0] as any;
       console.log(`[Orchestrator] Fetching historical klines (primary: ${primaryInterval})...`);
 
       const fetchStartTime = Date.now();

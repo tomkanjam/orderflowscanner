@@ -6,7 +6,7 @@ primary_region = "sjc" # San Jose - US West Coast (will be overridden per machin
 
 # Build configuration
 [build]
-  dockerfile = "Dockerfile.prod"
+  dockerfile = "../../Dockerfile.fly-machine"
 
 # Environment variables (non-sensitive)
 [env]

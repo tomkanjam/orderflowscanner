@@ -14,12 +14,13 @@ RUN npm ci
 
 # Create full directory structure
 WORKDIR /build
-RUN mkdir -p apps/app/src/abstractions server/fly-machine
+RUN mkdir -p apps/app/src/abstractions apps/app/src/types server/fly-machine
 
 # Copy shared files
 COPY apps/app/types.ts ./apps/app/
 COPY apps/app/screenerHelpers.ts ./apps/app/
 COPY apps/app/src/abstractions/trader.interfaces.ts ./apps/app/src/abstractions/
+COPY apps/app/src/types/subscription.types.ts ./apps/app/src/types/
 
 # Copy fly-machine source
 COPY server/fly-machine ./server/fly-machine/
@@ -29,7 +30,11 @@ RUN cp -r /tmp/node_modules ./server/fly-machine/
 
 # Build TypeScript
 WORKDIR /build/server/fly-machine
-RUN npm run build
+RUN npm run build && \
+    echo "Build complete, checking dist folder..." && \
+    ls -la dist/ && \
+    echo "Dist contents:" && \
+    find dist -type f
 
 # Stage 2: Production
 FROM node:20-alpine
@@ -43,8 +48,10 @@ COPY server/fly-machine/package.json server/fly-machine/package-lock.json ./
 # Install production dependencies only
 RUN npm ci --omit=dev
 
-# Copy built files from builder
-COPY --from=builder /build/server/fly-machine/dist ./dist
+# Copy built files from builder (note: tsc outputs to dist/server/fly-machine/, so we copy that)
+COPY --from=builder /build/server/fly-machine/dist/server/fly-machine ./dist
+# Also copy shared compiled files
+COPY --from=builder /build/server/fly-machine/dist/apps ./dist/apps
 
 # Set environment variables
 ENV NODE_ENV=production

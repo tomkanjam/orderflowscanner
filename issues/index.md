@@ -1,8 +1,14 @@
 # Issues Dashboard
 
-*Last updated: 2025-09-30 14:30:00*
+*Last updated: 2025-01-04 10:30:00*
 
 ## Active Issues
+
+### 🐛 Critical Bugs
+- [`2025-01-04-bug-fly-machine-missing-historical-klines.md`](./2025-01-04-bug-fly-machine-missing-historical-klines.md) - Fly Machine Missing Historical Klines ⭐ PRODUCTION BLOCKER
+  - **Priority:** Critical (P0)
+  - **Type:** bug (2 issues: missing historical fetch + missing interval sync)
+  - **Status:** Ready for implementation - Two-phase fix planned
 
 ### 🎯 New Ideas
 - [`2025-09-30-fly-machine-elite-trader-execution.md`](./2025-09-30-fly-machine-elite-trader-execution.md) - Fly Machine Elite Trader Execution ⭐ NEW
@@ -49,7 +55,8 @@
   - **Status:** Example/Template
 
 ## Quick Stats
-- **Total Issues:** 7
+- **Total Issues:** 8
+- **Critical Bugs:** 1
 - **New Ideas:** 2
 - **In Review:** 1
 - **In Progress:** 1
@@ -58,6 +65,7 @@
 - **Backlog:** 1
 
 ## Next Actions
-1. Complete performance degradation fix implementation
-2. Begin specification phase for My Signals click filtering
-3. Review and close completed issues
+1. **URGENT:** Fix Fly machine historical klines issue - traders can't operate without data
+2. Complete performance degradation fix implementation
+3. Begin specification phase for My Signals click filtering
+4. Review and close completed issues

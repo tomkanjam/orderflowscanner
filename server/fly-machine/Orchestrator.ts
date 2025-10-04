@@ -227,10 +227,24 @@ export class Orchestrator extends EventEmitter {
       // 9. Connect to Binance WebSocket with all required intervals
       await this.binance.connect(this.config.symbols, requiredIntervals as any);
 
-      // 10. Update machine status
+      // 10. Fetch historical klines for all symbols and intervals
+      const primaryInterval = this.config.klineInterval as any;
+      console.log(`[Orchestrator] Fetching historical klines (primary: ${primaryInterval})...`);
+
+      const fetchStartTime = Date.now();
+      await this.binance.fetchHistoricalKlines(
+        this.config.symbols,
+        requiredIntervals as any,
+        primaryInterval
+      );
+
+      const fetchDuration = ((Date.now() - fetchStartTime) / 1000).toFixed(1);
+      console.log(`[Orchestrator] Historical klines fetched in ${fetchDuration}s`);
+
+      // 11. Update machine status
       await this.synchronizer.updateMachineStatus('running');
 
-      // 10. Start screening loop
+      // 12. Start screening loop
       this.startScreeningLoop();
 
       this.isRunning = true;

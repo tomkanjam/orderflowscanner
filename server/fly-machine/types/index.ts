@@ -322,12 +322,30 @@ export interface TraderResult {
 // ============================================================================
 
 export interface IBinanceWebSocketClient {
-  connect(symbols: string[]): Promise<void>;
+  connect(symbols: string[], intervals?: string[] | string): Promise<void>;
   disconnect(): Promise<void>;
   getTickers(): Map<string, Ticker>;
   getKlines(symbol: string, interval: string): Kline[];
   on(event: 'ticker' | 'kline', callback: (data: any) => void): void;
   getConnectionStatus(): 'connected' | 'disconnected' | 'reconnecting';
+
+  // Historical data methods
+  fetchHistoricalKlines(symbols: string[], intervals: string[], primaryInterval: string): Promise<void>;
+
+  // Dynamic interval management
+  updateIntervals(newIntervals: string[]): Promise<void>;
+  getActiveIntervals(): string[];
+
+  // Data validation and observability
+  validateDataBoundary(symbol: string, interval: string, expectedCount: number): {
+    hasGaps: boolean;
+    gaps: Array<[number, number]>;
+    actualCount: number;
+    expectedCount: number;
+  };
+
+  // Market data access
+  getMarketData(): MarketData;
 }
 
 export interface IParallelScreener {

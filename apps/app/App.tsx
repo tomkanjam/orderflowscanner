@@ -40,6 +40,7 @@ import { sharedMarketData } from './src/shared/SharedMarketData';
 import { BoundedMap, createBoundedMap } from './src/memory/BoundedCollections';
 import { UpdateBatcher, createTickerBatcher } from './src/optimization/UpdateBatcher';
 import { useThrottledState, useMemoryAwareState } from './src/hooks/useBoundedState';
+import { useCloudExecution } from './src/hooks/useCloudExecution';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -66,6 +67,7 @@ if (process.env.NODE_ENV === 'development') {
 const AppContent: React.FC = () => {
   const { activeStrategy } = useStrategy();
   const { currentTier } = useSubscription();
+  const cloudExecution = useCloudExecution();
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const [tickers, setTickers] = useState<Map<string, Ticker>>(new Map());
   // REMOVED: historicalData state - now using SharedMarketData directly to prevent memory leaks
@@ -1236,6 +1238,17 @@ const AppContent: React.FC = () => {
   // Calculate active signal count
   const activeSignalCount = allSignals.filter(signal => signal.status === 'active').length;
 
+  // Filter signal log based on machine status
+  // When machine is running, only show cloud signals
+  // When machine is not running, show browser-generated signals
+  const filteredSignalLog = useMemo(() => {
+    if (cloudExecution.machineStatus === 'running') {
+      return signalLog.filter(signal => signal.source === 'cloud');
+    }
+    // Show all signals (browser-generated) when machine is not running
+    return signalLog;
+  }, [signalLog, cloudExecution.machineStatus]);
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen relative">
       <Sidebar
@@ -1262,7 +1275,7 @@ const AppContent: React.FC = () => {
         onRowClick={handleRowClick}
         selectedSignalId={selectedSignalId}
         onAiInfoClick={handleAiInfoClick}
-        signalLog={signalLog} // Pass signalLog to MainContent
+        signalLog={filteredSignalLog} // Pass filtered signal log based on machine status
         historicalSignals={historicalSignals} // Pass historical signals
         hasActiveFilter={multiTraderEnabled && traders.some(t => t.enabled)}
         onRunHistoricalScan={handleRunHistoricalScan}

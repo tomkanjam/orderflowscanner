@@ -305,7 +305,61 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
     }
 
     console.log(`[StateSynchronizer] Loaded ${data?.length || 0} traders`);
-    return data || [];
+
+    // Parse JSON fields if they're returned as strings
+    const traders = (data || []).map(trader => {
+      const parsed = { ...trader };
+
+      // Parse filter if it's a string
+      if (typeof parsed.filter === 'string') {
+        try {
+          parsed.filter = JSON.parse(parsed.filter);
+        } catch (e) {
+          console.error(`[StateSynchronizer] Failed to parse filter for trader ${trader.id}:`, e);
+        }
+      }
+
+      // Parse strategy if it's a string
+      if (typeof parsed.strategy === 'string') {
+        try {
+          parsed.strategy = JSON.parse(parsed.strategy);
+        } catch (e) {
+          console.error(`[StateSynchronizer] Failed to parse strategy for trader ${trader.id}:`, e);
+        }
+      }
+
+      // Parse metrics if it's a string
+      if (typeof parsed.metrics === 'string') {
+        try {
+          parsed.metrics = JSON.parse(parsed.metrics);
+        } catch (e) {
+          console.error(`[StateSynchronizer] Failed to parse metrics for trader ${trader.id}:`, e);
+        }
+      }
+
+      // Parse cloud_config if it's a string
+      if (typeof parsed.cloud_config === 'string') {
+        try {
+          parsed.cloud_config = JSON.parse(parsed.cloud_config);
+        } catch (e) {
+          console.error(`[StateSynchronizer] Failed to parse cloud_config for trader ${trader.id}:`, e);
+        }
+      }
+
+      // Parse exchange_config if it's a string
+      if (typeof parsed.exchange_config === 'string') {
+        try {
+          parsed.exchange_config = JSON.parse(parsed.exchange_config);
+        } catch (e) {
+          console.error(`[StateSynchronizer] Failed to parse exchange_config for trader ${trader.id}:`, e);
+        }
+      }
+
+      return parsed;
+    });
+
+    console.log(`[StateSynchronizer] Parsed ${traders.length} traders with JSON fields`);
+    return traders;
   }
 
   async shutdown(): Promise<void> {

@@ -267,6 +267,21 @@ export class Orchestrator extends EventEmitter {
 
     console.log(`[Orchestrator] Loaded ${this.traders.length} traders`);
 
+    // DEBUG: Log raw trader structure from database
+    if (this.traders.length > 0) {
+      const sample = this.traders[0] as any;
+      console.log(`[Orchestrator] DEBUG - Sample trader structure:`, JSON.stringify({
+        id: sample.id,
+        name: sample.name,
+        hasFilter: !!sample.filter,
+        filterType: typeof sample.filter,
+        filterKeys: sample.filter ? Object.keys(sample.filter) : [],
+        filterCode: sample.filter?.code ? `${sample.filter.code.substring(0, 50)}...` : 'MISSING',
+        refreshInterval: sample.filter?.refreshInterval || 'MISSING',
+        requiredTimeframes: sample.filter?.requiredTimeframes || 'MISSING'
+      }, null, 2));
+    }
+
     // Log trader configurations
     for (const trader of this.traders) {
       const traderAny = trader as any;
@@ -584,6 +599,7 @@ export class Orchestrator extends EventEmitter {
       lastScreening: this.lastScreeningTime,
       metrics: { ...this.metrics },
       health: this.healthMonitor.getHealth(),
+      traders: this.traders, // Include full trader array for debug endpoint
       services: {
         binance: this.binance.getStats(),
         screener: this.screener.getStats(),

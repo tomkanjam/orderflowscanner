@@ -146,24 +146,17 @@ export class ConcurrentAnalyzer extends EventEmitter implements IConcurrentAnaly
   }
 
   private async callAnalysisEdgeFunction(task: AnalysisTask): Promise<any> {
-    try {
-      // Call Supabase Edge Function for Gemini analysis
-      const { data, error } = await this.supabase.functions.invoke('analyze-signal', {
-        body: {
-          signalId: task.signalId,
-          traderId: task.traderId,
-          symbol: task.symbol
-        }
-      });
+    // TODO: AI analysis Edge Function not yet implemented
+    // For now, return a placeholder result
+    console.log(`[ConcurrentAnalyzer] Skipping AI analysis for ${task.symbol} (Edge Function not implemented)`);
 
-      if (error) {
-        throw new Error(`Edge Function error: ${error.message}`);
-      }
-
-      return data;
-    } catch (error) {
-      throw error;
-    }
+    return {
+      signal_id: task.signalId,
+      trader_id: task.traderId,
+      symbol: task.symbol,
+      analysis_skipped: true,
+      reason: 'AI analysis Edge Function not yet implemented'
+    };
   }
 
   private handleTaskSuccess(task: AnalysisTask, result: any): void {

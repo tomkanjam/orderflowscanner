@@ -310,9 +310,17 @@ serve(async (req) => {
               policy: 'on-failure',
               max_retries: 3,
             },
+            guest: {
+              cpu_kind: 'shared',
+              cpus: 2,
+              memory_mb: 512,
+            },
             env: {
               USER_ID: userId,
               MACHINE_ID: machine.machine_id,
+              MACHINE_CPUS: '2',
+              MACHINE_MEMORY: '512',
+              SYMBOL_COUNT: Deno.env.get('SYMBOL_COUNT') || '100',
               SUPABASE_URL: supabaseUrl,
               SUPABASE_SERVICE_KEY: supabaseServiceKey,
               GEMINI_API_KEY: Deno.env.get('GEMINI_API_KEY') || '',

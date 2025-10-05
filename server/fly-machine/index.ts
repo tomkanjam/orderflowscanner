@@ -30,10 +30,12 @@ function validateEnvironment(): void {
   }
 }
 
-// Get symbols to monitor (top 100 USDT pairs by volume, matching browser behavior)
+// Get symbols to monitor (configurable count, defaults to 100)
 async function getSymbols(): Promise<string[]> {
+  const symbolCount = parseInt(process.env.SYMBOL_COUNT || '100', 10);
+
   try {
-    console.log('[Main] Fetching top USDT pairs from Binance...');
+    console.log(`[Main] Fetching top ${symbolCount} USDT pairs from Binance...`);
 
     const response = await fetch('https://api.binance.com/api/v3/ticker/24hr');
     if (!response.ok) {
@@ -55,7 +57,7 @@ async function getSymbols(): Promise<string[]> {
         return true;
       })
       .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-      .slice(0, 100)
+      .slice(0, symbolCount)
       .map(t => t.symbol);
 
     console.log(`[Main] Loaded ${spotTickers.length} symbols (top by volume)`);

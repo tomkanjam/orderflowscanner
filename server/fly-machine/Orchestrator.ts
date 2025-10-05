@@ -459,15 +459,13 @@ export class Orchestrator extends EventEmitter {
 
       // Process matches
       for (const match of result.matches) {
-        // Create signal record
+        // Create signal record (only fields that exist in database schema)
         const signal = {
-          user_id: this.config.userId,
           trader_id: traderId,
           symbol: match.symbol,
-          price: match.price,
-          matched_conditions: match.matchedConditions,
-          status: 'pending_analysis',
-          created_at: new Date()
+          source: 'cloud',
+          machine_id: this.config.machineConfig.machineId,
+          created_at: new Date().toISOString()
         };
 
         console.log(`[Orchestrator]     → Queueing signal: ${match.symbol} @ $${match.price}`);

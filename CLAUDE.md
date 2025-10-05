@@ -214,3 +214,4 @@ System-wide context stored in `.ai-workflow/context/`:
 /status-issue
 /index-issues
 ```
+- if you run into problems with deploys, look at @docs/fly-machine-deploy-lessons.md

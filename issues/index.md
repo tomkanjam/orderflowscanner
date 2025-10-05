@@ -1,6 +1,6 @@
 # Issues Dashboard
 
-*Last updated: 2025-01-04 10:30:00*
+*Last updated: 2025-10-05*
 
 ## Active Issues
 
@@ -11,7 +11,11 @@
   - **Status:** Ready for implementation - Two-phase fix planned
 
 ### 🎯 New Ideas
-- [`2025-09-30-fly-machine-elite-trader-execution.md`](./2025-09-30-fly-machine-elite-trader-execution.md) - Fly Machine Elite Trader Execution ⭐ NEW
+- [`2025-10-05-golang-binance-data-collector.md`](./2025-10-05-golang-binance-data-collector.md) - Golang Binance Data Collector ⭐ NEW
+  - **Priority:** High
+  - **Type:** feature (infrastructure)
+  - **Status:** Idea review - Centralized market data hub for 1,000+ machine scale
+- [`2025-09-30-fly-machine-elite-trader-execution.md`](./2025-09-30-fly-machine-elite-trader-execution.md) - Fly Machine Elite Trader Execution
   - **Priority:** High
   - **Type:** feature
   - **Status:** Idea review - Cloud infrastructure for 24/7 Elite tier trading
@@ -55,9 +59,9 @@
   - **Status:** Example/Template
 
 ## Quick Stats
-- **Total Issues:** 8
+- **Total Issues:** 9
 - **Critical Bugs:** 1
-- **New Ideas:** 2
+- **New Ideas:** 3
 - **In Review:** 1
 - **In Progress:** 1
 - **Planning:** 1
@@ -66,6 +70,7 @@
 
 ## Next Actions
 1. **URGENT:** Fix Fly machine historical klines issue - traders can't operate without data
-2. Complete performance degradation fix implementation
-3. Begin specification phase for My Signals click filtering
-4. Review and close completed issues
+2. **NEW:** Review Golang Binance Data Collector proposal (scalability blocker)
+3. Complete performance degradation fix implementation
+4. Begin specification phase for My Signals click filtering
+5. Review and close completed issues

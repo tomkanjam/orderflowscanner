@@ -13,15 +13,14 @@ import {
 } from '../types';
 
 interface PendingSignal {
-  id: string;
   trader_id: string;
   symbol: string;
   price: number;
   matched_conditions: string[];
-  created_at: Date;
   status: string;
   source: 'cloud'; // Always 'cloud' for Fly machine signals
   machine_id: string; // Reference to cloud_machines table (UUID from cloud_machines.id)
+  created_at: string;
 }
 
 interface PendingMetrics {
@@ -89,9 +88,23 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
 
   async initialize(userId: string, machineId: string): Promise<void> {
     this.userId = userId;
-    this.machineId = machineId;
 
     console.log(`[StateSynchronizer] Initializing for user ${userId}, machine ${machineId}`);
+
+    // Look up the machine UUID from cloud_machines table
+    const { data, error } = await this.supabase
+      .from('cloud_machines')
+      .select('id')
+      .eq('machine_id', machineId)
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !data) {
+      throw new Error(`Failed to find cloud machine with machine_id ${machineId}: ${error?.message || 'Not found'}`);
+    }
+
+    this.machineId = data.id; // Use the UUID, not the Fly machine ID
+    console.log(`[StateSynchronizer] Resolved machine UUID: ${this.machineId}`);
 
     // Start batch write interval
     this.startBatchInterval();
@@ -114,15 +127,14 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
     }
 
     const queuedSignal = {
-      id: signal.id,
       trader_id: signal.trader_id,
       symbol: signal.symbol,
       price: signal.price,
       matched_conditions: signal.matched_conditions || [],
-      created_at: signal.created_at || new Date(),
       status: signal.status || 'new',
       source: 'cloud' as const, // Always 'cloud' for Fly machine
-      machine_id: this.machineId // Reference to cloud_machines.id (UUID)
+      machine_id: this.machineId, // Reference to cloud_machines.id (UUID)
+      created_at: signal.created_at || new Date().toISOString()
     };
 
     this.signalQueue.push(queuedSignal);
@@ -269,7 +281,7 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
         status,
         updated_at: new Date().toISOString()
       })
-      .eq('machine_id', this.machineId);
+      .eq('id', this.machineId);
 
     if (error) {
       console.error('[StateSynchronizer] Failed to update machine status:', error);
@@ -284,7 +296,7 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
       .update({
         last_health_check: new Date().toISOString()
       })
-      .eq('machine_id', this.machineId);
+      .eq('id', this.machineId);
 
     if (error) {
       console.error('[StateSynchronizer] Failed to update heartbeat:', error);

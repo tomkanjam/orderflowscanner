@@ -459,10 +459,13 @@ export class Orchestrator extends EventEmitter {
 
       // Process matches
       for (const match of result.matches) {
-        // Create signal record (only fields that exist in database schema)
+        // Create signal record
         const signal = {
           trader_id: traderId,
           symbol: match.symbol,
+          price: match.price,
+          matched_conditions: match.matchedConditions || [],
+          status: 'new',
           source: 'cloud',
           machine_id: this.config.machineConfig.machineId,
           created_at: new Date().toISOString()

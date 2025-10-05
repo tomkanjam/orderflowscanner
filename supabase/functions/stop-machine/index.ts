@@ -96,7 +96,7 @@ serve(async (req) => {
         await supabase
           .from('cloud_events')
           .insert({
-            machine_id: machine.machine_id,
+            machine_id: machine.id, // Use the UUID, not the Fly machine ID
             event_type: 'stop',
             message: 'Machine stopped successfully on Fly.io',
             user_id: userId,
@@ -128,7 +128,7 @@ serve(async (req) => {
         await supabase
           .from('cloud_events')
           .insert({
-            machine_id: machine.machine_id,
+            machine_id: machine.id, // Use the UUID, not the Fly machine ID
             event_type: 'error',
             severity: 'error',
             message: 'Failed to stop machine on Fly.io',

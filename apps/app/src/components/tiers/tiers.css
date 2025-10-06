@@ -383,6 +383,73 @@
 }
 
 /* ============================================================================
+   Waitlist Form
+   ============================================================================ */
+
+.waitlist-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.waitlist-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: var(--tm-bg-secondary);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-md);
+  color: var(--tm-text-primary);
+  font-size: 0.875rem;
+  transition: all var(--tm-transition-base);
+}
+
+.waitlist-input:focus {
+  outline: none;
+  border-color: var(--tm-accent);
+  box-shadow: 0 0 0 3px rgba(142, 251, 186, 0.1);
+}
+
+.waitlist-input::placeholder {
+  color: var(--tm-text-muted);
+}
+
+.waitlist-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.waitlist-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: rgba(16, 185, 129, 0.1);
+  border-radius: var(--tm-radius-md);
+  text-align: center;
+}
+
+.success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background-color: var(--tm-success);
+  color: var(--tm-bg-primary);
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 1.25rem;
+}
+
+.waitlist-success p {
+  margin: 0;
+  color: var(--tm-success);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+/* ============================================================================
    Mobile Responsive
    ============================================================================ */
 

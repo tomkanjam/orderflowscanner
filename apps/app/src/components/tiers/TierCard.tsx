@@ -5,7 +5,7 @@
  * Used within TierSelectionModal to show available subscription tiers.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { TierCardProps } from '../../constants/tiers';
 
 export const TierCard: React.FC<TierCardProps> = ({
@@ -14,6 +14,9 @@ export const TierCard: React.FC<TierCardProps> = ({
   isIncludedInPlan = false,
   onClick
 }) => {
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [waitlistSuccess, setWaitlistSuccess] = useState(false);
   // Determine card styling classes based on configuration
   const getCardClasses = (): string => {
     const baseClasses = 'or-card tier-card';
@@ -102,9 +105,31 @@ export const TierCard: React.FC<TierCardProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      if (!config.isLocked) {
+      if (!config.isLocked && config.ctaAction !== 'waitlist') {
         onClick();
       }
+    }
+  };
+
+  // Handle waitlist form submission
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!waitlistEmail.trim()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // TODO: Implement actual waitlist API call here
+      // For now, just simulate success
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setWaitlistSuccess(true);
+      setWaitlistEmail('');
+    } catch (error) {
+      console.error('Failed to join waitlist:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -167,15 +192,45 @@ export const TierCard: React.FC<TierCardProps> = ({
         })}
       </ul>
 
-      {/* CTA Button */}
-      <button
-        className={getCtaClasses()}
-        onClick={onClick}
-        disabled={config.isLocked || isCurrentTier || isIncludedInPlan}
-        aria-label={`${getCtaText()} for ${config.displayName} tier`}
-      >
-        {getCtaText()}
-      </button>
+      {/* CTA Section - Waitlist form for Pro tier, button for others */}
+      {config.ctaAction === 'waitlist' && !isCurrentTier && !isIncludedInPlan ? (
+        <form onSubmit={handleWaitlistSubmit} className="waitlist-form">
+          {waitlistSuccess ? (
+            <div className="waitlist-success">
+              <span className="success-icon">✓</span>
+              <p>You're on the waitlist!</p>
+            </div>
+          ) : (
+            <>
+              <input
+                type="email"
+                value={waitlistEmail}
+                onChange={(e) => setWaitlistEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="waitlist-input"
+                required
+                disabled={isSubmitting}
+              />
+              <button
+                type="submit"
+                className="tier-cta btn-primary"
+                disabled={isSubmitting || !waitlistEmail.trim()}
+              >
+                {isSubmitting ? 'Joining...' : 'Join Waitlist'}
+              </button>
+            </>
+          )}
+        </form>
+      ) : (
+        <button
+          className={getCtaClasses()}
+          onClick={onClick}
+          disabled={config.isLocked || isCurrentTier || isIncludedInPlan}
+          aria-label={`${getCtaText()} for ${config.displayName} tier`}
+        >
+          {getCtaText()}
+        </button>
+      )}
     </div>
   );
 };

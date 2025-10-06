@@ -191,7 +191,7 @@ export const TIER_CONFIGS: TierConfig[] = [
     price: 'coming-soon',
     priceDisplay: 'Coming Soon',
     badge: 'locked',
-    isLocked: true,
+    isLocked: false, // Not locked - waitlist is active
     features: [
       'Everything in Lite, plus:',
       '🤖 Fully autonomous AI trading',

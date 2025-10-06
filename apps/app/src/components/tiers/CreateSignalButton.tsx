@@ -30,13 +30,8 @@ export const CreateSignalButton: React.FC<CreateSignalButtonProps> = ({
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        {/* AI Sparkle icon - similar to Google's AI sparkle */}
         <path
-          d="M12 1L13.5 6.5L19 8L13.5 9.5L12 15L10.5 9.5L5 8L10.5 6.5L12 1Z"
-          fill="currentColor"
-        />
-        <path
-          d="M19 15L19.75 17.25L22 18L19.75 18.75L19 21L18.25 18.75L16 18L18.25 17.25L19 15Z"
+          d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z"
           fill="currentColor"
         />
       </svg>

@@ -2,11 +2,12 @@
 *
 
 # Include only what we need
+!apps
+!apps/app
 !apps/app/types.ts
 !apps/app/screenerHelpers.ts
 !apps/app/src
-!apps/app/src/abstractions
-!apps/app/src/abstractions/trader.interfaces.ts
+!apps/app/src/**
 !server
 !server/fly-machine
 !server/fly-machine/**

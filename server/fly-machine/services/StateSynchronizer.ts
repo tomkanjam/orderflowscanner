@@ -89,39 +89,22 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
   async initialize(userId: string, machineId: string): Promise<void> {
     this.userId = userId;
 
-    console.log(`[StateSynchronizer] Initializing multi-tenant machine ${machineId}`);
+    console.log(`[StateSynchronizer] Initializing for user ${userId}, machine ${machineId}`);
 
-    // Look up the machine UUID from cloud_machines table (multi-tenant mode)
-    const { data, error} = await this.supabase
+    // Look up the machine UUID from cloud_machines table
+    const { data, error } = await this.supabase
       .from('cloud_machines')
       .select('id')
       .eq('machine_id', machineId)
+      .eq('user_id', userId)
       .single();
 
     if (error || !data) {
-      // If machine doesn't exist in database, create it
-      console.log(`[StateSynchronizer] Machine not found in database, creating new record...`);
-      const { data: newMachine, error: createError } = await this.supabase
-        .from('cloud_machines')
-        .insert({
-          machine_id: machineId,
-          user_id: userId, // 'multi-tenant' identifier
-          status: 'active',
-          region: process.env.MACHINE_REGION || 'sin'
-        })
-        .select('id')
-        .single();
-
-      if (createError || !newMachine) {
-        throw new Error(`Failed to create cloud machine: ${createError?.message || 'Unknown error'}`);
-      }
-
-      this.machineId = newMachine.id;
-      console.log(`[StateSynchronizer] Created new machine UUID: ${this.machineId}`);
-    } else {
-      this.machineId = data.id; // Use the UUID, not the Fly machine ID
-      console.log(`[StateSynchronizer] Found existing machine UUID: ${this.machineId}`);
+      throw new Error(`Failed to find cloud machine with machine_id ${machineId}: ${error?.message || 'Not found'}`);
     }
+
+    this.machineId = data.id; // Use the UUID, not the Fly machine ID
+    console.log(`[StateSynchronizer] Resolved machine UUID: ${this.machineId}`);
 
     // Start batch write interval
     this.startBatchInterval();
@@ -337,6 +320,7 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
     const { data, error } = await this.supabase
       .from('traders')
       .select('*')
+      .eq('user_id', this.userId)
       .eq('enabled', true)
       .order('created_at', { ascending: false });
 

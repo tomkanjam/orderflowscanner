@@ -221,7 +221,7 @@ export class Orchestrator extends EventEmitter {
     }
 
     console.log('[Orchestrator] Starting...');
-    console.log('[Orchestrator] Mode: Multi-tenant (serving all users)');
+    console.log('[Orchestrator] User:', this.config.userId);
     console.log('[Orchestrator] Machine:', this.config.machineConfig.machineId);
 
     try {

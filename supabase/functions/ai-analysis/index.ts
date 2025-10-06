@@ -23,7 +23,10 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // Health check endpoint
+  const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
+  const startTime = Date.now();
+
+  // Health check endpoint (public - no auth required)
   if (req.method === 'GET' && req.url.endsWith('/health')) {
     return new Response(
       JSON.stringify({ status: 'healthy', timestamp: new Date().toISOString() }),
@@ -31,11 +34,8 @@ serve(async (req) => {
     );
   }
 
-  const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
-  const startTime = Date.now();
-
   try {
-    // 1. Validate authentication
+    // 1. Validate authentication (required for all non-health endpoints)
     const authHeader = req.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       throw new Error('Missing or invalid authorization header');

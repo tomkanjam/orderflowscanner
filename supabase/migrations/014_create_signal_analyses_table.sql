@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS signal_analyses (
   -- Foreign keys
   signal_id UUID NOT NULL REFERENCES signals(id) ON DELETE CASCADE,
   trader_id UUID NOT NULL REFERENCES traders(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
 
   -- Analysis results
   decision TEXT NOT NULL CHECK (decision IN ('enter_trade', 'bad_setup', 'wait')),

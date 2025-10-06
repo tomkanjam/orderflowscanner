@@ -56,11 +56,24 @@ export const TierCard: React.FC<TierCardProps> = ({
   const getCtaClasses = (): string => {
     const baseClasses = 'tier-cta';
 
+    // If this is the current tier, use a disabled style
+    if (isCurrentTier) {
+      return `${baseClasses} btn-current`;
+    }
+
     if (config.ctaAction === 'auth' || config.ctaAction === 'upgrade') {
       return `${baseClasses} btn-primary`;
     }
 
     return `${baseClasses} btn-secondary`;
+  };
+
+  // Determine CTA button text
+  const getCtaText = (): string => {
+    if (isCurrentTier) {
+      return 'Current Plan';
+    }
+    return config.ctaText;
   };
 
   // Format price display
@@ -154,10 +167,10 @@ export const TierCard: React.FC<TierCardProps> = ({
       <button
         className={getCtaClasses()}
         onClick={onClick}
-        disabled={config.isLocked}
-        aria-label={`${config.ctaText} for ${config.displayName} tier`}
+        disabled={config.isLocked || isCurrentTier}
+        aria-label={`${getCtaText()} for ${config.displayName} tier`}
       >
-        {config.ctaText}
+        {getCtaText()}
       </button>
     </div>
   );

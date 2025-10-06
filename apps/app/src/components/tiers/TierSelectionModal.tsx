@@ -21,10 +21,24 @@ export const TierSelectionModal: React.FC<TierSelectionModalProps> = ({
   onAuthRequired,
   onUpgradeRequired
 }) => {
-  const { currentTier } = useSubscription();
+  const { currentTier, profile, subscription, loading } = useSubscription();
 
   // Get current tier ID for comparison
   const currentTierId = SUBSCRIPTION_TO_TIER[currentTier];
+
+  // Debug logging when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('=== TierSelectionModal Debug ===');
+      console.log('currentTier:', currentTier);
+      console.log('currentTierId:', currentTierId);
+      console.log('subscription:', subscription);
+      console.log('profile:', profile);
+      console.log('loading:', loading);
+      console.log('SUBSCRIPTION_TO_TIER mapping:', SUBSCRIPTION_TO_TIER);
+      console.log('================================');
+    }
+  }, [isOpen, currentTier, currentTierId, subscription, profile, loading]);
 
   // Handle ESC key to close modal
   useEffect(() => {

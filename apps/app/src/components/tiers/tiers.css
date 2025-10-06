@@ -357,8 +357,15 @@
   border-color: var(--tm-border-light);
 }
 
+.btn-current {
+  background-color: var(--tm-bg-active);
+  color: var(--tm-text-muted);
+  border: 1px solid var(--tm-border);
+  cursor: not-allowed;
+}
+
 .tier-cta:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 

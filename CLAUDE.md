@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an AI-powered cryptocurrency screener for Binance Spot markets that allows users to describe technical trading conditions in natural language. The application uses Firebase AI Logic with Google's Gemini models to convert natural language into executable screening filters and visualizes results with real-time charts.
+This is an AI-powered cryptocurrency screener for Binance Spot markets that allows users to describe technical trading conditions in natural language. The application uses Firebase AI Logic with Google's Gemini models to convert natural language into executable screening filters and visualizes results with real-time charts. Top-tier users get access to fully automated AI trading with the use of LLM APIs.
 
 ## Development Environment
 Use pnpm
@@ -17,8 +17,7 @@ Use pnpm
 ## Debugging
 If you run into errors, lean towards debugging first before implementing big fixes/changes
 Always includes timestamps in your logging
-Work with the PM on debugging
-
+Do autonomous debugging. Check logs, create testing enpoints, and use the debugger
 
 ## Architecture Overview
 
@@ -102,7 +101,7 @@ Each trader has their own **custom generated filter code** that runs in a worker
 2. When signal matches → `useSignalLifecycle` calculates configured indicators:
    - If `trader.filter.indicators` exists → calculates those specific indicators
    - Passes calculated indicators to AI analysis as `marketData.calculatedIndicators`
-   
+
 3. AI receives proper data → Can perform sophisticated analysis
 
 ### DO NOT:

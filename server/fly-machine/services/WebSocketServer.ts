@@ -252,6 +252,8 @@ export class WebSocketServer extends EventEmitter {
     signalId: string;
     decision: string;
     confidence: number;
+    reasoning?: string;
+    tradePlan?: any;
   }): void {
     this.broadcast({
       type: 'analysis_completed',

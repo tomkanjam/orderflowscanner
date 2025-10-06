@@ -179,3 +179,146 @@ export interface KlineHistoryConfig {
   analysisLimit: number;      // Number of klines for symbol analysis (default: 100)
   aiAnalysisLimit: number;    // Number of klines/indicators for AI signal analysis (default: 100, range: 1-1000)
 }
+
+// ============================================================================
+// AI Analysis Edge Function Types
+// ============================================================================
+
+/**
+ * Pre-calculated technical indicators (from screenerHelpers)
+ * These are calculated on the Fly machine before calling the Edge Function
+ */
+export interface CalculatedIndicators {
+  // Moving averages
+  sma_20?: number;
+  sma_50?: number;
+  sma_200?: number;
+  ema_12?: number;
+  ema_26?: number;
+
+  // Oscillators
+  rsi_14?: number;
+  macd?: {
+    macd: number;
+    signal: number;
+    histogram: number;
+  };
+
+  // Volatility
+  bb?: {
+    upper: number;
+    middle: number;
+    lower: number;
+  };
+  atr_14?: number;
+
+  // Volume
+  obv?: number;
+  vwap?: number;
+
+  // Momentum
+  stoch?: {
+    k: number;
+    d: number;
+  };
+
+  // Custom indicators (trader-specific)
+  [key: string]: any;
+}
+
+/**
+ * Key price levels for trade management
+ */
+export interface KeyLevels {
+  entry: number;              // Recommended entry price
+  stopLoss: number;           // ATR-based stop loss
+  takeProfit: number[];       // Multiple TP targets
+  support: number[];          // Support levels from recent lows
+  resistance: number[];       // Resistance levels from recent highs
+}
+
+/**
+ * Structured trade execution plan
+ */
+export interface TradePlan {
+  setup: string;              // When/why to enter
+  execution: string;          // How to manage position
+  invalidation: string;       // When to exit/abandon
+  riskReward: number;         // Expected R:R ratio
+}
+
+/**
+ * Request payload from Fly machine to Edge Function
+ */
+export interface AnalysisRequest {
+  // Signal identification
+  signalId: string;           // UUID from signals table
+  traderId: string;           // UUID from traders table
+  userId: string;             // UUID from users table (for RLS)
+
+  // Market data
+  symbol: string;             // e.g., "BTCUSDT"
+  price: number;              // Current price at signal trigger
+  klines: Kline[];            // Last 100 historical klines
+
+  // Trading context
+  strategy: string;           // User's strategy description
+  calculatedIndicators: CalculatedIndicators; // Pre-calculated technical indicators
+
+  // Metadata
+  priority: 'low' | 'normal' | 'high';
+  correlationId: string;      // For distributed tracing
+}
+
+/**
+ * Response from Edge Function to Fly machine
+ */
+export interface AnalysisResponse {
+  // Core analysis
+  signalId: string;
+  decision: 'enter_trade' | 'bad_setup' | 'wait';
+  confidence: number;         // 0-100 scale
+  reasoning: string;          // Multi-line explanation
+
+  // Trade execution details
+  keyLevels: KeyLevels;
+  tradePlan: TradePlan;
+  technicalIndicators: Record<string, any>;
+
+  // Performance metadata
+  metadata: {
+    analysisLatencyMs: number;
+    geminiTokensUsed: number;
+    modelName: string;
+    rawAiResponse: string;    // Full Gemini JSON response
+  };
+
+  // Error handling
+  error?: {
+    code: string;
+    message: string;
+    retryable: boolean;
+  };
+}
+
+/**
+ * Database record for signal_analyses table
+ */
+export interface SignalAnalysisRecord {
+  id: string;                 // UUID
+  signal_id: string;          // FK to signals.id
+  trader_id: string;          // Denormalized for queries
+  user_id: string;            // Denormalized for RLS
+  decision: string;
+  confidence: number;
+  reasoning: string;
+  key_levels: KeyLevels;      // JSONB
+  trade_plan: TradePlan;      // JSONB
+  technical_indicators: Record<string, any>; // JSONB
+  raw_ai_response: string;    // TEXT (can be large)
+  analysis_latency_ms: number;
+  gemini_tokens_used: number;
+  model_name: string;
+  created_at: string;         // ISO timestamp
+  updated_at: string;         // ISO timestamp
+}

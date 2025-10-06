@@ -8,7 +8,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import {
   IConcurrentAnalyzer,
   AnalysisQueueItem,
-  AnalysisQueue
+  AnalysisQueue,
+  AnalysisResponse
 } from '../types';
 
 interface AnalysisTask {
@@ -146,17 +147,131 @@ export class ConcurrentAnalyzer extends EventEmitter implements IConcurrentAnaly
   }
 
   private async callAnalysisEdgeFunction(task: AnalysisTask): Promise<any> {
-    // TODO: AI analysis Edge Function not yet implemented
-    // For now, return a placeholder result
-    console.log(`[ConcurrentAnalyzer] Skipping AI analysis for ${task.symbol} (Edge Function not implemented)`);
+    const correlationId = `${task.signalId}_${Date.now()}`;
 
-    return {
-      signal_id: task.signalId,
-      trader_id: task.traderId,
-      symbol: task.symbol,
-      analysis_skipped: true,
-      reason: 'AI analysis Edge Function not yet implemented'
-    };
+    console.log(`[ConcurrentAnalyzer] [${correlationId}] Calling AI Analysis Edge Function for ${task.symbol}`);
+
+    try {
+      // 1. Load trader to get strategy and required indicators
+      const { data: trader, error: traderError } = await this.supabase
+        .from('traders')
+        .select('strategy, filter')
+        .eq('id', task.traderId)
+        .single();
+
+      if (traderError || !trader) {
+        throw new Error(`Failed to load trader ${task.traderId}: ${traderError?.message || 'Not found'}`);
+      }
+
+      // 2. Load signal to get current price and match details
+      const { data: signal, error: signalError } = await this.supabase
+        .from('signals')
+        .select('price, matched_conditions')
+        .eq('id', task.signalId)
+        .single();
+
+      if (signalError || !signal) {
+        throw new Error(`Failed to load signal ${task.signalId}: ${signalError?.message || 'Not found'}`);
+      }
+
+      // 3. Fetch historical klines (last 100 candles for AI analysis)
+      const klines = await this.fetchKlinesForSymbol(task.symbol, 100);
+
+      // 4. Calculate indicators based on trader's configuration
+      const calculatedIndicators = this.calculateIndicators(
+        klines,
+        trader.filter?.indicators || []
+      );
+
+      // 5. Build Edge Function request payload
+      const requestPayload = {
+        signalId: task.signalId,
+        traderId: task.traderId,
+        userId: '', // Will be filled from context if needed
+        symbol: task.symbol,
+        price: signal.price,
+        klines,
+        strategy: trader.strategy || 'No strategy provided',
+        calculatedIndicators,
+        priority: task.priority,
+        correlationId
+      };
+
+      // 6. Call Edge Function
+      const edgeFunctionUrl = process.env.SUPABASE_EDGE_FUNCTION_URL ||
+        `${process.env.SUPABASE_URL}/functions/v1/ai-analysis`;
+
+      const response = await fetch(edgeFunctionUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          'x-correlation-id': correlationId
+        },
+        body: JSON.stringify(requestPayload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Edge Function error (${response.status}): ${errorText}`);
+      }
+
+      const analysisResponse = await response.json() as AnalysisResponse;
+
+      console.log(`[ConcurrentAnalyzer] [${correlationId}] Analysis received: ${analysisResponse.decision} (confidence: ${analysisResponse.confidence})`);
+
+      // 7. Write analysis to signal_analyses table
+      const { error: writeError } = await this.supabase
+        .from('signal_analyses')
+        .insert({
+          signal_id: task.signalId,
+          trader_id: task.traderId,
+          user_id: requestPayload.userId || '', // Use userId from request
+          decision: analysisResponse.decision,
+          confidence: analysisResponse.confidence,
+          reasoning: analysisResponse.reasoning,
+          key_levels: analysisResponse.keyLevels,
+          trade_plan: analysisResponse.tradePlan,
+          technical_indicators: analysisResponse.technicalIndicators,
+          raw_ai_response: analysisResponse.metadata.rawAiResponse,
+          analysis_latency_ms: analysisResponse.metadata.analysisLatencyMs,
+          gemini_tokens_used: analysisResponse.metadata.geminiTokensUsed,
+          model_name: analysisResponse.metadata.modelName
+        });
+
+      if (writeError) {
+        console.error(`[ConcurrentAnalyzer] [${correlationId}] Failed to write analysis:`, writeError);
+        // Don't throw - analysis succeeded even if write failed
+      } else {
+        console.log(`[ConcurrentAnalyzer] [${correlationId}] Analysis written to database`);
+      }
+
+      return analysisResponse;
+
+    } catch (error) {
+      console.error(`[ConcurrentAnalyzer] [${correlationId}] Edge Function call failed:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch historical klines for a symbol
+   */
+  private async fetchKlinesForSymbol(symbol: string, limit: number): Promise<any[]> {
+    // TODO: Implement kline fetching from Binance or cache
+    // For now, return empty array as placeholder
+    console.warn(`[ConcurrentAnalyzer] Kline fetching not yet implemented for ${symbol}`);
+    return [];
+  }
+
+  /**
+   * Calculate technical indicators based on trader configuration
+   */
+  private calculateIndicators(klines: any[], indicatorConfigs: any[]): any {
+    // TODO: Implement indicator calculations using screenerHelpers
+    // For now, return empty object as placeholder
+    console.warn(`[ConcurrentAnalyzer] Indicator calculation not yet implemented`);
+    return {};
   }
 
   private handleTaskSuccess(task: AnalysisTask, result: any): void {

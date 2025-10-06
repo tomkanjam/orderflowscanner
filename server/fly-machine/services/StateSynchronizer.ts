@@ -204,6 +204,19 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
     this.metricsCounters.analysesCompleted++;
   }
 
+  /**
+   * Queue analysis result for potential future batch operations
+   * NOTE: Currently analyses are written directly by ConcurrentAnalyzer
+   * This method exists for future optimizations if needed
+   */
+  queueAnalysis(analysisId: string, signalId: string): void {
+    // Analysis already written to database by ConcurrentAnalyzer
+    // Just increment counter for metrics tracking
+    this.metricsCounters.analysesCompleted++;
+
+    console.log(`[StateSynchronizer] Analysis ${analysisId} completed for signal ${signalId}`);
+  }
+
   async flush(): Promise<void> {
     if (this.signalQueue.length === 0 && this.metricsQueue.length === 0 && this.eventQueue.length === 0) {
       return; // Nothing to flush

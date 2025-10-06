@@ -11,6 +11,7 @@ import { StateSynchronizer } from './services/StateSynchronizer';
 import { DynamicScaler } from './services/DynamicScaler';
 import { HealthMonitor } from './services/HealthMonitor';
 import { WebSocketServer } from './services/WebSocketServer';
+import { EdgeFunctionHealthPing } from './services/EdgeFunctionHealthPing';
 import {
   FlyMachineConfig,
   CloudTrader,
@@ -39,6 +40,7 @@ export class Orchestrator extends EventEmitter {
   private scaler: DynamicScaler;
   private healthMonitor: HealthMonitor;
   private wsServer: WebSocketServer;
+  private edgeFunctionPing: EdgeFunctionHealthPing;
 
   // Configuration
   private config: OrchestratorConfig;
@@ -70,6 +72,11 @@ export class Orchestrator extends EventEmitter {
     this.scaler = new DynamicScaler();
     this.healthMonitor = new HealthMonitor();
     this.wsServer = new WebSocketServer();
+
+    // Initialize Edge Function health ping
+    const edgeFunctionUrl = process.env.SUPABASE_EDGE_FUNCTION_URL ||
+      `${process.env.SUPABASE_URL}/functions/v1/ai-analysis`;
+    this.edgeFunctionPing = new EdgeFunctionHealthPing(edgeFunctionUrl);
 
     // Wire up event handlers
     this.setupEventHandlers();
@@ -181,6 +188,31 @@ export class Orchestrator extends EventEmitter {
       console.log('[Orchestrator] Force sync requested');
       await this.synchronizer.flush();
     });
+
+    // Edge Function health ping events
+    this.edgeFunctionPing.on('health_degraded', (event: any) => {
+      console.error('[Orchestrator] Edge Function health degraded:', event.error);
+      this.healthMonitor.recordError('edge_function', event.error);
+      this.synchronizer.queueEvent(
+        'machine_error',
+        'error',
+        `Edge Function health check failed: ${event.error}`
+      );
+    });
+
+    this.edgeFunctionPing.on('health_restored', () => {
+      console.log('[Orchestrator] Edge Function health restored');
+      this.synchronizer.queueEvent(
+        'config_synced',
+        'info',
+        'Edge Function health check restored'
+      );
+    });
+
+    this.edgeFunctionPing.on('ping_failed', (event: any) => {
+      console.warn('[Orchestrator] Edge Function ping failed:', event.error);
+      this.metrics.errors++;
+    });
   }
 
   async start(): Promise<void> {
@@ -220,7 +252,11 @@ export class Orchestrator extends EventEmitter {
       // 7. Start WebSocket server
       await this.wsServer.start();
 
-      // 8. Determine required intervals from traders (like browser does)
+      // 8. Start Edge Function health ping service
+      await this.edgeFunctionPing.start();
+      console.log('[Orchestrator] Edge Function health ping service started');
+
+      // 9. Determine required intervals from traders (like browser does)
       const requiredIntervals = this.determineRequiredIntervals();
       console.log(`[Orchestrator] Required kline intervals: ${requiredIntervals.join(', ')}`);
 
@@ -499,14 +535,26 @@ export class Orchestrator extends EventEmitter {
   private handleAnalysisComplete(result: any): void {
     console.log('[Orchestrator] Analysis complete:', result.signalId);
 
+    // Track analysis in synchronizer metrics
+    this.synchronizer.incrementAnalysisCount();
+
     // Broadcast to browser
     this.wsServer.broadcastAnalysisCompleted({
       signalId: result.signalId,
-      decision: result.decision,
-      confidence: result.confidence
+      decision: result.result?.decision || 'unknown',
+      confidence: result.result?.confidence || 0,
+      reasoning: result.result?.reasoning,
+      tradePlan: result.result?.tradePlan
     });
 
     this.metrics.totalAnalyses++;
+
+    // Log detailed analysis result
+    if (result.result) {
+      console.log(`[Orchestrator]   Decision: ${result.result.decision}`);
+      console.log(`[Orchestrator]   Confidence: ${result.result.confidence}%`);
+      console.log(`[Orchestrator]   Reasoning: ${result.result.reasoning?.substring(0, 100)}...`);
+    }
   }
 
   pause(): void {
@@ -559,26 +607,29 @@ export class Orchestrator extends EventEmitter {
 
     // Shutdown all services in reverse order
     try {
-      // 1. Disconnect Binance WebSocket
+      // 1. Stop Edge Function health ping
+      await this.edgeFunctionPing.stop();
+
+      // 2. Disconnect Binance WebSocket
       await this.binance.disconnect();
 
-      // 2. Stop WebSocket server
+      // 3. Stop WebSocket server
       await this.wsServer.stop();
 
-      // 3. Shutdown dynamic scaler
+      // 4. Shutdown dynamic scaler
       await this.scaler.shutdown();
 
-      // 4. Shutdown concurrent analyzer
+      // 5. Shutdown concurrent analyzer
       await this.analyzer.shutdown();
 
-      // 5. Flush and shutdown synchronizer
+      // 6. Flush and shutdown synchronizer
       await this.synchronizer.flush();
       await this.synchronizer.shutdown();
 
-      // 6. Shutdown parallel screener
+      // 7. Shutdown parallel screener
       await this.screener.shutdown();
 
-      // 7. Stop health monitor
+      // 8. Stop health monitor
       await this.healthMonitor.stop();
 
       console.log('[Orchestrator] Stopped');
@@ -608,7 +659,8 @@ export class Orchestrator extends EventEmitter {
         synchronizer: this.synchronizer.getStats(),
         scaler: this.scaler.getStats(),
         healthMonitor: this.healthMonitor.getStats(),
-        wsServer: this.wsServer.getStats()
+        wsServer: this.wsServer.getStats(),
+        edgeFunctionPing: this.edgeFunctionPing.getStats()
       }
     };
   }

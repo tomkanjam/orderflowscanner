@@ -6,6 +6,9 @@
 import { Trader, TraderMetrics } from '../shared/abstractions/trader.interfaces';
 import { Ticker, Kline } from '../shared/types/types';
 
+// Re-export AI Analysis types from shared for convenience
+export type { AnalysisResponse, AnalysisRequest, CalculatedIndicators, KeyLevels, TradePlan } from '../shared/types/types';
+
 // ============================================================================
 // Fly Machine Configuration
 // ============================================================================

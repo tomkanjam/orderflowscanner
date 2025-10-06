@@ -7,7 +7,6 @@ import { Orchestrator } from './Orchestrator';
 import { FlyMachineConfig, ScalingPolicy } from './types';
 
 // Environment variables
-const USER_ID = process.env.USER_ID || '';
 const MACHINE_ID = process.env.MACHINE_ID || `machine_${Date.now()}`;
 const MACHINE_REGION = (process.env.MACHINE_REGION || 'sin') as 'sin' | 'iad' | 'fra';
 const MACHINE_CPUS = parseInt(process.env.MACHINE_CPUS || '1', 10);
@@ -21,7 +20,7 @@ const SCREENING_INTERVAL_MS = parseInt(process.env.SCREENING_INTERVAL_MS || '600
 
 // Validate required environment variables
 function validateEnvironment(): void {
-  const required = ['USER_ID', 'SUPABASE_URL', 'SUPABASE_SERVICE_KEY'];
+  const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY'];
   const missing = required.filter(key => !process.env[key]);
 
   if (missing.length > 0) {
@@ -89,19 +88,19 @@ async function main() {
   validateEnvironment();
 
   console.log('[Main] Configuration:');
-  console.log('  User ID:', USER_ID);
   console.log('  Machine ID:', MACHINE_ID);
   console.log('  Region:', MACHINE_REGION);
   console.log('  CPUs:', MACHINE_CPUS);
   console.log('  Memory:', MACHINE_MEMORY, 'MB');
   console.log('  Kline Interval:', KLINE_INTERVAL);
   console.log('  Screening Interval:', SCREENING_INTERVAL_MS, 'ms');
+  console.log('  Mode: Multi-tenant (serving all users)');
   console.log();
 
   // Machine configuration
   const machineConfig: FlyMachineConfig = {
     machineId: MACHINE_ID,
-    userId: USER_ID,
+    userId: 'multi-tenant', // No longer tied to a single user
     region: MACHINE_REGION,
     cpus: MACHINE_CPUS,
     memory: MACHINE_MEMORY,
@@ -126,7 +125,7 @@ async function main() {
 
   // Create orchestrator
   const orchestrator = new Orchestrator({
-    userId: USER_ID,
+    userId: 'multi-tenant', // Multi-tenant mode - serves all users
     machineConfig,
     scalingPolicy,
     supabaseUrl: SUPABASE_URL,

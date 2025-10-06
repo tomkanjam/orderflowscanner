@@ -132,26 +132,11 @@ export const SUBSCRIPTION_TO_TIER: Record<SubscriptionTier | 'anonymous', string
 /**
  * Complete tier configuration array
  * Order matters - displayed in this order in the modal
+ *
+ * Note: Guest tier removed from modal - users can browse as guest by default,
+ * modal is focused on signup/upgrade CTAs only
  */
 export const TIER_CONFIGS: TierConfig[] = [
-  // Guest Tier - Anonymous users
-  {
-    id: 'guest',
-    name: 'Guest',
-    displayName: 'GUEST',
-    price: 'free',
-    priceDisplay: 'Free',
-    features: [
-      'View all built-in signals',
-      'Real-time price charts',
-      'Basic market data',
-      'Live signal triggers (view only)'
-    ],
-    ctaText: 'Continue as Guest',
-    ctaAction: 'close',
-    description: 'Browse signals without signing in'
-  },
-
   // Starter Tier - Free with auth
   {
     id: 'starter',

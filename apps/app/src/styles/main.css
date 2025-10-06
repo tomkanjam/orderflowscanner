@@ -13,6 +13,9 @@
 @import url('/trademind-design-system.css');
 @import url('/trademind-to-neon-migration.css');
 
+/* Import component styles */
+@import '../components/tiers/tiers.css';
+
 /* Tailwind directives */
 @tailwind base;
 @tailwind components;

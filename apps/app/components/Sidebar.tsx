@@ -14,6 +14,8 @@ import { EmailAuthModal } from '../src/components/auth/EmailAuthModal';
 import { StatusBar } from '../src/components/StatusBar';
 import { webSocketManager } from '../src/utils/webSocketManager';
 import { useWebSocketMetrics } from '../hooks/useWebSocketMetrics';
+import { CreateSignalButton } from '../src/components/tiers/CreateSignalButton';
+import { TierSelectionModal } from '../src/components/tiers/TierSelectionModal';
 
 interface SidebarProps {
   onSelectedTraderChange?: (traderId: string | null) => void;
@@ -37,6 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showTierModal, setShowTierModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   
   // WebSocket connection status
@@ -95,6 +98,17 @@ const Sidebar: React.FC<SidebarProps> = ({
     setShowAuthModal(false);
   };
 
+  const handleTierModalAuthRequired = () => {
+    setShowTierModal(false);
+    setShowAuthModal(true);
+  };
+
+  const handleTierModalUpgrade = (tierId: string) => {
+    console.log(`[Sidebar] User wants to upgrade to tier: ${tierId}`);
+    // TODO: Implement payment/upgrade flow
+    // For now, just log the intent
+  };
+
   return (
     <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--nt-bg-secondary)] flex flex-col border-r border-[var(--nt-border-default)] h-screen">
       {/* Status Bar Header */}
@@ -109,7 +123,12 @@ const Sidebar: React.FC<SidebarProps> = ({
       
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col">
-      
+
+      {/* Create Signal with AI Button - Always visible at top */}
+      <div className="mb-4">
+        <CreateSignalButton onClick={() => setShowTierModal(true)} />
+      </div>
+
       {/* Show form or list based on state */}
       {showCreateForm || editingTrader ? (
         <div className="flex-1">
@@ -238,6 +257,14 @@ const Sidebar: React.FC<SidebarProps> = ({
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
           onAuthSuccess={handleAuthSuccess}
+        />
+
+        {/* Tier Selection Modal */}
+        <TierSelectionModal
+          isOpen={showTierModal}
+          onClose={() => setShowTierModal(false)}
+          onAuthRequired={handleTierModalAuthRequired}
+          onUpgradeRequired={handleTierModalUpgrade}
         />
       </div>
     </aside>

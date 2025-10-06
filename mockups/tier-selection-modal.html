@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tier Selection Modal - Mockup</title>
+    <link rel="stylesheet" href="tier-modal-styles.css">
+</head>
+<body>
+    <!-- Sidebar Preview -->
+    <div class="sidebar">
+        <div class="status-bar">
+            <div class="status-item">Status: Connected</div>
+        </div>
+
+        <!-- Create Signal with AI Button (NEW) -->
+        <div class="button-container">
+            <button class="create-signal-btn" id="openModalBtn">
+                <span class="btn-icon">✨</span>
+                <span>Create Signal with AI</span>
+            </button>
+        </div>
+
+        <!-- Existing Trader List -->
+        <div class="trader-list">
+            <div class="section-header">
+                <h3>Signals</h3>
+            </div>
+            <div class="signal-item">
+                <span>RSI Oversold</span>
+                <span class="badge badge-success">Active</span>
+            </div>
+            <div class="signal-item">
+                <span>MACD Cross</span>
+                <span class="badge badge-default">Inactive</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tier Selection Modal -->
+    <div class="modal-overlay" id="tierModal">
+        <div class="modal-container">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title">Choose Your Plan</h2>
+                    <p class="modal-subtitle">Start creating custom signals with AI</p>
+                </div>
+                <button class="modal-close" id="closeModalBtn" aria-label="Close modal">
+                    ×
+                </button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="modal-content">
+                <!-- Guest Tier Card -->
+                <div class="tier-card">
+                    <div class="tier-header">
+                        <div class="tier-name-row">
+                            <h3 class="tier-name">GUEST</h3>
+                            <span class="tier-badge badge-current" id="guestBadge" style="display: none;">CURRENT</span>
+                        </div>
+                        <div class="tier-price">Free</div>
+                    </div>
+                    <p class="tier-description">Browse signals without signing in</p>
+                    <ul class="tier-features">
+                        <li><span class="check">✓</span> View all built-in signals</li>
+                        <li><span class="check">✓</span> Real-time price charts</li>
+                        <li><span class="check">✓</span> Basic market data</li>
+                        <li><span class="check">✓</span> Live signal triggers (view only)</li>
+                    </ul>
+                    <button class="tier-cta btn-secondary" data-action="close">Continue as Guest</button>
+                </div>
+
+                <!-- Starter Tier Card -->
+                <div class="tier-card tier-highlighted">
+                    <div class="tier-header">
+                        <div class="tier-name-row">
+                            <h3 class="tier-name">STARTER</h3>
+                            <span class="tier-badge badge-popular">POPULAR</span>
+                            <span class="tier-badge badge-current" id="starterBadge" style="display: none;">CURRENT</span>
+                        </div>
+                        <div class="tier-price">Free</div>
+                    </div>
+                    <p class="tier-description">Sign in with email to unlock notifications and history</p>
+                    <ul class="tier-features">
+                        <li class="feature-subtitle">Everything in Guest, plus:</li>
+                        <li><span class="check">✓</span> Sound notifications for signals</li>
+                        <li><span class="check">✓</span> Signal watchlist/favorites</li>
+                        <li><span class="check">✓</span> Signal trigger history</li>
+                        <li><span class="check">✓</span> Persistent preferences</li>
+                    </ul>
+                    <button class="tier-cta btn-primary" data-action="auth">Sign In to Get Started</button>
+                </div>
+
+                <!-- Lite Tier Card -->
+                <div class="tier-card tier-recommended">
+                    <div class="tier-header">
+                        <div class="tier-name-row">
+                            <h3 class="tier-name">LITE</h3>
+                            <span class="tier-badge badge-recommended">RECOMMENDED</span>
+                        </div>
+                        <div class="tier-price">$39<span class="price-period">/month</span></div>
+                    </div>
+                    <p class="tier-description">Unlock AI-powered signal creation</p>
+                    <ul class="tier-features">
+                        <li class="feature-subtitle">Everything in Starter, plus:</li>
+                        <li><span class="check highlight">✨</span> <strong>Create custom signals with AI</strong></li>
+                        <li><span class="check">✓</span> Up to 10 custom signals</li>
+                        <li><span class="check">✓</span> No coding required</li>
+                        <li><span class="check">✓</span> Natural language trading strategies</li>
+                        <li><span class="check">✓</span> Save and edit custom signals</li>
+                    </ul>
+                    <button class="tier-cta btn-primary" data-action="upgrade">Upgrade to Lite</button>
+                </div>
+
+                <!-- Pro Tier Card -->
+                <div class="tier-card tier-locked">
+                    <div class="tier-header">
+                        <div class="tier-name-row">
+                            <h3 class="tier-name">PRO</h3>
+                            <span class="tier-badge badge-locked">COMING SOON</span>
+                        </div>
+                        <div class="tier-price">Coming Soon</div>
+                    </div>
+                    <p class="tier-description">Full AI trading automation (in development)</p>
+                    <ul class="tier-features">
+                        <li class="feature-subtitle">Everything in Lite, plus:</li>
+                        <li><span class="check">🤖</span> Fully autonomous AI trading</li>
+                        <li><span class="check">☁️</span> Persistent signals (run 24/7)</li>
+                        <li><span class="check">📧</span> Email/SMS/Telegram/Discord</li>
+                        <li><span class="check">♾️</span> Unlimited custom signals</li>
+                        <li><span class="check">📊</span> Advanced analytics</li>
+                    </ul>
+                    <button class="tier-cta btn-secondary" data-action="waitlist" disabled>Join Waitlist</button>
+                </div>
+            </div>
+
+            <!-- Loading State (hidden by default) -->
+            <div class="loading-state" id="loadingState" style="display: none;">
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User State Toggle (for testing) -->
+    <div class="test-controls">
+        <button onclick="setUserState('anonymous')">Anonymous User</button>
+        <button onclick="setUserState('free')">Free Tier User</button>
+        <button onclick="toggleLoading()">Toggle Loading</button>
+    </div>
+
+    <script src="tier-modal-script.js"></script>
+</body>
+</html>

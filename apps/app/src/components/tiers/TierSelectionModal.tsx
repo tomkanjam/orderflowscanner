@@ -26,6 +26,14 @@ export const TierSelectionModal: React.FC<TierSelectionModalProps> = ({
   // Get current tier ID for comparison
   const currentTierId = SUBSCRIPTION_TO_TIER[currentTier];
 
+  // Helper to check if user's tier is higher than a given tier
+  const isHigherTier = (tierId: string): boolean => {
+    const tierOrder = ['guest', 'starter', 'lite', 'pro'];
+    const currentIndex = tierOrder.indexOf(currentTierId);
+    const compareIndex = tierOrder.indexOf(tierId);
+    return currentIndex > compareIndex;
+  };
+
   // Debug logging when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -137,6 +145,7 @@ export const TierSelectionModal: React.FC<TierSelectionModalProps> = ({
               key={tierConfig.id}
               config={tierConfig}
               isCurrentTier={tierConfig.id === currentTierId}
+              isIncludedInPlan={isHigherTier(tierConfig.id)}
               onClick={() => handleTierAction(tierConfig.id, tierConfig.ctaAction)}
             />
           ))}

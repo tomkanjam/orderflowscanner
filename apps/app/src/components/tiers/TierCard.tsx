@@ -11,6 +11,7 @@ import { TierCardProps } from '../../constants/tiers';
 export const TierCard: React.FC<TierCardProps> = ({
   config,
   isCurrentTier,
+  isIncludedInPlan = false,
   onClick
 }) => {
   // Determine card styling classes based on configuration
@@ -56,8 +57,8 @@ export const TierCard: React.FC<TierCardProps> = ({
   const getCtaClasses = (): string => {
     const baseClasses = 'tier-cta';
 
-    // If this is the current tier, use a disabled style
-    if (isCurrentTier) {
+    // If this is the current tier or included in plan, use a disabled style
+    if (isCurrentTier || isIncludedInPlan) {
       return `${baseClasses} btn-current`;
     }
 
@@ -72,6 +73,9 @@ export const TierCard: React.FC<TierCardProps> = ({
   const getCtaText = (): string => {
     if (isCurrentTier) {
       return 'Current Plan';
+    }
+    if (isIncludedInPlan) {
+      return 'Included in Your Plan';
     }
     return config.ctaText;
   };
@@ -167,7 +171,7 @@ export const TierCard: React.FC<TierCardProps> = ({
       <button
         className={getCtaClasses()}
         onClick={onClick}
-        disabled={config.isLocked || isCurrentTier}
+        disabled={config.isLocked || isCurrentTier || isIncludedInPlan}
         aria-label={`${getCtaText()} for ${config.displayName} tier`}
       >
         {getCtaText()}

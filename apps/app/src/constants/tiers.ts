@@ -80,6 +80,9 @@ export interface TierCardProps {
   /** Whether this is the user's current tier */
   isCurrentTier: boolean;
 
+  /** Whether this tier is included in the user's current plan (user is on higher tier) */
+  isIncludedInPlan?: boolean;
+
   /** Callback when card CTA is clicked */
   onClick: () => void;
 }

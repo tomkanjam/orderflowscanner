@@ -114,9 +114,9 @@ Deno.test("GeminiClient - Server error (500) retries 3 times", async () => {
 
   // Track fetch calls
   const trackedFetch = globalThis.fetch;
-  globalThis.fetch = async (...args: any[]) => {
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     callCount++;
-    return trackedFetch(...args);
+    return trackedFetch(input, init);
   };
 
   try {
@@ -135,8 +135,25 @@ Deno.test("GeminiClient - Server error (500) retries 3 times", async () => {
 Deno.test("GeminiClient - Timeout throws error", async () => {
   const client = new GeminiClient("test-api-key");
 
-  // Mock fetch that never resolves (simulates timeout)
-  globalThis.fetch = () => new Promise(() => {});
+  // Mock fetch that respects abort signal
+  globalThis.fetch = (_input: RequestInfo | URL, init?: RequestInit) => {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        resolve(new Response(JSON.stringify(createValidGeminiResponse()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }));
+      }, 25000); // Longer than 20s timeout
+
+      // Listen for abort signal
+      if (init?.signal) {
+        init.signal.addEventListener('abort', () => {
+          clearTimeout(timeout);
+          reject(new DOMException('The operation was aborted.', 'AbortError'));
+        });
+      }
+    });
+  };
 
   try {
     await assertRejects(
@@ -286,10 +303,10 @@ Deno.test("GeminiClient - Exponential backoff timing", async () => {
   mockFetch({ error: 'Server error' }, 500);
 
   const trackedFetch = globalThis.fetch;
-  globalThis.fetch = async (...args: any[]) => {
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     callCount++;
     callTimes.push(Date.now());
-    return trackedFetch(...args);
+    return trackedFetch(input, init);
   };
 
   try {

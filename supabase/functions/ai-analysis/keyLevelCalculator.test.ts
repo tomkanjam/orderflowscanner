@@ -30,7 +30,7 @@ function createTestKlines(count: number = 50, basePrice: number = 50000): Kline[
       low.toString(),
       close.toString(),
       volume.toString(),
-      (Date.now() + i * 60000 + 60000), // close time
+      Date.now() + i * 60000 + 60000, // close time
       "0", // quote volume
       0, // trades
       "0", // taker buy base
@@ -61,7 +61,9 @@ function createKlinesWithSwingPoints(): Kline[] {
     price.toString(),
     "1000",
     Date.now() + i * 60000 + 60000,
-    "0", "0", "0", "0", "0"
+    "0",
+    0, // numberOfTrades (number)
+    "0", "0", "0"
   ] as Kline);
 }
 
@@ -228,10 +230,11 @@ Deno.test("KeyLevelCalculator - ATR calculation when not provided", () => {
   const calculator = new KeyLevelCalculator();
 
   // Create klines with known True Range
+  const now = Date.now();
   const klines: Kline[] = [
-    [Date.now(), "50000", "50500", "49500", "50000", "1000", Date.now() + 60000, "0", 0, "0", "0", "0"],
-    [Date.now() + 60000, "50000", "50600", "49400", "50200", "1000", Date.now() + 120000, "0", 0, "0", "0", "0"],
-    [Date.now() + 120000, "50200", "50700", "49700", "50400", "1000", Date.now() + 180000, "0", 0, "0", "0", "0"]
+    [now, "50000", "50500", "49500", "50000", "1000", now + 60000, "0", 0, "0", "0", "0"],
+    [now + 60000, "50000", "50600", "49400", "50200", "1000", now + 120000, "0", 0, "0", "0", "0"],
+    [now + 120000, "50200", "50700", "49700", "50400", "1000", now + 180000, "0", 0, "0", "0", "0"]
   ];
 
   const currentPrice = 50400;

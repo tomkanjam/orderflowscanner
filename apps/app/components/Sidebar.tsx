@@ -110,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className="w-full md:w-1/3 xl:w-1/4 bg-[var(--nt-bg-secondary)] flex flex-col border-r border-[var(--nt-border-default)] h-screen">
+    <aside className="w-full md:w-80 xl:w-[360px] flex-shrink-0 bg-[var(--sidebar-background)] flex flex-col border-r border-[var(--sidebar-border)] h-screen">
       {/* Status Bar Header */}
       <StatusBar
         connectionStatus={connectionStatus}

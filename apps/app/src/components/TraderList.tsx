@@ -8,7 +8,7 @@ import { getSignalAccess } from '../utils/tierAccess';
 import { TierGate } from './TierGate';
 import { UpgradePrompt } from './UpgradePrompt';
 import { SubscriptionTier } from '../types/subscription.types';
-import { SignalCardEnhanced } from './SignalCardEnhanced';
+import { SignalListItem } from './SignalListItem';
 import { useCloudExecution } from '../hooks/useCloudExecution';
 import { CloudExecutionPanel } from './cloud/CloudExecutionPanel';
 
@@ -153,7 +153,7 @@ export function TraderList({
             <p className="mb-2">No signals available</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="border-t border-sidebar-border">
             {builtInSignals.map(trader => {
               const access = getSignalAccess(trader, currentTier);
               const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
@@ -161,30 +161,28 @@ export function TraderList({
               const effectivelyEnabled = getEffectiveEnabled(trader);
 
               return (
-                <SignalCardEnhanced
+                <SignalListItem
                   key={trader.id}
                   signal={{...trader, enabled: effectivelyEnabled}}
                   isSelected={isSelected}
                   isFavorite={isFavorite}
-                  canView={access.canView}
-                  canFavorite={access.canFavorite}
-                  showEnableToggle={true}
-                  showAccessIndicator={true}
-                  showEditDelete={profile?.is_admin}
+                  canEdit={profile?.is_admin || false}
+                  canDelete={profile?.is_admin || false}
                   onSelect={() => onSelectTrader?.(isSelected ? null : trader.id)}
+                  onToggleEnable={() => handleToggleTrader(trader)}
                   onEdit={() => onEditTrader(trader)}
                   onDelete={() => handleDeleteTrader(trader)}
                   onToggleFavorite={() => handleToggleFavorite(trader.id)}
-                  onToggleEnable={() => handleToggleTrader(trader)}
                 />
               );
             })}
             {lockedSignals.length > 0 && currentTier === 'anonymous' && (
-              <UpgradePrompt 
-                feature="20+ professional signals" 
-                requiredTier={SubscriptionTier.FREE}
-                className="mt-4"
-              />
+              <div className="p-4">
+                <UpgradePrompt
+                  feature="20+ professional signals"
+                  requiredTier={SubscriptionTier.FREE}
+                />
+              </div>
             )}
           </div>
         )}
@@ -245,13 +243,13 @@ export function TraderList({
                 {currentTier === 'elite' ? 'No AI traders yet' : 'No signals yet'}
               </p>
               <p className="text-sm">
-                {currentTier === 'elite' 
+                {currentTier === 'elite'
                   ? 'Create your first AI trader to start automated analysis and trading'
                   : 'Create your first signal to start automated screening'}
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="border-t border-sidebar-border">
               {customSignals.map(trader => {
                 const access = getSignalAccess(trader, currentTier);
                 const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
@@ -259,24 +257,21 @@ export function TraderList({
                 const canEditDelete = profile?.is_admin || trader.createdBy === profile?.id;
 
                 return (
-                  <SignalCardEnhanced
+                  <SignalListItem
                     key={trader.id}
                     signal={trader}
                     isSelected={isSelected}
                     isFavorite={isFavorite}
-                    canView={access.canView}
-                    canFavorite={access.canFavorite}
-                    showEnableToggle={true}
-                    showEditDelete={canEditDelete}
-                    showAIFeatures={currentTier === 'elite'} // Pass tier info
-                    showCloudExecution={cloudExecution.isEliteTier} // Show cloud controls for Elite users
+                    showCloudStatus={cloudExecution.isEliteTier}
                     cloudMachineStatus={cloudExecution.machineStatus}
+                    canEdit={canEditDelete}
+                    canDelete={canEditDelete}
                     onSelect={() => onSelectTrader?.(isSelected ? null : trader.id)}
                     onToggleEnable={() => handleToggleTrader(trader)}
+                    onToggleCloud={() => handleToggleCloudExecution(trader)}
                     onEdit={() => onEditTrader(trader)}
                     onDelete={() => handleDeleteTrader(trader)}
                     onToggleFavorite={() => handleToggleFavorite(trader.id)}
-                    onToggleCloudExecution={() => handleToggleCloudExecution(trader)}
                   />
                 );
               })}

@@ -25,7 +25,8 @@
 /* Base styles */
 @layer base {
   body {
-    @apply bg-gray-900 text-gray-100;
+    background-color: var(--background);
+    color: var(--foreground);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     overscroll-behavior: none;
   }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trader } from '../abstractions/trader.interfaces';
-import { Power, Cloud, CloudOff, MoreVertical } from 'lucide-react';
+import { Power, Cloud, CloudOff, MoreVertical, Sparkles, Radio } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,10 +48,23 @@ export function SignalListItem({
   const activityState = activityTracker.getActivityState(signal.id);
 
   // Format last trigger time
-  const formatLastTrigger = (date: Date | undefined): string => {
+  const formatLastTrigger = (date: Date | string | number | undefined): string => {
     if (!date) return 'Never';
+
+    // Convert to timestamp
+    let timestamp: number;
+    if (typeof date === 'number') {
+      timestamp = date;
+    } else if (typeof date === 'string') {
+      timestamp = new Date(date).getTime();
+    } else if (date instanceof Date) {
+      timestamp = date.getTime();
+    } else {
+      return 'Never';
+    }
+
     const now = Date.now();
-    const diff = now - date.getTime();
+    const diff = now - timestamp;
 
     if (diff < 60 * 1000) return 'Just now';
     if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))}m ago`;
@@ -103,17 +116,24 @@ export function SignalListItem({
         title={`Activity: ${activityState}`}
       />
 
+      {/* Type icon - Trader (AI) or Signal */}
+      <div
+        className="flex-shrink-0 text-muted-foreground"
+        title={signal.isBuiltIn ? 'Signal' : 'AI Trader'}
+      >
+        {signal.isBuiltIn ? (
+          <Radio className="w-4 h-4" />
+        ) : (
+          <Sparkles className="w-4 h-4" />
+        )}
+      </div>
+
       {/* Name - takes available space */}
       <span
         className="flex-1 truncate text-sm font-medium text-foreground min-w-0"
         title={signal.name}
       >
         {signal.name}
-      </span>
-
-      {/* Type badge */}
-      <span className="px-2 py-0.5 text-xs font-medium rounded bg-muted text-muted-foreground uppercase flex-shrink-0">
-        {signal.isBuiltIn ? 'Signal' : 'Trader'}
       </span>
 
       {/* Running toggle */}
@@ -157,16 +177,6 @@ export function SignalListItem({
         </button>
       )}
 
-      {/* Last trigger - hidden on mobile */}
-      <span className="text-xs text-muted-foreground flex-shrink-0 hidden md:block w-14 text-right">
-        {lastTrigger}
-      </span>
-
-      {/* Signal count - hidden on tablet and mobile */}
-      <span className="text-xs font-mono text-muted-foreground flex-shrink-0 hidden lg:block w-8 text-right">
-        ({signal.metrics?.totalSignals || 0})
-      </span>
-
       {/* Menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -178,7 +188,26 @@ export function SignalListItem({
             <MoreVertical className="w-4 h-4" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent align="end" className="w-56">
+          {/* Info section */}
+          <div className="px-2 py-1.5 text-xs text-muted-foreground border-b border-border">
+            <div className="flex items-center gap-2">
+              {signal.isBuiltIn ? (
+                <>
+                  <Radio className="w-3 h-3" />
+                  <span>Signal</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3 h-3" />
+                  <span>AI Trader</span>
+                </>
+              )}
+            </div>
+            <div className="mt-1">Last: {lastTrigger}</div>
+            <div>Signals: {signal.metrics?.totalSignals || 0}</div>
+          </div>
+
           <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation();

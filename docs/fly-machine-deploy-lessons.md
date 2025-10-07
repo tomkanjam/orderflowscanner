@@ -39,15 +39,23 @@ supabase secrets set DOCKER_IMAGE=registry.fly.io/vyx-app:deployment-01K6PSH90XY
 ### 4. **Docker Multi-Stage Build Gotchas**
 - **Problem**: TypeScript compiled files were in `dist/server/fly-machine/` but we tried to copy from `dist/`
 - **Root cause**: `tsconfig.json` has `outDir: "./dist"` but preserves directory structure
-- **Fix**: Copy from the ACTUAL compiled location:
+- **Critical**: The CMD path must match where files are actually copied to in the container
+- **Fix**: Copy from the ACTUAL compiled location AND flatten the structure:
   ```dockerfile
   # WRONG (files not found)
   COPY --from=builder /build/server/fly-machine/dist ./dist
+  CMD ["node", "dist/server/fly-machine/index.js"]
 
-  # CORRECT (matches actual TypeScript output structure)
+  # ALSO WRONG (CMD path doesn't match COPY destination)
   COPY --from=builder /build/server/fly-machine/dist/server/fly-machine ./dist
-  COPY --from=builder /build/server/fly-machine/dist/apps ./dist/apps
+  CMD ["node", "dist/server/fly-machine/index.js"]  # File is at ./dist/index.js, not ./dist/server/fly-machine/index.js
+
+  # CORRECT (flattens structure so CMD works)
+  COPY --from=builder /build/server/fly-machine/dist/server/fly-machine ./
+  COPY --from=builder /build/server/fly-machine/dist/apps ./apps
+  CMD ["node", "index.js"]  # File is now at /app/index.js
   ```
+- **Key insight**: The final COPY destination must match the CMD path. If you copy to `./`, then `index.js` is at `/app/index.js`
 
 ### 5. **Verification Checklist**
 Before deploying, always verify:
@@ -66,9 +74,21 @@ When machines auto-destroy (as happened multiple times):
   fly logs -a vyx-app -f
   ```
 - Common errors:
-  - `Cannot find module` → Wrong COPY paths in Dockerfile
+  - `Cannot find module '/app/index.js'` → Wrong COPY paths in Dockerfile
+  - `Cannot find module '/app/dist/server/fly-machine/index.js'` → CMD path doesn't match where files were copied
   - Health check failures → App not listening on correct port
   - Environment variable missing → Check provision-machine passes all needed vars
+
+**Example debugging session:**
+```
+Error: Cannot find module '/app/dist/server/fly-machine/index.js'
+```
+This means:
+1. CMD is trying to run: `node dist/server/fly-machine/index.js`
+2. But the file is not at `/app/dist/server/fly-machine/index.js`
+3. Check the COPY commands - where did files actually get copied?
+4. If you did `COPY --from=builder /build/server/fly-machine/dist/server/fly-machine ./dist`, then files are at `/app/dist/index.js` (not `/app/dist/server/fly-machine/index.js`)
+5. Solution: Either change COPY to flatten structure, or change CMD to match actual location
 
 ### 7. **Build Context Matters**
 - Dockerfile must be run from **project root** (not server/fly-machine)
@@ -150,11 +170,12 @@ This will show in logs and confirm which image version is running.
 1. **Assumed `:latest` worked** - didn't realize it was a stale pointer
 2. **Didn't know about DOCKER_IMAGE secret** - thought fly.toml controlled it
 3. **Build path issue was hidden** - image built successfully but had wrong file structure
-4. **Auto-destroy masked errors** - machines disappeared before we could debug
+4. **CMD path mismatch** - Docker COPY and CMD paths didn't align, causing "Cannot find module" errors
+5. **Auto-destroy masked errors** - machines disappeared before we could debug, making it hard to see the actual startup error
 
 ### The fix:
 
-**Always use deployment tags + update DOCKER_IMAGE secret + verify build structure**
+**Always use deployment tags + update DOCKER_IMAGE secret + verify COPY/CMD paths match + check logs immediately**
 
 ## Quick Reference: Update Cloud Machine Image
 
@@ -182,6 +203,37 @@ fly logs -a vyx-app -f
 - `server/fly-machine/fly.toml` - Fly configuration (NOT used for UI-provisioned machines)
 - `server/fly-machine/tsconfig.json` - TypeScript output directory config
 
+## Troubleshooting Flowchart
+
+When machines fail to start:
+
+1. **Check Fly logs**: `fly logs -a vyx-app -f`
+2. **Identify error type**:
+
+   **"Cannot find module '/app/...'"**
+   - Check Dockerfile COPY commands - where are files being copied?
+   - Check Dockerfile CMD - what path is it trying to run?
+   - Ensure CMD path matches COPY destination
+   - Rebuild image with corrected paths
+
+   **"Missing required environment variables"**
+   - Check `provision-machine/index.ts` - are env vars being passed?
+   - Check Supabase secrets - are they set correctly?
+   - Add debug logging to provision-machine
+   - Redeploy provision-machine Edge Function
+
+   **"Health check failed"**
+   - Check if app is listening on correct port (8080)
+   - Check if health endpoint is implemented
+   - Check if app crashes before health check runs
+
+   **Machine auto-destroys without logs**
+   - Increase `restart.max_retries` in fly.toml temporarily to see more logs
+   - Check if Docker image exists: `fly image show <deployment-tag>`
+   - Verify DOCKER_IMAGE secret points to valid image
+
+3. **After fixing**: Always rebuild image AND update DOCKER_IMAGE secret
+
 ## Future Improvements
 
 1. **Automated deployment script** - One command to build + update secret
@@ -189,3 +241,4 @@ fly logs -a vyx-app -f
 3. **Startup logging** - Log exact image digest on machine startup
 4. **Deployment docs** - Document this process in main README
 5. **CI/CD integration** - Automate the build + secret update on main branch commits
+6. **Pre-deployment validation** - Script to verify Dockerfile COPY/CMD paths match before building

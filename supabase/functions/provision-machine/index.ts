@@ -31,6 +31,20 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Debug: Log environment variable status
+    console.log(`[${timestamp}] Environment check:`);
+    console.log(`  SUPABASE_URL: ${supabaseUrl ? 'EXISTS' : 'MISSING'}`);
+    console.log(`  SUPABASE_SERVICE_ROLE_KEY: ${supabaseServiceKey ? `EXISTS (length: ${supabaseServiceKey.length})` : 'MISSING ❌'}`);
+
+    if (!supabaseServiceKey) {
+      console.error(`[${timestamp}] CRITICAL: SUPABASE_SERVICE_ROLE_KEY is undefined!`);
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error: Missing SUPABASE_SERVICE_ROLE_KEY' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify Elite tier
@@ -341,6 +355,12 @@ serve(async (req) => {
             ],
           },
         };
+
+        // Debug: Confirm environment variables before sending to Fly
+        console.log(`[${new Date().toISOString()}] Environment variables being sent to Fly machine:`);
+        console.log(`  USER_ID: ${requestBody.config.env.USER_ID ? 'SET' : 'MISSING'}`);
+        console.log(`  SUPABASE_URL: ${requestBody.config.env.SUPABASE_URL ? 'SET' : 'MISSING'}`);
+        console.log(`  SUPABASE_SERVICE_KEY: ${requestBody.config.env.SUPABASE_SERVICE_KEY ? `SET (length: ${requestBody.config.env.SUPABASE_SERVICE_KEY.length})` : 'MISSING ❌'}`);
 
         console.log(`[${new Date().toISOString()}] Fly.io API request body:`, JSON.stringify(requestBody, null, 2));
 

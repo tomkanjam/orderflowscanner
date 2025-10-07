@@ -1887,4 +1887,1361 @@ Implementation is complete when:
 
 ---
 
+## Product Requirements Document: Pro Tier Waitlist
+*Stage: spec | Date: 2025-10-06*
+
+### Executive Summary
+**What:** Complete Pro tier waitlist implementation with email capture, database persistence, and admin management capabilities
+
+**Why:** Validate demand for the upcoming Pro tier (AI trading automation) before investing in full development, and build a qualified user list for early access and feedback
+
+**Who:**
+- **Primary:** Lite tier users ($39/mo) interested in autonomous AI trading
+- **Secondary:** Free tier users wanting to skip directly to Pro features
+- **Tertiary:** Anonymous users exploring the platform
+
+**When:** Immediate - Pro tier development is planned for Q1 2026, waitlist helps prioritize timeline based on demand
+
+### Problem Statement
+
+#### Current State
+The Pro tier card in the pricing modal currently shows a waitlist form with email input, but clicking "Join Waitlist" only simulates success without persisting data. The waitlist information is lost, and there's no way to:
+- Track who's interested in Pro tier features
+- Gauge demand for autonomous AI trading
+- Contact users when Pro launches
+- Segment by current tier (Free vs Lite users)
+- Prevent duplicate signups
+
+#### Pain Points
+1. **Lost Opportunity Data:** Cannot measure demand for Pro tier features
+2. **No User Engagement:** Users join waitlist but receive no confirmation or updates
+3. **No Admin Visibility:** Cannot see waitlist size or growth over time
+4. **Duplicate Prevention:** Users can submit same email multiple times
+5. **Missing Context:** Don't know which tier users are currently on when they join
+
+#### Opportunity
+**Crypto Trading SaaS Market Context:**
+- Autonomous trading bots represent 40%+ of crypto trading volume
+- High willingness to pay ($100-500/mo) for proven algorithmic systems
+- Users want "set it and forget it" solutions that run 24/7
+- Early adopters provide valuable feedback on feature requirements
+
+**Business Value:**
+- Validate $99/mo price point before building Pro features
+- Build email list for direct marketing when Pro launches
+- Prioritize Pro development based on waitlist size
+- Segment users by tier to offer tier-appropriate messaging
+- Create urgency with "limited early access" when launching
+
+### Solution Overview
+
+Implement a complete waitlist system that:
+1. **Captures interest** via the existing Pro tier card email form
+2. **Persists data** in Supabase `user_profiles` table with timestamp
+3. **Prevents duplicates** by checking existing waitlist entries
+4. **Shows confirmation** to users after successful signup
+5. **Enables admin queries** to see waitlist size and analyze by current tier
+
+The solution leverages the existing database schema (migration already created) and UI components, requiring only the backend integration layer.
+
+#### Core Functionality
+
+1. **Waitlist Signup**
+   - User enters email in Pro tier card form
+   - System validates email format (HTML5 + backend)
+   - System checks if email already on waitlist
+   - System records `pro_waitlist_joined_at` timestamp in `user_profiles`
+   - System shows success confirmation: "You're on the waitlist!"
+   - If authenticated: Updates existing profile record
+   - If anonymous: Creates profile record (no user_id yet)
+
+2. **Duplicate Prevention**
+   - Check email against existing `user_profiles.email` where `pro_waitlist_joined_at IS NOT NULL`
+   - If duplicate: Return success without error (don't expose that user exists)
+   - If new: Proceed with signup
+
+3. **Admin Dashboard (Future)**
+   - Query total waitlist count
+   - Breakdown by current tier (free, pro, elite, anonymous)
+   - Growth over time (daily/weekly signups)
+   - Export email list for launch campaigns
+
+### User Stories
+
+#### Primary Flow: Authenticated User Joins Waitlist
+
+**As a** Lite tier user exploring advanced features
+**I want to** join the Pro tier waitlist with one click
+**So that** I'm notified when autonomous AI trading becomes available
+
+**Acceptance Criteria:**
+- [ ] Given I'm logged in with a Lite subscription
+- [ ] When I click "Create Signal with AI" button
+- [ ] And I see the Pro tier card with "Join Waitlist" form
+- [ ] And I enter my email (pre-filled from profile)
+- [ ] And I click "Join Waitlist" button
+- [ ] Then my `user_profiles.pro_waitlist_joined_at` is set to current timestamp
+- [ ] And I see "You're on the waitlist!" success message
+- [ ] And the form is replaced with success state
+- [ ] And the operation completes in <2 seconds
+
+#### Secondary Flow: Anonymous User Joins Waitlist
+
+**As an** anonymous visitor exploring the platform
+**I want to** join the Pro waitlist without signing up first
+**So that** I can be notified when the feature launches without committing to a subscription
+
+**Acceptance Criteria:**
+- [ ] Given I'm not logged in (no session)
+- [ ] When I open the tier modal and see the Pro card
+- [ ] And I enter my email in the waitlist form
+- [ ] And I click "Join Waitlist"
+- [ ] Then a new `user_profiles` record is created with my email
+- [ ] And `pro_waitlist_joined_at` is set (no `user_id` yet)
+- [ ] And I see success confirmation
+- [ ] And if I later sign up with same email, the records merge
+
+#### Edge Cases
+
+1. **Duplicate Email:** User enters email that's already on waitlist
+   - Behavior: Show success message (don't expose existing user)
+   - Security: Don't reveal if email exists in system
+   - UX: User gets confirmation either way
+
+2. **Invalid Email:** User enters malformed email
+   - Behavior: HTML5 validation catches it client-side
+   - Fallback: Backend validates and returns 400 error
+   - UX: Show inline error: "Please enter a valid email"
+
+3. **Database Failure:** Supabase connection times out
+   - Behavior: Return 500 error with retry option
+   - UX: Show error: "Something went wrong. Please try again."
+   - Recovery: User can retry immediately
+
+4. **Already on Waitlist:** User clicks form again after joining
+   - Behavior: Form is hidden, only success message shows
+   - Prevention: Form replaced with success state on first join
+
+5. **Profile Merge:** Anonymous waitlist user later authenticates
+   - Behavior: On login, if email matches, link `user_id` to existing waitlist record
+   - Data: Preserve original `pro_waitlist_joined_at` timestamp
+   - Integrity: No duplicate entries for same user
+
+### Technical Requirements
+
+#### Performance
+- **API Response Time:** <2 seconds for waitlist signup
+- **Database Query:** <100ms for duplicate check
+- **Concurrent Users:** Handle 100 simultaneous signups
+- **Rate Limiting:** 5 requests per email per hour (prevent abuse)
+
+#### Data Requirements
+- **Source:** User-entered email via form submission
+- **Validation:** RFC 5322 email format
+- **Storage:** `user_profiles.pro_waitlist_joined_at` TIMESTAMPTZ
+- **Retention:** Permanent (no automatic deletion)
+- **Privacy:** Email stored securely, not shared externally
+
+#### Security
+- **Authentication:** Optional (works for both authenticated and anonymous)
+- **Authorization:** Anyone can join waitlist (public endpoint)
+- **Data Protection:**
+  - Email validated and sanitized
+  - No SQL injection (using parameterized queries)
+  - No XSS (React escapes output)
+  - Rate limiting prevents abuse
+- **GDPR Compliance:**
+  - User consent implicit in form submission
+  - Can request removal (contact support)
+  - Email used only for Pro launch notifications
+
+### UI/UX Requirements
+
+#### Desktop (Primary)
+- **Location:** Pro tier card within tier selection modal
+- **Layout:** Vertical form with email input above "Join Waitlist" button
+- **Interactions:**
+  - Email input autofocus when form loads (if Pro card visible)
+  - Submit on Enter key
+  - Button disabled until email valid
+  - Loading state shows "Joining..." on button
+  - Success state replaces form with checkmark and "You're on the waitlist!"
+
+#### Mobile (< 768px)
+- **Responsive:** Same layout, full-width input and button
+- **Touch:** 44px touch targets for button
+- **Keyboard:** Virtual keyboard appears on input focus
+
+### Success Metrics
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Waitlist signups (Week 1) | 50+ | Count of records with `pro_waitlist_joined_at` |
+| Conversion rate (visitors → signups) | 5% | Signups / Modal views |
+| Lite tier → waitlist rate | 20% | Lite users on waitlist / Total Lite users |
+| API response time | <2s | Median response time from Supabase |
+| Duplicate signup rate | <5% | Duplicate attempts / Total attempts |
+
+### Rollout Strategy
+1. **Soft Launch (Day 1):** Deploy to production, announce in app
+2. **Marketing Push (Day 3):** Email existing users about Pro tier
+3. **Monitoring (Week 1):** Watch signup rate and adjust messaging
+4. **Weekly Updates:** Share waitlist size publicly to create FOMO
+5. **Early Access (Q1 2026):** Invite waitlist users first when Pro launches
+
+### Dependencies
+- [x] Database migration (016_add_pro_waitlist_to_user_profiles.sql)
+- [x] UI form components (TierCard.tsx)
+- [x] Modal styling (tiers.css)
+- [ ] Supabase RPC function or edge function for waitlist signup
+- [ ] Frontend API integration in TierCard.tsx
+- [ ] Admin query for waitlist analytics
+
+### Risks & Mitigations
+
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| Low signup rate (<10) | Deprioritize Pro development | Medium | Market Pro features better in tier card |
+| Spam/bot signups | Polluted email list | Low | Add rate limiting + email verification |
+| Database performance issues | Slow signups | Low | Index already created on `pro_waitlist_joined_at` |
+| Users forget they signed up | Confusion on launch | Medium | Send confirmation email immediately |
+| Profile merge conflicts | Duplicate records | Low | Upsert logic based on email |
+
+### Out of Scope
+- Email confirmation after signup (Phase 2)
+- Admin dashboard UI (manual queries sufficient for now)
+- Waitlist priority/ranking system
+- Referral/viral mechanics ("Invite friends to move up")
+- A/B testing different messaging
+- Integration with email marketing platform (Mailchimp/ConvertKit)
+
+### Open Questions
+- [ ] Should we send confirmation email immediately? (Recommend: Yes, in Phase 2)
+- [ ] Display waitlist count publicly to create urgency? (Recommend: Yes, "Join 234 others")
+- [ ] Offer early access to top Lite tier users? (Recommend: Yes, as incentive)
+- [ ] What's the email template for launch notification? (Design in Q4 2025)
+
+---
+
+## Technical Specification: Waitlist Backend Implementation
+*Stage: spec | Date: 2025-10-06*
+
+### API Contract
+
+#### Endpoint: Join Waitlist
+```typescript
+POST /api/waitlist/join
+// OR: Supabase Edge Function
+POST /functions/v1/join-waitlist
+
+// Request
+{
+  email: string;  // Required, validated email format
+  currentTier?: 'anonymous' | 'free' | 'pro' | 'elite';  // Optional, for analytics
+}
+
+// Response (Success)
+{
+  success: true;
+  message: "You're on the waitlist!";
+  waitlistCount?: number;  // Optional: Total waitlist size
+}
+
+// Response (Error - Invalid Email)
+{
+  success: false;
+  error: "INVALID_EMAIL";
+  message: "Please enter a valid email address";
+}
+
+// Response (Error - Rate Limited)
+{
+  success: false;
+  error: "RATE_LIMITED";
+  message: "Too many requests. Please try again later";
+}
+
+// Response (Error - Server Error)
+{
+  success: false;
+  error: "SERVER_ERROR";
+  message: "Something went wrong. Please try again";
+}
+```
+
+### Database Schema
+
+**Existing Table (No Changes):**
+```sql
+-- user_profiles table (migration 016 already added column)
+ALTER TABLE user_profiles
+ADD COLUMN pro_waitlist_joined_at TIMESTAMPTZ DEFAULT NULL;
+
+-- Index for efficient queries
+CREATE INDEX idx_user_profiles_pro_waitlist
+ON user_profiles(pro_waitlist_joined_at)
+WHERE pro_waitlist_joined_at IS NOT NULL;
+```
+
+**Query Pattern:**
+```sql
+-- Check if email already on waitlist
+SELECT id, email, pro_waitlist_joined_at
+FROM user_profiles
+WHERE email = $1
+AND pro_waitlist_joined_at IS NOT NULL;
+
+-- Add to waitlist (upsert)
+INSERT INTO user_profiles (email, pro_waitlist_joined_at)
+VALUES ($1, NOW())
+ON CONFLICT (email)
+DO UPDATE SET pro_waitlist_joined_at = COALESCE(user_profiles.pro_waitlist_joined_at, NOW());
+
+-- Count waitlist size
+SELECT COUNT(*) as waitlist_count
+FROM user_profiles
+WHERE pro_waitlist_joined_at IS NOT NULL;
+
+-- Analyze by tier
+SELECT
+  COALESCE(us.tier, 'anonymous') as tier,
+  COUNT(*) as count
+FROM user_profiles up
+LEFT JOIN user_subscriptions us ON up.user_id = us.user_id
+WHERE up.pro_waitlist_joined_at IS NOT NULL
+GROUP BY tier;
+```
+
+### Implementation Options
+
+#### Option 1: Supabase Edge Function (RECOMMENDED)
+**Pros:**
+- Server-side execution (secure)
+- Built-in auth integration
+- Easy to deploy
+- No additional infrastructure
+
+**Cons:**
+- Deno environment (different from main app)
+- Requires Supabase CLI for local testing
+
+**Implementation:**
+```typescript
+// supabase/functions/join-waitlist/index.ts
+import { serve } from 'std/server';
+import { createClient } from '@supabase/supabase-js';
+
+serve(async (req) => {
+  // CORS headers
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const { email, currentTier } = await req.json();
+
+    // Validate email
+    if (!isValidEmail(email)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'INVALID_EMAIL',
+          message: 'Please enter a valid email address'
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Initialize Supabase client
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Upsert waitlist entry
+    const { error } = await supabase
+      .from('user_profiles')
+      .upsert({
+        email: email.toLowerCase().trim(),
+        pro_waitlist_joined_at: new Date().toISOString(),
+      }, {
+        onConflict: 'email',
+        ignoreDuplicates: false
+      });
+
+    if (error) {
+      console.error('[join-waitlist] Database error:', error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'SERVER_ERROR',
+          message: 'Something went wrong. Please try again'
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get waitlist count (optional)
+    const { count } = await supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true })
+      .not('pro_waitlist_joined_at', 'is', null);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "You're on the waitlist!",
+        waitlistCount: count
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('[join-waitlist] Unexpected error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'SERVER_ERROR',
+        message: 'Something went wrong. Please try again'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+});
+
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+```
+
+#### Option 2: Direct Supabase Client Call (SIMPLER)
+**Pros:**
+- No Edge Function needed
+- Simpler implementation
+- Already have Supabase client initialized
+
+**Cons:**
+- Requires Supabase RLS policies
+- No rate limiting
+- No email validation server-side
+
+**Implementation:**
+```typescript
+// apps/app/src/api/waitlist.ts
+import { supabase } from '../config/firebase';
+
+export async function joinWaitlist(email: string): Promise<{
+  success: boolean;
+  message: string;
+  error?: string;
+}> {
+  try {
+    // Validate email client-side
+    if (!isValidEmail(email)) {
+      return {
+        success: false,
+        message: 'Please enter a valid email address',
+        error: 'INVALID_EMAIL'
+      };
+    }
+
+    // Upsert to user_profiles
+    const { error } = await supabase
+      .from('user_profiles')
+      .upsert({
+        email: email.toLowerCase().trim(),
+        pro_waitlist_joined_at: new Date().toISOString(),
+      }, {
+        onConflict: 'email'
+      });
+
+    if (error) {
+      console.error('[waitlist] Database error:', error);
+      return {
+        success: false,
+        message: 'Something went wrong. Please try again',
+        error: 'SERVER_ERROR'
+      };
+    }
+
+    return {
+      success: true,
+      message: "You're on the waitlist!"
+    };
+
+  } catch (error) {
+    console.error('[waitlist] Unexpected error:', error);
+    return {
+      success: false,
+      message: 'Something went wrong. Please try again',
+      error: 'SERVER_ERROR'
+    };
+  }
+}
+
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+```
+
+**RLS Policy Required:**
+```sql
+-- Allow anyone to insert waitlist emails
+CREATE POLICY "Anyone can join waitlist"
+ON user_profiles
+FOR INSERT
+WITH CHECK (pro_waitlist_joined_at IS NOT NULL);
+
+-- Allow anyone to update their own waitlist status
+CREATE POLICY "Anyone can update waitlist timestamp"
+ON user_profiles
+FOR UPDATE
+USING (true)
+WITH CHECK (pro_waitlist_joined_at IS NOT NULL);
+```
+
+### Frontend Integration
+
+**Update TierCard.tsx:**
+```typescript
+// Replace TODO with actual API call
+const handleWaitlistSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!waitlistEmail.trim()) return;
+
+  setIsSubmitting(true);
+
+  try {
+    // OPTION 1: Call Edge Function
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/join-waitlist`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body: JSON.stringify({
+        email: waitlistEmail,
+        currentTier: currentTier  // Pass from SubscriptionContext
+      })
+    });
+
+    // OPTION 2: Call helper function
+    // const result = await joinWaitlist(waitlistEmail);
+
+    const data = await response.json();
+
+    if (data.success) {
+      setWaitlistSuccess(true);
+      setWaitlistEmail('');
+
+      // Optional: Show waitlist count
+      if (data.waitlistCount) {
+        console.log(`Joined waitlist with ${data.waitlistCount} others`);
+      }
+    } else {
+      // Show error message
+      console.error('Waitlist signup failed:', data.message);
+      alert(data.message);  // Or use toast notification
+    }
+
+  } catch (error) {
+    console.error('Failed to join waitlist:', error);
+    alert('Something went wrong. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+```
+
+### Rate Limiting Strategy
+
+**Client-Side (Simple):**
+```typescript
+// Prevent rapid form submissions
+const [lastSubmitTime, setLastSubmitTime] = useState<number>(0);
+
+const handleWaitlistSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  // Throttle: Allow 1 submission per 5 seconds
+  const now = Date.now();
+  if (now - lastSubmitTime < 5000) {
+    alert('Please wait a moment before trying again');
+    return;
+  }
+  setLastSubmitTime(now);
+
+  // ... rest of submission logic
+};
+```
+
+**Server-Side (Edge Function):**
+```typescript
+// supabase/functions/join-waitlist/index.ts
+import { RateLimiter } from './rate-limiter.ts';
+
+const limiter = new RateLimiter({
+  max: 5,  // 5 requests
+  window: 3600000  // per hour (in ms)
+});
+
+serve(async (req) => {
+  const { email } = await req.json();
+
+  // Check rate limit
+  if (!limiter.check(email)) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'RATE_LIMITED',
+        message: 'Too many requests. Please try again later'
+      }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // ... proceed with waitlist signup
+});
+```
+
+### Admin Queries
+
+**Waitlist Analytics:**
+```sql
+-- Total waitlist size
+SELECT COUNT(*) as total_waitlist
+FROM user_profiles
+WHERE pro_waitlist_joined_at IS NOT NULL;
+
+-- Breakdown by current tier
+SELECT
+  COALESCE(us.tier, 'anonymous') as current_tier,
+  COUNT(*) as count,
+  ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 2) as percentage
+FROM user_profiles up
+LEFT JOIN user_subscriptions us ON up.user_id = us.user_id
+WHERE up.pro_waitlist_joined_at IS NOT NULL
+GROUP BY current_tier
+ORDER BY count DESC;
+
+-- Signups per day (last 30 days)
+SELECT
+  DATE(pro_waitlist_joined_at) as date,
+  COUNT(*) as signups
+FROM user_profiles
+WHERE pro_waitlist_joined_at >= NOW() - INTERVAL '30 days'
+GROUP BY DATE(pro_waitlist_joined_at)
+ORDER BY date DESC;
+
+-- Export email list
+SELECT
+  email,
+  COALESCE(us.tier, 'anonymous') as tier,
+  pro_waitlist_joined_at
+FROM user_profiles up
+LEFT JOIN user_subscriptions us ON up.user_id = us.user_id
+WHERE pro_waitlist_joined_at IS NOT NULL
+ORDER BY pro_waitlist_joined_at DESC;
+```
+
+### Testing Strategy
+
+**Unit Tests:**
+```typescript
+describe('joinWaitlist', () => {
+  it('should validate email format', async () => {
+    const result = await joinWaitlist('invalid-email');
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('INVALID_EMAIL');
+  });
+
+  it('should add email to waitlist', async () => {
+    const result = await joinWaitlist('test@example.com');
+    expect(result.success).toBe(true);
+    expect(result.message).toContain('waitlist');
+  });
+
+  it('should handle duplicate signups gracefully', async () => {
+    await joinWaitlist('duplicate@example.com');
+    const result = await joinWaitlist('duplicate@example.com');
+    expect(result.success).toBe(true);  // Show success even if duplicate
+  });
+});
+```
+
+**Integration Tests:**
+```typescript
+test('waitlist form submission flow', async () => {
+  render(<TierSelectionModal isOpen={true} />);
+
+  // Find Pro tier card
+  const proCard = screen.getByText(/PRO/i).closest('.tier-card');
+
+  // Enter email
+  const emailInput = within(proCard).getByPlaceholderText(/enter your email/i);
+  await userEvent.type(emailInput, 'test@example.com');
+
+  // Submit form
+  const submitButton = within(proCard).getByRole('button', { name: /join waitlist/i });
+  await userEvent.click(submitButton);
+
+  // Verify success message
+  await waitFor(() => {
+    expect(screen.getByText(/you're on the waitlist/i)).toBeInTheDocument();
+  });
+
+  // Verify form is hidden
+  expect(emailInput).not.toBeInTheDocument();
+});
+```
+
+### Implementation Decision
+
+**RECOMMENDATION: Use Supabase Edge Function (Option 1)**
+
+**Rationale:**
+- Server-side execution is more secure
+- Can add rate limiting easily
+- Can validate email server-side
+- Can count waitlist and return to user
+- Separates concerns (frontend vs backend)
+- Future-proof for adding email confirmation
+
+**Alternative:** If time is critical, start with Option 2 (direct client call) and migrate to Edge Function in Phase 2.
+
+### Success Criteria
+- [x] Database migration applied
+- [x] UI form implemented and styled
+- [ ] Backend API endpoint created (Edge Function or helper)
+- [ ] Frontend integration complete (TierCard calls API)
+- [ ] Error handling implemented (validation, duplicates, server errors)
+- [ ] Rate limiting added (client and/or server)
+- [ ] Admin queries documented and tested
+- [ ] Manual testing: Signup flow works end-to-end
+- [ ] Email in database after successful signup
+- [ ] Success message displayed to user
+- [ ] Duplicate emails handled gracefully
+- [ ] Performance: <2s response time
+
+---
+
+*[End of specification. Ready for implementation.]*
+
+---
+
+## Implementation Plan
+*Stage: planning | Date: 2025-10-06*
+
+### Overview
+Implement complete Pro tier waitlist backend using **Option 2: Direct Supabase Client Call**. This is a pure backend integration task with minimal UI changes - the waitlist form UI already exists in TierCard component, we just need to:
+1. Connect the form submission to Supabase
+2. Handle authenticated vs anonymous users (hide email field for logged-in users)
+3. Add RLS policies for waitlist table access
+4. Create API helper function for waitlist signup
+
+This approach is simpler than Edge Functions and sufficient for MVP. No mockup phase needed since UI already exists.
+
+### Prerequisites
+- [x] Database migration applied (016_add_pro_waitlist_to_user_profiles.sql)
+- [x] UI form exists (TierCard.tsx with email input and submit button)
+- [x] Supabase client configured (src/config/supabase.ts)
+- [x] SubscriptionContext provides currentTier and profile
+- [ ] Development environment running (`pnpm dev`)
+- [ ] Feature branch exists: `feature/tier-selection-modal`
+
+### Implementation Phases
+
+#### Phase 1: RLS Policies & Database Access (30 min)
+**Objective:** Set up database permissions so frontend can write to waitlist
+
+##### Task 1.1: Create RLS Policies for Waitlist (20 min)
+Files to create:
+- `supabase/migrations/017_waitlist_rls_policies.sql`
+
+Actions:
+- [ ] Create policy allowing anyone to insert waitlist emails
+- [ ] Create policy allowing upsert (update existing waitlist timestamp)
+- [ ] Test policy with anonymous user
+- [ ] Test policy with authenticated user
+- [ ] Verify no other user_profiles data is exposed
+
+SQL to create:
+```sql
+-- Allow anyone to join waitlist by inserting/updating their email
+CREATE POLICY "Anyone can join Pro waitlist"
+ON user_profiles
+FOR INSERT
+WITH CHECK (
+  pro_waitlist_joined_at IS NOT NULL
+  AND email IS NOT NULL
+);
+
+-- Allow upsert for waitlist (update timestamp if email exists)
+CREATE POLICY "Anyone can update Pro waitlist timestamp"
+ON user_profiles
+FOR UPDATE
+USING (true)
+WITH CHECK (
+  pro_waitlist_joined_at IS NOT NULL
+);
+```
+
+Test criteria:
+- [ ] Anonymous user can insert email + waitlist timestamp
+- [ ] Authenticated user can update their waitlist timestamp
+- [ ] Cannot access other user_profiles columns
+- [ ] Upsert pattern works (ON CONFLICT)
+
+**Checkpoint:** Run migration with `supabase db push` or apply manually
+
+##### Task 1.2: Test RLS Policies Manually (10 min)
+Actions:
+- [ ] Open Supabase SQL Editor
+- [ ] Test INSERT with anonymous context
+- [ ] Test UPSERT with existing email
+- [ ] Verify policy prevents accessing other columns
+- [ ] Check that id/user_id are auto-generated correctly
+
+Test queries:
+```sql
+-- Should succeed (anonymous insert)
+INSERT INTO user_profiles (email, pro_waitlist_joined_at)
+VALUES ('test@example.com', NOW());
+
+-- Should succeed (upsert existing)
+INSERT INTO user_profiles (email, pro_waitlist_joined_at)
+VALUES ('test@example.com', NOW())
+ON CONFLICT (email)
+DO UPDATE SET pro_waitlist_joined_at = COALESCE(user_profiles.pro_waitlist_joined_at, NOW());
+
+-- Should succeed (count waitlist)
+SELECT COUNT(*) FROM user_profiles WHERE pro_waitlist_joined_at IS NOT NULL;
+```
+
+**Phase 1 Complete When:**
+- RLS policies created and tested
+- Anonymous users can insert waitlist emails
+- Authenticated users can upsert their timestamp
+- No security holes in policies
+
+#### Phase 2: API Helper Function (45 min)
+**Objective:** Create reusable helper for waitlist signup
+
+##### Task 2.1: Create Waitlist API Module (30 min)
+Files to create:
+- `apps/app/src/api/waitlist.ts`
+
+Actions:
+- [ ] Create `joinWaitlist()` async function
+- [ ] Validate email format (RFC 5322 regex)
+- [ ] Sanitize email (lowercase, trim)
+- [ ] Use Supabase upsert pattern
+- [ ] Return success/error response
+- [ ] Add TypeScript interfaces for response
+- [ ] Add error logging
+
+Code to write:
+```typescript
+import { supabase } from '../config/supabase';
+
+export interface WaitlistResponse {
+  success: boolean;
+  message: string;
+  error?: 'INVALID_EMAIL' | 'SERVER_ERROR' | 'NO_SUPABASE';
+}
+
+/**
+ * Join the Pro tier waitlist
+ * @param email User's email address
+ * @returns Promise with success/error response
+ */
+export async function joinWaitlist(email: string): Promise<WaitlistResponse> {
+  // Check if Supabase is configured
+  if (!supabase) {
+    console.error('[waitlist] Supabase not configured');
+    return {
+      success: false,
+      message: 'Database connection not available',
+      error: 'NO_SUPABASE'
+    };
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return {
+      success: false,
+      message: 'Please enter a valid email address',
+      error: 'INVALID_EMAIL'
+    };
+  }
+
+  try {
+    // Sanitize email
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Upsert to user_profiles
+    // If email exists: preserve original timestamp (don't update)
+    // If email new: insert with current timestamp
+    const { error } = await supabase
+      .from('user_profiles')
+      .upsert(
+        {
+          email: cleanEmail,
+          pro_waitlist_joined_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'email',
+          // Don't throw error on conflict, just update
+          ignoreDuplicates: false
+        }
+      );
+
+    if (error) {
+      console.error('[waitlist] Database error:', error);
+      return {
+        success: false,
+        message: 'Something went wrong. Please try again',
+        error: 'SERVER_ERROR'
+      };
+    }
+
+    // Success - show confirmation regardless of new vs existing
+    return {
+      success: true,
+      message: "You're on the waitlist!"
+    };
+
+  } catch (error) {
+    console.error('[waitlist] Unexpected error:', error);
+    return {
+      success: false,
+      message: 'Something went wrong. Please try again',
+      error: 'SERVER_ERROR'
+    };
+  }
+}
+```
+
+Test criteria:
+- [ ] File compiles without TypeScript errors
+- [ ] Can import `joinWaitlist` in other files
+- [ ] Function signature matches interface
+- [ ] Email validation works (test invalid emails)
+- [ ] Error responses have correct structure
+
+**Checkpoint:** `import { joinWaitlist } from '../api/waitlist'` works
+
+##### Task 2.2: Add Unit Tests (15 min)
+Files to create:
+- `apps/app/src/api/waitlist.test.ts` (optional, for later)
+
+Actions:
+- [ ] Test email validation (invalid formats)
+- [ ] Test successful signup
+- [ ] Test error handling
+- [ ] Mock Supabase client for tests
+
+**Phase 2 Complete When:**
+- Helper function implemented and tested
+- Returns correct success/error responses
+- Email validation works
+- Can be imported in components
+
+#### Phase 3: Frontend Integration (1 hour)
+**Objective:** Connect TierCard form to waitlist API
+
+##### Task 3.1: Update TierCard Component (45 min)
+Files to modify:
+- `apps/app/src/components/tiers/TierCard.tsx`
+
+Actions:
+- [ ] Import `joinWaitlist` helper
+- [ ] Import `useAuth` to check if user is logged in
+- [ ] Get user email from SubscriptionContext (if logged in)
+- [ ] Conditionally render email input (only for anonymous users)
+- [ ] Replace TODO in `handleWaitlistSubmit` with real API call
+- [ ] Add error state and display
+- [ ] Add client-side rate limiting (5 second throttle)
+- [ ] Handle success/error responses
+
+Code changes:
+```typescript
+// Add imports
+import { joinWaitlist } from '../../../api/waitlist';
+import { useAuth } from '../../../hooks/useAuth';
+import { useSubscription } from '../../../contexts/SubscriptionContext';
+
+// Inside TierCard component
+const { user } = useAuth();
+const { profile } = useSubscription();
+const [waitlistError, setWaitlistError] = useState<string>('');
+const [lastSubmitTime, setLastSubmitTime] = useState<number>(0);
+
+// Get email - use profile email if logged in, else form input
+const userEmail = profile?.email || waitlistEmail;
+
+// Update handleWaitlistSubmit
+const handleWaitlistSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  // Determine email source
+  const emailToSubmit = user ? profile?.email : waitlistEmail;
+
+  if (!emailToSubmit?.trim()) {
+    setWaitlistError('Please enter your email');
+    return;
+  }
+
+  // Client-side rate limiting (5 second throttle)
+  const now = Date.now();
+  if (now - lastSubmitTime < 5000) {
+    setWaitlistError('Please wait a moment before trying again');
+    return;
+  }
+  setLastSubmitTime(now);
+
+  setIsSubmitting(true);
+  setWaitlistError('');
+
+  try {
+    const result = await joinWaitlist(emailToSubmit);
+
+    if (result.success) {
+      setWaitlistSuccess(true);
+      setWaitlistEmail('');
+    } else {
+      setWaitlistError(result.message);
+    }
+
+  } catch (error) {
+    console.error('Failed to join waitlist:', error);
+    setWaitlistError('Something went wrong. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+```
+
+Test criteria:
+- [ ] Form works for anonymous users (shows email input)
+- [ ] Form works for logged-in users (no email input, uses profile email)
+- [ ] Success message appears after signup
+- [ ] Error messages display correctly
+- [ ] Rate limiting prevents spam (5 second throttle)
+- [ ] Button disabled during submission
+
+**Checkpoint:** Can submit waitlist form in browser
+
+##### Task 3.2: Conditional Email Field Rendering (15 min)
+Files to modify:
+- `apps/app/src/components/tiers/TierCard.tsx`
+
+Actions:
+- [ ] Check if user is authenticated (`user !== null`)
+- [ ] If authenticated: Hide email input, show confirmation text
+- [ ] If anonymous: Show email input field
+- [ ] Update form layout for both cases
+
+Code changes:
+```tsx
+{/* Waitlist Form - Different for auth vs anonymous */}
+{config.ctaAction === 'waitlist' && !isCurrentTier && !isIncludedInPlan ? (
+  <form onSubmit={handleWaitlistSubmit} className="waitlist-form">
+    {waitlistSuccess ? (
+      <div className="waitlist-success">
+        <span className="success-icon">✓</span>
+        <p>You're on the waitlist!</p>
+      </div>
+    ) : (
+      <>
+        {/* Only show email input for anonymous users */}
+        {!user && (
+          <input
+            type="email"
+            value={waitlistEmail}
+            onChange={(e) => setWaitlistEmail(e.target.value)}
+            placeholder="Enter your email"
+            className="waitlist-input"
+            required
+            disabled={isSubmitting}
+          />
+        )}
+
+        {/* Show current email for logged-in users */}
+        {user && profile?.email && (
+          <div className="waitlist-email-display">
+            <span className="email-icon">✉️</span>
+            <span className="email-text">{profile.email}</span>
+          </div>
+        )}
+
+        {/* Error message */}
+        {waitlistError && (
+          <div className="waitlist-error">
+            {waitlistError}
+          </div>
+        )}
+
+        {/* Submit button */}
+        <button
+          type="submit"
+          className="tier-cta btn-primary"
+          disabled={isSubmitting || (!user && !waitlistEmail.trim())}
+        >
+          {isSubmitting ? 'Joining...' : 'Join Waitlist'}
+        </button>
+      </>
+    )}
+  </form>
+) : (
+  {/* Regular CTA button for non-waitlist tiers */}
+)}
+```
+
+Test criteria:
+- [ ] Anonymous users see email input
+- [ ] Logged-in users see their email address (read-only)
+- [ ] Button works for both user types
+- [ ] Error messages display correctly
+- [ ] Success state works for both cases
+
+**Phase 3 Complete When:**
+- Form submission calls joinWaitlist API
+- Works for both authenticated and anonymous users
+- Email field conditional on auth state
+- Success/error states display correctly
+- No console errors
+
+#### Phase 4: Styling & Polish (30 min)
+**Objective:** Add missing styles and error handling
+
+##### Task 4.1: Add Missing CSS Styles (15 min)
+Files to modify:
+- `apps/app/src/components/tiers/tiers.css`
+
+Actions:
+- [ ] Add `.waitlist-email-display` styles
+- [ ] Add `.waitlist-error` styles
+- [ ] Ensure error message is visible and readable
+- [ ] Match existing design system colors
+
+CSS to add:
+```css
+/* Email display for logged-in users */
+.waitlist-email-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--tm-bg-tertiary);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-md);
+  color: var(--tm-text-secondary);
+  font-size: 0.875rem;
+}
+
+.email-icon {
+  font-size: 1rem;
+}
+
+.email-text {
+  color: var(--tm-text-primary);
+  font-weight: 500;
+}
+
+/* Error message */
+.waitlist-error {
+  padding: 0.75rem 1rem;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--tm-radius-md);
+  color: #ef4444;
+  font-size: 0.875rem;
+  text-align: center;
+}
+```
+
+Test criteria:
+- [ ] Styles match design system
+- [ ] Email display looks good for logged-in users
+- [ ] Error messages are visible and readable
+- [ ] Colors match theme
+
+##### Task 4.2: Test Edge Cases (15 min)
+Actions:
+- [ ] Test with invalid email formats
+- [ ] Test rapid form submissions (rate limiting)
+- [ ] Test with Supabase connection error
+- [ ] Test with duplicate email
+- [ ] Test anonymous → login → already on waitlist flow
+- [ ] Test form on mobile (responsive)
+
+Test scenarios:
+1. **Invalid email:**
+   - Enter "not-an-email"
+   - Should show "Please enter a valid email address"
+
+2. **Rate limiting:**
+   - Submit form
+   - Immediately submit again
+   - Should show "Please wait a moment before trying again"
+
+3. **Duplicate signup:**
+   - Submit same email twice
+   - Should show success both times (don't expose duplicate)
+
+4. **Network error:**
+   - Disconnect network
+   - Submit form
+   - Should show "Something went wrong. Please try again"
+
+5. **Anonymous → Authenticated:**
+   - Join waitlist as anonymous
+   - Sign in with same email
+   - Should merge profiles (keep original timestamp)
+
+**Phase 4 Complete When:**
+- All styles added and working
+- Edge cases handled gracefully
+- Error messages helpful
+- Mobile responsive
+- No console errors or warnings
+
+### Testing Strategy
+
+#### Commands to Run After Each Task
+```bash
+# Type checking
+pnpm typecheck
+
+# Build to catch errors
+pnpm build
+
+# Run dev server
+pnpm dev
+
+# Open browser
+open http://localhost:5173
+```
+
+#### Manual Testing Checklist
+
+**As Anonymous User:**
+- [ ] Open tier modal (click "Create Signal with AI")
+- [ ] See Pro tier card with email input
+- [ ] Enter invalid email → see error
+- [ ] Enter valid email → see success
+- [ ] Refresh page → success state persists in form
+- [ ] Check Supabase: email in user_profiles with timestamp
+
+**As Logged-In User:**
+- [ ] Sign in to app
+- [ ] Open tier modal
+- [ ] See Pro tier card WITHOUT email input
+- [ ] See current email displayed (read-only)
+- [ ] Click "Join Waitlist" → see success
+- [ ] Check Supabase: pro_waitlist_joined_at set on profile
+
+**Edge Cases:**
+- [ ] Submit same email twice (as anonymous) → both succeed
+- [ ] Rapid clicking button → rate limited after 5 seconds
+- [ ] Invalid email format → HTML5 validation + error message
+- [ ] Network disconnected → shows error, can retry
+- [ ] Mobile view → form looks good, touch targets sufficient
+
+#### Database Verification
+```sql
+-- Check waitlist entries
+SELECT
+  email,
+  pro_waitlist_joined_at,
+  user_id,
+  created_at
+FROM user_profiles
+WHERE pro_waitlist_joined_at IS NOT NULL
+ORDER BY pro_waitlist_joined_at DESC;
+
+-- Count total waitlist
+SELECT COUNT(*) as total_waitlist
+FROM user_profiles
+WHERE pro_waitlist_joined_at IS NOT NULL;
+
+-- Check for duplicates (should be 0)
+SELECT email, COUNT(*) as count
+FROM user_profiles
+WHERE pro_waitlist_joined_at IS NOT NULL
+GROUP BY email
+HAVING COUNT(*) > 1;
+```
+
+### Rollback Plan
+If issues arise:
+1. **Revert RLS policies:**
+   ```sql
+   DROP POLICY IF EXISTS "Anyone can join Pro waitlist" ON user_profiles;
+   DROP POLICY IF EXISTS "Anyone can update Pro waitlist timestamp" ON user_profiles;
+   ```
+
+2. **Revert code changes:**
+   ```bash
+   git checkout apps/app/src/api/waitlist.ts
+   git checkout apps/app/src/components/tiers/TierCard.tsx
+   git checkout apps/app/src/components/tiers/tiers.css
+   ```
+
+3. **Document blockers:**
+   - Add comment to issue with error details
+   - Notify PM of delays
+   - Create rollback PR if needed
+
+### PM Checkpoints
+Review points for PM validation:
+- [ ] **After Phase 1** - Database policies work, can insert waitlist emails
+- [ ] **After Phase 2** - API helper function works in isolation
+- [ ] **After Phase 3** - Form submission works end-to-end
+- [ ] **After Phase 4** - All edge cases handled, ready for production
+
+### Success Metrics
+Implementation is complete when:
+- [ ] TypeScript compiles with 0 errors (`pnpm typecheck`)
+- [ ] Build succeeds (`pnpm build`)
+- [ ] Anonymous users can join waitlist with email
+- [ ] Logged-in users can join without entering email
+- [ ] Email appears in database with timestamp
+- [ ] Duplicate emails handled gracefully (show success)
+- [ ] Error messages display for invalid inputs
+- [ ] Rate limiting prevents spam (5 second throttle)
+- [ ] Mobile responsive (tested on iPhone SE size)
+- [ ] No console errors or warnings
+- [ ] PM has approved final implementation
+
+### Risk Tracking
+
+| Phase | Risk | Mitigation | Status |
+|-------|------|------------|--------|
+| 1 | RLS policies too permissive | Carefully scope WITH CHECK clauses | ⏳ |
+| 2 | Email validation regex fails edge cases | Use well-tested RFC 5322 regex | ⏳ |
+| 3 | Upsert conflict behavior incorrect | Test with existing emails | ⏳ |
+| 3 | Profile email not available for logged-in users | Check SubscriptionContext loads profile | ⏳ |
+| 4 | Anonymous → Login profile merge fails | Test end-to-end flow | ⏳ |
+
+### Time Estimates
+- **Phase 1**: 30 min (RLS policies)
+- **Phase 2**: 45 min (API helper)
+- **Phase 3**: 1 hour (Frontend integration)
+- **Phase 4**: 30 min (Styling & polish)
+- **Total: 2.75 hours (3 hours with buffer)**
+
+### Next Actions
+1. **Apply database migration:** `supabase db push` for migration 016
+2. **Create feature branch:** `git checkout -b feature/pro-waitlist-backend`
+3. **Begin Phase 1, Task 1.1:** Create RLS policies migration
+4. **Test after each phase:** Run `pnpm build && pnpm typecheck`
+5. **Manual test in browser:** Verify form submission works
+
+---
 *[End of plan. Next: /implement issues/2025-10-06-tier-selection-modal.md]*

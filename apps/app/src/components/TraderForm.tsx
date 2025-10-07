@@ -333,7 +333,7 @@ export function TraderForm({
           filter: {
             code: finalFilterCode,
             description: validConditions,
-            indicators: indicatorsToSave || editingTrader.filter.indicators,
+            indicators: generatedTrader?.indicators || editingTrader.filter.indicators,
             refreshInterval: filterInterval,
             requiredTimeframes: generatedTrader?.requiredTimeframes || editingTrader.filter.requiredTimeframes || [filterInterval]
           },
@@ -366,7 +366,7 @@ export function TraderForm({
           filter: {
             code: finalFilterCode,
             description: validConditions,
-            indicators: indicatorsToSave || [],
+            indicators: generatedTrader?.indicators || [],
             refreshInterval: filterInterval,
             requiredTimeframes: generatedTrader?.requiredTimeframes || [filterInterval]
           },

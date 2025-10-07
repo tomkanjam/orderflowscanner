@@ -24,6 +24,7 @@ export interface Trader {
   ownershipType: 'system' | 'user';
   accessTier: AccessTier;
   isBuiltIn: boolean;
+  default_enabled?: boolean; // Whether this built-in trader is enabled by default for new users
   category?: string;
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   adminNotes?: string;

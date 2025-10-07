@@ -48,10 +48,11 @@ COPY server/fly-machine/package.json server/fly-machine/package-lock.json ./
 # Install production dependencies only
 RUN npm ci --omit=dev
 
-# Copy built files from builder (note: tsc outputs to dist/server/fly-machine/, so we copy that)
-COPY --from=builder /build/server/fly-machine/dist/server/fly-machine ./dist
-# Also copy shared compiled files
-COPY --from=builder /build/server/fly-machine/dist/apps ./dist/apps
+# Copy built files from builder
+# TypeScript outputs to dist/server/fly-machine/, so copy from there
+COPY --from=builder /build/server/fly-machine/dist/server/fly-machine ./
+# Also copy the shared app files
+COPY --from=builder /build/server/fly-machine/dist/apps ./apps
 
 # Set environment variables
 ENV NODE_ENV=production
@@ -64,4 +65,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 EXPOSE 8080
 
 # Start the application
-CMD ["node", "dist/index.js"]
+CMD ["node", "index.js"]

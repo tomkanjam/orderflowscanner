@@ -47,11 +47,6 @@ export function SignalAccessIndicator({
         {getTierIcon(signal.accessTier)}
         {getTierDisplayName(signal.accessTier)}
       </span>
-      {signal.difficulty && (
-        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--nt-bg-tertiary)] text-[var(--nt-text-secondary)]">
-          {signal.difficulty}
-        </span>
-      )}
     </div>
   );
 }

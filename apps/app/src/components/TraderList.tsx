@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Trader } from '../abstractions/trader.interfaces';
 import { traderManager } from '../services/traderManager';
 import { Plus, Activity, Cloud } from 'lucide-react';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { useAuth } from '../hooks/useAuth';
 import { getSignalAccess } from '../utils/tierAccess';
 import { TierGate } from './TierGate';
 import { UpgradePrompt } from './UpgradePrompt';
@@ -28,6 +29,7 @@ export function TraderList({
   const [loading, setLoading] = useState(true);
   const [showCloudPanel, setShowCloudPanel] = useState(false);
   const { currentTier, preferences, canCreateSignal, remainingSignals, toggleFavoriteSignal, profile } = useSubscription();
+  const { user } = useAuth();
   const cloudExecution = useCloudExecution();
 
   useEffect(() => {
@@ -79,15 +81,16 @@ export function TraderList({
 
   const handleToggleTrader = async (trader: Trader) => {
     try {
-      if (trader.enabled) {
-        await traderManager.disableTrader(trader.id);
-      } else {
-        await traderManager.enableTrader(trader.id);
-      }
+      await traderManager.toggleUserPreference(trader.id, user?.id);
     } catch (error) {
       console.error('Failed to toggle trader:', error);
     }
   };
+
+  // Helper to get effective enabled state for a trader
+  const getEffectiveEnabled = useCallback((trader: Trader): boolean => {
+    return traderManager.getEffectiveEnabled(trader, user?.id);
+  }, [user?.id]);
 
   const handleDeleteTrader = async (trader: Trader) => {
     if (window.confirm(`Delete signal "${trader.name}"? This cannot be undone.`)) {
@@ -155,21 +158,24 @@ export function TraderList({
               const access = getSignalAccess(trader, currentTier);
               const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
               const isSelected = selectedTraderId === trader.id;
-              
+              const effectivelyEnabled = getEffectiveEnabled(trader);
+
               return (
                 <SignalCardEnhanced
                   key={trader.id}
-                  signal={trader}
+                  signal={{...trader, enabled: effectivelyEnabled}}
                   isSelected={isSelected}
                   isFavorite={isFavorite}
                   canView={access.canView}
                   canFavorite={access.canFavorite}
+                  showEnableToggle={true}
                   showAccessIndicator={true}
                   showEditDelete={profile?.is_admin}
                   onSelect={() => onSelectTrader?.(isSelected ? null : trader.id)}
                   onEdit={() => onEditTrader(trader)}
                   onDelete={() => handleDeleteTrader(trader)}
                   onToggleFavorite={() => handleToggleFavorite(trader.id)}
+                  onToggleEnable={() => handleToggleTrader(trader)}
                 />
               );
             })}

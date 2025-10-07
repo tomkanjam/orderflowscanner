@@ -1,6 +1,6 @@
 # Issues Dashboard
 
-*Last updated: 2025-10-05*
+*Last updated: 2025-10-07*
 
 ## Active Issues
 
@@ -11,7 +11,11 @@
   - **Status:** Ready for implementation - Two-phase fix planned
 
 ### 🎯 New Ideas
-- [`2025-10-05-golang-binance-data-collector.md`](./2025-10-05-golang-binance-data-collector.md) - Golang Binance Data Collector ⭐ NEW
+- [`2025-10-07-builtin-trader-run-control.md`](./2025-10-07-builtin-trader-run-control.md) - Built-in Trader Run Control ⭐ NEW
+  - **Priority:** High
+  - **Type:** feature (UX/performance)
+  - **Status:** Idea review - Per-user controls for built-in signal library
+- [`2025-10-05-golang-binance-data-collector.md`](./2025-10-05-golang-binance-data-collector.md) - Golang Binance Data Collector
   - **Priority:** High
   - **Type:** feature (infrastructure)
   - **Status:** Idea review - Centralized market data hub for 1,000+ machine scale
@@ -59,9 +63,9 @@
   - **Status:** Example/Template
 
 ## Quick Stats
-- **Total Issues:** 9
+- **Total Issues:** 10
 - **Critical Bugs:** 1
-- **New Ideas:** 3
+- **New Ideas:** 4
 - **In Review:** 1
 - **In Progress:** 1
 - **Planning:** 1
@@ -70,7 +74,8 @@
 
 ## Next Actions
 1. **URGENT:** Fix Fly machine historical klines issue - traders can't operate without data
-2. **NEW:** Review Golang Binance Data Collector proposal (scalability blocker)
-3. Complete performance degradation fix implementation
-4. Begin specification phase for My Signals click filtering
-5. Review and close completed issues
+2. **NEW:** Review Built-in Trader Run Control proposal (UX/performance critical)
+3. **NEW:** Review Golang Binance Data Collector proposal (scalability blocker)
+4. Complete performance degradation fix implementation
+5. Begin specification phase for My Signals click filtering
+6. Review and close completed issues

@@ -1,11 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
-import { 
-  Trader, 
-  ITraderManager, 
-  TraderMetrics, 
-  PerformanceMetrics 
+import {
+  Trader,
+  ITraderManager,
+  TraderMetrics,
+  PerformanceMetrics
 } from '../abstractions/trader.interfaces';
 import { supabase } from '../config/supabase';
+import { traderPreferences } from './traderPreferences';
 
 export class TraderManager implements ITraderManager {
   private traders: Map<string, Trader> = new Map();
@@ -386,6 +387,7 @@ export class TraderManager implements ITraderManager {
       ownership_type: trader.ownershipType,
       access_tier: trader.accessTier,
       is_built_in: trader.isBuiltIn,
+      default_enabled: trader.default_enabled,
       category: trader.category,
       difficulty: trader.difficulty,
       admin_notes: trader.adminNotes,
@@ -424,10 +426,9 @@ export class TraderManager implements ITraderManager {
         // Subscription fields
         userId: data.user_id,
         ownershipType: data.ownership_type || 'user',
-        // Custom signals should be accessible to their creators regardless of tier
-        // Check user_id to identify custom signals (user-created vs system/built-in)
-        accessTier: data.user_id ? 'anonymous' : (data.access_tier || 'free'),
+        accessTier: data.access_tier || 'free',
         isBuiltIn: data.is_built_in || false,
+        default_enabled: data.default_enabled,
         category: data.category,
         difficulty: data.difficulty,
         adminNotes: data.admin_notes,
@@ -448,14 +449,76 @@ export class TraderManager implements ITraderManager {
     const trader = this.traders.get(traderId);
     if (!trader) return;
 
-    const currentMetrics = trader.mode === 'demo' 
-      ? trader.metrics.demoMetrics! 
+    const currentMetrics = trader.mode === 'demo'
+      ? trader.metrics.demoMetrics!
       : trader.metrics.liveMetrics!;
 
     await this.updateMetrics(traderId, {
       totalSignals: trader.metrics.totalSignals + 1,
       lastSignalAt: new Date(),
     });
+  }
+
+  /**
+   * Get the effective enabled state for a trader
+   * For built-in traders: checks admin gate, user preference, then default_enabled
+   * For custom traders: returns trader.enabled directly
+   */
+  getEffectiveEnabled(trader: Trader, userId?: string): boolean {
+    // Admin gate: if admin disabled, always return false
+    if (!trader.enabled) {
+      return false;
+    }
+
+    // Custom traders: use database enabled field directly
+    if (!trader.isBuiltIn) {
+      return trader.enabled;
+    }
+
+    // Built-in traders: check user preference, fallback to default_enabled
+    const userPref = traderPreferences.getTraderEnabled(trader.id, userId);
+    return userPref ?? trader.default_enabled ?? false;
+  }
+
+  /**
+   * Toggle user preference for a trader
+   * For built-in traders: updates localStorage
+   * For custom traders: updates database enabled field
+   */
+  async toggleUserPreference(traderId: string, userId?: string): Promise<void> {
+    const trader = this.traders.get(traderId);
+    if (!trader) {
+      throw new Error(`Trader ${traderId} not found`);
+    }
+
+    if (!trader.isBuiltIn) {
+      // Custom traders: toggle database field
+      if (trader.enabled) {
+        await this.disableTrader(traderId);
+      } else {
+        await this.enableTrader(traderId);
+      }
+      return;
+    }
+
+    // Built-in traders: toggle localStorage preference
+    const currentPref = traderPreferences.getTraderEnabled(traderId, userId);
+    const currentEffective = currentPref ?? trader.default_enabled ?? false;
+
+    traderPreferences.setTraderEnabled(traderId, !currentEffective, userId);
+
+    // Notify subscribers to trigger UI update
+    this.notifySubscribers();
+  }
+
+  /**
+   * Get all traders with their effective enabled state
+   */
+  getEffectiveTraders(userId?: string): Trader[] {
+    return Array.from(this.traders.values()).map(trader => ({
+      ...trader,
+      enabled: this.getEffectiveEnabled(trader, userId)
+    }));
   }
 }
 

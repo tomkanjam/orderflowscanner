@@ -58,7 +58,8 @@ export function TraderForm({
   const [category, setCategory] = useState(editingTrader?.category || '');
   const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>(editingTrader?.difficulty || 'beginner');
   const [adminNotes, setAdminNotes] = useState(editingTrader?.adminNotes || '');
-  
+  const [defaultEnabled, setDefaultEnabled] = useState(editingTrader?.default_enabled || false);
+
   // Track the original conditions and interval to detect changes
   const originalConditionsRef = useRef<string[]>(editingTrader?.filter?.description || []);
   const originalIntervalRef = useRef<KlineInterval>(editingTrader?.filter?.interval || KlineInterval.ONE_MINUTE);
@@ -350,7 +351,8 @@ export function TraderForm({
             accessTier,
             category: isBuiltIn ? category : undefined,
             difficulty: isBuiltIn ? difficulty : undefined,
-            adminNotes: isBuiltIn ? adminNotes : undefined
+            adminNotes: isBuiltIn ? adminNotes : undefined,
+            default_enabled: isBuiltIn ? defaultEnabled : undefined
           })
         });
         
@@ -389,7 +391,8 @@ export function TraderForm({
             accessTier,
             category: isBuiltIn ? category : undefined,
             difficulty: isBuiltIn ? difficulty : undefined,
-            adminNotes: isBuiltIn ? adminNotes : undefined
+            adminNotes: isBuiltIn ? adminNotes : undefined,
+            default_enabled: isBuiltIn ? defaultEnabled : undefined
           })
         });
         
@@ -915,6 +918,24 @@ export function TraderForm({
                       rows={2}
                     />
                   </div>
+
+                  {/* Default Enabled Checkbox */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="defaultEnabled"
+                      checked={defaultEnabled}
+                      onChange={(e) => setDefaultEnabled(e.target.checked)}
+                      className="h-4 w-4 rounded border-[var(--nt-border-default)] bg-[var(--nt-bg-secondary)]
+                        text-[var(--nt-accent-lime)] focus:ring-[var(--nt-accent-lime)] focus:ring-offset-0"
+                    />
+                    <label htmlFor="defaultEnabled" className="text-sm text-[var(--nt-text-primary)]">
+                      Enable by default for new users
+                    </label>
+                  </div>
+                  <p className="text-xs text-[var(--nt-text-muted)] mt-1">
+                    When checked, this signal will automatically run for new users when they first open the app
+                  </p>
                 </>
               )}
             </div>

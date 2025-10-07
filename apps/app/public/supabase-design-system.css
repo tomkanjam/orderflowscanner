@@ -1,0 +1,167 @@
+/**
+ * Supabase-Inspired Design System
+ * Based on shadcn/ui theming with Supabase color palette
+ * https://ui.shadcn.com/themes
+ * https://supabase.com/ui
+ */
+
+@layer base {
+  :root {
+    /* Border radius */
+    --radius: 0.5rem;
+
+    /* Light theme colors (using oklch for better color accuracy) */
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+
+    /* Primary: Supabase brand green */
+    --primary: oklch(0.577 0.147 166.081);
+    --primary-foreground: oklch(0.985 0 0);
+
+    /* Secondary: Subtle gray */
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+
+    /* Muted: For backgrounds and disabled states */
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+
+    /* Accent: For highlights */
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+
+    /* Destructive: Red for errors/dangerous actions */
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.985 0 0);
+
+    /* Borders and inputs */
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+
+    /* Chart colors */
+    --chart-1: oklch(0.646 0.222 41.116);
+    --chart-2: oklch(0.6 0.118 184.704);
+    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-5: oklch(0.769 0.188 70.08);
+  }
+
+  .dark {
+    /* Dark theme colors - Supabase dashboard style */
+    --background: oklch(0.13 0 0); /* Very dark gray, almost black */
+    --foreground: oklch(0.96 0 0); /* Off-white for text */
+
+    --card: oklch(0.16 0 0); /* Slightly lighter than background */
+    --card-foreground: oklch(0.96 0 0);
+
+    --popover: oklch(0.16 0 0);
+    --popover-foreground: oklch(0.96 0 0);
+
+    /* Primary: Supabase brand green (brighter in dark mode) */
+    --primary: oklch(0.72 0.15 166.5);
+    --primary-foreground: oklch(0.13 0 0);
+
+    /* Secondary: Darker gray for secondary elements */
+    --secondary: oklch(0.2 0 0);
+    --secondary-foreground: oklch(0.96 0 0);
+
+    /* Muted: For subtle backgrounds */
+    --muted: oklch(0.2 0 0);
+    --muted-foreground: oklch(0.6 0 0);
+
+    /* Accent: Slightly highlighted */
+    --accent: oklch(0.24 0 0);
+    --accent-foreground: oklch(0.96 0 0);
+
+    /* Destructive: Brighter red for dark mode */
+    --destructive: oklch(0.62 0.28 29.234);
+    --destructive-foreground: oklch(0.96 0 0);
+
+    /* Borders and inputs - subtle in dark mode */
+    --border: oklch(0.27 0 0);
+    --input: oklch(0.27 0 0);
+    --ring: oklch(0.5 0 0);
+
+    /* Chart colors optimized for dark mode */
+    --chart-1: oklch(0.75 0.22 41.116);
+    --chart-2: oklch(0.72 0.14 184.704);
+    --chart-3: oklch(0.65 0.12 227.392);
+    --chart-4: oklch(0.82 0.19 84.429);
+    --chart-5: oklch(0.78 0.19 70.08);
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Supabase-specific enhancements */
+@layer utilities {
+  /* Sidebar styles */
+  .sidebar-link {
+    @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors;
+    @apply hover:bg-accent hover:text-accent-foreground;
+    @apply data-[active=true]:bg-accent data-[active=true]:text-accent-foreground;
+  }
+
+  /* Top bar / Header styles */
+  .top-bar {
+    @apply border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60;
+  }
+
+  /* Card styles matching Supabase */
+  .card-supabase {
+    @apply rounded-lg border border-border bg-card text-card-foreground shadow-sm;
+  }
+
+  /* Badge variants */
+  .badge-success {
+    @apply bg-green-500/10 text-green-500 border-green-500/20;
+  }
+
+  .badge-warning {
+    @apply bg-yellow-500/10 text-yellow-500 border-yellow-500/20;
+  }
+
+  .badge-error {
+    @apply bg-red-500/10 text-red-500 border-red-500/20;
+  }
+
+  /* Stats card */
+  .stat-card {
+    @apply card-supabase p-4;
+  }
+
+  .stat-label {
+    @apply text-xs font-medium text-muted-foreground uppercase tracking-wide;
+  }
+
+  .stat-value {
+    @apply text-2xl font-semibold mt-2;
+  }
+
+  /* Panel styles */
+  .panel {
+    @apply border-l border-border bg-card;
+  }
+
+  /* Smooth transitions */
+  .transition-smooth {
+    @apply transition-all duration-200 ease-in-out;
+  }
+}

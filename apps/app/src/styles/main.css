@@ -12,6 +12,7 @@
 @import url('/neon-terminal-design-system.css');
 @import url('/trademind-design-system.css');
 @import url('/trademind-to-neon-migration.css');
+@import url('/supabase-design-system.css');
 
 /* Import component styles */
 @import '../components/tiers/tiers.css';

@@ -34,6 +34,11 @@ import {
 export const StyleGuideSupabase: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
+  // Ensure dark mode is applied on mount
+  React.useEffect(() => {
+    document.documentElement.classList.add('dark');
+  }, []);
+
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
@@ -48,9 +53,13 @@ export const StyleGuideSupabase: React.FC = () => {
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
-                <Zap className="w-5 h-5 text-primary-foreground" />
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary-foreground">
+                  <path d="M13 12L20 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"></path>
+                  <path d="M4 5L8 9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"></path>
+                  <path d="M8 15L4 19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"></path>
+                </svg>
               </div>
-              <span className="font-semibold text-lg">Crypto Screener</span>
+              <span className="font-semibold text-lg">vyx</span>
             </div>
           </div>
 

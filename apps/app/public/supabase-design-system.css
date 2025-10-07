@@ -209,14 +209,17 @@
 @layer utilities {
   /* Sidebar styles */
   .sidebar-link {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.75rem;
     border-radius: var(--radius);
-    padding: 0.5rem 0.75rem;
+    padding: 0.625rem 0.75rem;
     font-size: 0.875rem;
     font-weight: 500;
-    transition: colors 0.2s;
+    color: var(--sidebar-foreground);
+    transition: all 0.15s ease-in-out;
+    cursor: pointer;
   }
 
   .sidebar-link:hover {
@@ -226,7 +229,19 @@
 
   .sidebar-link[data-active="true"] {
     background-color: var(--sidebar-accent);
-    color: var(--sidebar-accent-foreground);
+    color: var(--sidebar-primary);
+    font-weight: 600;
+  }
+
+  .sidebar-link[data-active="true"]::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: var(--sidebar-primary);
+    border-radius: 0 2px 2px 0;
   }
 
   /* Top bar / Header styles */

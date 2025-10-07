@@ -153,7 +153,7 @@ export function TraderList({
             <p className="mb-2">No signals available</p>
           </div>
         ) : (
-          <div className="border-t border-sidebar-border">
+          <div className="border-t border-border">
             {builtInSignals.map(trader => {
               const access = getSignalAccess(trader, currentTier);
               const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
@@ -249,7 +249,7 @@ export function TraderList({
               </p>
             </div>
           ) : (
-            <div className="border-t border-sidebar-border">
+            <div className="border-t border-border">
               {customSignals.map(trader => {
                 const access = getSignalAccess(trader, currentTier);
                 const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;

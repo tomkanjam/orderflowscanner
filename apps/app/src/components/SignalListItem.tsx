@@ -85,8 +85,8 @@ export function SignalListItem({
         flex items-center gap-2 px-4 h-10
         cursor-pointer transition-all duration-150
         border-l-2 border-transparent
-        ${isSelected ? 'bg-sidebar-accent border-l-primary' : ''}
-        ${!isSelected ? 'hover:bg-sidebar-accent hover:border-l-sidebar-primary' : ''}
+        ${isSelected ? 'bg-accent border-l-primary' : ''}
+        ${!isSelected ? 'hover:bg-accent hover:border-l-primary' : ''}
       `}
       onClick={onSelect}
       role="button"

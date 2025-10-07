@@ -97,31 +97,175 @@ export const StyleGuideSupabase: React.FC = () => {
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-64 border-r border-border bg-background h-[calc(100vh-3.5rem)] sticky top-14">
-          <nav className="p-4 space-y-1">
-            <a href="#" className="sidebar-link" data-active="true">
-              <Home className="w-4 h-4" />
-              Dashboard
-            </a>
-            <a href="#" className="sidebar-link">
-              <BarChart3 className="w-4 h-4" />
-              Screener
-            </a>
-            <a href="#" className="sidebar-link">
-              <Activity className="w-4 h-4" />
-              Signals
-            </a>
-            <a href="#" className="sidebar-link">
-              <TrendingUp className="w-4 h-4" />
-              Traders
-            </a>
-            <Separator className="my-4" />
-            <a href="#" className="sidebar-link">
-              <Settings className="w-4 h-4" />
-              Settings
-            </a>
-          </nav>
+        {/* Redesigned Sidebar - Full Featured */}
+        <aside className="w-[360px] border-r border-border bg-[var(--sidebar-background)] h-[calc(100vh-3.5rem)] sticky top-14 flex flex-col">
+          {/* Status Bar */}
+          <div className="px-4 py-3 border-b border-border bg-[var(--sidebar-accent)]/30">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                <span className="text-muted-foreground">Connected</span>
+              </div>
+              <div className="flex items-center gap-4 text-muted-foreground">
+                <span>100 tickers</span>
+                <span>•</span>
+                <span>12 signals</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {/* Create Signal Button */}
+            <Button className="w-full justify-start gap-2" size="lg">
+              <Activity className="w-5 h-5" />
+              Create Signal with AI
+            </Button>
+
+            {/* Built-in Signals Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Built-in Signals
+                </h3>
+                <Badge variant="secondary" className="text-xs">8</Badge>
+              </div>
+
+              <div className="space-y-1">
+                {/* Signal Items */}
+                <div className="group relative p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-all">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium truncate">Volume Spike Breakout</span>
+                        <Badge variant="outline" className="text-xs shrink-0">Beginner</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        Identifies coins with sudden volume increases and price breakouts
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                    <TrendingUp className="w-3 h-3" />
+                    <span>5 matches</span>
+                    <span className="ml-auto">2m ago</span>
+                  </div>
+                </div>
+
+                <div className="group relative p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-all">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium truncate">RSI Oversold Recovery</span>
+                        <Badge variant="outline" className="text-xs shrink-0">Intermediate</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        Catches oversold coins showing signs of reversal
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                    <TrendingUp className="w-3 h-3" />
+                    <span>2 matches</span>
+                    <span className="ml-auto">5m ago</span>
+                  </div>
+                </div>
+
+                <div className="group relative p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-all opacity-50">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium truncate">MACD Momentum Shift</span>
+                        <Badge variant="outline" className="text-xs shrink-0">Advanced</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        Detects MACD crossovers with strong momentum
+                      </p>
+                    </div>
+                    <Badge className="shrink-0 bg-primary/10 text-primary border-primary/20">Pro</Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Custom Signals Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  My Signals
+                </h3>
+                <Badge variant="secondary" className="text-xs">2 / 10</Badge>
+              </div>
+
+              <div className="space-y-1">
+                <div className="group relative p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-all">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium block truncate mb-1">My Custom Scalp</span>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        Quick scalps on 5m timeframe with tight stops
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                      <Settings className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                    <TrendingUp className="w-3 h-3" />
+                    <span>12 matches</span>
+                    <span className="ml-auto">1m ago</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* User Menu Footer */}
+          <div className="p-4 border-t border-border">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-full flex items-center gap-3 p-3 rounded-lg bg-[var(--sidebar-accent)] hover:bg-accent transition-colors">
+                  <Avatar className="w-8 h-8">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">JD</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-left min-w-0">
+                    <div className="text-sm font-medium truncate">john@example.com</div>
+                    <div className="text-xs text-primary">Pro Tier</div>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[320px]">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <User className="w-4 h-4 mr-2" />
+                  Account Dashboard
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive">
+                  <User className="w-4 h-4 mr-2" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </aside>
 
         {/* Main Content */}

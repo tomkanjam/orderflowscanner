@@ -109,6 +109,16 @@ const Sidebar: React.FC<SidebarProps> = ({
     // For now, just log the intent
   };
 
+  const handleCreateSignalClick = () => {
+    // If user is not logged in or on free tier, show tier modal
+    if (!user || currentTier === 'anonymous' || currentTier === 'free') {
+      setShowTierModal(true);
+    } else {
+      // Pro or Elite tier - directly open the create form
+      setShowCreateForm(true);
+    }
+  };
+
   return (
     <aside className="w-full md:w-80 xl:w-[360px] flex-shrink-0 bg-background flex flex-col border-r border-border h-screen">
       {/* Status Bar Header */}
@@ -120,14 +130,16 @@ const Sidebar: React.FC<SidebarProps> = ({
         lastUpdate={metrics.lastUpdate}
         updateFrequency={metrics.updateFrequency}
       />
-      
+
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col">
 
-      {/* Create Signal with AI Button - Always visible at top */}
-      <div className="mb-4">
-        <CreateSignalButton onClick={() => setShowTierModal(true)} />
-      </div>
+      {/* Create Signal with AI Button - Only show when form is not displayed */}
+      {!showCreateForm && !editingTrader && (
+        <div className="mb-4">
+          <CreateSignalButton onClick={handleCreateSignalClick} />
+        </div>
+      )}
 
       {/* Show form or list based on state */}
       {showCreateForm || editingTrader ? (

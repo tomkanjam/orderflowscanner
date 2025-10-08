@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Trader } from '../abstractions/trader.interfaces';
 import { traderManager } from '../services/traderManager';
-import { Plus, Activity, Cloud } from 'lucide-react';
+import { Activity, Cloud } from 'lucide-react';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useAuth } from '../hooks/useAuth';
 import { getSignalAccess } from '../utils/tierAccess';
@@ -143,7 +143,7 @@ export function TraderList({
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold text-[var(--nt-text-primary)]">
-            Signals
+            Built-In
           </h3>
         </div>
 
@@ -200,7 +200,7 @@ export function TraderList({
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold text-[var(--nt-text-primary)]">
-              {currentTier === 'elite' ? 'My AI Traders' : 'My Signals'}
+              Personal
             </h3>
             <div className="flex items-center gap-3">
               {remainingSignals !== Infinity && (
@@ -222,17 +222,6 @@ export function TraderList({
                   Cloud Machine
                 </button>
               )}
-
-              <button
-                onClick={onCreateTrader}
-                disabled={!canCreateSignal()}
-                className="flex items-center gap-2 px-3 py-1.5 bg-[var(--nt-bg-primary)] text-[var(--nt-accent-lime)]
-                  border border-[var(--nt-accent-lime)] rounded hover:bg-[var(--nt-accent-lime)] hover:text-[var(--nt-bg-primary)]
-                  transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Plus className="h-4 w-4" />
-                Create
-              </button>
             </div>
           </div>
 

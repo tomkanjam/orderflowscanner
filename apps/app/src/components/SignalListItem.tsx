@@ -95,7 +95,7 @@ export function SignalListItem({
   return (
     <div
       className={`
-        flex items-center gap-2 px-4 h-10
+        flex items-center gap-2 h-10
         cursor-pointer transition-all duration-150
         border-l-2 border-transparent
         ${isSelected ? 'bg-accent border-l-primary' : ''}
@@ -106,16 +106,6 @@ export function SignalListItem({
       tabIndex={0}
       aria-label={`${signal.name}, ${signal.isBuiltIn ? 'Signal' : 'Trader'}, ${signal.enabled ? 'Running' : 'Stopped'}`}
     >
-      {/* Activity dot */}
-      <div
-        className={`
-          w-2 h-2 rounded-full flex-shrink-0 transition-colors
-          ${getDotColor()}
-          ${shouldAnimate ? 'animate-pulse' : ''}
-        `}
-        title={`Activity: ${activityState}`}
-      />
-
       {/* Type icon - Trader (AI) or Signal */}
       <div
         className="flex-shrink-0 text-muted-foreground"

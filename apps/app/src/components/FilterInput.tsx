@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, memo } from 'react';
 import { Search, X } from 'lucide-react';
 
 interface FilterInputProps {
@@ -7,7 +7,7 @@ interface FilterInputProps {
   placeholder?: string;
 }
 
-export function FilterInput({
+export const FilterInput = memo(function FilterInput({
   value,
   onChange,
   placeholder = 'Search signals...',
@@ -71,4 +71,4 @@ export function FilterInput({
       )}
     </div>
   );
-}
+});

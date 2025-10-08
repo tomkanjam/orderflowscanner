@@ -64,6 +64,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [filterQuery, setFilterQuery] = useState('');
   const debouncedQuery = useDebouncedValue(filterQuery, 300);
 
+  // Stable callback to prevent FilterInput re-renders
+  const handleFilterChange = useCallback((value: string) => {
+    setFilterQuery(value);
+  }, []);
+
   // Handle clicks outside of user menu
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -157,7 +162,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="mb-4">
           <FilterInput
             value={filterQuery}
-            onChange={setFilterQuery}
+            onChange={handleFilterChange}
             placeholder="Search signals..."
           />
         </div>

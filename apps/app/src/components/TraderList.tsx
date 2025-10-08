@@ -12,18 +12,22 @@ import { SignalListItem } from './SignalListItem';
 import { useCloudExecution } from '../hooks/useCloudExecution';
 import { CloudExecutionPanel } from './cloud/CloudExecutionPanel';
 
+type TabType = 'builtin' | 'personal' | 'favorites';
+
 interface TraderListProps {
   onCreateTrader: () => void;
   onEditTrader: (trader: Trader) => void;
   onSelectTrader?: (traderId: string | null) => void;
   selectedTraderId?: string | null;
+  activeTab?: TabType; // NEW: Which tab is active
 }
 
 export function TraderList({
   onCreateTrader,
   onEditTrader,
   onSelectTrader,
-  selectedTraderId
+  selectedTraderId,
+  activeTab = 'builtin' // Default to builtin tab
 }: TraderListProps) {
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,13 +52,20 @@ export function TraderList({
     return unsubscribe;
   }, []);
 
-  // Filter and categorize traders based on access
-  const { builtInSignals, customSignals, lockedSignals } = useMemo(() => {
+  // Filter and categorize traders based on access and active tab
+  const { builtInSignals, customSignals, lockedSignals, favoriteSignals } = useMemo(() => {
     const builtIn: Trader[] = [];
     const custom: Trader[] = [];
     const locked: Trader[] = [];
+    const favorites: Trader[] = [];
+    const favoriteIds = preferences?.favorite_signals || [];
 
     traders.forEach(trader => {
+      // Add to favorites if marked
+      if (favoriteIds.includes(trader.id)) {
+        favorites.push(trader);
+      }
+
       if (trader.isBuiltIn) {
         const access = getSignalAccess(trader, currentTier);
         if (access.canView) {
@@ -76,8 +87,8 @@ export function TraderList({
       return (difficultyOrder[a.difficulty || 'beginner'] || 0) - (difficultyOrder[b.difficulty || 'beginner'] || 0);
     });
 
-    return { builtInSignals: builtIn, customSignals: custom, lockedSignals: locked };
-  }, [traders, currentTier]);
+    return { builtInSignals: builtIn, customSignals: custom, lockedSignals: locked, favoriteSignals: favorites };
+  }, [traders, currentTier, preferences]);
 
   const handleToggleTrader = async (trader: Trader) => {
     try {
@@ -140,6 +151,7 @@ export function TraderList({
   return (
     <div className="p-4 space-y-6">
       {/* Built-in Signals Section */}
+      {activeTab === 'builtin' && (
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold text-[var(--nt-text-primary)]">
@@ -187,8 +199,10 @@ export function TraderList({
           </div>
         )}
       </div>
+      )}
 
       {/* Custom Signals Section */}
+      {activeTab === 'personal' && (
       <TierGate minTier="pro" fallback={
         currentTier !== 'anonymous' && (
           <UpgradePrompt 
@@ -268,6 +282,52 @@ export function TraderList({
           )}
         </div>
       </TierGate>
+      )}
+
+      {/* Favorites Section */}
+      {activeTab === 'favorites' && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-[var(--nt-text-primary)]">
+              Favorites
+            </h3>
+          </div>
+
+          {favoriteSignals.length === 0 ? (
+            <div className="text-center py-8 text-[var(--nt-text-muted)]">
+              <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="mb-2">No favorite signals yet</p>
+              <p className="text-sm">Click the star icon on any signal to add it to your favorites</p>
+            </div>
+          ) : (
+            <div className="border-t border-border">
+              {favoriteSignals.map(trader => {
+                const access = getSignalAccess(trader, currentTier);
+                const isFavorite = true; // Always true in favorites tab
+                const isSelected = selectedTraderId === trader.id;
+                const effectivelyEnabled = getEffectiveEnabled(trader);
+                const canEditDelete = profile?.is_admin || trader.createdBy === profile?.id;
+
+                return (
+                  <SignalListItem
+                    key={trader.id}
+                    signal={{...trader, enabled: effectivelyEnabled}}
+                    isSelected={isSelected}
+                    isFavorite={isFavorite}
+                    canEdit={canEditDelete}
+                    canDelete={canEditDelete}
+                    onSelect={() => onSelectTrader?.(isSelected ? null : trader.id)}
+                    onToggleEnable={() => handleToggleTrader(trader)}
+                    onEdit={() => onEditTrader(trader)}
+                    onDelete={() => handleDeleteTrader(trader)}
+                    onToggleFavorite={() => handleToggleFavorite(trader.id)}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Cloud Execution Panel Modal */}
       {showCloudPanel && cloudExecution.isEliteTier && (

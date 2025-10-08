@@ -1,6 +1,7 @@
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { TraderList } from '../src/components/TraderList';
+import { traderManager } from '../src/services/traderManager';
 import { TraderForm } from '../src/components/TraderForm';
 import { PortfolioMetrics } from '../src/components/PortfolioMetrics';
 import { TradingModeSelector } from '../src/components/TradingModeSelector';
@@ -11,7 +12,8 @@ import { User, LogOut, Settings, ChevronDown, LogIn } from 'lucide-react';
 import { useSubscription } from '../src/contexts/SubscriptionContext';
 import { getTierDisplayName, getTierColor } from '../src/utils/tierAccess';
 import { EmailAuthModal } from '../src/components/auth/EmailAuthModal';
-import { StatusBar } from '../src/components/StatusBar';
+import { SidebarHeader } from '../src/components/SidebarHeader';
+import { TabBar } from '../src/components/TabBar';
 import { webSocketManager } from '../src/utils/webSocketManager';
 import { useWebSocketMetrics } from '../hooks/useWebSocketMetrics';
 import { CreateSignalButton } from '../src/components/tiers/CreateSignalButton';
@@ -25,6 +27,9 @@ interface SidebarProps {
   onDataUpdateCallback?: (callback: () => void) => void;
 }
 
+// Tab type definition
+type TabType = 'builtin' | 'personal' | 'favorites';
+
 const Sidebar: React.FC<SidebarProps> = ({
   onSelectedTraderChange,
   tickerCount = 0,
@@ -33,7 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onDataUpdateCallback
 }) => {
   const { user, signOut } = useAuthContext();
-  const { currentTier, canAccessTier, profile } = useSubscription();
+  const { currentTier, canAccessTier, profile, preferences } = useSubscription();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTrader, setEditingTrader] = useState<Trader | null>(null);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
@@ -41,15 +46,44 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  
+
   // WebSocket connection status
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
-  
+
   // WebSocket metrics
   const { metrics, trackUpdate } = useWebSocketMetrics();
-  
+
   // Check if user is admin
   const isAdmin = profile?.is_admin === true;
+
+  // Tab navigation state
+  const [activeTab, setActiveTab] = useState<TabType>('builtin');
+
+  // Traders state (for tab counts)
+  const [traders, setTraders] = useState<Trader[]>([]);
+
+  // Subscribe to traders for tab counts
+  useEffect(() => {
+    const unsubscribe = traderManager.subscribe((updatedTraders) => {
+      setTraders(updatedTraders);
+    });
+
+    traderManager.getTraders().then(initialTraders => {
+      setTraders(initialTraders);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Calculate tab counts
+  const tabCounts = useMemo(() => {
+    const builtin = traders.filter(t => t.isBuiltIn).length;
+    const personal = traders.filter(t => !t.isBuiltIn).length;
+    const favoriteIds = preferences?.favorite_signals || [];
+    const favorites = favoriteIds.length;
+
+    return { builtin, personal, favorites };
+  }, [traders, preferences]);
 
   // Handle clicks outside of user menu
   useEffect(() => {
@@ -121,14 +155,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className="w-full md:w-80 xl:w-[360px] flex-shrink-0 bg-background flex flex-col border-r border-border h-screen">
-      {/* Status Bar Header */}
-      <StatusBar
+      {/* Clean Sidebar Header with metrics */}
+      <SidebarHeader
         connectionStatus={connectionStatus}
-        tickerCount={tickerCount}
+        updateFrequency={metrics.updateFrequency}
         symbolCount={symbolCount}
         signalCount={signalCount}
-        lastUpdate={metrics.lastUpdate}
-        updateFrequency={metrics.updateFrequency}
       />
 
       {/* Scrollable Content */}
@@ -138,6 +170,21 @@ const Sidebar: React.FC<SidebarProps> = ({
       {!showCreateForm && !editingTrader && (
         <div className="mb-4">
           <CreateSignalButton onClick={handleCreateSignalClick} />
+        </div>
+      )}
+
+      {/* Tab Bar - Only show when form is not displayed */}
+      {!showCreateForm && !editingTrader && (
+        <div className="mb-4">
+          <TabBar
+            tabs={[
+              { id: 'builtin', label: 'Built-in', count: tabCounts.builtin },
+              { id: 'personal', label: 'Personal', count: tabCounts.personal },
+              { id: 'favorites', label: 'Favorites', count: tabCounts.favorites }
+            ]}
+            activeTab={activeTab}
+            onTabChange={(tab) => setActiveTab(tab as TabType)}
+          />
         </div>
       )}
 
@@ -157,7 +204,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <>
           {/* Traders Section */}
           <div className="flex-1">
-            <TraderList 
+            <TraderList
               onCreateTrader={() => setShowCreateForm(true)}
               onEditTrader={(trader) => {
                 setEditingTrader(trader);
@@ -168,6 +215,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onSelectedTraderChange?.(traderId);
               }}
               selectedTraderId={selectedTraderId}
+              activeTab={activeTab}
             />
           </div>
           

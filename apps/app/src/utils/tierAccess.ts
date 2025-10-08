@@ -13,6 +13,69 @@ export function canAccessFeature(
   return userLevel >= requiredLevel;
 }
 
+/**
+ * Filter traders based on user's tier access and ownership.
+ * Defense-in-depth: Prevents execution of inaccessible traders.
+ *
+ * Rules:
+ * - Users can always access their own custom signals (userId matches)
+ * - Built-in signals require tier >= signal.accessTier
+ * - Invalid inputs return empty array (fail-secure)
+ *
+ * @param traders - Array of traders to filter
+ * @param userTier - User's subscription tier (or 'anonymous' or null)
+ * @param userId - User's ID (or null for anonymous)
+ * @returns Filtered array of accessible traders
+ */
+export function filterTradersByTierAccess(
+  traders: Trader[],
+  userTier: SubscriptionTier | 'anonymous' | null,
+  userId: string | null
+): Trader[] {
+  // Validate inputs - fail secure
+  if (!traders || !Array.isArray(traders)) {
+    console.warn('[tierAccess] Invalid traders array, returning empty array');
+    return [];
+  }
+
+  // Normalize tier
+  const normalizedTier = userTier || 'anonymous';
+
+  // Filter traders
+  const filtered = traders.filter(trader => {
+    // Validate trader object
+    if (!trader || typeof trader !== 'object') {
+      console.warn('[tierAccess] Invalid trader object, skipping:', trader);
+      return false;
+    }
+
+    // Rule 1: Users can always access their own custom signals
+    // Custom signals are identified by having a userId
+    if (trader.userId && trader.userId === userId) {
+      return true;
+    }
+
+    // Rule 2: Built-in signals require tier access
+    // Built-in signals have isBuiltIn = true or no userId
+    const requiredTier = trader.accessTier || 'free';
+    const hasAccess = canAccessFeature(normalizedTier, requiredTier);
+
+    if (!hasAccess) {
+      console.log(
+        `[tierAccess] Filtered out trader "${trader.name}" (requires ${requiredTier}, user has ${normalizedTier})`
+      );
+    }
+
+    return hasAccess;
+  });
+
+  console.log(
+    `[tierAccess] Filtered ${traders.length} traders → ${filtered.length} accessible (tier: ${normalizedTier}, userId: ${userId || 'null'})`
+  );
+
+  return filtered;
+}
+
 export interface SignalAccess {
   canView: boolean;
   canViewDetails: boolean;

@@ -34,6 +34,7 @@ import { useOptimizedMap, BatchedUpdater, LimitedMap, pruneMapByAge } from './sr
 import { startMemoryCleanup, getActiveSymbols } from './src/utils/memoryCleanup';
 import { useSubscription } from './src/contexts/SubscriptionContext';
 import { areTraderArraysEqual } from './src/utils/traderEquality';
+import { filterTradersByTierAccess } from './src/utils/tierAccess';
 import { memDebug } from './src/utils/memoryDebugger';
 import { klineEventEmitter } from './src/utils/KlineEventEmitter';
 import { sharedMarketData } from './src/shared/SharedMarketData';
@@ -390,20 +391,48 @@ const AppContent: React.FC = () => {
       updatedTraders.forEach(t => {
         console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}, hasFilterCode=${!!t.filter?.code}, filterCodeLength=${t.filter?.code?.length || 0}`);
       });
-      updateTraders(updatedTraders);
+
+      // [TIER ACCESS] Filter by tier before setting state
+      const accessibleTraders = filterTradersByTierAccess(
+        updatedTraders,
+        currentTier,
+        user?.id || null
+      );
+
+      // [TIER ACCESS] Log filter results
+      const blockedCount = updatedTraders.length - accessibleTraders.length;
+      if (blockedCount > 0) {
+        console.log(`[App] Tier filter blocked ${blockedCount} traders for tier: ${currentTier}`);
+        const blockedNames = updatedTraders
+          .filter(t => !accessibleTraders.includes(t))
+          .map(t => `${t.name} (${t.accessTier})`)
+          .join(', ');
+        console.log(`[App] Blocked traders: ${blockedNames}`);
+      }
+
+      updateTraders(accessibleTraders); // Pass filtered list
     });
-    
+
     // Initial load
     traderManager.getTraders().then((traders) => {
       console.log('[App] Initial traders loaded:', traders.length, 'traders');
       traders.forEach(t => {
         console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}, hasFilterCode=${!!t.filter?.code}, filterCodeLength=${t.filter?.code?.length || 0}`);
       });
-      updateTraders(traders);
+
+      // [TIER ACCESS] Filter on initial load
+      const accessibleTraders = filterTradersByTierAccess(
+        traders,
+        currentTier,
+        user?.id || null
+      );
+
+      console.log('[App] Accessible traders after tier filter:', accessibleTraders.length);
+      updateTraders(accessibleTraders);
     });
-    
+
     return unsubscribe;
-  }, [updateTraders]);
+  }, [updateTraders, currentTier, user?.id]);
 
   // Multi-trader historical scanner
   const {

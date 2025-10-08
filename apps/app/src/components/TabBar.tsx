@@ -3,7 +3,6 @@ import React from 'react';
 interface Tab {
   id: string;
   label: string;
-  count?: number;
 }
 
 interface TabBarProps {
@@ -22,9 +21,6 @@ export function TabBar({ tabs, activeTab, onTabChange }: TabBarProps) {
           className="relative pb-3 px-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-150"
         >
           {tab.label}
-          {tab.count !== undefined && (
-            <span className="ml-1 opacity-60">({tab.count})</span>
-          )}
           {activeTab === tab.id && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground" />
           )}

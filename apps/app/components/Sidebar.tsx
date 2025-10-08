@@ -1,7 +1,6 @@
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { TraderList } from '../src/components/TraderList';
-import { traderManager } from '../src/services/traderManager';
 import { TraderForm } from '../src/components/TraderForm';
 import { PortfolioMetrics } from '../src/components/PortfolioMetrics';
 import { TradingModeSelector } from '../src/components/TradingModeSelector';
@@ -64,32 +63,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Search/filter state
   const [filterQuery, setFilterQuery] = useState('');
   const debouncedQuery = useDebouncedValue(filterQuery, 300);
-
-  // Traders state (for tab counts)
-  const [traders, setTraders] = useState<Trader[]>([]);
-
-  // Subscribe to traders for tab counts
-  useEffect(() => {
-    const unsubscribe = traderManager.subscribe((updatedTraders) => {
-      setTraders(updatedTraders);
-    });
-
-    traderManager.getTraders().then(initialTraders => {
-      setTraders(initialTraders);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  // Calculate tab counts
-  const tabCounts = useMemo(() => {
-    const builtin = traders.filter(t => t.isBuiltIn).length;
-    const personal = traders.filter(t => !t.isBuiltIn).length;
-    const favoriteIds = preferences?.favorite_signals || [];
-    const favorites = favoriteIds.length;
-
-    return { builtin, personal, favorites };
-  }, [traders, preferences]);
 
   // Handle clicks outside of user menu
   useEffect(() => {
@@ -195,9 +168,9 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="mb-4">
           <TabBar
             tabs={[
-              { id: 'builtin', label: 'Built-in', count: tabCounts.builtin },
-              { id: 'personal', label: 'Personal', count: tabCounts.personal },
-              { id: 'favorites', label: 'Favorites', count: tabCounts.favorites }
+              { id: 'builtin', label: 'Built-in' },
+              { id: 'personal', label: 'Personal' },
+              { id: 'favorites', label: 'Favorites' }
             ]}
             activeTab={activeTab}
             onTabChange={(tab) => setActiveTab(tab as TabType)}

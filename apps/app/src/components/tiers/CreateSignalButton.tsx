@@ -4,7 +4,7 @@
  * Prominent button that opens the tier selection modal.
  * Displays at the top of the sidebar for all users (anonymous and authenticated).
  *
- * Design: Primary color button with Plus icon following Supabase style guide
+ * Design: Border button with Plus icon
  */
 
 import React from 'react';
@@ -17,7 +17,7 @@ export const CreateSignalButton: React.FC<CreateSignalButtonProps> = ({
 }) => {
   return (
     <button
-      className={`w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all font-medium ${className}`}
+      className={`w-full flex items-center justify-center gap-2 px-4 py-3 bg-background border border-border text-foreground rounded-lg hover:bg-muted transition-all font-medium ${className}`}
       onClick={onClick}
       aria-label="Create custom signal with AI"
     >

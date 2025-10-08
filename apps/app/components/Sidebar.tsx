@@ -170,7 +170,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       />
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col">
+      <div className="flex-1 overflow-y-auto p-3 flex flex-col">
 
       {/* Create Signal with AI Button - Only show when form is not displayed */}
       {!showCreateForm && !editingTrader && (

@@ -17,7 +17,7 @@ export const CreateSignalButton: React.FC<CreateSignalButtonProps> = ({
 }) => {
   return (
     <button
-      className={`w-full flex items-center justify-center gap-2 px-4 py-3 bg-background border border-border text-foreground rounded-lg hover:bg-muted transition-all font-medium ${className}`}
+      className={`w-full flex items-center justify-center gap-2 px-4 py-3 bg-background border border-primary text-primary rounded-lg hover:bg-primary/10 transition-all font-medium ${className}`}
       onClick={onClick}
       aria-label="Create custom signal with AI"
     >

@@ -19,7 +19,8 @@ interface TraderListProps {
   onEditTrader: (trader: Trader) => void;
   onSelectTrader?: (traderId: string | null) => void;
   selectedTraderId?: string | null;
-  activeTab?: TabType; // NEW: Which tab is active
+  activeTab?: TabType; // Which tab is active
+  filterQuery?: string; // NEW: Search query to filter traders
 }
 
 export function TraderList({
@@ -27,7 +28,8 @@ export function TraderList({
   onEditTrader,
   onSelectTrader,
   selectedTraderId,
-  activeTab = 'builtin' // Default to builtin tab
+  activeTab = 'builtin', // Default to builtin tab
+  filterQuery = '' // Default to empty filter
 }: TraderListProps) {
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,15 +54,29 @@ export function TraderList({
     return unsubscribe;
   }, []);
 
-  // Filter and categorize traders based on access and active tab
+  // Filter and categorize traders based on access, active tab, and search query
   const { builtInSignals, customSignals, lockedSignals, favoriteSignals } = useMemo(() => {
     const builtIn: Trader[] = [];
     const custom: Trader[] = [];
     const locked: Trader[] = [];
     const favorites: Trader[] = [];
     const favoriteIds = preferences?.favorite_signals || [];
+    const lowerQuery = filterQuery.toLowerCase();
+
+    // Helper to check if trader matches search query
+    const matchesFilter = (trader: Trader): boolean => {
+      if (!filterQuery.trim()) return true;
+      return (
+        trader.name.toLowerCase().includes(lowerQuery) ||
+        trader.description?.toLowerCase().includes(lowerQuery) ||
+        trader.category?.toLowerCase().includes(lowerQuery)
+      );
+    };
 
     traders.forEach(trader => {
+      // Skip traders that don't match filter
+      if (!matchesFilter(trader)) return;
+
       // Add to favorites if marked
       if (favoriteIds.includes(trader.id)) {
         favorites.push(trader);
@@ -88,7 +104,7 @@ export function TraderList({
     });
 
     return { builtInSignals: builtIn, customSignals: custom, lockedSignals: locked, favoriteSignals: favorites };
-  }, [traders, currentTier, preferences]);
+  }, [traders, currentTier, preferences, filterQuery]);
 
   const handleToggleTrader = async (trader: Trader) => {
     try {

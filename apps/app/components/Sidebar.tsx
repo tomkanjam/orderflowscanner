@@ -14,6 +14,8 @@ import { getTierDisplayName, getTierColor } from '../src/utils/tierAccess';
 import { EmailAuthModal } from '../src/components/auth/EmailAuthModal';
 import { SidebarHeader } from '../src/components/SidebarHeader';
 import { TabBar } from '../src/components/TabBar';
+import { FilterInput } from '../src/components/FilterInput';
+import { useDebouncedValue } from '../src/hooks/useDebouncedValue';
 import { webSocketManager } from '../src/utils/webSocketManager';
 import { useWebSocketMetrics } from '../hooks/useWebSocketMetrics';
 import { CreateSignalButton } from '../src/components/tiers/CreateSignalButton';
@@ -58,6 +60,10 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   // Tab navigation state
   const [activeTab, setActiveTab] = useState<TabType>('builtin');
+
+  // Search/filter state
+  const [filterQuery, setFilterQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(filterQuery, 300);
 
   // Traders state (for tab counts)
   const [traders, setTraders] = useState<Trader[]>([]);
@@ -173,6 +179,17 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
+      {/* Search/Filter Input - Only show when form is not displayed */}
+      {!showCreateForm && !editingTrader && (
+        <div className="mb-4">
+          <FilterInput
+            value={filterQuery}
+            onChange={setFilterQuery}
+            placeholder="Search signals..."
+          />
+        </div>
+      )}
+
       {/* Tab Bar - Only show when form is not displayed */}
       {!showCreateForm && !editingTrader && (
         <div className="mb-4">
@@ -216,6 +233,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               }}
               selectedTraderId={selectedTraderId}
               activeTab={activeTab}
+              filterQuery={debouncedQuery}
             />
           </div>
           

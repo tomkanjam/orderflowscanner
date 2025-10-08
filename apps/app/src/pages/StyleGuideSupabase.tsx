@@ -3,7 +3,7 @@
  * Showcases all components styled with Supabase's design language
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -30,9 +30,19 @@ import {
   User,
   Zap
 } from 'lucide-react';
+import { TabBar } from '../components/demo/TabBar';
+import { FilterInput } from '../components/demo/FilterInput';
+import { CategoryHeader } from '../components/demo/CategoryHeader';
+import { ExpandableSignalCard } from '../components/demo/ExpandableSignalCard';
+import { mockSignals, groupSignalsByCategory, filterSignals } from '../components/demo/mockSignals';
 
 export const StyleGuideSupabase: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+
+  // Signal Library Demo State
+  const [activeTab, setActiveTab] = useState('builtin');
+  const [filterQuery, setFilterQuery] = useState('');
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
 
   // Ensure dark mode is applied on mount
   React.useEffect(() => {
@@ -43,6 +53,48 @@ export const StyleGuideSupabase: React.FC = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
     document.documentElement.classList.toggle('dark', newTheme === 'dark');
+  };
+
+  // Filter and organize signals
+  const filteredSignals = useMemo(() => filterSignals(mockSignals, filterQuery), [filterQuery]);
+
+  const builtInSignals = useMemo(
+    () => filteredSignals.filter(s => s.isBuiltIn),
+    [filteredSignals]
+  );
+
+  const personalSignals = useMemo(
+    () => filteredSignals.filter(s => !s.isBuiltIn),
+    [filteredSignals]
+  );
+
+  const favoriteSignals = useMemo(
+    () => filteredSignals.filter(s => [1, 4, 7, 13].includes(parseInt(s.id))),
+    [filteredSignals]
+  );
+
+  const groupedBuiltIn = useMemo(
+    () => groupSignalsByCategory(builtInSignals),
+    [builtInSignals]
+  );
+
+  const tabs = [
+    { id: 'builtin', label: 'Built-in', count: builtInSignals.length },
+    { id: 'personal', label: 'Personal', count: personalSignals.length },
+    { id: 'favorites', label: 'Favorites', count: favoriteSignals.length }
+  ];
+
+  const getCurrentSignals = () => {
+    switch (activeTab) {
+      case 'builtin':
+        return builtInSignals;
+      case 'personal':
+        return personalSignals;
+      case 'favorites':
+        return favoriteSignals;
+      default:
+        return [];
+    }
   };
 
   return (
@@ -579,6 +631,128 @@ export const StyleGuideSupabase: React.FC = () => {
                   </code>
                   <p className="text-xs text-muted-foreground mt-1">font-mono bg-muted</p>
                 </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* Signal Library Demo */}
+          <section className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-semibold mb-2">Signal Library (New Design)</h2>
+              <p className="text-sm text-muted-foreground">
+                Expandable cards with tabs, filter, and categories
+              </p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Organized Signal Library</CardTitle>
+                <CardDescription>
+                  Features: Tabs (Built-in, Personal, Favorites), real-time filter, category subsections, expandable cards
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Filter Input */}
+                <FilterInput
+                  value={filterQuery}
+                  onChange={setFilterQuery}
+                  placeholder="Search signals... (try 'momentum' or 'rsi')"
+                />
+
+                {/* Tab Bar */}
+                <TabBar
+                  tabs={tabs}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                />
+
+                {/* Signal List */}
+                <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                  {activeTab === 'builtin' && (
+                    <>
+                      {Object.entries(groupedBuiltIn).map(([category, signals]) => (
+                        <div key={category}>
+                          <CategoryHeader category={category} count={signals.length} />
+                          <div className="space-y-2">
+                            {signals.map(signal => (
+                              <ExpandableSignalCard
+                                key={signal.id}
+                                signal={signal}
+                                isExpanded={expandedCardId === signal.id}
+                                onToggleExpand={() =>
+                                  setExpandedCardId(expandedCardId === signal.id ? null : signal.id)
+                                }
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {activeTab === 'personal' && (
+                    <div className="space-y-2">
+                      {personalSignals.length > 0 ? (
+                        personalSignals.map(signal => (
+                          <ExpandableSignalCard
+                            key={signal.id}
+                            signal={signal}
+                            isExpanded={expandedCardId === signal.id}
+                            onToggleExpand={() =>
+                              setExpandedCardId(expandedCardId === signal.id ? null : signal.id)
+                            }
+                          />
+                        ))
+                      ) : (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                          <p className="text-sm">No personal signals found</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === 'favorites' && (
+                    <div className="space-y-2">
+                      {favoriteSignals.length > 0 ? (
+                        favoriteSignals.map(signal => (
+                          <ExpandableSignalCard
+                            key={signal.id}
+                            signal={signal}
+                            isExpanded={expandedCardId === signal.id}
+                            onToggleExpand={() =>
+                              setExpandedCardId(expandedCardId === signal.id ? null : signal.id)
+                            }
+                          />
+                        ))
+                      ) : (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <Zap className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                          <p className="text-sm">No favorite signals</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {getCurrentSignals().length === 0 && filterQuery && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">No signals match "{filterQuery}"</p>
+                      <p className="text-xs mt-1">Try a different search term</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Results Summary */}
+                {filterQuery && getCurrentSignals().length > 0 && (
+                  <div className="text-xs text-muted-foreground text-center pt-2 border-t border-border">
+                    Showing {getCurrentSignals().length} of {mockSignals.filter(s =>
+                      activeTab === 'builtin' ? s.isBuiltIn :
+                      activeTab === 'personal' ? !s.isBuiltIn :
+                      true
+                    ).length} signals
+                  </div>
+                )}
               </CardContent>
             </Card>
           </section>

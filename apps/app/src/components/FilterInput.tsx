@@ -49,7 +49,7 @@ export function FilterInput({
           w-full h-10 pl-10 pr-10
           bg-background border border-border rounded-lg
           text-sm text-foreground placeholder:text-muted-foreground
-          focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
+          focus:outline-none focus:border-foreground
           transition-all duration-150
         "
       />

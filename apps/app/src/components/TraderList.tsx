@@ -261,29 +261,21 @@ export function TraderList({
         )
       }>
         <div>
-          <div className="flex items-center justify-end mb-3">
-            <div className="flex items-center gap-3">
-              {remainingSignals !== Infinity && (
-                <span className="text-sm text-[var(--nt-text-muted)]">
-                  {remainingSignals} remaining
-                </span>
-              )}
-
-              {/* Cloud Machine Button - Elite Only */}
-              {cloudExecution.isEliteTier && (
-                <button
-                  onClick={() => setShowCloudPanel(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-[var(--nt-bg-primary)] text-blue-400
-                    border border-blue-400 rounded hover:bg-blue-400 hover:text-[var(--nt-bg-primary)]
-                    transition-all text-sm font-medium"
-                  title="Manage cloud execution machine"
-                >
-                  <Cloud className="h-4 w-4" />
-                  Cloud Machine
-                </button>
-              )}
+          {/* Cloud Machine Button - Elite Only */}
+          {cloudExecution.isEliteTier && (
+            <div className="flex items-center justify-end mb-3">
+              <button
+                onClick={() => setShowCloudPanel(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-[var(--nt-bg-primary)] text-blue-400
+                  border border-blue-400 rounded hover:bg-blue-400 hover:text-[var(--nt-bg-primary)]
+                  transition-all text-sm font-medium"
+                title="Manage cloud execution machine"
+              >
+                <Cloud className="h-4 w-4" />
+                Cloud Machine
+              </button>
             </div>
-          </div>
+          )}
 
           {customSignals.length === 0 ? (
             <div className="text-center py-8 text-[var(--nt-text-muted)]">

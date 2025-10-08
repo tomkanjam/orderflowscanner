@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Power, Cloud, CloudOff, MoreVertical, Radio, Sparkles, ChevronDown } from 'lucide-react';
+import { Power, Cloud, CloudOff, MoreVertical, Radio, Sparkles, ChevronDown, Bell, Bot, Activity } from 'lucide-react';
 
 export interface DemoSignal {
   id: string;
@@ -32,11 +32,27 @@ export function ExpandableSignalCard({
   onToggleExpand,
 }: ExpandableSignalCardProps) {
   const [enabled, setEnabled] = useState(signal.enabled);
-  const [cloudEnabled, setCloudEnabled] = useState(signal.cloudEnabled || false);
 
-  const activityColor = signal.signalCount > 10 ? 'bg-primary' :
-                       signal.signalCount > 0 ? 'bg-primary-400' :
-                       'bg-base-400';
+  // Name color based on running state
+  const getNameColor = () => {
+    return enabled ? 'text-primary' : 'text-foreground';
+  };
+
+  // Status badge color and text (only show special states)
+  const getStatusBadge = () => {
+    if (!enabled) return null; // Don't show status when not running
+
+    if (signal.isBuiltIn) {
+      // Signals: only show "Triggered" state
+      if (signal.signalCount > 15) return { text: 'Triggered', color: 'text-green-500' };
+      return null; // Don't show "Running"
+    } else {
+      // Traders: show "Watching" and "In trade" states only
+      if (signal.signalCount > 20) return { text: 'In trade', color: 'text-green-500' };
+      if (signal.signalCount > 10) return { text: 'Watching', color: 'text-cyan-500' };
+      return null; // Don't show "Running"
+    }
+  };
 
   return (
     <div
@@ -52,70 +68,30 @@ export function ExpandableSignalCard({
         className="flex items-center gap-2 px-3 h-10 cursor-pointer"
         onClick={onToggleExpand}
       >
-        {/* Activity dot */}
-        <div
-          className={`w-2 h-2 rounded-full flex-shrink-0 ${activityColor}`}
-          title="Activity indicator"
-        />
-
-        {/* Type icon */}
+        {/* Type icon - no color */}
         <div className="flex-shrink-0 text-muted-foreground">
           {signal.isBuiltIn ? (
-            <Radio className="w-4 h-4" />
+            <Activity className="w-4 h-4" title="Signal" />
           ) : (
-            <Sparkles className="w-4 h-4" />
+            <Bot className="w-4 h-4" title="AI Trader" />
           )}
         </div>
 
-        {/* Name */}
-        <span className="flex-1 truncate text-sm font-medium text-foreground min-w-0">
+        {/* Name - colored when running */}
+        <span className={`flex-1 truncate text-sm font-medium min-w-0 ${getNameColor()}`}>
           {signal.name}
         </span>
 
-        {/* Running toggle */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setEnabled(!enabled);
-          }}
-          className="w-5 h-5 flex-shrink-0 transition-colors hover:scale-110"
-          title={enabled ? 'Disable' : 'Enable'}
-        >
-          <Power className={`w-4 h-4 ${enabled ? 'text-primary' : 'text-base-400'}`} />
-        </button>
-
-        {/* Cloud toggle */}
-        {!signal.isBuiltIn && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setCloudEnabled(!cloudEnabled);
-            }}
-            className="w-5 h-5 flex-shrink-0 transition-colors hover:scale-110"
-            title={cloudEnabled ? 'Deployed to cloud' : 'Deploy to cloud'}
-          >
-            {cloudEnabled ? (
-              <Cloud className="w-4 h-4 text-blue-400" />
-            ) : (
-              <CloudOff className="w-4 h-4 text-base-400" />
-            )}
-          </button>
+        {/* Status badge - only for special states */}
+        {getStatusBadge() && (
+          <span className={`text-xs font-medium px-2 py-0.5 rounded ${getStatusBadge()!.color} ${
+            getStatusBadge()!.color === 'text-cyan-500'
+              ? 'bg-cyan-500/10 border border-cyan-500/20'
+              : 'bg-green-500/10 border border-green-500/20'
+          }`}>
+            {getStatusBadge()!.text}
+          </span>
         )}
-
-        {/* Expand indicator */}
-        <ChevronDown
-          className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${
-            isExpanded ? 'rotate-180' : ''
-          }`}
-        />
-
-        {/* Menu */}
-        <button
-          onClick={(e) => e.stopPropagation()}
-          className="w-5 h-5 flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <MoreVertical className="w-4 h-4" />
-        </button>
       </div>
 
       {/* Expanded Content */}
@@ -127,6 +103,21 @@ export function ExpandableSignalCard({
         `}
       >
         <div className="px-4 pb-4 pt-2 space-y-3">
+          {/* Enable/Disable Toggle */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground">Status</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEnabled(!enabled);
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 transition-colors"
+            >
+              <Power className={`w-4 h-4 ${enabled ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className="text-sm">{enabled ? 'Running' : 'Stopped'}</span>
+            </button>
+          </div>
+
           {/* Description */}
           <p className="text-sm text-muted-foreground leading-relaxed">
             {signal.description}
@@ -146,30 +137,6 @@ export function ExpandableSignalCard({
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
-
-          {/* Recent Triggers */}
-          {signal.recentTriggers && signal.recentTriggers.length > 0 && (
-            <div>
-              <h5 className="text-xs font-semibold text-foreground mb-2">
-                Recent Triggers:
-              </h5>
-              <div className="space-y-1">
-                {signal.recentTriggers.map((trigger, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between text-xs font-mono"
-                  >
-                    <span className="text-foreground">{trigger.symbol}</span>
-                    <span className="text-muted-foreground">{trigger.time}</span>
-                    <span className="text-muted-foreground">{trigger.price}</span>
-                    <span className={trigger.change.startsWith('+') ? 'text-green-500' : 'text-red-500'}>
-                      {trigger.change}
-                    </span>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 

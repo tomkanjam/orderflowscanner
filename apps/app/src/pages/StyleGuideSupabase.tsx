@@ -25,14 +25,15 @@ import {
   ChevronDown,
   Clock,
   Home,
+  Plus,
   Settings,
   TrendingUp,
   User,
   Zap
 } from 'lucide-react';
-import { TabBar } from '../components/demo/TabBar';
-import { FilterInput } from '../components/demo/FilterInput';
-import { CategoryHeader } from '../components/demo/CategoryHeader';
+import { TabBar } from '../components/TabBar';
+import { FilterInput } from '../components/FilterInput';
+import { CategoryHeader } from '../components/CategoryHeader';
 import { ExpandableSignalCard } from '../components/demo/ExpandableSignalCard';
 import { mockSignals, groupSignalsByCategory, filterSignals } from '../components/demo/mockSignals';
 
@@ -98,237 +99,249 @@ export const StyleGuideSupabase: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top Bar */}
-      <header className="top-bar sticky top-0 z-50">
-        <div className="container mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary-foreground">
-                  <path d="M13 12L20 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"></path>
-                  <path d="M4 5L8 9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"></path>
-                  <path d="M8 15L4 19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"></path>
-                </svg>
-              </div>
-              <span className="font-semibold text-lg">vyx</span>
+    <div className="min-h-screen bg-background flex">
+      {/* Signal Library Sidebar */}
+      <aside className="w-[360px] border-r border-border bg-background h-screen sticky top-0 flex flex-col">
+        {/* Logo and App Name */}
+        <div className="px-4 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary-foreground">
+                <path d="M13 12L20 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"></path>
+                <path d="M4 5L8 9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"></path>
+                <path d="M8 15L4 19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"></path>
+              </svg>
             </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={toggleTheme}>
-              {theme === 'dark' ? '☀️' : '🌙'} {theme === 'dark' ? 'Light' : 'Dark'}
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <Avatar className="w-6 h-6">
-                    <AvatarFallback>JD</AvatarFallback>
-                  </Avatar>
-                  <span>John Doe</span>
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="w-4 h-4 mr-2" />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Log out</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <span className="font-semibold text-lg">vyx</span>
           </div>
         </div>
-      </header>
 
-      <div className="flex">
-        {/* Redesigned Sidebar - Full Featured */}
-        <aside className="w-[360px] border-r border-border bg-[var(--sidebar-background)] h-[calc(100vh-3.5rem)] sticky top-14 flex flex-col">
-          {/* Status Bar */}
-          <div className="px-4 py-3 border-b border-border bg-[var(--sidebar-accent)]/30">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                <span className="text-muted-foreground">Connected</span>
-              </div>
-              <div className="flex items-center gap-4 text-muted-foreground">
-                <span>100 tickers</span>
-                <span>•</span>
-                <span>12 signals</span>
-              </div>
-            </div>
+        {/* Create Button */}
+        <div className="px-4 pt-4 pb-2">
+            <button
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all font-medium"
+            >
+              <Plus className="h-5 w-5" />
+              Create
+            </button>
           </div>
 
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {/* Create Signal Button */}
-            <Button className="w-full justify-start gap-2" size="lg">
-              <Activity className="w-5 h-5" />
-              Create Signal with AI
-            </Button>
-
-            {/* Built-in Signals Section */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Built-in Signals
-                </h3>
-                <Badge variant="secondary" className="text-xs">8</Badge>
-              </div>
-
-              <div className="space-y-1">
-                {/* Signal Items */}
-                <div className="group relative p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-all">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium truncate">Volume Spike Breakout</span>
-                        <Badge variant="outline" className="text-xs shrink-0">Beginner</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        Identifies coins with sudden volume increases and price breakouts
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                        <CheckCircle2 className="w-4 h-4 text-primary" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                    <TrendingUp className="w-3 h-3" />
-                    <span>5 matches</span>
-                    <span className="ml-auto">2m ago</span>
-                  </div>
-                </div>
-
-                <div className="group relative p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-all">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium truncate">RSI Oversold Recovery</span>
-                        <Badge variant="outline" className="text-xs shrink-0">Intermediate</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        Catches oversold coins showing signs of reversal
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
-                        <CheckCircle2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                    <TrendingUp className="w-3 h-3" />
-                    <span>2 matches</span>
-                    <span className="ml-auto">5m ago</span>
-                  </div>
-                </div>
-
-                <div className="group relative p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-all opacity-50">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium truncate">MACD Momentum Shift</span>
-                        <Badge variant="outline" className="text-xs shrink-0">Advanced</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        Detects MACD crossovers with strong momentum
-                      </p>
-                    </div>
-                    <Badge className="shrink-0 bg-primary/10 text-primary border-primary/20">Pro</Badge>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Custom Signals Section */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  My Signals
-                </h3>
-                <Badge variant="secondary" className="text-xs">2 / 10</Badge>
-              </div>
-
-              <div className="space-y-1">
-                <div className="group relative p-3 rounded-lg border border-border bg-card hover:border-primary/50 cursor-pointer transition-all">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium block truncate mb-1">My Custom Scalp</span>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        Quick scalps on 5m timeframe with tight stops
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                      <Settings className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                    <TrendingUp className="w-3 h-3" />
-                    <span>12 matches</span>
-                    <span className="ml-auto">1m ago</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+          {/* Filter Input */}
+          <div className="px-4 pb-2">
+            <FilterInput
+              value={filterQuery}
+              onChange={setFilterQuery}
+              placeholder="Search..."
+            />
           </div>
 
-          {/* User Menu Footer */}
-          <div className="p-4 border-t border-border">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="w-full flex items-center gap-3 p-3 rounded-lg bg-[var(--sidebar-accent)] hover:bg-accent transition-colors">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">JD</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 text-left min-w-0">
-                    <div className="text-sm font-medium truncate">john@example.com</div>
-                    <div className="text-xs text-primary">Pro Tier</div>
+          {/* Tab Bar */}
+          <div className="px-4">
+            <TabBar
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+          </div>
+
+          {/* Signal List */}
+          <div className="flex-1 overflow-y-auto px-4 pt-2 pb-4">
+            {/* Built-in Tab: Grouped by Category */}
+            {activeTab === 'builtin' && (
+              <div className="space-y-1">
+                {Object.entries(groupedBuiltIn).map(([category, signals]) => (
+                  <div key={category}>
+                    <CategoryHeader category={category} count={signals.length} />
+                    <div className="space-y-2">
+                      {signals.map(signal => (
+                        <ExpandableSignalCard
+                          key={signal.id}
+                          signal={signal}
+                          isExpanded={expandedCardId === signal.id}
+                          onToggleExpand={() => setExpandedCardId(expandedCardId === signal.id ? null : signal.id)}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[320px]">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="w-4 h-4 mr-2" />
-                  Account Dashboard
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">
-                  <User className="w-4 h-4 mr-2" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                ))}
+              </div>
+            )}
+
+            {/* Personal Tab */}
+            {activeTab === 'personal' && (
+              <div className="space-y-2">
+                {personalSignals.map(signal => (
+                  <ExpandableSignalCard
+                    key={signal.id}
+                    signal={signal}
+                    isExpanded={expandedCardId === signal.id}
+                    onToggleExpand={() => setExpandedCardId(expandedCardId === signal.id ? null : signal.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Favorites Tab */}
+            {activeTab === 'favorites' && (
+              <div className="space-y-2">
+                {favoriteSignals.map(signal => (
+                  <ExpandableSignalCard
+                    key={signal.id}
+                    signal={signal}
+                    isExpanded={expandedCardId === signal.id}
+                    onToggleExpand={() => setExpandedCardId(expandedCardId === signal.id ? null : signal.id)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </aside>
 
         {/* Main Content */}
         <main className="flex-1 p-8 space-y-12">
-          {/* Header */}
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Supabase Design System</h1>
-            <p className="text-muted-foreground">
-              A comprehensive style guide showcasing shadcn/ui components with Supabase styling
-            </p>
+          {/* Header with User Menu */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Supabase Design System</h1>
+              <p className="text-muted-foreground">
+                A comprehensive style guide showcasing shadcn/ui components with Supabase styling
+              </p>
+            </div>
+
+            {/* User Menu */}
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" onClick={toggleTheme}>
+                {theme === 'dark' ? '☀️' : '🌙'} {theme === 'dark' ? 'Light' : 'Dark'}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Avatar className="w-6 h-6">
+                      <AvatarFallback>JD</AvatarFallback>
+                    </Avatar>
+                    <span>John Doe</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <User className="w-4 h-4 mr-2" />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>Log out</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
+
+          {/* Running Signal Name Color Options */}
+          <section className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-semibold mb-2">Running Signal Name Colors</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                Color options for running signal/trader names (currently using primary)
+              </p>
+            </div>
+
+            <div className="grid gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Current: Primary (Supabase Yellow/Gold)</CardTitle>
+                  <CardDescription>Default brand color - #f5b700</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-primary">RSI Momentum Signal (Running)</span>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded text-green-500 bg-green-500/10 border border-green-500/20">Triggered</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-primary">MACD Crossover Detector (Running)</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Option 1: Green-400 (Neon Success)</CardTitle>
+                  <CardDescription>Bright neon green - #00FF88</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-green-400">RSI Momentum Signal (Running)</span>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded text-green-500 bg-green-500/10 border border-green-500/20">Triggered</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-green-400">MACD Crossover Detector (Running)</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Option 2: Cyan-400 (Bright Blue)</CardTitle>
+                  <CardDescription>Bright cyan/blue - #3399FF</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-cyan-400">RSI Momentum Signal (Running)</span>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded text-green-500 bg-green-500/10 border border-green-500/20">Triggered</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-cyan-400">MACD Crossover Detector (Running)</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Option 3: Amber-400 (Bright Orange)</CardTitle>
+                  <CardDescription>Vibrant orange - #FF7A1A</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-amber-400">RSI Momentum Signal (Running)</span>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded text-green-500 bg-green-500/10 border border-green-500/20">Triggered</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-amber-400">MACD Crossover Detector (Running)</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Option 4: Foreground (Neutral White)</CardTitle>
+                  <CardDescription>Just brighter than muted - #e8e8e8</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">RSI Momentum Signal (Running)</span>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded text-green-500 bg-green-500/10 border border-green-500/20">Triggered</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">MACD Crossover Detector (Running)</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
 
           {/* Colors */}
           <section className="space-y-6">
@@ -763,6 +776,5 @@ export const StyleGuideSupabase: React.FC = () => {
           </div>
         </main>
       </div>
-    </div>
-  );
-};
+    );
+  };

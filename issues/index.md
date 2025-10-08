@@ -1,8 +1,14 @@
 # Issues Dashboard
 
-*Last updated: 2025-10-07*
+*Last updated: 2025-01-08*
 
 ## Active Issues
+
+### 🎨 Design/UI
+- [`2025-01-08-design-sidebar-layout-implementation.md`](./2025-01-08-design-sidebar-layout-implementation.md) - Sidebar-First Layout Implementation ⭐ NEW
+  - **Priority:** Medium
+  - **Type:** design/ui
+  - **Status:** Design brief - Apply style guide layout to production app
 
 ### 🐛 Critical Bugs
 - [`2025-01-04-bug-fly-machine-missing-historical-klines.md`](./2025-01-04-bug-fly-machine-missing-historical-klines.md) - Fly Machine Missing Historical Klines ⭐ PRODUCTION BLOCKER
@@ -63,7 +69,8 @@
   - **Status:** Example/Template
 
 ## Quick Stats
-- **Total Issues:** 10
+- **Total Issues:** 11
+- **Design/UI:** 1
 - **Critical Bugs:** 1
 - **New Ideas:** 4
 - **In Review:** 1

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trader } from '../abstractions/trader.interfaces';
-import { Power, Cloud, CloudOff, MoreVertical, Sparkles, Radio } from 'lucide-react';
+import { Power, Cloud, CloudOff, MoreVertical, Activity, Bot } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,23 +74,26 @@ export function SignalListItem({
 
   const lastTrigger = formatLastTrigger(signal.metrics?.lastSignalAt);
 
-  // Activity dot color
-  const getDotColor = () => {
-    switch (activityState) {
-      case 'triggered':
-        return 'bg-primary';
-      case 'high':
-      case 'recent':
-        return 'bg-primary-400';
-      case 'idle':
-        return 'bg-base-400';
-      default:
-        return 'bg-base-400';
-    }
+  // Name color based on running state
+  const getNameColor = () => {
+    return signal.enabled ? 'text-primary' : 'text-foreground';
   };
 
-  // Should dot animate?
-  const shouldAnimate = activityState === 'triggered';
+  // Status badge color and text (only show special states)
+  const getStatusBadge = () => {
+    if (!signal.enabled) return null; // Don't show status when not running
+
+    if (signal.isBuiltIn) {
+      // Signals: only show "Triggered" state
+      if (activityState === 'triggered') return { text: 'Triggered', color: 'text-green-500' };
+      return null; // Don't show "Running"
+    } else {
+      // Traders: show "Watching" and "In trade" states only
+      if (activityState === 'triggered') return { text: 'In trade', color: 'text-green-500' };
+      if (activityState === 'high' || activityState === 'recent') return { text: 'Watching', color: 'text-cyan-500' };
+      return null; // Don't show "Running"
+    }
+  };
 
   return (
     <div
@@ -106,65 +109,32 @@ export function SignalListItem({
       tabIndex={0}
       aria-label={`${signal.name}, ${signal.isBuiltIn ? 'Signal' : 'Trader'}, ${signal.enabled ? 'Running' : 'Stopped'}`}
     >
-      {/* Type icon - Trader (AI) or Signal */}
-      <div
-        className="flex-shrink-0 text-muted-foreground"
-        title={signal.isBuiltIn ? 'Signal' : 'AI Trader'}
-      >
+      {/* Type icon - no color */}
+      <div className="flex-shrink-0 text-muted-foreground">
         {signal.isBuiltIn ? (
-          <Radio className="w-4 h-4" />
+          <Activity className="w-4 h-4" title="Signal" />
         ) : (
-          <Sparkles className="w-4 h-4" />
+          <Bot className="w-4 h-4" title="AI Trader" />
         )}
       </div>
 
-      {/* Name - takes available space */}
+      {/* Name - colored when running */}
       <span
-        className="flex-1 truncate text-sm font-medium text-foreground min-w-0"
+        className={`flex-1 truncate text-sm font-medium min-w-0 ${getNameColor()}`}
         title={signal.name}
       >
         {signal.name}
       </span>
 
-      {/* Running toggle */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleEnable?.();
-        }}
-        className="w-5 h-5 flex-shrink-0 transition-colors hover:scale-110"
-        title={signal.enabled ? 'Disable' : 'Enable'}
-        aria-label={signal.enabled ? 'Disable signal' : 'Enable signal'}
-      >
-        <Power
-          className={`w-4 h-4 ${signal.enabled ? 'text-primary' : 'text-base-400'}`}
-        />
-      </button>
-
-      {/* Cloud toggle (Elite only, custom traders only) */}
-      {showCloudStatus && !signal.isBuiltIn && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleCloud?.();
-          }}
-          disabled={cloudMachineStatus !== 'running'}
-          className="w-5 h-5 flex-shrink-0 transition-colors hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed"
-          title={
-            cloudMachineStatus !== 'running'
-              ? 'Start cloud machine to enable'
-              : signal.cloud_config?.enabledInCloud
-              ? 'Deployed to cloud'
-              : 'Deploy to cloud'
-          }
-          aria-label={signal.cloud_config?.enabledInCloud ? 'Deployed to cloud' : 'Not deployed'}
-        >
-          {signal.cloud_config?.enabledInCloud ? (
-            <Cloud className="w-4 h-4 text-blue-400" />
-          ) : (
-            <CloudOff className="w-4 h-4 text-base-400" />
-          )}
-        </button>
+      {/* Status badge - only for special states */}
+      {getStatusBadge() && (
+        <span className={`text-xs font-medium px-2 py-0.5 rounded ${getStatusBadge()!.color} ${
+          getStatusBadge()!.color === 'text-cyan-500'
+            ? 'bg-cyan-500/10 border border-cyan-500/20'
+            : 'bg-green-500/10 border border-green-500/20'
+        }`}>
+          {getStatusBadge()!.text}
+        </span>
       )}
 
       {/* Menu */}
@@ -184,12 +154,12 @@ export function SignalListItem({
             <div className="flex items-center gap-2">
               {signal.isBuiltIn ? (
                 <>
-                  <Radio className="w-3 h-3" />
+                  <Activity className="w-3 h-3" />
                   <span>Signal</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-3 h-3" />
+                  <Bot className="w-3 h-3" />
                   <span>AI Trader</span>
                 </>
               )}
@@ -198,6 +168,30 @@ export function SignalListItem({
             <div>Signals: {signal.metrics?.totalSignals || 0}</div>
           </div>
 
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleEnable?.();
+            }}
+          >
+            <Power className="w-3 h-3 mr-2" />
+            {signal.enabled ? 'Disable' : 'Enable'}
+          </DropdownMenuItem>
+          {showCloudStatus && !signal.isBuiltIn && (
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCloud?.();
+              }}
+              disabled={cloudMachineStatus !== 'running'}
+            >
+              {signal.cloud_config?.enabledInCloud ? (
+                <><Cloud className="w-3 h-3 mr-2" />Disable Cloud</>
+              ) : (
+                <><CloudOff className="w-3 h-3 mr-2" />Enable Cloud</>
+              )}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation();

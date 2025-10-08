@@ -9,6 +9,8 @@ import { TierGate } from './TierGate';
 import { UpgradePrompt } from './UpgradePrompt';
 import { SubscriptionTier } from '../types/subscription.types';
 import { SignalListItem } from './SignalListItem';
+import { ExpandableSignalCard } from './ExpandableSignalCard';
+import { CategoryHeader } from './CategoryHeader';
 import { useCloudExecution } from '../hooks/useCloudExecution';
 import { CloudExecutionPanel } from './cloud/CloudExecutionPanel';
 
@@ -34,9 +36,23 @@ export function TraderList({
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCloudPanel, setShowCloudPanel] = useState(false);
+  const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(new Set());
   const { currentTier, preferences, canCreateSignal, remainingSignals, toggleFavoriteSignal, profile } = useSubscription();
   const { user } = useAuth();
   const cloudExecution = useCloudExecution();
+
+  // Toggle card expansion
+  const handleToggleExpand = useCallback((traderId: string) => {
+    setExpandedCardIds(prev => {
+      const next = new Set(prev);
+      if (next.has(traderId)) {
+        next.delete(traderId);
+      } else {
+        next.add(traderId);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     // Subscribe to trader updates
@@ -105,6 +121,17 @@ export function TraderList({
 
     return { builtInSignals: builtIn, customSignals: custom, lockedSignals: locked, favoriteSignals: favorites };
   }, [traders, currentTier, preferences, filterQuery]);
+
+  // Group built-in signals by category for display
+  const groupedBuiltInSignals = useMemo(() => {
+    const groups: { [category: string]: Trader[] } = {};
+    builtInSignals.forEach(signal => {
+      const category = signal.category || 'Other';
+      if (!groups[category]) groups[category] = [];
+      groups[category].push(signal);
+    });
+    return groups;
+  }, [builtInSignals]);
 
   const handleToggleTrader = async (trader: Trader) => {
     try {
@@ -181,31 +208,42 @@ export function TraderList({
             <p className="mb-2">No signals available</p>
           </div>
         ) : (
-          <div className="border-t border-border">
-            {builtInSignals.map(trader => {
-              const access = getSignalAccess(trader, currentTier);
-              const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
-              const isSelected = selectedTraderId === trader.id;
-              const effectivelyEnabled = getEffectiveEnabled(trader);
+          <div>
+            {/* Render signals grouped by category */}
+            {Object.entries(groupedBuiltInSignals).map(([category, signals]) => (
+              <div key={category}>
+                <CategoryHeader category={category} count={signals.length} />
+                <div className="space-y-2">
+                  {signals.map(trader => {
+                    const access = getSignalAccess(trader, currentTier);
+                    const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
+                    const isSelected = selectedTraderId === trader.id;
+                    const isExpanded = expandedCardIds.has(trader.id);
+                    const effectivelyEnabled = getEffectiveEnabled(trader);
 
-              return (
-                <SignalListItem
-                  key={trader.id}
-                  signal={{...trader, enabled: effectivelyEnabled}}
-                  isSelected={isSelected}
-                  isFavorite={isFavorite}
-                  canEdit={profile?.is_admin || false}
-                  canDelete={profile?.is_admin || false}
-                  onSelect={() => onSelectTrader?.(isSelected ? null : trader.id)}
-                  onToggleEnable={() => handleToggleTrader(trader)}
-                  onEdit={() => onEditTrader(trader)}
-                  onDelete={() => handleDeleteTrader(trader)}
-                  onToggleFavorite={() => handleToggleFavorite(trader.id)}
-                />
-              );
-            })}
+                    return (
+                      <ExpandableSignalCard
+                        key={trader.id}
+                        signal={{...trader, enabled: effectivelyEnabled}}
+                        isExpanded={isExpanded}
+                        isSelected={isSelected}
+                        isFavorite={isFavorite}
+                        canEdit={profile?.is_admin || false}
+                        canDelete={profile?.is_admin || false}
+                        onToggleExpand={() => handleToggleExpand(trader.id)}
+                        onSelect={() => onSelectTrader?.(isSelected ? null : trader.id)}
+                        onToggleEnable={() => handleToggleTrader(trader)}
+                        onEdit={() => onEditTrader(trader)}
+                        onDelete={() => handleDeleteTrader(trader)}
+                        onToggleFavorite={() => handleToggleFavorite(trader.id)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
             {lockedSignals.length > 0 && currentTier === 'anonymous' && (
-              <div className="p-4">
+              <div className="p-4 mt-4">
                 <UpgradePrompt
                   feature="20+ professional signals"
                   requiredTier={SubscriptionTier.FREE}
@@ -268,23 +306,26 @@ export function TraderList({
               </p>
             </div>
           ) : (
-            <div className="border-t border-border">
+            <div className="space-y-2">
               {customSignals.map(trader => {
                 const access = getSignalAccess(trader, currentTier);
                 const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
                 const isSelected = selectedTraderId === trader.id;
+                const isExpanded = expandedCardIds.has(trader.id);
                 const canEditDelete = profile?.is_admin || trader.createdBy === profile?.id;
 
                 return (
-                  <SignalListItem
+                  <ExpandableSignalCard
                     key={trader.id}
                     signal={trader}
+                    isExpanded={isExpanded}
                     isSelected={isSelected}
                     isFavorite={isFavorite}
                     showCloudStatus={cloudExecution.isEliteTier}
                     cloudMachineStatus={cloudExecution.machineStatus}
                     canEdit={canEditDelete}
                     canDelete={canEditDelete}
+                    onToggleExpand={() => handleToggleExpand(trader.id)}
                     onSelect={() => onSelectTrader?.(isSelected ? null : trader.id)}
                     onToggleEnable={() => handleToggleTrader(trader)}
                     onToggleCloud={() => handleToggleCloudExecution(trader)}
@@ -316,22 +357,25 @@ export function TraderList({
               <p className="text-sm">Click the star icon on any signal to add it to your favorites</p>
             </div>
           ) : (
-            <div className="border-t border-border">
+            <div className="space-y-2">
               {favoriteSignals.map(trader => {
                 const access = getSignalAccess(trader, currentTier);
                 const isFavorite = true; // Always true in favorites tab
                 const isSelected = selectedTraderId === trader.id;
+                const isExpanded = expandedCardIds.has(trader.id);
                 const effectivelyEnabled = getEffectiveEnabled(trader);
                 const canEditDelete = profile?.is_admin || trader.createdBy === profile?.id;
 
                 return (
-                  <SignalListItem
+                  <ExpandableSignalCard
                     key={trader.id}
                     signal={{...trader, enabled: effectivelyEnabled}}
+                    isExpanded={isExpanded}
                     isSelected={isSelected}
                     isFavorite={isFavorite}
                     canEdit={canEditDelete}
                     canDelete={canEditDelete}
+                    onToggleExpand={() => handleToggleExpand(trader.id)}
                     onSelect={() => onSelectTrader?.(isSelected ? null : trader.id)}
                     onToggleEnable={() => handleToggleTrader(trader)}
                     onEdit={() => onEditTrader(trader)}

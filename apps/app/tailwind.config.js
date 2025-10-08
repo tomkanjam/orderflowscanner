@@ -111,11 +111,11 @@ export default {
         },
         // Cyan - secondary accent for info and selections
         cyan: {
-          300: '#33F3FF',
-          400: '#00F0FF',
-          500: '#00F0FF',
-          600: '#00C0CC',
-          700: '#009099'
+          300: '#66B3FF',
+          400: '#3399FF',
+          500: '#0080FF',
+          600: '#0066CC',
+          700: '#004C99'
         },
         // Green - success and profits
         green: {

@@ -298,10 +298,34 @@ export class Orchestrator extends EventEmitter {
   private async reloadTraders(): Promise<void> {
     console.log('[Orchestrator] Loading traders from database...');
 
-    const traders = await this.synchronizer.loadTraders();
-    this.traders = traders as CloudTrader[];
+    try {
+      // Load ALL traders for user
+      const allTraders = await this.synchronizer.loadTraders();
+      console.log(`[Orchestrator] Loaded ${allTraders.length} total traders`);
 
-    console.log(`[Orchestrator] Loaded ${this.traders.length} traders`);
+      // [TIER ACCESS] Get user tier (cached after first call)
+      const userTier = await this.synchronizer.getUserTier();
+      console.log(`[Orchestrator] User tier: ${userTier}`);
+
+      // [TIER ACCESS] Filter traders by tier access
+      const filteredTraders = this.filterTradersByTier(
+        allTraders,
+        userTier,
+        this.config.userId
+      );
+
+      // [TIER ACCESS] Log filter results
+      const blockedCount = allTraders.length - filteredTraders.length;
+      if (blockedCount > 0) {
+        const blockedNames = allTraders
+          .filter(t => !filteredTraders.includes(t))
+          .map(t => t.name)
+          .join(', ');
+        console.log(`[Orchestrator] Tier filter blocked ${blockedCount} traders: ${blockedNames}`);
+      }
+
+      this.traders = filteredTraders as CloudTrader[];
+      console.log(`[Orchestrator] Loaded ${this.traders.length} accessible traders`);
 
     // DEBUG: Log raw trader structure from database
     if (this.traders.length > 0) {
@@ -329,12 +353,48 @@ export class Orchestrator extends EventEmitter {
       }
     }
 
-    // Update synchronizer event
-    this.synchronizer.queueEvent(
-      'config_synced',
-      'info',
-      `Loaded ${this.traders.length} traders`
-    );
+      // Update synchronizer event
+      this.synchronizer.queueEvent(
+        'config_synced',
+        'info',
+        `Loaded ${this.traders.length} accessible traders (${blockedCount} blocked by tier)`
+      );
+
+    } catch (error) {
+      console.error('[Orchestrator] Failed to reload traders:', error);
+      // Keep existing traders, don't crash machine
+    }
+  }
+
+  /**
+   * Filter traders based on user's tier access
+   * Implements same logic as browser-side filtering
+   *
+   * @param traders - All traders to filter
+   * @param userTier - User's subscription tier
+   * @param userId - User ID for ownership checks
+   * @returns Filtered traders user can access
+   */
+  private filterTradersByTier(
+    traders: any[],
+    userTier: 'anonymous' | 'free' | 'pro' | 'elite',
+    userId: string
+  ): any[] {
+    const TIER_HIERARCHY = ['anonymous', 'free', 'pro', 'elite'];
+
+    return traders.filter(trader => {
+      // Custom signals: creator always has access
+      if (trader.userId && trader.userId === userId) {
+        return true;
+      }
+
+      // Built-in signals: check tier hierarchy
+      const requiredTier = trader.accessTier || trader.access_tier || 'free';
+      const userLevel = TIER_HIERARCHY.indexOf(userTier);
+      const requiredLevel = TIER_HIERARCHY.indexOf(requiredTier);
+
+      return userLevel >= requiredLevel;
+    });
   }
 
   private determineRequiredIntervals(): string[] {

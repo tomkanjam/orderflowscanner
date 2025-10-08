@@ -72,6 +72,9 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
     errors: 0
   };
 
+  // Tier access control
+  private userTierCache: 'anonymous' | 'free' | 'pro' | 'elite' | null = null;
+
   constructor() {
     super();
 
@@ -118,6 +121,68 @@ export class StateSynchronizer extends EventEmitter implements IStateSynchronize
         await this.flush();
       }
     }, this.config.batchInterval);
+  }
+
+  /**
+   * Get user's subscription tier from database
+   * Cached for session duration to minimize database queries
+   * Fails secure: defaults to 'anonymous' on error
+   *
+   * @returns User's subscription tier
+   */
+  async getUserTier(): Promise<'anonymous' | 'free' | 'pro' | 'elite'> {
+    // Return cached tier if available
+    if (this.userTierCache !== null) {
+      return this.userTierCache;
+    }
+
+    console.log(`[StateSynchronizer] Querying user tier for user ${this.userId}...`);
+
+    try {
+      const { data, error } = await this.supabase
+        .from('user_subscriptions')
+        .select('tier')
+        .eq('user_id', this.userId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[StateSynchronizer] Failed to query tier, defaulting to anonymous:', error);
+        this.userTierCache = 'anonymous';
+        return 'anonymous';
+      }
+
+      if (!data) {
+        console.log('[StateSynchronizer] No subscription found, defaulting to anonymous');
+        this.userTierCache = 'anonymous';
+        return 'anonymous';
+      }
+
+      // Validate tier value
+      const validTiers = ['anonymous', 'free', 'pro', 'elite'];
+      const tier = data.tier as string;
+
+      if (!validTiers.includes(tier)) {
+        console.warn(`[StateSynchronizer] Invalid tier value "${tier}", defaulting to anonymous`);
+        this.userTierCache = 'anonymous';
+        return 'anonymous';
+      }
+
+      this.userTierCache = tier as 'anonymous' | 'free' | 'pro' | 'elite';
+      console.log(`[StateSynchronizer] User tier: ${this.userTierCache}`);
+      return this.userTierCache;
+    } catch (error) {
+      console.error('[StateSynchronizer] Error querying tier, defaulting to anonymous:', error);
+      this.userTierCache = 'anonymous';
+      return 'anonymous';
+    }
+  }
+
+  /**
+   * Invalidate tier cache (call when tier changes)
+   */
+  invalidateTierCache(): void {
+    this.userTierCache = null;
+    console.log('[StateSynchronizer] Tier cache invalidated');
   }
 
   queueSignal(signal: any): void {

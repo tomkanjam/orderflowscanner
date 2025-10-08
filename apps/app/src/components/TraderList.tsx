@@ -192,15 +192,10 @@ export function TraderList({
   };
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="space-y-6">
       {/* Built-in Signals Section */}
       {activeTab === 'builtin' && (
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-[var(--nt-text-primary)]">
-            Built-In
-          </h3>
-        </div>
 
         {builtInSignals.length === 0 && lockedSignals.length === 0 ? (
           <div className="text-center py-8 text-[var(--nt-text-muted)]">
@@ -259,17 +254,14 @@ export function TraderList({
       {activeTab === 'personal' && (
       <TierGate minTier="pro" fallback={
         currentTier !== 'anonymous' && (
-          <UpgradePrompt 
-            feature="custom signal creation" 
+          <UpgradePrompt
+            feature="custom signal creation"
             requiredTier={SubscriptionTier.PRO}
           />
         )
       }>
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-[var(--nt-text-primary)]">
-              Personal
-            </h3>
+          <div className="flex items-center justify-end mb-3">
             <div className="flex items-center gap-3">
               {remainingSignals !== Infinity && (
                 <span className="text-sm text-[var(--nt-text-muted)]">
@@ -344,12 +336,6 @@ export function TraderList({
       {/* Favorites Section */}
       {activeTab === 'favorites' && (
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-[var(--nt-text-primary)]">
-              Favorites
-            </h3>
-          </div>
-
           {favoriteSignals.length === 0 ? (
             <div className="text-center py-8 text-[var(--nt-text-muted)]">
               <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />

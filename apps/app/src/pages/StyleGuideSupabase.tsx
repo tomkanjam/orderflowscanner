@@ -195,6 +195,18 @@ export const StyleGuideSupabase: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* User Account Menu */}
+          <div className="px-4 py-4 border-t border-border">
+            <button className="w-full flex items-center gap-3 px-4 py-2 bg-muted/50 hover:bg-muted rounded-lg transition-all duration-200">
+              <User className="w-5 h-5 text-muted-foreground" />
+              <div className="flex-1 text-left">
+                <div className="text-sm font-medium">john@example.com</div>
+                <div className="text-xs text-primary">Pro Tier</div>
+              </div>
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
         </aside>
 
         {/* Main Content */}

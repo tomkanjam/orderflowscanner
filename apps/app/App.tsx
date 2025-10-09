@@ -392,9 +392,15 @@ const AppContent: React.FC = () => {
         console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}, hasFilterCode=${!!t.filter?.code}, filterCodeLength=${t.filter?.code?.length || 0}`);
       });
 
+      // [USER PREFERENCES] Apply effective enabled state (considers user preferences for built-in signals)
+      const tradersWithPreferences = updatedTraders.map(trader => ({
+        ...trader,
+        enabled: traderManager.getEffectiveEnabled(trader, user?.id)
+      }));
+
       // [TIER ACCESS] Filter by tier before setting state
       const accessibleTraders = filterTradersByTierAccess(
-        updatedTraders,
+        tradersWithPreferences,
         currentTier,
         user?.id || null
       );
@@ -420,9 +426,15 @@ const AppContent: React.FC = () => {
         console.log(`[App] Trader ${t.name}: enabled=${t.enabled}, hasFilter=${!!t.filter}, hasFilterCode=${!!t.filter?.code}, filterCodeLength=${t.filter?.code?.length || 0}`);
       });
 
+      // [USER PREFERENCES] Apply effective enabled state (considers user preferences for built-in signals)
+      const tradersWithPreferences = traders.map(trader => ({
+        ...trader,
+        enabled: traderManager.getEffectiveEnabled(trader, user?.id)
+      }));
+
       // [TIER ACCESS] Filter on initial load
       const accessibleTraders = filterTradersByTierAccess(
-        traders,
+        tradersWithPreferences,
         currentTier,
         user?.id || null
       );

@@ -142,6 +142,17 @@ export class TraderManager implements ITraderManager {
       updatedAt: now,
     };
 
+    // [VALIDATION] Defense-in-depth: Prevent contradictory ownership state
+    // Built-in signals MUST NOT have userId (system-owned)
+    if (newTrader.isBuiltIn && newTrader.userId) {
+      console.warn(
+        `[traderManager] Auto-fixing: Built-in trader "${newTrader.name}" had userId set. Clearing userId.`,
+        { traderId: newTrader.id, userId: newTrader.userId }
+      );
+      newTrader.userId = undefined;
+      newTrader.ownershipType = 'system';
+    }
+
     try {
       if (supabase) {
         const { error } = await supabase
@@ -192,6 +203,17 @@ export class TraderManager implements ITraderManager {
       id, // Ensure ID cannot be changed
       updatedAt: new Date(),
     };
+
+    // [VALIDATION] Defense-in-depth: Prevent contradictory ownership state
+    // Built-in signals MUST NOT have userId (system-owned)
+    if (updatedTrader.isBuiltIn && updatedTrader.userId) {
+      console.warn(
+        `[traderManager] Auto-fixing: Built-in trader "${updatedTrader.name}" had userId set. Clearing userId.`,
+        { traderId: updatedTrader.id, userId: updatedTrader.userId }
+      );
+      updatedTrader.userId = undefined;
+      updatedTrader.ownershipType = 'system';
+    }
 
     try {
       if (supabase) {

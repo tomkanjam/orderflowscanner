@@ -348,6 +348,9 @@ export function TraderForm({
           // Admin fields
           ...(profile?.is_admin && {
             isBuiltIn,
+            // Clear userId when converting to built-in
+            userId: isBuiltIn ? undefined : editingTrader.userId,
+            ownershipType: isBuiltIn ? 'system' : 'user',
             accessTier,
             category: isBuiltIn ? category : undefined,
             difficulty: isBuiltIn ? difficulty : undefined,
@@ -364,7 +367,8 @@ export function TraderForm({
           description: manualDescription || manualName,
           enabled: true,
           mode: 'demo', // Always start in demo mode
-          userId: user?.id, // Associate with the current user
+          // Built-in signals should not have userId (system-owned)
+          userId: (profile?.is_admin && isBuiltIn) ? undefined : user?.id,
           filter: {
             code: finalFilterCode,
             description: validConditions,

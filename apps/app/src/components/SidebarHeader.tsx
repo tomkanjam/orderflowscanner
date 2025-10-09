@@ -1,9 +1,11 @@
-import React, { useMemo, memo } from 'react';
-import { Activity, Wifi, WifiOff, Zap, Database } from 'lucide-react';
+import React, { useMemo, memo, useState } from 'react';
+import { Wifi, WifiOff, Zap, Database } from 'lucide-react';
+import { UpdateFrequencyMetric } from './UpdateFrequencyMetric';
 
 interface SidebarHeaderProps {
   connectionStatus: 'connected' | 'disconnected' | 'reconnecting';
   updateFrequency: number; // updates per second
+  updateHistory?: number[]; // 30-second rolling window for sparkline
   symbolCount: number;
   signalCount: number;
 }
@@ -11,9 +13,11 @@ interface SidebarHeaderProps {
 export const SidebarHeader = memo<SidebarHeaderProps>(({
   connectionStatus,
   updateFrequency,
+  updateHistory = [],
   symbolCount,
   signalCount
 }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
   // Memoize connection config to prevent recreating objects
   const connectionConfig = useMemo(() => ({
     connected: {
@@ -52,12 +56,16 @@ export const SidebarHeader = memo<SidebarHeaderProps>(({
         </div>
 
         {/* Metrics Badge */}
-        <div className="flex items-center gap-3 text-xs">
-          {/* Update Frequency */}
-          <div className="flex items-center gap-1">
-            <Activity className={`w-3 h-3 ${updateFrequency > 0 ? 'animate-pulse' : ''}`} />
-            <span>{updateFrequency}/s</span>
-          </div>
+        <div
+          className="flex items-center gap-3 text-xs cursor-help relative"
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+        >
+          {/* Update Frequency with Sparkline */}
+          <UpdateFrequencyMetric
+            frequency={updateFrequency}
+            history={updateHistory}
+          />
 
           {/* Symbol Count */}
           <div className="flex items-center gap-1 text-muted-foreground">
@@ -73,11 +81,33 @@ export const SidebarHeader = memo<SidebarHeaderProps>(({
             </div>
           )}
 
-          {/* Connection Status */}
-          <div className="flex items-center gap-1">
-            <ConnectionIcon className={`w-3 h-3 ${config.color}`} />
-            <span className={config.color}>{config.label}</span>
-          </div>
+          {/* Custom Tooltip */}
+          {showTooltip && (
+            <div className="absolute top-full right-0 mt-2 px-3 py-2 bg-background border border-border rounded-lg shadow-lg whitespace-nowrap z-50 text-xs">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-primary/20 rounded flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 bg-primary rounded"></div>
+                  </div>
+                  <span>WebSocket update frequency (30s trend)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Database className="w-3 h-3" />
+                  <span>Symbols being tracked</span>
+                </div>
+                {signalCount > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-3 h-3 text-primary" />
+                    <span>Active signals firing</span>
+                  </div>
+                )}
+              </div>
+              {/* Tooltip arrow */}
+              <div className="absolute bottom-full right-4 mb-px">
+                <div className="w-2 h-2 bg-background border-l border-t border-border rotate-45"></div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,11 +1,21 @@
 # Issues Dashboard
 
-*Last updated: 2025-01-08*
+*Last updated: 2025-10-08*
 
 ## Active Issues
 
+### 🔧 Backend/Infrastructure
+- [`2025-10-08-backend-enforce-tier-access-execution.md`](./2025-10-08-backend-enforce-tier-access-execution.md) - Enforce Tier Access in Signal Execution ⭐ NEW
+  - **Priority:** High (Security Issue)
+  - **Type:** backend/security
+  - **Status:** Planning - Tier restrictions currently bypassable in execution layer
+
 ### 🎨 Design/UI
-- [`2025-01-08-design-sidebar-layout-implementation.md`](./2025-01-08-design-sidebar-layout-implementation.md) - Sidebar-First Layout Implementation ⭐ NEW
+- [`2025-10-08-sparkline-update-frequency.md`](./2025-10-08-sparkline-update-frequency.md) - Sidebar Update Frequency Sparkline ⭐ NEW
+  - **Priority:** Low
+  - **Type:** design/ui
+  - **Status:** Design brief - Add mini sparkline to visualize update frequency trend
+- [`2025-01-08-design-sidebar-layout-implementation.md`](./2025-01-08-design-sidebar-layout-implementation.md) - Sidebar-First Layout Implementation
   - **Priority:** Medium
   - **Type:** design/ui
   - **Status:** Design brief - Apply style guide layout to production app
@@ -69,8 +79,9 @@
   - **Status:** Example/Template
 
 ## Quick Stats
-- **Total Issues:** 11
-- **Design/UI:** 1
+- **Total Issues:** 13
+- **Backend/Infrastructure:** 1
+- **Design/UI:** 2
 - **Critical Bugs:** 1
 - **New Ideas:** 4
 - **In Review:** 1
@@ -81,8 +92,9 @@
 
 ## Next Actions
 1. **URGENT:** Fix Fly machine historical klines issue - traders can't operate without data
-2. **NEW:** Review Built-in Trader Run Control proposal (UX/performance critical)
-3. **NEW:** Review Golang Binance Data Collector proposal (scalability blocker)
-4. Complete performance degradation fix implementation
-5. Begin specification phase for My Signals click filtering
-6. Review and close completed issues
+2. **SECURITY:** Review tier access enforcement issue - current bypass vulnerability
+3. **NEW:** Review Built-in Trader Run Control proposal (UX/performance critical)
+4. **NEW:** Review Golang Binance Data Collector proposal (scalability blocker)
+5. Complete performance degradation fix implementation
+6. Begin specification phase for My Signals click filtering
+7. Review and close completed issues

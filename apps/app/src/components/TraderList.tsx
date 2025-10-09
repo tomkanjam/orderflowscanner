@@ -205,8 +205,8 @@ export function TraderList({
         ) : (
           <div>
             {/* Render signals grouped by category */}
-            {Object.entries(groupedBuiltInSignals).map(([category, signals]) => (
-              <div key={category}>
+            {Object.entries(groupedBuiltInSignals).map(([category, signals], index) => (
+              <div key={category} className={index > 0 ? 'mt-6' : ''}>
                 <CategoryHeader category={category} count={signals.length} />
                 <div className="space-y-2">
                   {signals.map(trader => {

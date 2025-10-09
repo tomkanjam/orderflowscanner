@@ -143,6 +143,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <SidebarHeader
         connectionStatus={connectionStatus}
         updateFrequency={metrics.updateFrequency}
+        updateHistory={metrics.history}
         symbolCount={symbolCount}
         signalCount={signalCount}
       />

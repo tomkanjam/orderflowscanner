@@ -4,6 +4,7 @@ interface WebSocketMetrics {
   updateFrequency: number; // updates per second
   lastUpdate: number | null; // timestamp
   totalUpdates: number;
+  history: number[]; // 30-second rolling window of update frequencies
 }
 
 /**
@@ -13,7 +14,8 @@ export const useWebSocketMetrics = () => {
   const [metrics, setMetrics] = useState<WebSocketMetrics>({
     updateFrequency: 0,
     lastUpdate: null,
-    totalUpdates: 0
+    totalUpdates: 0,
+    history: new Array(30).fill(0) // Initialize with 30 zeros
   });
   
   // Track updates without state changes for performance
@@ -36,11 +38,12 @@ export const useWebSocketMetrics = () => {
       // Reset counter for next second
       updateCountRef.current = 0;
       
-      // Update state with new metrics
+      // Update state with new metrics and circular buffer
       setMetrics(prev => ({
         updateFrequency: updatesThisSecond,
         lastUpdate: lastUpdate,
-        totalUpdates: prev.totalUpdates + updatesThisSecond
+        totalUpdates: prev.totalUpdates + updatesThisSecond,
+        history: [...prev.history.slice(1), updatesThisSecond] // Circular buffer: remove first, add new
       }));
     }, 1000);
     

@@ -336,7 +336,8 @@ export function TraderForm({
             description: validConditions,
             indicators: generatedTrader?.indicators || editingTrader.filter.indicators,
             refreshInterval: filterInterval,
-            requiredTimeframes: generatedTrader?.requiredTimeframes || editingTrader.filter.requiredTimeframes || [filterInterval]
+            requiredTimeframes: generatedTrader?.requiredTimeframes || editingTrader.filter.requiredTimeframes || [filterInterval],
+            language: 'go' as const // All new/updated traders use Go backend
           },
           strategy: {
             instructions: manualStrategy,
@@ -374,7 +375,8 @@ export function TraderForm({
             description: validConditions,
             indicators: generatedTrader?.indicators || [],
             refreshInterval: filterInterval,
-            requiredTimeframes: generatedTrader?.requiredTimeframes || [filterInterval]
+            requiredTimeframes: generatedTrader?.requiredTimeframes || [filterInterval],
+            language: 'go' as const // All new traders use Go backend
           },
           strategy: {
             instructions: manualStrategy,

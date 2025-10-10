@@ -54,11 +54,10 @@ The Go backend for executing user-defined trading filters has been successfully 
   - `GET /api/v1/traders` - Get traders (built-in or user-specific)
   - `POST /api/v1/signals` - Create signal records
 - Frontend build passing
-- Database migration ready to apply
+- Database migration applied successfully (9 existing traders marked as 'javascript')
 
 ### 🔄 Pending
 - End-to-end testing needed
-- Database migration application (will auto-apply when Supabase starts)
 - User acceptance testing of new trader creation flow
 
 ## Testing Checklist
@@ -67,8 +66,9 @@ The Go backend for executing user-defined trading filters has been successfully 
 - [x] Server starts successfully
 - [x] Health endpoint responds
 - [x] Supabase connection verified
-- [ ] Execute filter endpoint with sample data
-- [ ] Validate code endpoint with sample Go code
+- [x] Execute filter endpoint with sample data (matching & non-matching)
+- [x] Validate code endpoint with sample Go code (valid & invalid)
+- [x] Multiple sequential requests work correctly (no state leakage)
 - [ ] Symbols endpoint returns Binance data
 - [ ] Klines endpoint returns candlestick data
 

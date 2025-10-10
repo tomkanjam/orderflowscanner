@@ -878,20 +878,23 @@ export async function getSymbolAnalysis(
 }
 
 // Regenerate filter code from human-readable conditions
+// NOW GENERATES GO CODE for all new traders
 export async function generateFilterCode(
     conditions: string[],
     modelName: string = 'gemini-2.5-pro',
     klineInterval: string = '1h'
-): Promise<{ filterCode: string, requiredTimeframes?: string[] }> {
+): Promise<{ filterCode: string, requiredTimeframes?: string[], language: 'go' }> {
     const conditionsList = conditions.map((c, i) => `${i + 1}. ${c}`).join('\n');
-    
-    // Get the prompt from the prompt manager
-    const promptTemplate = await promptManager.getActivePromptContent('regenerate-filter', {
-        conditions: conditionsList
+
+    // IMPORTANT: Always use Go prompt for new traders
+    // The regenerate-filter-go prompt generates Go code for backend execution
+    const promptTemplate = await promptManager.getActivePromptContent('regenerate-filter-go', {
+        conditions: conditionsList,
+        klineInterval: klineInterval
     });
 
     if (!promptTemplate) {
-        throw new Error('Failed to load regenerate-filter prompt');
+        throw new Error('Failed to load regenerate-filter-go prompt');
     }
 
     // Add the conditions and kline interval to the prompt
@@ -918,7 +921,7 @@ Kline interval: ${klineInterval}`;
         );
         const response = result.response;
         const responseText = response.text().trim();
-        
+
         // Parse JSON response
         let parsedResponse;
         try {
@@ -927,29 +930,32 @@ Kline interval: ${klineInterval}`;
             console.error('Failed to parse regenerate response as JSON:', responseText);
             throw new Error('Failed to parse AI response as JSON');
         }
-        
+
         const { filterCode, requiredTimeframes } = parsedResponse;
-        
+
         if (!filterCode) {
             throw new Error('Response is missing filterCode');
         }
-        
-        // Basic validation
+
+        // Basic validation for Go code
         if (!filterCode.includes('return')) {
             throw new Error('Generated filter code is missing a return statement');
         }
-        
-        // Try to validate the syntax by creating a function
-        try {
-            new Function('ticker', 'timeframes', 'helpers', 'hvnNodes', filterCode);
-        } catch (syntaxError) {
-            console.error('Generated filter code has syntax error:', syntaxError);
-            console.error('Filter code:', filterCode);
-            throw new Error(`Generated filter code has invalid syntax: ${syntaxError.message}`);
+
+        // Check for common Go patterns (not exhaustive, Yaegi will do full validation)
+        if (!filterCode.includes(':=') && !filterCode.includes('data.')) {
+            console.warn('Generated code may not be valid Go - missing common Go patterns');
         }
-        
-        console.log('Successfully regenerated filter code from conditions');
-        return { filterCode, requiredTimeframes };
+
+        console.log('[generateFilterCode] Successfully generated Go filter code');
+        console.log('[generateFilterCode] Required timeframes:', requiredTimeframes);
+        console.log('[generateFilterCode] Code length:', filterCode.length);
+
+        return {
+            filterCode,
+            requiredTimeframes,
+            language: 'go'
+        };
     } catch (error) {
         console.error('Failed to regenerate filter code:', error);
         throw error;
@@ -1083,16 +1089,16 @@ export async function generateTrader(
         console.log('[generateTrader] Step 1: Generating metadata...');
         const metadata = await generateTraderMetadata(userPrompt, modelName, onStream);
         
-        // Step 2: Generate filter code
-        console.log('[generateTrader] Step 2: Generating filter code...');
+        // Step 2: Generate filter code (Go)
+        console.log('[generateTrader] Step 2: Generating Go filter code...');
         onStream?.({ type: 'progress', progress: 95 });
-        
-        const { filterCode, requiredTimeframes } = await generateFilterCode(
+
+        const { filterCode, requiredTimeframes, language } = await generateFilterCode(
             metadata.filterConditions,
             modelName,
             klineInterval
         );
-        
+
         // Combine results
         const traderGeneration: TraderGeneration = {
             suggestedName: metadata.suggestedName,
@@ -1102,7 +1108,8 @@ export async function generateTrader(
             strategyInstructions: metadata.strategyInstructions,
             indicators: metadata.indicators,
             riskParameters: metadata.riskParameters,
-            requiredTimeframes: requiredTimeframes
+            requiredTimeframes: requiredTimeframes,
+            language: language // 'go' for all new traders
         };
         
         // Track the generation

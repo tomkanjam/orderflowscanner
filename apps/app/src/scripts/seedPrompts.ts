@@ -18,117 +18,128 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Shared filter code instructions
 const FILTER_CODE_INSTRUCTIONS = `
-screenerCode: A string containing the body of a JavaScript function \`(ticker, timeframes, helpers, hvnNodes)\` that returns a boolean (true if conditions met, false otherwise).
-    Function Arguments:
-        \`ticker\`: A 24hr summary object for the symbol. Example: \`{ "s": "BNBUSDT", "P": "2.500" (priceChangePercent), "c": "590.5" (lastPrice), "q": "100000000" (quoteVolume), ...otherProps }\`.
-        \`timeframes\`: An object containing kline data for each required timeframe. Access via timeframes['1m'], timeframes['5m'], etc. Each value is an array of the last {{klineLimit}} candlestick data points. Each kline is an array: \`[openTime (number), open (string), high (string), low (string), close (string), volume (string), ...otherElements]\`.
-            - Example: \`const klines1m = timeframes['1m'];\`
-            - Example: \`const klines5m = timeframes['5m'];\`
-            - \`klines[i][0]\` is openTime (timestamp).
-            - \`klines[i][1]\` is open price.
-            - \`klines[i][2]\` is high price.
-            - \`klines[i][3]\` is low price.
-            - \`klines[i][4]\` is close price.
-            - \`klines[i][5]\` is volume.
-            The most recent kline is \`klines[klines.length - 1]\`. This kline might be open/live if data is streaming.
-        \`helpers\`: An object providing pre-defined utility functions. Call them as \`helpers.functionName(...)\`. Pass the specific timeframe klines to helpers.
-        \`hvnNodes\`: An array of high volume nodes (support/resistance levels). To use HVN data, first calculate it using \`const hvnNodes = helpers.calculateHighVolumeNodes(timeframes['1h'], {lookback: 100});\` then use helper functions like \`helpers.isNearHVN()\` or access the nodes directly. Each node has \`{ price: number, volume: number, strength: number (0-100), buyVolume: number, sellVolume: number, priceRange: [number, number] }\`.
+screenerCode: A string containing the body of a Go function that evaluates market data and returns a boolean (true if conditions met, false otherwise).
+    The function signature is: \`func evaluate(data *types.MarketData) bool\`
 
-    Available Helper Functions via \`helpers\` object:
-        1.  \`helpers.calculateMA(klines, period)\`: Returns Latest SMA (number) or \`null\`.
-        2.  \`helpers.calculateAvgVolume(klines, period)\`: Returns Average volume (number) or \`null\`.
-        3.  \`helpers.calculateRSI(klines, period = 14)\`: Returns RSI series \`(number | null)[]\` or \`null\`.
-        4.  \`helpers.getLatestRSI(klines, period = 14)\`: Returns Latest RSI (number) or \`null\`.
-        5.  \`helpers.detectRSIDivergence(klines, rsiPeriod = 14, lookbackCandles = 30, minPeakValleySeparation = 5)\`: Returns \`'bullish_regular'\`, \`'bearish_regular'\`, or \`null\`. Uses \`calculateRSI\` and \`detectGenericDivergence\`.
-        6.  \`helpers.detectGenericDivergence(series1, series2, lookbackCandles = 30, minPeakValleySeparation = 5)\`: Returns \`'bullish_regular'\`, \`'bearish_regular'\`, or \`null\`.
-        7.  \`helpers.calculateEMASeries(klines, period)\`: Returns EMA series \`(number | null)[]\`.
-        8.  \`helpers.getLatestEMA(klines, period)\`: Returns Latest EMA (number) or \`null\`.
-        9.  \`helpers.calculateMACDValues(klines, shortPeriod = 12, longPeriod = 26, signalPeriod = 9)\`: Returns \`{ macdLine: (number | null)[], signalLine: (number | null)[], histogram: (number | null)[] }\`.
-        10. \`helpers.getLatestMACD(klines, shortPeriod = 12, longPeriod = 26, signalPeriod = 9)\`: Returns \`{ macd: number | null, signal: number | null, histogram: number | null }\`.
-        11. \`helpers.getHighestHigh(klines, period)\`: Returns Highest high (number) or \`null\`.
-        12. \`helpers.getLowestLow(klines, period)\`: Returns Lowest low (number) or \`null\`.
-        13. \`helpers.detectEngulfingPattern(klines)\`: Returns \`'bullish'\`, \`'bearish'\`, or \`null\`.
-        14. \`helpers.calculateMASeries(klines, period)\`: Returns SMA series \`(number | null)[]\`.
-        15. \`helpers.calculatePVISeries(klines, initialPVI = 1000)\`: Returns Positive Volume Index series \`(number | null)[]\`. PVI changes based on price change percent IF current volume > previous volume, else PVI is unchanged.
-        16. \`helpers.getLatestPVI(klines, initialPVI = 1000)\`: Returns Latest PVI (number) or \`null\`.
-        17. \`helpers.calculateHighVolumeNodes(klines, options)\`: Returns array of VolumeNode objects with price levels and strengths sorted by strength (strongest first).
-        18. \`helpers.isNearHVN(price, hvnNodes, tolerance = 0.5)\`: Returns true if price is within tolerance % of any HVN.
-        19. \`helpers.getClosestHVN(price, hvnNodes, direction = 'both')\`: Returns closest VolumeNode. Direction can be 'above', 'below', or 'both'.
-        20. \`helpers.countHVNInRange(priceLow, priceHigh, hvnNodes)\`: Returns count of HVNs within price range.
-        21. \`helpers.calculateVWAPSeries(klines, anchorPeriod?)\`: Returns VWAP series \`(number | null)[]\`. Without anchorPeriod, uses all klines. With anchorPeriod, uses last N klines.
-        22. \`helpers.getLatestVWAP(klines, anchorPeriod?)\`: Returns Latest VWAP (number) or \`null\`.
-        23. \`helpers.calculateVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)\`: Returns \`{ vwap: (number | null)[], upperBand: (number | null)[], lowerBand: (number | null)[] }\`.
-        24. \`helpers.getLatestVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)\`: Returns \`{ vwap: number | null, upperBand: number | null, lowerBand: number | null }\`.
-        25. \`helpers.calculateBollingerBands(klines, period = 20, stdDev = 2)\`: Returns \`{ upper: (number | null)[], middle: (number | null)[], lower: (number | null)[] }\`.
-        26. \`helpers.getLatestBollingerBands(klines, period = 20, stdDev = 2)\`: Returns \`{ upper: number | null, middle: number | null, lower: number | null }\`.
-        27. \`helpers.calculateStochRSI(klines, rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3)\`: Returns array of \`{ k: number, d: number }\` or \`null\`.
-        28. \`helpers.getLatestStochRSI(klines, rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3)\`: Returns \`{ k: number, d: number }\` or \`null\`.
-        29. \`helpers.calculateStochastic(klines, kPeriod = 14, dPeriod = 3, smooth = 3)\`: Returns \`{ k: number, d: number }\`.
-        30. \`helpers.calculateEMA(values, period)\`: Returns EMA (number) for an array of values.
-        31. \`helpers.calculateSMA(values, period)\`: Returns SMA (number) for an array of values.
-        32. \`helpers.calculateMACD(closes, shortPeriod = 12, longPeriod = 26, signalPeriod = 9)\`: Returns \`{ MACD: number, signal: number, histogram: number }\`.
-        33. \`helpers.calculateADX(klines, period = 14)\`: Returns ADX value (number).
-        34. \`helpers.calculateVWAP(klines)\`: Returns VWAP value (number).
-        35. \`helpers.clearHVNCache(cacheKey?)\`: Clears HVN cache for performance.
+    Available Data Structure:
+        \`data.Ticker\`: 24hr ticker summary. Access fields like \`data.Ticker.LastPrice\`, \`data.Ticker.PriceChangePercent\`, \`data.Ticker.QuoteVolume\`.
+        \`data.Klines\`: Map of timeframe to kline arrays. Access via \`data.Klines["1m"]\`, \`data.Klines["5m"]\`, etc.
+            - Example: \`klines5m := data.Klines["5m"]\`
+            - Example: \`klines1h := data.Klines["1h"]\`
+            - Each kline is a struct with fields: OpenTime, Open, High, Low, Close, Volume
+            - Access: \`klines[i].Close\`, \`klines[i].Volume\`, etc.
+            - Most recent kline: \`klines[len(klines)-1]\`
+            - CRITICAL: Always check length before accessing: \`if len(klines) < period { return false }\`
 
-    Structure and Logic in \`screenerCode\`:
-        - CRUCIAL: Always check timeframe klines lengths before accessing elements or performing calculations. If insufficient, return \`false\`.
-        - MULTI-TIMEFRAME: When the user mentions multiple timeframes (e.g., "1m and 5m"), you must access both timeframes and check conditions on each.
-        - CRUCIAL: Helper functions return \`null\` or arrays with \`null\`s for insufficient data. Check for these \`null\`s.
-        - CRUCIAL: The final statement in \`screenerCode\` MUST be a boolean return. E.g., \`return condition1 && condition2;\`.
-        - Parse kline values (open, high, low, close, volume) using \`parseFloat()\`.
-        - Avoid \`NaN\`/\`Infinity\` without safeguards. If a condition is ambiguous, interpret reasonably or omit and note in \`description\`.
-        - VWAP NOTE: When using VWAP, implement daily reset at UTC midnight by calculating candles since UTC day start unless user specifies otherwise.
-        - HVN NOTE: The hvnNodes parameter is NOT pre-populated. To use HVN data, you must first calculate it: \`const hvnNodes = helpers.calculateHighVolumeNodes(klines, {lookback: 100});\`
-        - PROGRESS COMMENTS: Add brief progress comments throughout your code to indicate what you're analyzing. These help users understand the logic flow. Use comments starting with capital letter and ending with ... Examples:
-          - \`// Analyzing RSI conditions...\`
-          - \`// Checking volume requirements...\`
-          - \`// Evaluating price action...\`
-          - \`// Validating MACD signals...\`
-          - \`// Calculating moving averages...\`
+    Available Indicator Functions from \`indicators\` package:
+        1.  \`indicators.CalculateMA(klines, period)\`: Returns Latest SMA (*float64) or nil.
+        2.  \`indicators.CalculateAvgVolume(klines, period)\`: Returns Average volume (*float64) or nil.
+        3.  \`indicators.CalculateRSISeries(klines, period)\`: Returns RSI series ([]float64).
+        4.  \`indicators.GetLatestRSI(klines, period)\`: Returns Latest RSI (*float64) or nil.
+        5.  \`indicators.CalculateEMASeries(klines, period)\`: Returns EMA series ([]float64).
+        6.  \`indicators.GetLatestEMA(klines, period)\`: Returns Latest EMA (*float64) or nil.
+        7.  \`indicators.CalculateMACDValues(klines, shortPeriod, longPeriod, signalPeriod)\`: Returns MACD struct with MACD, Signal, Histogram fields (all *float64).
+        8.  \`indicators.GetLatestMACD(klines, shortPeriod, longPeriod, signalPeriod)\`: Returns Latest MACD values (*MACDResult) or nil.
+        9.  \`indicators.GetHighestHigh(klines, period)\`: Returns Highest high (*float64) or nil.
+        10. \`indicators.GetLowestLow(klines, period)\`: Returns Lowest low (*float64) or nil.
+        11. \`indicators.DetectEngulfingPattern(klines)\`: Returns "bullish", "bearish", or "" (empty string for none).
+        12. \`indicators.CalculateMASeries(klines, period)\`: Returns SMA series ([]float64).
+        13. \`indicators.CalculateVWAPSeries(klines)\`: Returns VWAP series ([]float64).
+        14. \`indicators.GetLatestVWAP(klines)\`: Returns Latest VWAP (*float64) or nil.
+        15. \`indicators.CalculateBollingerBands(klines, period, stdDev)\`: Returns Bollinger Bands struct with Upper, Middle, Lower slices (all []float64).
+        16. \`indicators.GetLatestBollingerBands(klines, period, stdDev)\`: Returns Latest Bollinger Bands (*BollingerBandsResult) or nil.
+        17. \`indicators.CalculateStochastic(klines, kPeriod, dPeriod, smooth)\`: Returns Stochastic struct with K, D values (*float64).
+        18. \`indicators.CalculateVWAP(klines)\`: Returns VWAP value (float64).
 
-For single timeframe strategies, get the klines like this:
-const klines = timeframes['15m']; // or whatever interval you need
+    Note: All pointer return types (*float64, *MACDResult, etc.) should be checked for nil before dereferencing.
 
-DO NOT use standalone functions like getPrice(), getRSI(), getEMA(), getVolume(). 
-These DO NOT exist. Use the helpers object instead.`;
+    Structure and Logic in Go \`screenerCode\`:
+        - CRUCIAL: Always check klines length: \`if len(klines) < period { return false }\`
+        - MULTI-TIMEFRAME: Access multiple timeframes from data.Klines map
+        - CRUCIAL: Indicator functions return pointers (*float64). Always check for nil: \`if rsi == nil { return false }\`
+        - CRUCIAL: Dereference pointers when comparing: \`*rsi < 30.0\` (note the asterisk)
+        - The final statement MUST be a boolean return: \`return condition1 && condition2\`
+        - Kline fields are already float64, no parsing needed: \`klines[i].Close\`, \`klines[i].Volume\`
+        - Variable declaration: Use \`:=\` for new variables, \`=\` for assignment
+        - PROGRESS COMMENTS: Add brief comments to explain logic:
+          // Check RSI conditions
+          // Validate volume requirements
+          // Evaluate price action
 
-// Helper function list
-const HELPER_FUNCTIONS_LIST = `1. helpers.calculateMA(klines, period)
-2. helpers.calculateAvgVolume(klines, period)
-3. helpers.calculateRSI(klines, period = 14)
-4. helpers.getLatestRSI(klines, period = 14)
-5. helpers.detectRSIDivergence(klines, rsiPeriod = 14, lookbackCandles = 30, minPeakValleySeparation = 5)
-6. helpers.detectGenericDivergence(series1, series2, lookbackCandles = 30, minPeakValleySeparation = 5)
-7. helpers.calculateEMASeries(klines, period)
-8. helpers.getLatestEMA(klines, period)
-9. helpers.calculateMACDValues(klines, shortPeriod = 12, longPeriod = 26, signalPeriod = 9)
-10. helpers.getLatestMACD(klines, shortPeriod = 12, longPeriod = 26, signalPeriod = 9)
-11. helpers.getHighestHigh(klines, period)
-12. helpers.getLowestLow(klines, period)
-13. helpers.detectEngulfingPattern(klines)
-14. helpers.calculateMASeries(klines, period)
-15. helpers.calculatePVISeries(klines, initialPVI = 1000)
-16. helpers.getLatestPVI(klines, initialPVI = 1000)
-17. helpers.calculateHighVolumeNodes(klines, options)
-18. helpers.isNearHVN(price, hvnNodes, tolerance = 0.5)
-19. helpers.getClosestHVN(price, hvnNodes, direction = 'both')
-20. helpers.countHVNInRange(priceLow, priceHigh, hvnNodes)
-21. helpers.calculateVWAPSeries(klines, anchorPeriod?)
-22. helpers.getLatestVWAP(klines, anchorPeriod?)
-23. helpers.calculateVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)
-24. helpers.getLatestVWAPBands(klines, anchorPeriod?, stdDevMultiplier = 1)
-25. helpers.calculateBollingerBands(klines, period = 20, stdDev = 2)
-26. helpers.getLatestBollingerBands(klines, period = 20, stdDev = 2)
-27. helpers.calculateStochRSI(klines, rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3)
-28. helpers.getLatestStochRSI(klines, rsiPeriod = 14, stochPeriod = 14, kPeriod = 3, dPeriod = 3)
-29. helpers.calculateStochastic(klines, kPeriod = 14, dPeriod = 3, smooth = 3)
-30. helpers.calculateEMA(values, period)
-31. helpers.calculateSMA(values, period)
-32. helpers.calculateMACD(closes, shortPeriod = 12, longPeriod = 26, signalPeriod = 9)
-33. helpers.calculateADX(klines, period = 14)
-34. helpers.calculateVWAP(klines)
-35. helpers.clearHVNCache(cacheKey?)`;
+Go Code Examples:
+
+// Single timeframe RSI check
+klines5m := data.Klines["5m"]
+if len(klines5m) < 14 {
+    return false
+}
+
+rsi := indicators.GetLatestRSI(klines5m, 14)
+if rsi == nil {
+    return false
+}
+
+return *rsi < 30.0
+
+// Multi-timeframe with MACD
+klines1m := data.Klines["1m"]
+klines5m := data.Klines["5m"]
+
+if len(klines1m) < 26 || len(klines5m) < 26 {
+    return false
+}
+
+macd1m := indicators.GetLatestMACD(klines1m, 12, 26, 9)
+macd5m := indicators.GetLatestMACD(klines5m, 12, 26, 9)
+
+if macd1m == nil || macd5m == nil {
+    return false
+}
+
+return *macd1m.Histogram > 0 && *macd5m.Histogram > 0
+
+// Price above moving average with volume
+klines := data.Klines["15m"]
+if len(klines) < 50 {
+    return false
+}
+
+ma50 := indicators.CalculateMA(klines, 50)
+avgVol := indicators.CalculateAvgVolume(klines, 20)
+
+if ma50 == nil || avgVol == nil {
+    return false
+}
+
+lastClose := klines[len(klines)-1].Close
+currentVol := klines[len(klines)-1].Volume
+
+return lastClose > *ma50 && currentVol > *avgVol*1.5
+
+DO NOT use JavaScript syntax. This is Go code that will be executed by the Yaegi interpreter.`;
+
+// Helper function list (Go indicators package)
+const HELPER_FUNCTIONS_LIST = `1. indicators.CalculateMA(klines, period) - Returns *float64
+2. indicators.CalculateAvgVolume(klines, period) - Returns *float64
+3. indicators.CalculateRSISeries(klines, period) - Returns []float64
+4. indicators.GetLatestRSI(klines, period) - Returns *float64
+5. indicators.CalculateEMASeries(klines, period) - Returns []float64
+6. indicators.GetLatestEMA(klines, period) - Returns *float64
+7. indicators.CalculateMACDValues(klines, shortPeriod, longPeriod, signalPeriod) - Returns *MACDResult
+8. indicators.GetLatestMACD(klines, shortPeriod, longPeriod, signalPeriod) - Returns *MACDResult
+9. indicators.GetHighestHigh(klines, period) - Returns *float64
+10. indicators.GetLowestLow(klines, period) - Returns *float64
+11. indicators.DetectEngulfingPattern(klines) - Returns string ("bullish", "bearish", or "")
+12. indicators.CalculateMASeries(klines, period) - Returns []float64
+13. indicators.CalculateVWAPSeries(klines) - Returns []float64
+14. indicators.GetLatestVWAP(klines) - Returns *float64
+15. indicators.CalculateBollingerBands(klines, period, stdDev) - Returns *BollingerBandsResult
+16. indicators.GetLatestBollingerBands(klines, period, stdDev) - Returns *BollingerBandsResult
+17. indicators.CalculateStochastic(klines, kPeriod, dPeriod, smooth) - Returns *StochasticResult
+18. indicators.CalculateVWAP(klines) - Returns float64
+
+Note: Functions returning pointers (*float64, *MACDResult, etc.) return nil when insufficient data.
+Always check for nil before dereferencing: if result == nil { return false }`;
 
 const prompts = [
   {
@@ -141,6 +152,8 @@ const prompts = [
 description: An array of human-readable strings explaining each condition the AI has implemented. Max 3-4 concise conditions.
 
 requiredTimeframes: An array of timeframe strings that your filter needs to analyze. Valid values: "1m", "5m", "15m", "1h", "4h", "1d". Analyze the user's prompt to determine which timeframes are referenced. If no specific timeframes are mentioned, default to ["{{klineInterval}}"].
+
+screenerCode: Go code (function body only) that will be executed by the Yaegi interpreter. The code must return a boolean.
 
 ${FILTER_CODE_INSTRUCTIONS}
 
@@ -282,10 +295,10 @@ Example Complete Response:
   "description": [
     "Price is above the 20-period moving average",
     "RSI is oversold (below 30)",
-    "Bollinger Bands are tightening (volatility squeeze)"
+    "Volume is above average"
   ],
   "requiredTimeframes": ["15m"],
-  "screenerCode": "const klines = timeframes['15m']; const ma20 = helpers.calculateMA(klines, 20); const rsi = helpers.getLatestRSI(klines, 14); if (!ma20 || !rsi) return false; const lastClose = parseFloat(klines[klines.length - 1][4]); const bbWidth = helpers.calculateBollingerBandWidth(klines, 20, 2); return lastClose > ma20 && rsi < 30 && bbWidth < 0.05;",
+  "screenerCode": "klines := data.Klines[\"15m\"]\nif len(klines) < 20 {\n    return false\n}\n\nma20 := indicators.CalculateMA(klines, 20)\nrsi := indicators.GetLatestRSI(klines, 14)\navgVol := indicators.CalculateAvgVolume(klines, 20)\n\nif ma20 == nil || rsi == nil || avgVol == nil {\n    return false\n}\n\nlastClose := klines[len(klines)-1].Close\ncurrentVol := klines[len(klines)-1].Volume\n\nreturn lastClose > *ma20 && *rsi < 30.0 && currentVol > *avgVol*1.5",
   "indicators": [
     {
       "id": "sma_20",
@@ -318,23 +331,24 @@ Example Complete Response:
 Example Multi-Timeframe Response:
 {
   "description": [
-    "1m and 5m StochRSI below 30 and rising",
+    "RSI below 30 on both 1m and 5m timeframes",
     "Price above VWAP on both timeframes",
     "Volume spike detected"
   ],
   "requiredTimeframes": ["1m", "5m"],
-  "screenerCode": "// Check 1m StochRSI\\nconst klines1m = timeframes['1m'];\\nconst stoch1m = helpers.calculateStochRSI(klines1m, 14, 14, 3, 3);\\nif (!stoch1m || stoch1m.length < 2) return false;\\nconst last1m = stoch1m[stoch1m.length - 1];\\nconst prev1m = stoch1m[stoch1m.length - 2];\\n\\n// Check 5m StochRSI\\nconst klines5m = timeframes['5m'];\\nconst stoch5m = helpers.calculateStochRSI(klines5m, 14, 14, 3, 3);\\nif (!stoch5m || stoch5m.length < 2) return false;\\nconst last5m = stoch5m[stoch5m.length - 1];\\nconst prev5m = stoch5m[stoch5m.length - 2];\\n\\n// Both timeframes: StochRSI below 30 and rising\\nconst stochCondition = prev1m.k < 30 && last1m.k > prev1m.k && prev5m.k < 30 && last5m.k > prev5m.k;\\n\\n// Check VWAP on both timeframes\\nconst vwap1m = helpers.getLatestVWAP(klines1m);\\nconst vwap5m = helpers.getLatestVWAP(klines5m);\\nconst lastPrice = parseFloat(ticker.c);\\nconst vwapCondition = lastPrice > vwap1m && lastPrice > vwap5m;\\n\\n// Volume check\\nconst avgVol = helpers.calculateAvgVolume(klines5m, 20);\\nconst currentVol = parseFloat(klines5m[klines5m.length - 1][5]);\\nconst volumeSpike = currentVol > avgVol * 1.5;\\n\\nreturn stochCondition && vwapCondition && volumeSpike;",
+  "screenerCode": "// Check RSI on both timeframes\nklines1m := data.Klines[\"1m\"]\nklines5m := data.Klines[\"5m\"]\n\nif len(klines1m) < 14 || len(klines5m) < 20 {\n    return false\n}\n\nrsi1m := indicators.GetLatestRSI(klines1m, 14)\nrsi5m := indicators.GetLatestRSI(klines5m, 14)\n\nif rsi1m == nil || rsi5m == nil {\n    return false\n}\n\n// Check VWAP on both timeframes\nvwap1m := indicators.GetLatestVWAP(klines1m)\nvwap5m := indicators.GetLatestVWAP(klines5m)\n\nif vwap1m == nil || vwap5m == nil {\n    return false\n}\n\nlastPrice := data.Ticker.LastPrice\n\n// Volume check\navgVol := indicators.CalculateAvgVolume(klines5m, 20)\nif avgVol == nil {\n    return false\n}\n\ncurrentVol := klines5m[len(klines5m)-1].Volume\n\nreturn *rsi1m < 30.0 && *rsi5m < 30.0 && lastPrice > *vwap1m && lastPrice > *vwap5m && currentVol > *avgVol*1.5",
   "indicators": [
     // ... indicator definitions ...
   ]
 }
 
 General Guidelines:
-- The \`screenerCode\` string must contain ONLY the JavaScript function body. DO NOT include helper function definitions.
+- The \`screenerCode\` string must contain ONLY Go function body code. DO NOT include function signature or package declarations.
+- DO NOT use JavaScript syntax. This is Go code executed by the Yaegi interpreter.
+- Always check for nil pointers and dereference them with * when comparing values.
 - The entire response from you MUST be a single valid JSON object as shown in the example, without any surrounding text, comments, or markdown formatting outside the JSON structure itself.
 - IMPORTANT: You MUST include the "indicators" array with actual indicator objects based on the indicators mentioned in the user's prompt. Include indicators that help visualize the conditions being screened for.
-- IMPORTANT: You MUST include the "requiredTimeframes" array with the timeframes your filter needs. Analyze the user's prompt for timeframe references.
-- For VWAP: Use the basic "vwap_daily" indicator by default. Only use "vwap_daily_bands" when the user explicitly asks for VWAP bands, standard deviation bands, or VWAP with bands.`,
+- IMPORTANT: You MUST include the "requiredTimeframes" array with the timeframes your filter needs. Analyze the user's prompt for timeframe references.`,
     parameters: ['userPrompt', 'modelName', 'klineInterval', 'klineLimit'],
     placeholders: {
       klineLimit: 250,
@@ -416,37 +430,40 @@ Keep your analysis focused and actionable for traders.`,
     id: 'regenerate-filter',
     name: 'Regenerate Filter Code',
     category: 'screener',
-    description: 'Converts human-readable conditions back into JavaScript filter code',
-    systemInstruction: `You are an AI assistant that converts human-readable trading conditions into JavaScript code.
+    description: 'Converts human-readable conditions back into Go filter code',
+    systemInstruction: `You are an AI assistant that converts human-readable trading conditions into Go code.
 
 You will receive an array of conditions that describe a trading filter. Your task is to:
 1. Analyze the conditions to determine which timeframes are needed
-2. Generate CLEAN, CONCISE JavaScript function body that implements these conditions
+2. Generate CLEAN, CONCISE Go function body that implements these conditions
 
 CRITICAL RULES:
 1. Generate ONLY the necessary code - NO personal commentary, NO trading philosophy, NO explanations
 2. Use minimal comments - only for clarifying complex calculations if needed
 3. Keep variable names short and clear
 4. Return the boolean result directly when possible
+5. Always check for nil pointers before dereferencing
+6. Use Go syntax: := for declaration, * for pointer dereference
 
 CRITICAL TIMEFRAME CONSISTENCY RULES:
 - The timeframes in "requiredTimeframes" MUST EXACTLY match the timeframes used in "filterCode"
-- If you detect "1 hour" or "1h" in conditions, use "1h" in both requiredTimeframes AND timeframes['1h']
-- If you detect "1 minute" or "1m" in conditions, use "1m" in both requiredTimeframes AND timeframes['1m']
+- If you detect "1 hour" or "1h" in conditions, use "1h" in both requiredTimeframes AND data.Klines["1h"]
+- If you detect "1 minute" or "1m" in conditions, use "1m" in both requiredTimeframes AND data.Klines["1m"]
 - NEVER mix timeframes - maintain perfect consistency between declaration and usage
 
 Return a JSON object with this structure:
 {
   "requiredTimeframes": ["1m", "5m", ...], // Array of timeframes needed based on the conditions
-  "filterCode": "// JavaScript function body"
+  "filterCode": "// Go function body"
 }
 
 For the filterCode:
 ${FILTER_CODE_INSTRUCTIONS}
 
-The filterCode should be ONLY the JavaScript function body that returns a boolean. Do not include:
-- Function declaration
-- Helper function definitions  
+The filterCode should be ONLY the Go function body that returns a boolean. Do not include:
+- Function declaration (func evaluate...)
+- Package declarations
+- Import statements
 - Any markdown formatting
 - Any explanatory text outside the JSON
 
@@ -461,7 +478,7 @@ Example input:
 Example output (CLEAN CODE - no unnecessary comments):
 {
   "requiredTimeframes": ["15m"],
-  "filterCode": "const klines = timeframes['15m'];\\nif (!klines || klines.length < 50) return false;\\n\\nconst rsi = helpers.getLatestRSI(klines, 14);\\nconst sma50 = helpers.calculateMA(klines, 50);\\nconst avgVolume = helpers.calculateAvgVolume(klines, 20);\\nconst currentVolume = parseFloat(klines[klines.length - 1][5]);\\nconst lastClose = parseFloat(klines[klines.length - 1][4]);\\n\\nif (!rsi || !sma50 || !avgVolume) return false;\\n\\nreturn rsi < 30 && lastClose > sma50 && currentVolume > avgVolume * 1.5;"
+  "filterCode": "klines := data.Klines[\"15m\"]\nif len(klines) < 50 {\n    return false\n}\n\nrsi := indicators.GetLatestRSI(klines, 14)\nsma50 := indicators.CalculateMA(klines, 50)\navgVolume := indicators.CalculateAvgVolume(klines, 20)\n\nif rsi == nil || sma50 == nil || avgVolume == nil {\n    return false\n}\n\ncurrentVolume := klines[len(klines)-1].Volume\nlastClose := klines[len(klines)-1].Close\n\nreturn *rsi < 30.0 && lastClose > *sma50 && currentVolume > *avgVolume*1.5"
 }
 
 Multi-timeframe example input:
@@ -473,7 +490,7 @@ Multi-timeframe example input:
 Multi-timeframe example output:
 {
   "requiredTimeframes": ["1m", "5m"],
-  "filterCode": "// Check 1m StochRSI\\nconst klines1m = timeframes['1m'];\\nif (!klines1m || klines1m.length < 14) return false;\\nconst stoch1m = helpers.calculateStochRSI(klines1m, 14, 14, 3, 3);\\nif (!stoch1m || stoch1m.length < 2) return false;\\nconst last1m = stoch1m[stoch1m.length - 1];\\nconst prev1m = stoch1m[stoch1m.length - 2];\\n\\n// Check 5m StochRSI\\nconst klines5m = timeframes['5m'];\\nif (!klines5m || klines5m.length < 14) return false;\\nconst stoch5m = helpers.calculateStochRSI(klines5m, 14, 14, 3, 3);\\nif (!stoch5m || stoch5m.length < 2) return false;\\nconst last5m = stoch5m[stoch5m.length - 1];\\nconst prev5m = stoch5m[stoch5m.length - 2];\\n\\n// Both timeframes: StochRSI below 30 and rising\\nreturn prev1m.k < 30 && last1m.k > prev1m.k && prev5m.k < 30 && last5m.k > prev5m.k;"
+  "filterCode": "// Check 1m RSI\nklines1m := data.Klines[\"1m\"]\nif len(klines1m) < 14 {\n    return false\n}\n\nrsi1m := indicators.GetLatestRSI(klines1m, 14)\nif rsi1m == nil {\n    return false\n}\n\n// Check 5m RSI\nklines5m := data.Klines[\"5m\"]\nif len(klines5m) < 14 {\n    return false\n}\n\nrsi5m := indicators.GetLatestRSI(klines5m, 14)\nif rsi5m == nil {\n    return false\n}\n\n// Both timeframes: RSI below 30\nreturn *rsi1m < 30.0 && *rsi5m < 30.0"
 }`,
     parameters: ['conditions'],
     placeholders: {
@@ -484,8 +501,8 @@ Multi-timeframe example output:
     id: 'generate-trader-metadata',
     name: 'Generate Trader Metadata',
     category: 'trader',
-    description: 'Creates trader metadata without filter code',
-    systemInstruction: `You are an AI assistant that creates cryptocurrency trading systems.
+    description: 'Creates trader metadata without filter code (for Go-based traders)',
+    systemInstruction: `You are an AI assistant that creates cryptocurrency trading systems using Go code.
 
 CRITICAL: You MUST return ONLY a valid JSON object. Do not include ANY text, explanation, markdown, or comments before or after the JSON. The response must start with { and end with }.
 
@@ -645,23 +662,24 @@ REMEMBER: For every technical indicator you mention in filterConditions, you MUS
     id: 'generate-trader',
     name: 'Generate Trader',
     category: 'trader',
-    description: 'Creates complete trading systems with filters and strategy',
-    systemInstruction: `You are an AI assistant that creates cryptocurrency trading systems.
+    description: 'Creates complete trading systems with Go filters and strategy',
+    systemInstruction: `You are an AI assistant that creates cryptocurrency trading systems using Go code.
 
 CRITICAL: You MUST return ONLY a valid JSON object. Do not include ANY text, explanation, markdown, or comments before or after the JSON. The response must start with { and end with }.
 
 Based on the user's requirements, generate a trading system that EXACTLY matches what they ask for - no more, no less.
 
-IMPORTANT: 
-- If the user asks for simple conditions (e.g., "StochRSI below 40"), only implement those conditions
+IMPORTANT:
+- If the user asks for simple conditions (e.g., "RSI below 30"), only implement those conditions
 - Do NOT add extra filters (trend, volume, etc.) unless specifically requested
 - Analyze the user's prompt to determine which timeframes are mentioned
+- Generate Go code, not JavaScript
 
 CRITICAL TIMEFRAME CONSISTENCY RULES:
 1. The timeframes you specify in "requiredTimeframes" MUST EXACTLY match the timeframes you use in "filterCode"
-2. If you set requiredTimeframes: ["1h"], then filterCode MUST use: const klines = timeframes['1h'];
-3. If you set requiredTimeframes: ["1m", "5m"], then filterCode MUST use BOTH: timeframes['1m'] AND timeframes['5m']
-4. NEVER mix timeframes - if requiredTimeframes says "1h", do NOT use timeframes['1m'] in the code
+2. If you set requiredTimeframes: ["1h"], then filterCode MUST use: klines := data.Klines["1h"]
+3. If you set requiredTimeframes: ["1m", "5m"], then filterCode MUST use BOTH: data.Klines["1m"] AND data.Klines["5m"]
+4. NEVER mix timeframes - if requiredTimeframes says "1h", do NOT use data.Klines["1m"] in the code
 5. When the user mentions a specific timeframe (e.g., "on the 1-hour chart"), use that timeframe consistently throughout
 
 Return a JSON object with EXACTLY this structure:
@@ -673,7 +691,7 @@ Return a JSON object with EXACTLY this structure:
     "Human-readable condition 2"
   ],
   "requiredTimeframes": ["1m", "5m"], // Array of timeframes. Valid values: "1m", "5m", "15m", "1h", "4h", "1d"
-  "filterCode": "JavaScript function body that returns boolean",
+  "filterCode": "Go function body that returns boolean",
   "strategyInstructions": "Instructions for the AI analyzer. For simple filters, keep this brief.",
   "indicators": [
     {
@@ -763,7 +781,7 @@ COMPLETE EXAMPLE - Your response should look EXACTLY like this (with your own va
     "Volume is 50% above the 20-period average"
   ],
   "requiredTimeframes": ["1m"],
-  "filterCode": "const klines = timeframes['1m'];\\nif (!klines || klines.length < 30) return false;\\n\\nconst highestHigh = helpers.getHighestHigh(klines, 30);\\nconst currentPrice = parseFloat(klines[klines.length - 1][4]);\\nconst avgVolume = helpers.calculateAvgVolume(klines, 20);\\nconst currentVolume = parseFloat(klines[klines.length - 1][5]);\\n\\nreturn currentPrice > highestHigh && currentVolume > avgVolume * 1.5;",
+  "filterCode": "klines := data.Klines[\"1m\"]\nif len(klines) < 30 {\n    return false\n}\n\nhighestHigh := indicators.GetHighestHigh(klines, 30)\navgVolume := indicators.CalculateAvgVolume(klines, 20)\n\nif highestHigh == nil || avgVolume == nil {\n    return false\n}\n\ncurrentPrice := klines[len(klines)-1].Close\ncurrentVolume := klines[len(klines)-1].Volume\n\nreturn currentPrice > *highestHigh && currentVolume > *avgVolume*1.5",
   "strategyInstructions": "Enter long when price breaks above 30-candle high with volume confirmation. Set stop loss at the 30-candle low. Take profit at 2:1 risk/reward ratio.",
   "indicators": [
     {

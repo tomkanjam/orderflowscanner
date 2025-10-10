@@ -10,6 +10,7 @@ import * as helpers from '../screenerHelpers';
 import { BitSet } from '../src/utils/BitSet';
 import { ResourceTracker } from '../src/memory/ResourceTracker';
 import { WorkerMemoryConfig } from '../src/memory/types';
+import { GoBackendClient, type MarketData } from '../src/api/goBackendClient';
 
 interface WorkerConfig {
   tickerBuffer: SharedArrayBuffer;
@@ -35,6 +36,7 @@ interface TraderExecution {
   filterCode: string;
   refreshInterval: KlineInterval;
   requiredTimeframes: KlineInterval[];
+  language?: 'javascript' | 'go'; // Programming language of the filter code
 }
 
 interface WorkerMessage {
@@ -97,8 +99,25 @@ class PersistentTraderWorker {
     avgEfficiency: 0
   };
   
+  // Go backend client for executing Go filters
+  private goBackendClient: GoBackendClient;
+
+  // Error tracking
+  private errorCount = 0;
+  private lastErrorTime = 0;
+  private isInErrorRecovery = false;
+  private readonly MAX_ERRORS_PER_MINUTE = 10;
+  private readonly ERROR_RECOVERY_DELAY = 5000; // 5 seconds
+
   constructor() {
     console.log(`[Worker ${self.name || 'unnamed'}] Constructor called at ${new Date().toISOString()}`);
+
+    // Initialize Go backend client
+    const goBackendUrl = typeof process !== 'undefined' && process.env?.VITE_GO_BACKEND_URL
+      ? process.env.VITE_GO_BACKEND_URL
+      : 'http://localhost:8080';
+    this.goBackendClient = new GoBackendClient(goBackendUrl, 5000);
+
     // Set up interval mapping
     const intervals = ['1m', '5m', '15m', '1h', '4h', '1d'];
     intervals.forEach((interval, index) => {
@@ -247,10 +266,17 @@ class PersistentTraderWorker {
     }
     
     this.traders.set(trader.traderId, trader);
-    
-    // Compile the filter function only for new or changed traders
+
+    // Only compile filter function for JavaScript traders
+    // Go traders will execute via backend API
+    if (trader.language === 'go') {
+      console.log(`[Worker] Skipping filter compilation for Go trader ${trader.traderId} - will execute via backend`);
+      return;
+    }
+
+    // Compile the filter function only for new or changed JavaScript traders
     try {
-      console.log(`[Worker] Compiling filter for trader ${trader.traderId}`);
+      console.log(`[Worker] Compiling filter for JS trader ${trader.traderId}`);
       const filterFunction = new Function(
         'ticker',
         'timeframes',
@@ -334,28 +360,30 @@ class PersistentTraderWorker {
   /**
    * Process updates normally (for small batches)
    */
-  private processNormalUpdates(updatedIndices: number[]) {
+  private async processNormalUpdates(updatedIndices: number[]) {
     try {
       const results: any[] = [];
       const deltaResults: any[] = [];
-      
+
       for (const [traderId, trader] of this.traders) {
-        const filterFunction = this.compiledFilters.get(traderId);
-      
-      // Track cache access for LRU
-      this.cacheAccessTimes.set(traderId, Date.now());
-        if (!filterFunction) continue;
-        
-        const result = this.runTraderSelective(traderId, trader, filterFunction, updatedIndices);
+        const filterFunction = this.compiledFilters.get(traderId) || null;
+
+        // Track cache access for LRU
+        this.cacheAccessTimes.set(traderId, Date.now());
+
+        // For Go traders, filterFunction can be null
+        if (!filterFunction && trader.language !== 'go') continue;
+
+        const result = await this.runTraderSelective(traderId, trader, filterFunction, updatedIndices);
         results.push(result);
-        
+
         // Calculate delta from previous result
         const delta = this.calculateResultDelta(traderId, result);
         if (delta) {
           deltaResults.push(delta);
         }
       }
-      
+
       // Only send if there are changes
       if (deltaResults.length > 0 || this.processingCycle === 1) {
         self.postMessage({
@@ -373,7 +401,7 @@ class PersistentTraderWorker {
     } catch (error) {
       this.handleProcessingError(error, 'processNormalUpdates');
       // Continue with partial results if possible
-      const partialResults = deltaResults || [];
+      const partialResults: any[] = [];
       if (partialResults.length > 0) {
         self.postMessage({
           type: 'RESULTS',
@@ -429,27 +457,29 @@ class PersistentTraderWorker {
   /**
    * Process updates in batches to prevent blocking
    */
-  private processBatchedUpdates(updatedIndices: number[], batchSize: number) {
+  private async processBatchedUpdates(updatedIndices: number[], batchSize: number) {
     const totalBatches = Math.ceil(updatedIndices.length / batchSize);
     const allResults: any[] = [];
-    
+
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
       const start = batchIndex * batchSize;
       const end = Math.min(start + batchSize, updatedIndices.length);
       const batch = updatedIndices.slice(start, end);
-      
+
       console.log(`[Worker] Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} symbols)`);
-      
+
       // Process this batch for all traders
       for (const [traderId, trader] of this.traders) {
-        const filterFunction = this.compiledFilters.get(traderId);
-      
-      // Track cache access for LRU
-      this.cacheAccessTimes.set(traderId, Date.now());
-        if (!filterFunction) continue;
-        
-        const result = this.runTraderSelective(traderId, trader, filterFunction, batch);
-        
+        const filterFunction = this.compiledFilters.get(traderId) || null;
+
+        // Track cache access for LRU
+        this.cacheAccessTimes.set(traderId, Date.now());
+
+        // For Go traders, filterFunction can be null
+        if (!filterFunction && trader.language !== 'go') continue;
+
+        const result = await this.runTraderSelective(traderId, trader, filterFunction, batch);
+
         // Merge results
         if (batchIndex === 0) {
           allResults.push(result);
@@ -457,14 +487,13 @@ class PersistentTraderWorker {
           // Merge with existing result for this trader
           const existingResult = allResults.find(r => r.traderId === traderId);
           if (existingResult) {
-            existingResult.matchingSymbols = [...new Set([...existingResult.matchingSymbols, ...result.matchingSymbols])];
+            existingResult.filteredSymbols = [...new Set([...existingResult.filteredSymbols, ...result.filteredSymbols])];
             existingResult.signalSymbols = [...new Set([...existingResult.signalSymbols, ...result.signalSymbols])];
-            existingResult.removedSymbols = [...new Set([...existingResult.removedSymbols, ...result.removedSymbols])];
           }
         }
       }
     }
-    
+
     // Calculate deltas for batched results
     const deltaResults: any[] = [];
     for (const result of allResults) {
@@ -473,7 +502,7 @@ class PersistentTraderWorker {
         deltaResults.push(delta);
       }
     }
-    
+
     // Send combined results
     if (deltaResults.length > 0 || this.processingCycle === 1) {
       self.postMessage({
@@ -495,23 +524,25 @@ class PersistentTraderWorker {
   /**
    * Run all traders against current shared memory data (legacy method for compatibility)
    */
-  private runAllTraders() {
+  private async runAllTraders() {
     const startTime = performance.now();
     const results: any[] = [];
-    
+
     for (const [traderId, trader] of this.traders) {
-      const filterFunction = this.compiledFilters.get(traderId);
-      
+      const filterFunction = this.compiledFilters.get(traderId) || null;
+
       // Track cache access for LRU
       this.cacheAccessTimes.set(traderId, Date.now());
-      if (!filterFunction) continue;
-      
-      const result = this.runTrader(traderId, trader, filterFunction);
+
+      // For Go traders, filterFunction can be null
+      if (!filterFunction && trader.language !== 'go') continue;
+
+      const result = await this.runTrader(traderId, trader, filterFunction);
       results.push(result);
     }
-    
+
     const executionTime = performance.now() - startTime;
-    
+
     // Send results back to main thread
     self.postMessage({
       type: 'RESULTS',
@@ -526,25 +557,28 @@ class PersistentTraderWorker {
   /**
    * Run a single trader with selective symbol processing
    */
-  private runTraderSelective(traderId: string, trader: TraderExecution, filterFunction: Function, updatedIndices: number[]) {
+  private async runTraderSelective(traderId: string, trader: TraderExecution, filterFunction: Function | null, updatedIndices: number[]) {
     const previousMatches = this.previousMatches.get(traderId) || new Set<string>();
     const currentMatches = new Set<string>();
     const filteredSymbols: string[] = [];
     const signalSymbols: string[] = [];
-    
+
+    // Check if this is a Go trader
+    const isGoTrader = trader.language === 'go';
+
     // Only process updated symbols
     for (const symbolIndex of updatedIndices) {
       // Try indexToSymbol first (O(1)), fallback to symbolMap
       const symbol = this.indexToSymbol[symbolIndex] || this.symbolMap.get(symbolIndex);
       if (!symbol) continue;
-      
+
       const ticker = this.getTickerFromSharedMemory(symbolIndex);
       if (!ticker) continue;
-      
+
       // Build timeframes object from shared memory
       const timeframes: Record<string, any[]> = {};
       let hasAllData = true;
-      
+
       for (const tf of trader.requiredTimeframes) {
         const klines = this.getKlinesFromSharedMemory(symbolIndex, tf);
         if (!klines || klines.length < 30) {
@@ -553,24 +587,37 @@ class PersistentTraderWorker {
         }
         timeframes[tf] = klines;
       }
-      
+
       if (!hasAllData) continue;
-      
+
       try {
-        // Calculate HVN nodes
-        const longestTf = trader.requiredTimeframes[0];
-        const hvnKlines = timeframes[longestTf];
-        const hvnNodes = helpers.calculateHighVolumeNodes(hvnKlines, { 
-          lookback: Math.min(hvnKlines.length, 100) 
-        });
-        
-        // Run filter (directly on shared memory data)
-        const matches = filterFunction(ticker, timeframes, helpers, hvnNodes);
-        
+        let matches = false;
+
+        if (isGoTrader) {
+          // Execute Go filter via backend API
+          matches = await this.executeGoFilter(trader, symbol, ticker, timeframes);
+        } else {
+          // Execute JavaScript filter locally
+          if (!filterFunction) {
+            console.error(`[Worker] No filter function compiled for JS trader ${traderId}`);
+            continue;
+          }
+
+          // Calculate HVN nodes for JavaScript filters
+          const longestTf = trader.requiredTimeframes[0];
+          const hvnKlines = timeframes[longestTf];
+          const hvnNodes = helpers.calculateHighVolumeNodes(hvnKlines, {
+            lookback: Math.min(hvnKlines.length, 100)
+          });
+
+          // Run filter (directly on shared memory data)
+          matches = filterFunction(ticker, timeframes, helpers, hvnNodes);
+        }
+
         if (matches) {
           filteredSymbols.push(symbol);
           currentMatches.add(symbol);
-          
+
           // Check if this is a new match (signal)
           if (!previousMatches.has(symbol)) {
             signalSymbols.push(symbol);
@@ -580,10 +627,10 @@ class PersistentTraderWorker {
         console.error(`[Worker] Error running filter for ${symbol}:`, error);
       }
     }
-    
+
     // Update previous matches for this trader
     this.previousMatches.set(traderId, currentMatches);
-    
+
     return {
       traderId,
       filteredSymbols,
@@ -595,21 +642,24 @@ class PersistentTraderWorker {
   /**
    * Run a single trader (legacy - processes all symbols)
    */
-  private runTrader(traderId: string, trader: TraderExecution, filterFunction: Function) {
+  private async runTrader(traderId: string, trader: TraderExecution, filterFunction: Function | null) {
     const previousMatches = this.previousMatches.get(traderId) || new Set<string>();
     const currentMatches = new Set<string>();
     const filteredSymbols: string[] = [];
     const signalSymbols: string[] = [];
-    
+
+    // Check if this is a Go trader
+    const isGoTrader = trader.language === 'go';
+
     // Iterate through all symbols in shared memory
     for (const [symbolIndex, symbol] of this.symbolMap) {
       const ticker = this.getTickerFromSharedMemory(symbolIndex);
       if (!ticker) continue;
-      
+
       // Build timeframes object from shared memory
       const timeframes: Record<string, any[]> = {};
       let hasAllData = true;
-      
+
       for (const tf of trader.requiredTimeframes) {
         const klines = this.getKlinesFromSharedMemory(symbolIndex, tf);
         if (!klines || klines.length < 30) {
@@ -618,24 +668,37 @@ class PersistentTraderWorker {
         }
         timeframes[tf] = klines;
       }
-      
+
       if (!hasAllData) continue;
-      
+
       try {
-        // Calculate HVN nodes
-        const longestTf = trader.requiredTimeframes[0];
-        const hvnKlines = timeframes[longestTf];
-        const hvnNodes = helpers.calculateHighVolumeNodes(hvnKlines, { 
-          lookback: Math.min(hvnKlines.length, 100) 
-        });
-        
-        // Run filter (directly on shared memory data)
-        const matches = filterFunction(ticker, timeframes, helpers, hvnNodes);
-        
+        let matches = false;
+
+        if (isGoTrader) {
+          // Execute Go filter via backend API
+          matches = await this.executeGoFilter(trader, symbol, ticker, timeframes);
+        } else {
+          // Execute JavaScript filter locally
+          if (!filterFunction) {
+            console.error(`[Worker] No filter function compiled for JS trader ${traderId}`);
+            continue;
+          }
+
+          // Calculate HVN nodes for JavaScript filters
+          const longestTf = trader.requiredTimeframes[0];
+          const hvnKlines = timeframes[longestTf];
+          const hvnNodes = helpers.calculateHighVolumeNodes(hvnKlines, {
+            lookback: Math.min(hvnKlines.length, 100)
+          });
+
+          // Run filter (directly on shared memory data)
+          matches = filterFunction(ticker, timeframes, helpers, hvnNodes);
+        }
+
         if (matches) {
           filteredSymbols.push(symbol);
           currentMatches.add(symbol);
-          
+
           if (!previousMatches.has(symbol)) {
             signalSymbols.push(symbol);
           }
@@ -644,10 +707,10 @@ class PersistentTraderWorker {
         console.error(`[PersistentWorker] Filter error for ${traderId} on ${symbol}:`, error);
       }
     }
-    
+
     // Update cache
     this.previousMatches.set(traderId, currentMatches);
-    
+
     return {
       traderId,
       filteredSymbols,
@@ -985,10 +1048,53 @@ class PersistentTraderWorker {
         console.log(`[Worker] Skipping processing - in recovery mode`);
         return;
       }
-      
+
       this.runAllTraders();
     } catch (error) {
       this.handleProcessingError(error, 'runAllTradersSafely');
+    }
+  }
+
+  /**
+   * Execute a Go filter via the backend API
+   */
+  private async executeGoFilter(
+    trader: TraderExecution,
+    symbol: string,
+    ticker: any,
+    timeframes: Record<string, any[]>
+  ): Promise<boolean> {
+    try {
+      // Convert ticker and klines to the format expected by the Go backend
+      const marketData: MarketData = {
+        symbol,
+        ticker: {
+          lastPrice: parseFloat(ticker.c),
+          priceChangePercent: parseFloat(ticker.P),
+          quoteVolume: parseFloat(ticker.q)
+        },
+        klines: {}
+      };
+
+      // Convert klines format
+      for (const [interval, klines] of Object.entries(timeframes)) {
+        marketData.klines[interval] = klines.map((k: any[]) => ({
+          openTime: k[0],
+          open: parseFloat(k[1]),
+          high: parseFloat(k[2]),
+          low: parseFloat(k[3]),
+          close: parseFloat(k[4]),
+          volume: parseFloat(k[5])
+        }));
+      }
+
+      // Execute filter via backend
+      const matched = await this.goBackendClient.executeFilter(trader.filterCode, marketData);
+      return matched;
+    } catch (error) {
+      console.error(`[Worker] Go filter execution error for ${symbol}:`, error);
+      // Return false on error to prevent false positives
+      return false;
     }
   }
 }

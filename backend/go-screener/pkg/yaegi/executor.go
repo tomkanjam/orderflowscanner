@@ -35,6 +35,19 @@ func NewExecutor() (*Executor, error) {
 
 // ExecuteFilter runs a trader's filter code and returns whether it matches
 func (e *Executor) ExecuteFilter(code string, data *types.MarketData) (bool, error) {
+	// Create a fresh interpreter for each execution to avoid redeclaration issues
+	i := interp.New(interp.Options{})
+
+	// Load standard library
+	if err := i.Use(stdlib.Symbols); err != nil {
+		return false, fmt.Errorf("failed to load stdlib: %w", err)
+	}
+
+	// Load custom symbols
+	if err := i.Use(getCustomSymbols()); err != nil {
+		return false, fmt.Errorf("failed to load custom symbols: %w", err)
+	}
+
 	// Wrap the code in a function that we can call
 	wrappedCode := fmt.Sprintf(`
 package main
@@ -50,13 +63,13 @@ func evaluate(data *types.MarketData) bool {
 `, code)
 
 	// Evaluate the wrapped code
-	_, err := e.interpreter.Eval(wrappedCode)
+	_, err := i.Eval(wrappedCode)
 	if err != nil {
 		return false, fmt.Errorf("failed to compile filter code: %w", err)
 	}
 
 	// Get the evaluate function
-	v, err := e.interpreter.Eval("evaluate")
+	v, err := i.Eval("evaluate")
 	if err != nil {
 		return false, fmt.Errorf("failed to get evaluate function: %w", err)
 	}
@@ -96,10 +109,11 @@ func (e *Executor) ExecuteFilterWithTimeout(code string, data *types.MarketData,
 func getCustomSymbols() map[string]map[string]reflect.Value {
 	return map[string]map[string]reflect.Value{
 		"github.com/vyx/go-screener/pkg/types/types": {
-			"Kline":         reflect.ValueOf((*types.Kline)(nil)),
-			"Ticker":        reflect.ValueOf((*types.Ticker)(nil)),
-			"MarketData":    reflect.ValueOf((*types.MarketData)(nil)),
-			"KlineInterval": reflect.ValueOf((*types.KlineInterval)(nil)),
+			"Kline":             reflect.ValueOf((*types.Kline)(nil)),
+			"Ticker":            reflect.ValueOf((*types.Ticker)(nil)),
+			"SimplifiedTicker":  reflect.ValueOf((*types.SimplifiedTicker)(nil)),
+			"MarketData":        reflect.ValueOf((*types.MarketData)(nil)),
+			"KlineInterval":     reflect.ValueOf((*types.KlineInterval)(nil)),
 		},
 		"github.com/vyx/go-screener/pkg/indicators/indicators": {
 			// Moving Averages
@@ -139,6 +153,19 @@ func getCustomSymbols() map[string]map[string]reflect.Value {
 
 // ValidateCode validates that the code compiles without executing it
 func (e *Executor) ValidateCode(code string) error {
+	// Create a fresh interpreter for validation
+	i := interp.New(interp.Options{})
+
+	// Load standard library
+	if err := i.Use(stdlib.Symbols); err != nil {
+		return fmt.Errorf("failed to load stdlib: %w", err)
+	}
+
+	// Load custom symbols
+	if err := i.Use(getCustomSymbols()); err != nil {
+		return fmt.Errorf("failed to load custom symbols: %w", err)
+	}
+
 	wrappedCode := fmt.Sprintf(`
 package main
 
@@ -152,7 +179,7 @@ func evaluate(data *types.MarketData) bool {
 }
 `, code)
 
-	_, err := e.interpreter.Eval(wrappedCode)
+	_, err := i.Eval(wrappedCode)
 	if err != nil {
 		return fmt.Errorf("code validation failed: %w", err)
 	}

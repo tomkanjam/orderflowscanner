@@ -97,11 +97,20 @@ type Signal struct {
 }
 
 // MarketData contains all data needed for signal evaluation
+// This is the simplified format that the frontend sends
 type MarketData struct {
-	Symbol    string            `json:"symbol"`
-	Ticker    *Ticker           `json:"ticker"`
-	Klines    map[string][]Kline `json:"klines"` // Key is interval (e.g., "5m", "1h")
-	Timestamp time.Time         `json:"timestamp"`
+	Symbol    string                `json:"symbol"`
+	Ticker    *SimplifiedTicker     `json:"ticker"`
+	Klines    map[string][]Kline    `json:"klines"` // Key is interval (e.g., "5m", "1h")
+	Timestamp time.Time             `json:"timestamp"`
+}
+
+// SimplifiedTicker is the format used by the API (numbers instead of strings)
+// The frontend sends this format for easier JavaScript handling
+type SimplifiedTicker struct {
+	LastPrice          float64 `json:"lastPrice"`
+	PriceChangePercent float64 `json:"priceChangePercent"`
+	QuoteVolume        float64 `json:"quoteVolume"`
 }
 
 // HealthStatus represents the health check response

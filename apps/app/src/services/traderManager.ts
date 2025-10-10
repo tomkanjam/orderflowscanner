@@ -413,6 +413,8 @@ export class TraderManager implements ITraderManager {
       category: trader.category,
       difficulty: trader.difficulty,
       admin_notes: trader.adminNotes,
+      // Language field for Go/JavaScript execution routing
+      language: trader.filter?.language || 'javascript',
     };
   }
 

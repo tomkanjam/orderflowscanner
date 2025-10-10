@@ -8,11 +8,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/vyx/go-screener/internal/server"
 	"github.com/vyx/go-screener/pkg/config"
 )
 
 func main() {
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found or error loading it, using environment variables")
+	}
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {

@@ -25,6 +25,7 @@ type Server struct {
 	binanceClient   *binance.Client
 	supabaseClient  *supabase.Client
 	yaegiExecutor   *yaegi.Executor
+	corsHandler     *cors.Cors
 	startTime       time.Time
 }
 
@@ -51,10 +52,10 @@ func New(cfg *config.Config) (*Server, error) {
 	// Setup router
 	s.setupRouter()
 
-	// Create HTTP server
+	// Create HTTP server with CORS-wrapped handler
 	s.httpServer = &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", cfg.ServerHost, cfg.ServerPort),
-		Handler:      s.router,
+		Handler:      s.corsHandler.Handler(s.router),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -94,15 +95,16 @@ func (s *Server) setupRouter() {
 	// Validate code
 	api.HandleFunc("/validate-code", s.handleValidateCode).Methods("POST")
 
-	// CORS
-	corsHandler := cors.New(cors.Options{
+	// Store the router
+	s.router = r
+
+	// Create CORS handler (will be applied in HTTP server)
+	s.corsHandler = cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"}, // Configure based on environment
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	})
-
-	s.router = corsHandler.Handler(r).(*mux.Router)
 }
 
 // Start starts the HTTP server

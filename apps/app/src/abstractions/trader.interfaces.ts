@@ -60,6 +60,7 @@ export interface TraderFilter {
   indicators?: CustomIndicatorConfig[];
   refreshInterval?: KlineInterval; // How often to check for new signals (renamed from interval)
   requiredTimeframes?: KlineInterval[]; // Timeframes needed by the filter code (LLM-determined)
+  language?: 'javascript' | 'go'; // Programming language of the filter code (default: 'javascript' for backward compatibility)
 }
 
 export interface TraderStrategy {

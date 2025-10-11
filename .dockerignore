@@ -11,7 +11,11 @@
 !server
 !server/fly-machine
 !server/fly-machine/**
+!backend
+!backend/go-screener
+!backend/go-screener/**
 
 # But exclude node_modules and build artifacts even in allowed directories
 server/fly-machine/node_modules
 server/fly-machine/dist
+backend/go-screener/bin

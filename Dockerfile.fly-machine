@@ -1,68 +1,59 @@
-# Fly Machine - AI-Powered Crypto Screener
+# Fly Machine - AI-Powered Crypto Screener (Go Backend)
 # Multi-stage build for optimized production image
-# Build from project root to access shared files
+# Build from project root
 
-# Stage 1: Build
-FROM node:20-alpine AS builder
+# Stage 1: Build Go Backend
+FROM golang:1.23-alpine AS builder
 
-# Copy package files first
-COPY server/fly-machine/package.json server/fly-machine/package-lock.json /tmp/
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
 
-# Install dependencies
-WORKDIR /tmp
-RUN npm ci
-
-# Create full directory structure
+# Set working directory
 WORKDIR /build
-RUN mkdir -p apps/app/src/abstractions apps/app/src/types server/fly-machine
 
-# Copy shared files
-COPY apps/app/types.ts ./apps/app/
-COPY apps/app/screenerHelpers.ts ./apps/app/
-COPY apps/app/src/abstractions/trader.interfaces.ts ./apps/app/src/abstractions/
-COPY apps/app/src/types/subscription.types.ts ./apps/app/src/types/
+# Copy go backend
+COPY backend/go-screener/go.mod backend/go-screener/go.sum ./
 
-# Copy fly-machine source
-COPY server/fly-machine ./server/fly-machine/
+# Download dependencies
+RUN go mod download
 
-# Copy node_modules from /tmp
-RUN cp -r /tmp/node_modules ./server/fly-machine/
+# Copy source code
+COPY backend/go-screener .
 
-# Build TypeScript
-WORKDIR /build/server/fly-machine
-RUN npm run build && \
-    echo "Build complete, checking dist folder..." && \
-    ls -la dist/ && \
-    echo "Dist contents:" && \
-    find dist -type f
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags="-w -s" \
+    -o /build/bin/server \
+    ./cmd/server
 
-# Stage 2: Production
-FROM node:20-alpine
+# Stage 2: Production Runtime
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk --no-cache add ca-certificates tzdata wget
+
+# Create non-root user
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY server/fly-machine/package.json server/fly-machine/package-lock.json ./
+# Copy binary from builder
+COPY --from=builder /build/bin/server /app/server
 
-# Install production dependencies only
-RUN npm ci --omit=dev
+# Change ownership
+RUN chown -R appuser:appuser /app
 
-# Copy built files from builder
-# TypeScript outputs to dist/server/fly-machine/, so copy from there
-COPY --from=builder /build/server/fly-machine/dist/server/fly-machine ./
-# Also copy the shared app files
-COPY --from=builder /build/server/fly-machine/dist/apps ./apps
+# Switch to non-root user
+USER appuser
 
-# Set environment variables
-ENV NODE_ENV=production
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8080/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
-
-# Expose WebSocket port
+# Expose port
 EXPOSE 8080
 
-# Start the application
-CMD ["node", "index.js"]
+# Health check using wget (already installed)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+
+# Run the Go application
+CMD ["/app/server"]

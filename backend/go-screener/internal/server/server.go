@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+	"github.com/vyx/go-screener/internal/trader"
 	"github.com/vyx/go-screener/pkg/binance"
 	"github.com/vyx/go-screener/pkg/config"
 	"github.com/vyx/go-screener/pkg/supabase"
@@ -26,6 +27,8 @@ type Server struct {
 	binanceClient   *binance.Client
 	supabaseClient  *supabase.Client
 	yaegiExecutor   *yaegi.Executor
+	traderManager   *trader.Manager
+	traderHandler   *TraderHandler
 	corsHandler     *cors.Cors
 	startTime       time.Time
 }
@@ -42,11 +45,18 @@ func New(cfg *config.Config) (*Server, error) {
 		return nil, fmt.Errorf("failed to create yaegi executor: %w", err)
 	}
 
+	// Initialize trader system
+	traderExecutor := trader.NewExecutor(executor, binanceClient, supabaseClient)
+	traderManager := trader.NewManager(cfg, traderExecutor, supabaseClient)
+	traderHandler := NewTraderHandler(traderManager, supabaseClient)
+
 	s := &Server{
 		config:         cfg,
 		binanceClient:  binanceClient,
 		supabaseClient: supabaseClient,
 		yaegiExecutor:  executor,
+		traderManager:  traderManager,
+		traderHandler:  traderHandler,
 		startTime:      time.Now(),
 	}
 
@@ -99,6 +109,17 @@ func (s *Server) setupRouter() {
 	// Validate code
 	api.HandleFunc("/validate-code", s.handleValidateCode).Methods("POST")
 
+	// Trader management (requires authentication and tier check)
+	traderAPI := api.PathPrefix("/traders").Subrouter()
+	traderAPI.Use(AuthMiddleware(s.supabaseClient))
+	traderAPI.Use(TierMiddleware(s.supabaseClient))
+
+	traderAPI.HandleFunc("/{id}/start", s.traderHandler.StartTrader).Methods("POST")
+	traderAPI.HandleFunc("/{id}/stop", s.traderHandler.StopTrader).Methods("POST")
+	traderAPI.HandleFunc("/{id}/status", s.traderHandler.GetTraderStatus).Methods("GET")
+	traderAPI.HandleFunc("/active", s.traderHandler.ListActiveTraders).Methods("GET")
+	traderAPI.HandleFunc("/metrics", s.traderHandler.GetManagerMetrics).Methods("GET")
+
 	// Store the router
 	s.router = r
 
@@ -130,6 +151,13 @@ func (s *Server) Start() error {
 // Shutdown gracefully shuts down the server
 func (s *Server) Shutdown(ctx context.Context) error {
 	log.Println("Shutting down server...")
+
+	// Shutdown trader manager first (30 second timeout)
+	if err := s.traderManager.Shutdown(30 * time.Second); err != nil {
+		log.Printf("Warning: Trader manager shutdown error: %v", err)
+	}
+
+	// Then shutdown HTTP server
 	return s.httpServer.Shutdown(ctx)
 }
 

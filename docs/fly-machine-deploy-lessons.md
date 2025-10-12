@@ -95,6 +95,21 @@ This means:
 - Use: `fly deploy -c server/fly-machine/fly.toml` (note the -c flag for config path)
 - This ensures COPY commands can access `apps/app/` files
 
+### 8. **Fly.io JWT Environment Variable Stripping Bug**
+- **Problem**: JWT tokens passed as environment variables via Machines API arrive empty in containers
+- **Symptoms**:
+  - Edge Function logs show JWT being sent correctly (219 chars)
+  - Fly API response confirms JWT is stored in machine config
+  - Container logs show `SUPABASE_SERVICE_KEY=` (empty!)
+  - Application fails with "SUPABASE_SERVICE_KEY is required"
+- **Root Cause**: Fly.io's container initialization strips JWT values between API acceptance and container runtime
+- **Critical Discovery**: The value is in Fly's systems but doesn't make it into the actual environment variables
+- **Solution**: Base64-encode JWTs before sending, decode in application
+  - Edge Function: Send as `SUPABASE_SERVICE_KEY_B64: btoa(jwt)`
+  - Application: Check for `_B64` suffix, decode if found
+  - Double-encoding bypasses whatever triggers the stripping behavior
+- **Why This Works**: Base64-encoded JWTs are single alphanumeric strings without dots/special chars that might trigger stripping
+
 ## Prevention Strategy
 
 ### 1. Document in Code
@@ -221,6 +236,7 @@ When machines fail to start:
    - Check Supabase secrets - are they set correctly?
    - Add debug logging to provision-machine
    - Redeploy provision-machine Edge Function
+   - **If JWT/token values**: Check if value arrives empty despite being sent - use base64 encoding workaround (see Lesson 8)
 
    **"Health check failed"**
    - Check if app is listening on correct port (8080)

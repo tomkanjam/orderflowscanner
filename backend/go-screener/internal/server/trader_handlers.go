@@ -29,8 +29,8 @@ func (h *TraderHandler) StartTrader(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	traderID := vars["id"]
 
-	// Get user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("userID").(string)
+	// Get user from context (set by TierMiddleware)
+	user, ok := r.Context().Value("user").(*types.User)
 	if !ok {
 		respondJSON(w, http.StatusUnauthorized, map[string]string{
 			"error": "Unauthorized",
@@ -48,18 +48,15 @@ func (h *TraderHandler) StartTrader(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify user owns this trader
-	if status.UserID != userID {
+	if status.UserID != user.ID {
 		respondJSON(w, http.StatusForbidden, map[string]string{
 			"error": "You do not have permission to start this trader",
 		})
 		return
 	}
 
-	// Check tier limits (will be implemented in Task 2.2)
-	// For now, allow all authenticated users
-
-	// Start trader
-	if err := h.manager.Start(traderID); err != nil {
+	// Start trader with tier information for quota enforcement
+	if err := h.manager.Start(traderID, string(user.SubscriptionTier)); err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
 		})

@@ -335,8 +335,12 @@ serve(async (req) => {
               MACHINE_CPUS: '2',
               MACHINE_MEMORY: '512',
               SYMBOL_COUNT: Deno.env.get('SYMBOL_COUNT') || '100',
-              SUPABASE_URL: supabaseUrl,
-              SUPABASE_SERVICE_KEY: supabaseServiceKey,
+              // CRITICAL: Explicit env object REPLACES entire environment (doesn't merge with app secrets)
+              // Must pass these explicitly, reading from Edge Function environment
+              SUPABASE_URL: supabaseUrl,  // Already defined at line 32
+              // WORKAROUND: Base64 encode the JWT to prevent Fly.io runtime from stripping it
+              // The Go app will need to decode it
+              SUPABASE_SERVICE_KEY_B64: btoa(supabaseServiceKey),  // Base64 encoded
               GEMINI_API_KEY: Deno.env.get('GEMINI_API_KEY') || '',
               CPU_PRIORITY: cpuPriority,
               // Add timestamp to ensure fresh image pull
@@ -361,6 +365,13 @@ serve(async (req) => {
         console.log(`  USER_ID: ${requestBody.config.env.USER_ID ? 'SET' : 'MISSING'}`);
         console.log(`  SUPABASE_URL: ${requestBody.config.env.SUPABASE_URL ? 'SET' : 'MISSING'}`);
         console.log(`  SUPABASE_SERVICE_KEY: ${requestBody.config.env.SUPABASE_SERVICE_KEY ? `SET (length: ${requestBody.config.env.SUPABASE_SERVICE_KEY.length})` : 'MISSING ❌'}`);
+
+        // CRITICAL DEBUG: Log actual values to see if they're being corrupted
+        console.log(`[${new Date().toISOString()}] ACTUAL VALUES (first 30 chars):`);
+        console.log(`  supabaseUrl (source): ${supabaseUrl?.substring(0, 50)}...`);
+        console.log(`  supabaseServiceKey (source): ${supabaseServiceKey?.substring(0, 30)}...`);
+        console.log(`  requestBody SUPABASE_URL: ${requestBody.config.env.SUPABASE_URL?.substring(0, 50)}...`);
+        console.log(`  requestBody SUPABASE_SERVICE_KEY: ${requestBody.config.env.SUPABASE_SERVICE_KEY?.substring(0, 30)}...`);
 
         console.log(`[${new Date().toISOString()}] Fly.io API request body:`, JSON.stringify(requestBody, null, 2));
 

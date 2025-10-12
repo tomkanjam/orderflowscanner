@@ -19,6 +19,18 @@ func main() {
 		log.Println("No .env file found or error loading it, using environment variables")
 	}
 
+	// Debug: Log all environment variables
+	log.Println("==== Environment Variables ====")
+	for _, env := range os.Environ() {
+		// Don't log full secrets, just show they exist
+		if len(env) > 30 {
+			log.Printf("%s...\n", env[:30])
+		} else {
+			log.Println(env)
+		}
+	}
+	log.Println("==============================")
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {

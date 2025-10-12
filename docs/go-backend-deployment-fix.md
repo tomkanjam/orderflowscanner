@@ -255,11 +255,47 @@ From `docs/fly-machine-deploy-lessons.md`:
 ### Modified Files
 1. **`/Dockerfile.fly-machine`** - Replaced Node.js build with Go backend build
 2. **`/.dockerignore`** - Added `backend/go-screener` to allowed directories
+3. **`/supabase/functions/provision-machine/index.ts`** - Re-added SUPABASE_URL and SUPABASE_SERVICE_KEY to env block (explicit env replaces all vars)
+4. **`/backend/go-screener/cmd/server/main.go`** - Added debug logging to dump environment variables
 
 ### No Changes Needed
 - **`server/fly-machine/fly.toml`** - Already configured correctly for `vyx-app`
 - **`backend/go-screener/Dockerfile`** - Standalone Dockerfile (not used for vyx-app)
-- **`supabase/functions/provision-machine/index.ts`** - Already reads DOCKER_IMAGE secret
+
+---
+
+## Post-Deployment Issue: SUPABASE_SERVICE_KEY Empty
+
+### Error 2: Environment Variables Not Inherited
+After deploying the Go backend successfully, machines were still crashing with:
+```
+SUPABASE_SERVICE_KEY=
+Failed to load configuration: SUPABASE_SERVICE_KEY is required
+```
+
+**Root Cause:**
+When you pass an explicit `env` object to the Fly Machines API, it **REPLACES** the entire environment (doesn't merge with Fly app secrets). The machine ONLY gets what you explicitly pass.
+
+**Initial (Failed) Fix:**
+We removed SUPABASE_URL and SUPABASE_SERVICE_KEY from the env block, expecting Fly app secrets to be inherited. This didn't work because the explicit env object overrides ALL environment variables.
+
+**Final Fix:**
+Re-added SUPABASE_URL and SUPABASE_SERVICE_KEY to the env block in `provision-machine/index.ts`, reading them from the Edge Function's environment:
+
+```typescript
+env: {
+  USER_ID: userId,
+  MACHINE_ID: machine.machine_id,
+  // ... other vars ...
+  // CRITICAL: Explicit env object REPLACES entire environment (doesn't merge with app secrets)
+  SUPABASE_URL: supabaseUrl,  // Read from Edge Function env
+  SUPABASE_SERVICE_KEY: supabaseServiceKey,  // Read from Edge Function env (SUPABASE_SERVICE_ROLE_KEY)
+  GEMINI_API_KEY: Deno.env.get('GEMINI_API_KEY') || '',
+  // ... other vars ...
+}
+```
+
+**Key Learning:** Fly Machines API with explicit `config.env` = full environment replacement, not merge!
 
 ---
 

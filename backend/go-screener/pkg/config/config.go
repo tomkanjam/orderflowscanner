@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strconv"
@@ -41,6 +42,19 @@ type Config struct {
 
 // Load reads configuration from environment variables
 func Load() (*Config, error) {
+	// WORKAROUND: Fly.io strips JWT values from env vars, so we base64 encode them
+	// Try to get the base64-encoded version first, fallback to direct
+	supabaseServiceKey := getEnv("SUPABASE_SERVICE_KEY", "")
+	if supabaseServiceKey == "" {
+		// Try base64 encoded version
+		if b64Key := getEnv("SUPABASE_SERVICE_KEY_B64", ""); b64Key != "" {
+			decoded, err := base64Decode(b64Key)
+			if err == nil {
+				supabaseServiceKey = decoded
+			}
+		}
+	}
+
 	cfg := &Config{
 		// Defaults
 		ServerPort:        getEnvAsInt("PORT", 8080),
@@ -53,7 +67,7 @@ func Load() (*Config, error) {
 		ScreeningInterval: getEnvAsDuration("SCREENING_INTERVAL_MS", 60000) * time.Millisecond,
 
 		SupabaseURL:        getEnv("SUPABASE_URL", ""),
-		SupabaseServiceKey: getEnv("SUPABASE_SERVICE_KEY", ""),
+		SupabaseServiceKey: supabaseServiceKey, // Use decoded value
 		SupabaseAnonKey:    getEnv("SUPABASE_ANON_KEY", ""),
 
 		MachineID:     getEnv("MACHINE_ID", fmt.Sprintf("machine_%d", time.Now().Unix())),
@@ -130,4 +144,13 @@ func (c *Config) IsDevelopment() bool {
 // IsProduction returns true if running in production mode
 func (c *Config) IsProduction() bool {
 	return c.Environment == "production"
+}
+
+// base64Decode decodes a base64-encoded string
+func base64Decode(encoded string) (string, error) {
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", err
+	}
+	return string(decoded), nil
 }

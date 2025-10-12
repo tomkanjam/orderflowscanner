@@ -9,6 +9,7 @@ import (
 
 	"github.com/vyx/go-screener/pkg/config"
 	"github.com/vyx/go-screener/pkg/supabase"
+	"github.com/vyx/go-screener/pkg/types"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -18,6 +19,7 @@ type Manager struct {
 	registry *Registry
 	executor *Executor
 	supabase *supabase.Client
+	quotas   *QuotaManager
 
 	// Goroutine pool management
 	pool     *semaphore.Weighted // Limits concurrent traders
@@ -41,12 +43,14 @@ func NewManager(cfg *config.Config, executor *Executor, supabase *supabase.Clien
 	poolSize := int64(1000)
 
 	registry := NewRegistry(nil) // Use default registry config
+	quotas := NewQuotaManager(poolSize) // Global max = pool size
 
 	return &Manager{
 		config:   cfg,
 		registry: registry,
 		executor: executor,
 		supabase: supabase,
+		quotas:   quotas,
 		pool:     semaphore.NewWeighted(poolSize),
 		poolSize: poolSize,
 		ctx:      ctx,
@@ -54,8 +58,8 @@ func NewManager(cfg *config.Config, executor *Executor, supabase *supabase.Clien
 	}
 }
 
-// Start starts a trader by ID
-func (m *Manager) Start(traderID string) error {
+// Start starts a trader by ID with optional user tier for quota enforcement
+func (m *Manager) Start(traderID string, userTier ...string) error {
 	// Get trader from registry
 	trader, exists := m.registry.Get(traderID)
 	if !exists {
@@ -67,14 +71,28 @@ func (m *Manager) Start(traderID string) error {
 		return fmt.Errorf("trader %s is in %s state and cannot be started", traderID, trader.GetState())
 	}
 
+	// Determine user tier (default to Pro if not provided)
+	tier := "PRO"
+	if len(userTier) > 0 {
+		tier = userTier[0]
+	}
+
+	// Check quotas
+	if err := m.quotas.Acquire(trader.UserID, types.SubscriptionTier(tier)); err != nil {
+		return fmt.Errorf("quota check failed: %w", err)
+	}
+
 	// Acquire goroutine pool slot (non-blocking check)
+	// Note: This is redundant with quota system but kept for backwards compatibility
 	if !m.pool.TryAcquire(1) {
+		m.quotas.Release(trader.UserID, types.SubscriptionTier(tier)) // Release quota
 		return fmt.Errorf("goroutine pool is full (max %d traders), cannot start trader", m.poolSize)
 	}
 
 	// Transition to starting state
 	if err := trader.TransitionTo(StateStarting); err != nil {
 		m.pool.Release(1) // Release pool slot on error
+		m.quotas.Release(trader.UserID, types.SubscriptionTier(tier)) // Release quota
 		return fmt.Errorf("failed to transition to starting state: %w", err)
 	}
 
@@ -83,6 +101,7 @@ func (m *Manager) Start(traderID string) error {
 	go func() {
 		defer m.wg.Done()
 		defer m.pool.Release(1) // Release pool slot when done
+		defer m.quotas.Release(trader.UserID, types.SubscriptionTier(tier)) // Release quota when done
 
 		// Create trader-specific context
 		traderCtx, traderCancel := context.WithCancel(m.ctx)
@@ -200,12 +219,14 @@ func (m *Manager) ListByUser(userID string) []*Trader {
 // GetMetrics returns manager metrics
 func (m *Manager) GetMetrics() map[string]interface{} {
 	registryMetrics := m.registry.GetMetrics()
+	quotaMetrics := m.quotas.GetMetrics()
 
 	// Count active traders as pool usage
 	activeCount := int64(len(m.ListActive()))
 
 	metrics := map[string]interface{}{
 		"registry":  registryMetrics,
+		"quotas":    quotaMetrics,
 		"pool_size": m.poolSize,
 		"pool_used": activeCount,
 	}

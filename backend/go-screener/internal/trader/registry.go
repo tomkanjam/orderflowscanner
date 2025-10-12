@@ -132,6 +132,10 @@ func (r *Registry) Register(trader *Trader) error {
 	r.metrics.IncrementRegistered()
 	r.metrics.UpdateStateCount(trader.GetState(), 1)
 
+	// Record Prometheus metrics
+	TradersTotal.WithLabelValues(trader.UserID).Inc()
+	UpdateRegistrySize(float64(r.Count()))
+
 	return nil
 }
 
@@ -152,6 +156,9 @@ func (r *Registry) Unregister(id string) error {
 	// Update metrics
 	r.metrics.IncrementUnregistered()
 	r.metrics.UpdateStateCount(trader.GetState(), -1)
+
+	// Update Prometheus metrics
+	UpdateRegistrySize(float64(r.Count()))
 
 	return nil
 }
@@ -280,6 +287,7 @@ func (r *Registry) cleanupLoop() {
 
 // cleanup removes stopped traders that have been stopped for longer than cleanupDelay
 func (r *Registry) cleanup() {
+	startTime := time.Now()
 	now := time.Now()
 	var toRemove []string
 
@@ -306,6 +314,10 @@ func (r *Registry) cleanup() {
 	for _, id := range toRemove {
 		_ = r.Unregister(id) // Ignore errors (trader might have been removed already)
 	}
+
+	// Record cleanup metrics
+	duration := time.Since(startTime).Seconds()
+	RecordRegistryCleanup(duration)
 
 	if len(toRemove) > 0 {
 		// Log cleanup (in production, use structured logger)

@@ -124,9 +124,14 @@ func (t *Trader) TransitionTo(to TraderState) error {
 		// lastError should be set by caller before calling TransitionTo
 	}
 
-	// Log state transition (in production, use structured logger)
-	// fmt.Printf("[Trader %s] State transition: %s → %s\n", t.ID, oldState, to)
-	_ = oldState // silence unused variable warning
+	// Record metrics
+	RecordStateTransition(oldState, to)
+
+	// Update active traders gauge
+	TradersActive.WithLabelValues(string(to)).Inc()
+	if oldState != to {
+		TradersActive.WithLabelValues(string(oldState)).Dec()
+	}
 
 	return nil
 }
@@ -135,7 +140,11 @@ func (t *Trader) TransitionTo(to TraderState) error {
 func (t *Trader) SetError(err error) error {
 	t.mu.Lock()
 	t.lastError = err
+	traderID := t.ID
 	t.mu.Unlock()
+
+	// Record error metric
+	RecordError(traderID, "trader_error")
 
 	return t.TransitionTo(StateError)
 }

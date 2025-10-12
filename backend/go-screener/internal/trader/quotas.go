@@ -52,14 +52,14 @@ func (q *QuotaManager) Acquire(userID string, tier types.SubscriptionTier) error
 	if tier != types.TierElite {
 		// Free and Anonymous cannot start traders
 		if limit == 0 {
-			q.recordRejection()
+			q.recordRejectionWithReason(userID, string(tier), "tier_blocked")
 			return fmt.Errorf("subscription tier %s cannot start traders", tier)
 		}
 
 		// Check per-user quota
 		userSem := q.getUserSemaphore(userID, limit)
 		if !userSem.TryAcquire(1) {
-			q.recordRejection()
+			q.recordRejectionWithReason(userID, string(tier), "user_quota_exceeded")
 			return fmt.Errorf("user quota exceeded: max %d concurrent traders for %s tier", limit, tier)
 		}
 	}
@@ -72,7 +72,7 @@ func (q *QuotaManager) Acquire(userID string, tier types.SubscriptionTier) error
 			userSem.Release(1)
 		}
 
-		q.recordRejection()
+		q.recordRejectionWithReason(userID, string(tier), "global_quota_exceeded")
 		return fmt.Errorf("global quota exceeded: max %d concurrent traders across all users", q.globalMax)
 	}
 
@@ -80,6 +80,16 @@ func (q *QuotaManager) Acquire(userID string, tier types.SubscriptionTier) error
 	q.mu.Lock()
 	q.totalAcquired++
 	q.mu.Unlock()
+
+	// Record metrics
+	RecordQuotaAcquisition(userID, string(tier))
+
+	// Update quota usage gauge
+	current, max := q.GetUsage(userID, tier)
+	UpdateQuotaUsage(userID, string(tier), float64(current))
+	if max > 0 {
+		UpdateQuotaLimit(string(tier), float64(max))
+	}
 
 	return nil
 }
@@ -101,6 +111,16 @@ func (q *QuotaManager) Release(userID string, tier types.SubscriptionTier) {
 	q.mu.Lock()
 	q.totalReleased++
 	q.mu.Unlock()
+
+	// Record metrics
+	RecordQuotaRelease(userID, string(tier))
+
+	// Update quota usage gauge
+	current, max := q.GetUsage(userID, tier)
+	UpdateQuotaUsage(userID, string(tier), float64(current))
+	if max > 0 {
+		UpdateQuotaLimit(string(tier), float64(max))
+	}
 }
 
 // GetUsage returns current usage for a user
@@ -196,6 +216,12 @@ func (q *QuotaManager) recordRejection() {
 	q.mu.Lock()
 	q.quotaRejections++
 	q.mu.Unlock()
+}
+
+// recordRejectionWithMetrics records rejection with Prometheus metrics
+func (q *QuotaManager) recordRejectionWithReason(userID, tier, reason string) {
+	q.recordRejection()
+	RecordQuotaRejection(userID, tier, reason)
 }
 
 // SetTierLimit updates the limit for a tier (for testing or dynamic configuration)

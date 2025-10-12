@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"github.com/vyx/go-screener/pkg/binance"
 	"github.com/vyx/go-screener/pkg/config"
@@ -71,6 +72,9 @@ func (s *Server) setupRouter() {
 	// Health check
 	r.HandleFunc("/health", s.handleHealth).Methods("GET")
 	r.HandleFunc("/", s.handleHealth).Methods("GET")
+
+	// Prometheus metrics endpoint
+	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
 	// API routes
 	api := r.PathPrefix("/api/v1").Subrouter()

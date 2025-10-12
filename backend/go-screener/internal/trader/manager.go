@@ -224,6 +224,9 @@ func (m *Manager) GetMetrics() map[string]interface{} {
 	// Count active traders as pool usage
 	activeCount := int64(len(m.ListActive()))
 
+	// Update Prometheus pool metrics
+	UpdatePoolMetrics(float64(m.poolSize), float64(activeCount))
+
 	metrics := map[string]interface{}{
 		"registry":  registryMetrics,
 		"quotas":    quotaMetrics,

@@ -4,7 +4,7 @@
 - **Status:** 🚧 implementing
 - **Created:** 2025-10-13T16:35:00Z
 - **Type:** backend
-- **Progress:** [==        ] 10%
+- **Progress:** [======    ] 40%
 
 ---
 
@@ -669,7 +669,7 @@ Files to modify:
 - `backend/go-screener/internal/trader/manager.go` (add after line 328, end of file)
 
 Actions:
-- [ ] Add `convertIndicators()` helper function:
+- [x] Add `convertIndicators()` helper function: <!-- ✅ 2025-10-13 18:35 -->
   ```go
   // convertIndicators converts database indicator configs to runtime configs
   func convertIndicators(dbIndicators []types.IndicatorConfig) []IndicatorConfig {
@@ -700,7 +700,7 @@ Files to modify:
 - `backend/go-screener/internal/trader/manager.go` (add before convertIndicators)
 
 Actions:
-- [ ] Add `convertDBTraderToRuntime()` function:
+- [x] Add `convertDBTraderToRuntime()` function: <!-- ✅ 2025-10-13 18:35 -->
   ```go
   // convertDBTraderToRuntime converts a database Trader to a runtime Trader instance
   func convertDBTraderToRuntime(dbTrader *types.Trader) (*Trader, error) {
@@ -755,9 +755,9 @@ Test criteria:
 - Handles empty user_id
 
 **Phase 2 Complete When:**
-- [ ] Both converter functions implemented
-- [ ] Code compiles: `go build ./internal/trader`
-- [ ] Functions handle edge cases (nil, empty strings)
+- [x] Both converter functions implemented <!-- ✅ 2025-10-13 18:36 -->
+- [x] Code compiles: `go build ./internal/trader` <!-- ✅ 2025-10-13 18:36 -->
+- [x] Functions handle edge cases (nil, empty strings) <!-- ✅ 2025-10-13 18:36 -->
 
 ---
 

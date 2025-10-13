@@ -328,3 +328,63 @@ func (m *Manager) HealthCheck() map[string]interface{} {
 		"metrics": metrics,
 	}
 }
+
+// convertDBTraderToRuntime converts a database Trader to a runtime Trader instance
+func convertDBTraderToRuntime(dbTrader *types.Trader) (*Trader, error) {
+	if dbTrader == nil {
+		return nil, fmt.Errorf("dbTrader is nil")
+	}
+
+	// Parse filter using GetFilter() method (handles double-encoded JSON)
+	filter, err := dbTrader.GetFilter()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse filter: %w", err)
+	}
+
+	// Validate filter has required fields
+	if filter.Code == "" {
+		return nil, fmt.Errorf("filter code is empty")
+	}
+
+	// Create TraderConfig from filter
+	config := &TraderConfig{
+		FilterCode:        filter.Code,
+		ScreeningInterval: 5 * time.Minute, // Default
+		Symbols:           []string{},      // Empty = screen all top symbols
+		Timeframes:        filter.RequiredTimeframes,
+		Indicators:        convertIndicators(filter.Indicators),
+		MaxSignalsPerRun:  10,              // Default limit
+		TimeoutPerRun:     5 * time.Second, // Default timeout
+	}
+
+	// Handle empty user_id for built-in traders
+	userID := dbTrader.UserID
+	if userID == "" {
+		userID = "system" // Synthetic user ID for quota tracking
+	}
+
+	// Create runtime Trader using NewTrader constructor
+	return NewTrader(
+		dbTrader.ID,
+		userID,
+		dbTrader.Name,
+		dbTrader.Description,
+		config,
+	), nil
+}
+
+// convertIndicators converts database indicator configs to runtime configs
+func convertIndicators(dbIndicators []types.IndicatorConfig) []IndicatorConfig {
+	if len(dbIndicators) == 0 {
+		return []IndicatorConfig{}
+	}
+
+	result := make([]IndicatorConfig, len(dbIndicators))
+	for i, ind := range dbIndicators {
+		result[i] = IndicatorConfig{
+			Type:       ind.Name, // Map Name to Type
+			Parameters: ind.Params,
+		}
+	}
+	return result
+}

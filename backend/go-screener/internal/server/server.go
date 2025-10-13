@@ -228,6 +228,13 @@ func (s *Server) Start() error {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
+	// Load traders from database
+	log.Printf("[Server] Loading traders from database...")
+	if err := s.traderManager.LoadTradersFromDB(); err != nil {
+		// Log warning but don't fail server startup (graceful degradation)
+		log.Printf("[Server] ⚠️  Warning: Failed to load traders from DB: %v", err)
+	}
+
 	// Start Analysis Engine (if available)
 	if s.analysisEngine != nil {
 		if err := s.analysisEngine.Start(); err != nil {

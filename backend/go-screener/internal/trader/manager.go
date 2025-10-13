@@ -238,19 +238,67 @@ func (m *Manager) GetMetrics() map[string]interface{} {
 // LoadTradersFromDB loads traders from the database and registers them
 // This is called on server startup to restore trader state
 func (m *Manager) LoadTradersFromDB() error {
+	startTime := time.Now()
 	log.Printf("[Manager] Loading traders from database")
 
-	// For now, we'll just log - actual implementation would:
-	// 1. Query supabase for all traders that should be running
-	// 2. Create Trader instances from database records
-	// 3. Register them in the registry
-	// 4. Optionally auto-start them based on preferences
+	// Track success/failure counts
+	loaded := 0
+	failed := 0
 
-	// TODO: Implement database loading
-	// This requires querying the traders table and trader_state table
+	// Fetch built-in traders from Supabase
+	builtInTraders, err := m.supabase.GetBuiltInTraders(m.ctx)
+	if err != nil {
+		log.Printf("[Manager] Failed to fetch built-in traders: %v", err)
+		TradersLoadDuration.Observe(time.Since(startTime).Seconds())
+		return nil // Don't fail server startup, just log
+	}
 
-	log.Printf("[Manager] Loaded 0 traders from database (not yet implemented)")
-	return nil
+	log.Printf("[Manager] Found %d built-in traders in database", len(builtInTraders))
+
+	// Convert and register each trader
+	for _, dbTrader := range builtInTraders {
+		// Convert database model to runtime model
+		trader, err := convertDBTraderToRuntime(&dbTrader)
+		if err != nil {
+			log.Printf("[Manager] Failed to convert trader %s (%s): %v",
+				dbTrader.ID, dbTrader.Name, err)
+			failed++
+			TradersLoadedFromDB.WithLabelValues("failed").Inc()
+			continue // Skip this trader, continue with others
+		}
+
+		// Validate filter code syntax (lightweight check)
+		if err := m.yaegi.ValidateCode(trader.Config.FilterCode); err != nil {
+			log.Printf("[Manager] Skipping trader %s (%s): invalid filter code: %v",
+				trader.ID, trader.Name, err)
+			failed++
+			TradersLoadedFromDB.WithLabelValues("failed").Inc()
+			continue // Skip this trader
+		}
+
+		// Register trader in registry
+		if err := m.RegisterTrader(trader); err != nil {
+			log.Printf("[Manager] Failed to register trader %s (%s): %v",
+				trader.ID, trader.Name, err)
+			failed++
+			TradersLoadedFromDB.WithLabelValues("failed").Inc()
+			continue
+		}
+
+		loaded++
+		TradersLoadedFromDB.WithLabelValues("success").Inc()
+		log.Printf("[Manager] ✅ Loaded trader: %s (%s)", trader.ID, trader.Name)
+	}
+
+	// Record load duration
+	duration := time.Since(startTime)
+	TradersLoadDuration.Observe(duration.Seconds())
+
+	// Log summary
+	log.Printf("[Manager] Loaded %d traders from database (%d failed) in %v",
+		loaded, failed, duration)
+
+	return nil // Always return success (graceful degradation)
 }
 
 // RegisterTrader registers a trader in the manager

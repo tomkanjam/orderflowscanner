@@ -169,6 +169,23 @@ var (
 			Buckets: prometheus.DefBuckets,
 		},
 	)
+
+	// Trader loading metrics
+	TradersLoadedFromDB = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "traders_loaded_from_db_total",
+			Help: "Total number of traders loaded from database",
+		},
+		[]string{"status"}, // success, failed
+	)
+
+	TradersLoadDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "traders_load_duration_seconds",
+			Help:    "Duration of LoadTradersFromDB operation",
+			Buckets: prometheus.DefBuckets,
+		},
+	)
 )
 
 // RecordStateTransition records a state transition metric

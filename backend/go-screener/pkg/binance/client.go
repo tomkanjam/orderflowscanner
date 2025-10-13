@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,10 +31,15 @@ func NewClient(apiURL string) *Client {
 }
 
 // GetTopSymbols fetches the top N USDT pairs by volume
-func (c *Client) GetTopSymbols(count int, minVolume float64) ([]string, error) {
+func (c *Client) GetTopSymbols(ctx context.Context, count int, minVolume float64) ([]string, error) {
 	url := fmt.Sprintf("%s/api/v3/ticker/24hr", c.apiURL)
 
-	resp, err := c.httpClient.Get(url)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch tickers: %w", err)
 	}
@@ -115,11 +121,16 @@ func (c *Client) GetTopSymbols(count int, minVolume float64) ([]string, error) {
 }
 
 // GetKlines fetches historical kline/candlestick data
-func (c *Client) GetKlines(symbol string, interval types.KlineInterval, limit int) ([]types.Kline, error) {
+func (c *Client) GetKlines(ctx context.Context, symbol string, interval string, limit int) ([]types.Kline, error) {
 	url := fmt.Sprintf("%s/api/v3/klines?symbol=%s&interval=%s&limit=%d",
 		c.apiURL, symbol, interval, limit)
 
-	resp, err := c.httpClient.Get(url)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch klines: %w", err)
 	}
@@ -148,11 +159,16 @@ func (c *Client) GetKlines(symbol string, interval types.KlineInterval, limit in
 	return klines, nil
 }
 
-// GetTicker fetches current ticker data for a symbol
-func (c *Client) GetTicker(symbol string) (*types.Ticker, error) {
+// GetTicker fetches current ticker data for a symbol and returns simplified ticker
+func (c *Client) GetTicker(ctx context.Context, symbol string) (*types.SimplifiedTicker, error) {
 	url := fmt.Sprintf("%s/api/v3/ticker/24hr?symbol=%s", c.apiURL, symbol)
 
-	resp, err := c.httpClient.Get(url)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch ticker: %w", err)
 	}
@@ -168,11 +184,22 @@ func (c *Client) GetTicker(symbol string) (*types.Ticker, error) {
 		return nil, fmt.Errorf("failed to decode ticker: %w", err)
 	}
 
-	return &ticker, nil
+	// Convert to SimplifiedTicker
+	return &types.SimplifiedTicker{
+		LastPrice:          parseFloat(ticker.LastPrice),
+		PriceChangePercent: parseFloat(ticker.PriceChangePercent),
+		QuoteVolume:        parseFloat(ticker.QuoteVolume),
+	}, nil
+}
+
+// parseFloat is a helper to convert string to float64
+func parseFloat(s string) float64 {
+	f, _ := strconv.ParseFloat(s, 64)
+	return f
 }
 
 // GetMultipleKlines fetches klines for multiple symbols concurrently
-func (c *Client) GetMultipleKlines(symbols []string, interval types.KlineInterval, limit int) (map[string][]types.Kline, error) {
+func (c *Client) GetMultipleKlines(ctx context.Context, symbols []string, interval string, limit int) (map[string][]types.Kline, error) {
 	type result struct {
 		symbol string
 		klines []types.Kline
@@ -189,7 +216,7 @@ func (c *Client) GetMultipleKlines(symbols []string, interval types.KlineInterva
 			semaphore <- struct{}{} // Acquire
 			defer func() { <-semaphore }() // Release
 
-			klines, err := c.GetKlines(sym, interval, limit)
+			klines, err := c.GetKlines(ctx, sym, interval, limit)
 			resultChan <- result{symbol: sym, klines: klines, err: err}
 		}(symbol)
 	}

@@ -227,22 +227,14 @@ func (e *Executor) executeTrader(trader *Trader) {
 		}
 
 		// Get ticker data
-		ticker, err := e.binance.GetTicker(symbol)
+		ticker, err := e.binance.GetTicker(e.ctx, symbol)
 		if err != nil {
 			log.Printf("[Executor] Failed to fetch ticker for %s: %v", symbol, err)
 			continue
 		}
 
-		// Convert ticker to simplified format
-		lastPrice, _ := parseFloat(ticker.LastPrice)
-		priceChangePercent, _ := parseFloat(ticker.PriceChangePercent)
-		quoteVolume, _ := parseFloat(ticker.QuoteVolume)
-
-		simplifiedTicker := &types.SimplifiedTicker{
-			LastPrice:          lastPrice,
-			PriceChangePercent: priceChangePercent,
-			QuoteVolume:        quoteVolume,
-		}
+		// Ticker is already in simplified format
+		simplifiedTicker := ticker
 
 		// Prepare market data with klines map
 		klinesMap := make(map[string][]types.Kline)
@@ -279,8 +271,8 @@ func (e *Executor) executeTrader(trader *Trader) {
 				UserID:      trader.UserID,
 				Symbol:      symbol,
 				TriggeredAt: time.Now(),
-				Price:       lastPrice,
-				Volume:      quoteVolume,
+				Price:       simplifiedTicker.LastPrice,
+				Volume:      simplifiedTicker.QuoteVolume,
 				Metadata:    make(map[string]interface{}),
 				CreatedAt:   time.Now(),
 			}
@@ -338,8 +330,7 @@ func (e *Executor) queueSignalsForAnalysis(trader *Trader, signals []Signal) err
 		// Fetch klines for this symbol
 		klinesMap := make(map[string][]types.Kline)
 		for _, tf := range timeframes {
-			interval := types.KlineInterval(tf)
-			klines, err := e.binance.GetKlines(signal.Symbol, interval, 100)
+			klines, err := e.binance.GetKlines(e.ctx, signal.Symbol, tf, 100)
 			if err != nil {
 				log.Printf("[Executor] Failed to fetch klines for %s: %v", signal.Symbol, err)
 				continue
@@ -348,20 +339,10 @@ func (e *Executor) queueSignalsForAnalysis(trader *Trader, signals []Signal) err
 		}
 
 		// Fetch ticker
-		ticker, err := e.binance.GetTicker(signal.Symbol)
+		simplifiedTicker, err := e.binance.GetTicker(e.ctx, signal.Symbol)
 		if err != nil {
 			log.Printf("[Executor] Failed to fetch ticker for %s: %v", signal.Symbol, err)
 			continue
-		}
-
-		lastPrice, _ := parseFloat(ticker.LastPrice)
-		priceChangePercent, _ := parseFloat(ticker.PriceChangePercent)
-		quoteVolume, _ := parseFloat(ticker.QuoteVolume)
-
-		simplifiedTicker := &types.SimplifiedTicker{
-			LastPrice:          lastPrice,
-			PriceChangePercent: priceChangePercent,
-			QuoteVolume:        quoteVolume,
 		}
 
 		marketData := &types.MarketData{
@@ -404,7 +385,7 @@ func (e *Executor) getSymbolsToScreen(trader *Trader) ([]string, error) {
 	symbolCount := 100 // Default
 	minVolume := 100000.0 // Default: 100k USDT volume
 
-	symbols, err := e.binance.GetTopSymbols(symbolCount, minVolume)
+	symbols, err := e.binance.GetTopSymbols(e.ctx, symbolCount, minVolume)
 	if err != nil {
 		return nil, err
 	}
@@ -420,10 +401,8 @@ func (e *Executor) fetchKlineData(symbols []string, timeframes []string) (map[st
 	limit := 250
 
 	for _, timeframe := range timeframes {
-		interval := types.KlineInterval(timeframe)
-
 		// Fetch klines for all symbols concurrently
-		klineMap, err := e.binance.GetMultipleKlines(symbols, interval, limit)
+		klineMap, err := e.binance.GetMultipleKlines(e.ctx, symbols, timeframe, limit)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch klines for timeframe %s: %w", timeframe, err)
 		}
@@ -459,7 +438,7 @@ func (e *Executor) saveSignals(signals []Signal) error {
 			MachineID:             nil,
 		}
 
-		if err := e.supabase.CreateSignal(dbSignal); err != nil {
+		if err := e.supabase.CreateSignal(e.ctx, dbSignal); err != nil {
 			// Log error but continue (don't fail entire batch)
 			log.Printf("[Executor] Failed to save signal %s: %v", signal.ID, err)
 			continue

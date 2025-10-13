@@ -80,11 +80,18 @@ func New(cfg *config.Config) (*Server, error) {
 	log.Printf("[Server] ✅ Analysis Engine initialized")
 
 	// 4. Initialize Monitoring Engine
-	// TODO: Enable monitoring engine after creating adapter interfaces
-	// The monitoring engine requires specific interfaces for Supabase and Binance
-	// that don't match the existing client signatures
-	var monitoringEngine *monitoring.Engine = nil
-	log.Printf("[Server] ⚠️  Monitoring Engine disabled (requires interface adapters)")
+	supabaseAdapter := monitoring.NewSupabaseAdapter(supabaseClient, cfg.SupabaseURL, cfg.SupabaseServiceKey)
+	binanceAdapter := monitoring.NewBinanceAdapter(binanceClient)
+
+	monitoringConfig := monitoring.DefaultConfig()
+	monitoringEngine := monitoring.NewEngine(
+		monitoringConfig,
+		analysisEngine,
+		eventBus,
+		supabaseAdapter,
+		binanceAdapter,
+	)
+	log.Printf("[Server] ✅ Monitoring Engine initialized")
 
 	// 5. Initialize Trader Executor (event-driven)
 	traderExecutor := trader.NewExecutor(
@@ -211,11 +218,9 @@ func (s *Server) Start() error {
 		return fmt.Errorf("failed to start analysis engine: %w", err)
 	}
 
-	// Start Monitoring Engine (if enabled)
-	if s.monitoringEngine != nil {
-		if err := s.monitoringEngine.Start(); err != nil {
-			return fmt.Errorf("failed to start monitoring engine: %w", err)
-		}
+	// Start Monitoring Engine
+	if err := s.monitoringEngine.Start(); err != nil {
+		return fmt.Errorf("failed to start monitoring engine: %w", err)
 	}
 
 	// Start Trader Executor
@@ -258,12 +263,10 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		log.Printf("[Server] Warning: Trader executor shutdown error: %v", err)
 	}
 
-	// 4. Shutdown monitoring engine (if enabled)
-	if s.monitoringEngine != nil {
-		log.Printf("[Server] Shutting down monitoring engine...")
-		if err := s.monitoringEngine.Stop(); err != nil {
-			log.Printf("[Server] Warning: Monitoring engine shutdown error: %v", err)
-		}
+	// 4. Shutdown monitoring engine
+	log.Printf("[Server] Shutting down monitoring engine...")
+	if err := s.monitoringEngine.Stop(); err != nil {
+		log.Printf("[Server] Warning: Monitoring engine shutdown error: %v", err)
 	}
 
 	// 5. Shutdown analysis engine (stop analysis workers)
@@ -303,7 +306,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetSymbols(w http.ResponseWriter, r *http.Request) {
-	symbols, err := s.binanceClient.GetTopSymbols(s.config.SymbolCount, s.config.MinVolume)
+	symbols, err := s.binanceClient.GetTopSymbols(r.Context(), s.config.SymbolCount, s.config.MinVolume)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch symbols", err)
 		return
@@ -318,14 +321,14 @@ func (s *Server) handleGetSymbols(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetKlines(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	symbol := vars["symbol"]
-	interval := types.KlineInterval(vars["interval"])
+	interval := vars["interval"]
 
 	limit := 250 // Default
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		fmt.Sscanf(limitStr, "%d", &limit)
 	}
 
-	klines, err := s.binanceClient.GetKlines(symbol, interval, limit)
+	klines, err := s.binanceClient.GetKlines(r.Context(), symbol, interval, limit)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch klines", err)
 		return
@@ -344,7 +347,7 @@ func (s *Server) handleGetTraders(w http.ResponseWriter, r *http.Request) {
 
 	if userID == "" {
 		// Get built-in traders
-		traders, err := s.supabaseClient.GetBuiltInTraders()
+		traders, err := s.supabaseClient.GetBuiltInTraders(r.Context())
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "Failed to fetch traders", err)
 			return
@@ -357,7 +360,7 @@ func (s *Server) handleGetTraders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user-specific traders
-	traders, err := s.supabaseClient.GetTraders(userID)
+	traders, err := s.supabaseClient.GetTraders(r.Context(), userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch traders", err)
 		return
@@ -390,7 +393,7 @@ func (s *Server) handleCreateSignal(w http.ResponseWriter, r *http.Request) {
 		signal.Timestamp = time.Now()
 	}
 
-	if err := s.supabaseClient.CreateSignal(&signal); err != nil {
+	if err := s.supabaseClient.CreateSignal(r.Context(), &signal); err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to create signal", err)
 		return
 	}

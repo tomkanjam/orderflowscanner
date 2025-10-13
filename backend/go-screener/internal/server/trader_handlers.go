@@ -237,7 +237,7 @@ func TierMiddleware(supabase *supabase.Client) func(http.Handler) http.Handler {
 			}
 
 			// Get user from database
-			user, err := supabase.GetUser(userID)
+			user, err := supabase.GetUser(r.Context(), userID)
 			if err != nil {
 				respondJSON(w, http.StatusInternalServerError, map[string]string{
 					"error": "Failed to get user information",

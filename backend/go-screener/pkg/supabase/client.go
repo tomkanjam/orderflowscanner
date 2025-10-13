@@ -2,6 +2,7 @@ package supabase
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,10 +31,10 @@ func NewClient(baseURL, serviceKey string) *Client {
 }
 
 // GetTraders fetches all traders for a user
-func (c *Client) GetTraders(userID string) ([]types.Trader, error) {
+func (c *Client) GetTraders(ctx context.Context, userID string) ([]types.Trader, error) {
 	url := fmt.Sprintf("%s/rest/v1/traders?userId=eq.%s&select=*", c.baseURL, userID)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -60,10 +61,10 @@ func (c *Client) GetTraders(userID string) ([]types.Trader, error) {
 }
 
 // GetBuiltInTraders fetches all built-in traders (visible ones)
-func (c *Client) GetBuiltInTraders() ([]types.Trader, error) {
+func (c *Client) GetBuiltInTraders(ctx context.Context) ([]types.Trader, error) {
 	url := fmt.Sprintf("%s/rest/v1/traders?isBuiltIn=eq.true&isVisible=eq.true&select=*", c.baseURL)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -90,7 +91,7 @@ func (c *Client) GetBuiltInTraders() ([]types.Trader, error) {
 }
 
 // CreateSignal creates a new signal in the database
-func (c *Client) CreateSignal(signal *types.Signal) error {
+func (c *Client) CreateSignal(ctx context.Context, signal *types.Signal) error {
 	url := fmt.Sprintf("%s/rest/v1/signals", c.baseURL)
 
 	payload, err := json.Marshal(signal)
@@ -98,7 +99,7 @@ func (c *Client) CreateSignal(signal *types.Signal) error {
 		return fmt.Errorf("failed to marshal signal: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(payload))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -121,10 +122,10 @@ func (c *Client) CreateSignal(signal *types.Signal) error {
 }
 
 // GetUser fetches user information by ID
-func (c *Client) GetUser(userID string) (*types.User, error) {
+func (c *Client) GetUser(ctx context.Context, userID string) (*types.User, error) {
 	url := fmt.Sprintf("%s/rest/v1/user_profiles?id=eq.%s&select=*", c.baseURL, userID)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -155,7 +156,7 @@ func (c *Client) GetUser(userID string) (*types.User, error) {
 }
 
 // UpdateMachineStatus updates the machine status in the database
-func (c *Client) UpdateMachineStatus(machineID, userID, status string) error {
+func (c *Client) UpdateMachineStatus(ctx context.Context, machineID, userID, status string) error {
 	url := fmt.Sprintf("%s/rest/v1/cloud_machines?machineId=eq.%s&userId=eq.%s", c.baseURL, machineID, userID)
 
 	payload := map[string]interface{}{
@@ -168,7 +169,7 @@ func (c *Client) UpdateMachineStatus(machineID, userID, status string) error {
 		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(ctx, "PATCH", url, bytes.NewBuffer(body))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -190,11 +191,11 @@ func (c *Client) UpdateMachineStatus(machineID, userID, status string) error {
 }
 
 // GetTraderPreferences fetches preferences for a trader
-func (c *Client) GetTraderPreferences(traderID, userID string) (*types.TraderPreferences, error) {
+func (c *Client) GetTraderPreferences(ctx context.Context, traderID, userID string) (*types.TraderPreferences, error) {
 	url := fmt.Sprintf("%s/rest/v1/trader_preferences?traderId=eq.%s&userId=eq.%s&select=*",
 		c.baseURL, traderID, userID)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -233,9 +234,10 @@ func (c *Client) setHeaders(req *http.Request) {
 
 // HealthCheck performs a health check against Supabase
 func (c *Client) HealthCheck() error {
+	ctx := context.Background()
 	url := fmt.Sprintf("%s/rest/v1/", c.baseURL)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/vyx/go-screener/pkg/config"
 	"github.com/vyx/go-screener/pkg/supabase"
 	"github.com/vyx/go-screener/pkg/types"
+	"github.com/vyx/go-screener/pkg/yaegi"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -20,6 +21,7 @@ type Manager struct {
 	executor *Executor
 	supabase *supabase.Client
 	quotas   *QuotaManager
+	yaegi    *yaegi.Executor
 
 	// Goroutine pool management
 	pool     *semaphore.Weighted // Limits concurrent traders
@@ -36,7 +38,7 @@ type Manager struct {
 }
 
 // NewManager creates a new trader manager
-func NewManager(cfg *config.Config, executor *Executor, supabase *supabase.Client) *Manager {
+func NewManager(cfg *config.Config, executor *Executor, supabase *supabase.Client, yaegi *yaegi.Executor) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Default pool size: 1000 concurrent traders
@@ -51,6 +53,7 @@ func NewManager(cfg *config.Config, executor *Executor, supabase *supabase.Clien
 		executor: executor,
 		supabase: supabase,
 		quotas:   quotas,
+		yaegi:    yaegi,
 		pool:     semaphore.NewWeighted(poolSize),
 		poolSize: poolSize,
 		ctx:      ctx,

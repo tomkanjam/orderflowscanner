@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
-
+import { PerformanceMonitor } from './components/PerformanceMonitor';
 import Modal from './components/Modal';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket, connectMultiIntervalWebSocket } from './services/binanceService';
@@ -288,6 +288,74 @@ const AppContent: React.FC = () => {
       console.log('[App] Traders unchanged, skipping state update');
     }
   }, []);
+  
+  // Signal lifecycle hook
+  const { 
+    signals: enhancedSignals,
+    createSignalFromFilter,
+    analyzeSignal,
+    startMonitoring,
+    stopMonitoring,
+    isMonitoring 
+  } = useSignalLifecycle({
+    activeStrategy,
+    autoAnalyze: currentTier === 'elite', // Only auto-analyze for Elite tier
+    autoMonitor: currentTier === 'elite', // Only auto-monitor for Elite tier
+    modelName: 'gemini-2.5-flash', // Default model if trader doesn't specify
+    calculateIndicators,
+    aiAnalysisLimit: klineHistoryConfig.aiAnalysisLimit,
+    getMarketData: (symbol: string, traderId?: string) => {
+      const ticker = tickersRef.current.get(symbol);
+      if (!ticker) return null;
+      
+      // Determine which interval to use
+      let interval: KlineInterval = KlineInterval.ONE_MINUTE; // Default
+      
+      // If traderId provided, use trader's interval
+      if (traderId) {
+        const trader = tradersRef.current.find(t => t.id === traderId);
+        if (trader?.filter?.interval) {
+          interval = trader.filter.interval as KlineInterval;
+        }
+      }
+      
+      // Get klines directly from SharedMarketData for the appropriate interval
+      const klines = sharedMarketData.getKlines(symbol, interval);
+      if (!klines || klines.length === 0) {
+        // Fallback to 1m if specific interval has no data
+        const fallbackKlines = sharedMarketData.getKlines(symbol, KlineInterval.ONE_MINUTE);
+        if (!fallbackKlines || fallbackKlines.length === 0) {
+          return null;
+        }
+        return { ticker, klines: fallbackKlines };
+      }
+      return { ticker, klines };
+    },
+    onAnalysisComplete: (signalId: string, analysis: AnalysisResult) => {
+      // Update the signal log with analysis results
+      setSignalLog(prevLog => {
+        return prevLog.map(entry => {
+          // Find matching entry by symbol and approximate time
+          const signal = signalManager.getSignal(signalId);
+          if (signal && entry.symbol === signal.symbol && 
+              Math.abs(entry.timestamp - signal.createdAt.getTime()) < 5000) { // Within 5 seconds
+            return {
+              ...entry,
+              tradeDecision: analysis.decision === 'buy' ? 'BUY' : 
+                            analysis.decision === 'sell' ? 'SELL' :
+                            analysis.decision === 'hold' ? 'HOLD' : 'WAIT',
+              reasoning: analysis.reasoning,
+              tradePlan: analysis.tradePlan ? 
+                `Entry: ${analysis.tradePlan.entry}, SL: ${analysis.tradePlan.stopLoss}, TP: ${analysis.tradePlan.takeProfit}` : 
+                undefined,
+              fullAnalysis: JSON.stringify(analysis),
+            };
+          }
+          return entry;
+        });
+      });
+    },
+  });
 
   // Historical scanner hook
   const {
@@ -408,18 +476,14 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('klineHistoryConfig', JSON.stringify(klineHistoryConfig));
   }, [klineHistoryConfig]);
-
-  // Get signals and trades for activity panel (declared early to avoid TDZ in useEffect)
-  const allSignals = signalManager.getSignals();
-  const allTrades = tradeManager.getTrades();
-
+  
   // Set up memory cleanup
   useEffect(() => {
     const cleanup = startMemoryCleanup(
       () => {
         // Get active symbols
         const recentSignalSymbols = new Set(
-          allSignals.slice(0, 20).map(s => s.symbol)
+          enhancedSignals.slice(0, 20).map(s => s.symbol)
         );
         const selectedSymbols = new Set<string>();
         if (selectedSymbolForChart) selectedSymbols.add(selectedSymbolForChart);
@@ -445,7 +509,7 @@ const AppContent: React.FC = () => {
     );
     
     return cleanup;
-  }, [allSignals, selectedSymbolForChart]);
+  }, [enhancedSignals, selectedSymbolForChart]);
   
   
   const loadInitialData = useCallback(async (klineLimit: number) => {
@@ -962,6 +1026,91 @@ const AppContent: React.FC = () => {
   }, [allSymbols, traderIntervalsKey, handleTickerUpdateStable, handleKlineUpdateStable]); 
 
 
+  // Multi-trader screener hook
+  const handleMultiTraderResults = useCallback((results: TraderResult[]) => {
+    results.forEach(result => {
+      
+      result.signalSymbols.forEach(symbol => {
+        const ticker = tickers.get(symbol);
+        if (!ticker) {
+          return;
+        }
+        
+        const currentTimestamp = Date.now();
+        
+        // Check signal history for deduplication BEFORE creating any signal
+        const historyEntry = signalHistory.get(symbol);
+        
+        // Calculate time-based deduplication threshold
+        const klineIntervalMinutes = {
+          '1m': 1,
+          '5m': 5,
+          '15m': 15,
+          '1h': 60,
+          '4h': 240,
+          '1d': 1440,
+        }[klineInterval] || 5;
+        
+        const minTimeBetweenSignals = klineIntervalMinutes * signalDedupeThreshold * 60 * 1000;
+        const timeSinceLastSignal = historyEntry ? currentTimestamp - historyEntry.timestamp : Infinity;
+        
+        // Use both bar count and time-based deduplication
+        const shouldCreateNewSignal = !historyEntry || 
+                                     historyEntry.barCount >= signalDedupeThreshold || 
+                                     timeSinceLastSignal >= minTimeBetweenSignals;
+        
+        // Deduplication check performed
+        
+        if (shouldCreateNewSignal) {
+          // Create signal with trader attribution
+          const trader = traders.find(t => t.id === result.traderId);
+          const filterResult = {
+            symbol,
+            price: parseFloat(ticker.c),
+            change24h: parseFloat(ticker.P),
+            volume24h: parseFloat(ticker.q),
+            matchedConditions: [`Trader: ${trader?.name || 'Unknown'}`]
+          };
+          
+          // Creating signal with interval info from trader
+          const interval = trader?.filter?.interval || KlineInterval.ONE_MINUTE;
+          const signal = createSignalFromFilter(filterResult, result.traderId, interval);
+          
+          // Update signal history - reset bar count for new signal
+          setSignalHistory(prev => {
+            prev.set(symbol, {
+              timestamp: currentTimestamp,
+              barCount: 0,
+            });
+            return prev; // Return same instance for React update
+          });
+          
+          // Update signal log
+          setSignalLog(prevLog => {
+            const traderName = traders.find(t => t.id === result.traderId)?.name || 'Unknown';
+            const newEntry: SignalLogEntry = {
+              timestamp: currentTimestamp,
+              symbol,
+              interval: klineInterval,
+              filterDesc: `Trader: ${traderName}`,
+              priceAtSignal: parseFloat(ticker.c),
+              changePercentAtSignal: parseFloat(ticker.P),
+              volumeAtSignal: parseFloat(ticker.q),
+              count: 1,
+            };
+            
+            // Keep limited log entries to prevent memory growth
+            return [newEntry, ...prevLog.slice(0, MAX_SIGNAL_LOG_ENTRIES - 1)];
+          });
+          
+          // Update trader metrics
+          traderManager.incrementSignalCount(result.traderId);
+        } else {
+          // Skipping duplicate signal
+        }
+      });
+    });
+  }, [traders, tickers, activeStrategy, klineInterval, signalHistory, signalDedupeThreshold, createSignalFromFilter]);
 
   const screenerEnabled = multiTraderEnabled && traders.some(t => t.enabled);
   // console.log(`[SIGNAL_DEBUG ${new Date().toISOString()}] Multi-trader screener status:`, {
@@ -973,8 +1122,55 @@ const AppContent: React.FC = () => {
   // });
   
   
+  // Always use shared trader intervals (other modes removed)
+  const useTraderIntervals = useSharedTraderIntervals;
+  
+  const traderIntervalsResult = useTraderIntervals({
+    traders,
+    symbols: allSymbols,
+    tickers,
+    onResults: handleMultiTraderResults,
+    enabled: screenerEnabled
+  });
+  
+  const clearTraderCache = traderIntervalsResult.clearTraderCache;
+  
+  // Get performance metrics if available
+  const performanceMetrics = 
+    'getPerformanceComparison' in traderIntervalsResult ? 
+    traderIntervalsResult.getPerformanceComparison?.() : 
+    'getPerformanceMetrics' in traderIntervalsResult ?
+    traderIntervalsResult.getPerformanceMetrics?.() :
+    null;
+  
+  // Test SharedArrayBuffer support
+  useEffect(() => {
+    if ('testSharedArrayBuffer' in traderIntervalsResult) {
+      const test = traderIntervalsResult.testSharedArrayBuffer?.();
+      if (test && !test.supported) {
+        console.error('[App] SharedArrayBuffer not supported:', test);
+      }
+    }
+  }, []);
+  
+  // Log performance metrics only on significant changes (throttled)
+  useEffect(() => {
+    if (!performanceMetrics) return;
+    
+    let lastLogTime = 0;
+    const LOG_INTERVAL = 10000; // Log at most once every 10 seconds
+    
+  }, [performanceMetrics]);
 
-  // Note: Worker cache cleanup removed - now handled by Go backend
+  // Subscribe to trader deletions to clean up worker cache
+  useEffect(() => {
+    const unsubscribe = traderManager.subscribeToDeletes((traderId) => {
+      console.log(`[App] Trader ${traderId} deleted, clearing worker cache`);
+      clearTraderCache(traderId);
+    });
+
+    return unsubscribe;
+  }, [clearTraderCache]);
 
   const handleRunHistoricalScan = () => {
     // Only run historical scan when a trader is selected
@@ -987,12 +1183,6 @@ const AppContent: React.FC = () => {
   };
 
   
-  // Stub for signal creation (now handled by Go backend)
-  const createSignalFromFilter = useCallback((filterResult: any, traderId?: string, interval?: KlineInterval) => {
-    console.log('[App] Signal creation now handled by Go backend');
-    return null;
-  }, []);
-
   const handleAnalyzeMarket = useCallback(async () => {
     setIsMarketAnalysisLoading(true);
     setModalTitle('📊 AI Market Analysis');
@@ -1082,6 +1272,10 @@ const AppContent: React.FC = () => {
   }, [selectedSymbolForChart, selectedSignalTraderId, selectedTraderId, traders]);
 
 
+  // Get signals and trades for activity panel
+  const allSignals = signalManager.getSignals();
+  const allTrades = tradeManager.getTrades();
+  
   // Calculate active signal count
   const activeSignalCount = allSignals.filter(signal => signal.status === 'active').length;
 
@@ -1159,6 +1353,10 @@ const AppContent: React.FC = () => {
         {modalContent}
       </Modal>
       
+      {/* Performance Monitor */}
+      <PerformanceMonitor
+        metrics={performanceMetrics}
+      />
     </div>
   );
 };

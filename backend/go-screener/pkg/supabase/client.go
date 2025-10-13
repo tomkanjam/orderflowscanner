@@ -32,7 +32,7 @@ func NewClient(baseURL, serviceKey string) *Client {
 
 // GetTraders fetches all traders for a user
 func (c *Client) GetTraders(ctx context.Context, userID string) ([]types.Trader, error) {
-	url := fmt.Sprintf("%s/rest/v1/traders?userId=eq.%s&select=*", c.baseURL, userID)
+	url := fmt.Sprintf("%s/rest/v1/traders?user_id=eq.%s&select=*", c.baseURL, userID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -60,9 +60,9 @@ func (c *Client) GetTraders(ctx context.Context, userID string) ([]types.Trader,
 	return traders, nil
 }
 
-// GetBuiltInTraders fetches all built-in traders (visible ones)
+// GetBuiltInTraders fetches all built-in traders
 func (c *Client) GetBuiltInTraders(ctx context.Context) ([]types.Trader, error) {
-	url := fmt.Sprintf("%s/rest/v1/traders?isBuiltIn=eq.true&isVisible=eq.true&select=*", c.baseURL)
+	url := fmt.Sprintf("%s/rest/v1/traders?is_built_in=eq.true&select=*", c.baseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -157,7 +157,7 @@ func (c *Client) GetUser(ctx context.Context, userID string) (*types.User, error
 
 // UpdateMachineStatus updates the machine status in the database
 func (c *Client) UpdateMachineStatus(ctx context.Context, machineID, userID, status string) error {
-	url := fmt.Sprintf("%s/rest/v1/cloud_machines?machineId=eq.%s&userId=eq.%s", c.baseURL, machineID, userID)
+	url := fmt.Sprintf("%s/rest/v1/cloud_machines?machine_id=eq.%s&user_id=eq.%s", c.baseURL, machineID, userID)
 
 	payload := map[string]interface{}{
 		"status":    status,
@@ -192,7 +192,7 @@ func (c *Client) UpdateMachineStatus(ctx context.Context, machineID, userID, sta
 
 // GetTraderPreferences fetches preferences for a trader
 func (c *Client) GetTraderPreferences(ctx context.Context, traderID, userID string) (*types.TraderPreferences, error) {
-	url := fmt.Sprintf("%s/rest/v1/trader_preferences?traderId=eq.%s&userId=eq.%s&select=*",
+	url := fmt.Sprintf("%s/rest/v1/trader_preferences?trader_id=eq.%s&user_id=eq.%s&select=*",
 		c.baseURL, traderID, userID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)

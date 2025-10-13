@@ -20,8 +20,11 @@ func NewPrompter() *Prompter {
 func (p *Prompter) BuildAnalysisPrompt(req *AnalysisRequest, calculatedIndicators map[string]interface{}) (string, error) {
 	// Get strategy description
 	strategyDesc := ""
-	if req.Trader != nil && len(req.Trader.Filter.Description) > 0 {
-		strategyDesc = strings.Join(req.Trader.Filter.Description, " ")
+	if req.Trader != nil {
+		filter, err := req.Trader.GetFilter()
+		if err == nil && len(filter.Description) > 0 {
+			strategyDesc = strings.Join(filter.Description, " ")
+		}
 	}
 	if strategyDesc == "" {
 		strategyDesc = "No strategy description provided"

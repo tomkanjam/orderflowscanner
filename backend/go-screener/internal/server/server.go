@@ -119,7 +119,7 @@ func New(cfg *config.Config) (*Server, error) {
 	log.Printf("[Server] ✅ Trader Executor initialized")
 
 	// 6. Initialize Trader Manager
-	traderManager := trader.NewManager(cfg, traderExecutor, supabaseClient)
+	traderManager := trader.NewManager(cfg, traderExecutor, supabaseClient, yaegiExec)
 	traderHandler := NewTraderHandler(traderManager, supabaseClient)
 	log.Printf("[Server] ✅ Trader Manager initialized")
 

@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Kline represents a single candlestick
 // Format from Binance: [openTime, open, high, low, close, volume, closeTime, quoteAssetVolume, numberOfTrades, takerBuyBaseAssetVolume, takerBuyQuoteAssetVolume, ignore]
@@ -35,15 +38,36 @@ type Ticker struct {
 // Trader represents a custom trading signal/strategy
 type Trader struct {
 	ID          string                `json:"id"`
-	UserID      string                `json:"userId"`
+	UserID      string                `json:"user_id"`
 	Name        string                `json:"name"`
 	Description string                `json:"description"`
-	IsBuiltIn   bool                  `json:"isBuiltIn"`
-	IsVisible   bool                  `json:"isVisible"`
-	Filter      TraderFilter          `json:"filter"`
-	CreatedAt   time.Time             `json:"createdAt"`
-	UpdatedAt   time.Time             `json:"updatedAt"`
+	IsBuiltIn   bool                  `json:"is_built_in"`
+	Filter      json.RawMessage       `json:"filter"` // Raw JSON to handle double-encoding
+	CreatedAt   time.Time             `json:"created_at"`
+	UpdatedAt   time.Time             `json:"updated_at"`
 	Preferences *TraderPreferences    `json:"preferences,omitempty"`
+}
+
+// GetFilter parses the filter field which may be double-encoded JSON
+func (t *Trader) GetFilter() (*TraderFilter, error) {
+	var filter TraderFilter
+
+	// Try to unmarshal as direct JSON first
+	if err := json.Unmarshal(t.Filter, &filter); err == nil {
+		return &filter, nil
+	}
+
+	// If that fails, try double-decoding (string -> object)
+	var filterStr string
+	if err := json.Unmarshal(t.Filter, &filterStr); err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal([]byte(filterStr), &filter); err != nil {
+		return nil, err
+	}
+
+	return &filter, nil
 }
 
 // TraderFilter contains the executable code and metadata for a trader
@@ -73,27 +97,27 @@ type IndicatorStyle struct {
 
 // TraderPreferences stores user-specific preferences for a trader
 type TraderPreferences struct {
-	TraderID        string    `json:"traderId"`
-	NotifyOnTrigger bool      `json:"notifyOnTrigger"`
-	AutoTrade       bool      `json:"autoTrade"`
-	MaxPositions    *int      `json:"maxPositions"`
-	UpdatedAt       time.Time `json:"updatedAt"`
+	TraderID        string    `json:"trader_id"`
+	NotifyOnTrigger bool      `json:"notify_on_trigger"`
+	AutoTrade       bool      `json:"auto_trade"`
+	MaxPositions    *int      `json:"max_positions"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 // Signal represents a triggered trading signal
 type Signal struct {
 	ID                    string    `json:"id"`
-	TraderID              string    `json:"traderId"`
-	UserID                string    `json:"userId"`
+	TraderID              string    `json:"trader_id"`
+	UserID                string    `json:"user_id"`
 	Symbol                string    `json:"symbol"`
 	Interval              string    `json:"interval"`
 	Timestamp             time.Time `json:"timestamp"`
-	PriceAtSignal         float64   `json:"priceAtSignal"`
-	ChangePercentAtSignal float64   `json:"changePercentAtSignal"`
-	VolumeAtSignal        float64   `json:"volumeAtSignal"`
+	PriceAtSignal         float64   `json:"price_at_signal"`
+	ChangePercentAtSignal float64   `json:"change_percent_at_signal"`
+	VolumeAtSignal        float64   `json:"volume_at_signal"`
 	Count                 int       `json:"count"` // Dedupe count
 	Source                string    `json:"source"` // "browser" or "cloud"
-	MachineID             *string   `json:"machineId,omitempty"`
+	MachineID             *string   `json:"machine_id,omitempty"`
 }
 
 // MarketData contains all data needed for signal evaluation
@@ -161,6 +185,6 @@ const (
 type User struct {
 	ID               string           `json:"id"`
 	Email            string           `json:"email"`
-	SubscriptionTier SubscriptionTier `json:"subscriptionTier"`
-	CreatedAt        time.Time        `json:"createdAt"`
+	SubscriptionTier SubscriptionTier `json:"subscription_tier"`
+	CreatedAt        time.Time        `json:"created_at"`
 }

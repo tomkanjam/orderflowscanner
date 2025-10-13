@@ -26,7 +26,13 @@ func (c *Calculator) CalculateIndicators(req *AnalysisRequest) (map[string]inter
 		return nil, fmt.Errorf("trader config is nil")
 	}
 
-	if len(req.Trader.Filter.Indicators) == 0 {
+	// Parse the filter
+	filter, err := req.Trader.GetFilter()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse trader filter: %w", err)
+	}
+
+	if len(filter.Indicators) == 0 {
 		// No indicators configured - this is OK, just return empty
 		log.Printf("[Calculator] Warning: Trader %s has no indicators configured", req.TraderID)
 		return make(map[string]interface{}), nil
@@ -47,7 +53,7 @@ func (c *Calculator) CalculateIndicators(req *AnalysisRequest) (map[string]inter
 	result := make(map[string]interface{})
 
 	// Calculate each indicator
-	for _, indConfig := range req.Trader.Filter.Indicators {
+	for _, indConfig := range filter.Indicators {
 		value, err := c.calculateIndicator(indConfig, klines, req.MarketData)
 		if err != nil {
 			log.Printf("[Calculator] Failed to calculate %s: %v", indConfig.Name, err)

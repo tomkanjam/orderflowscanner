@@ -146,6 +146,11 @@ func (c *Config) IsProduction() bool {
 	return c.Environment == "production"
 }
 
+// GetOpenRouterAPIKey returns the OpenRouter API key from environment
+func (c *Config) GetOpenRouterAPIKey() string {
+	return getEnv("OPENROUTER_API_KEY", "")
+}
+
 // base64Decode decodes a base64-encoded string
 func base64Decode(encoded string) (string, error) {
 	decoded, err := base64.StdEncoding.DecodeString(encoded)

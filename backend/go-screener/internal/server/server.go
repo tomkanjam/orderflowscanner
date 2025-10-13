@@ -68,30 +68,45 @@ func New(cfg *config.Config) (*Server, error) {
 	candleScheduler := scheduler.NewCandleScheduler(eventBus, schedulerConfig)
 	log.Printf("[Server] ✅ Candle Scheduler initialized")
 
-	// 3. Initialize Analysis Engine
+	// 3. Initialize Analysis Engine (optional - skip if OpenRouter key not provided)
 	analysisConfig := analysis.DefaultConfig()
-	analysisEngine, err := analysis.NewEngine(
-		analysisConfig,
-		supabaseClient,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create analysis engine: %w", err)
+	analysisConfig.OpenRouterAPIKey = cfg.GetOpenRouterAPIKey() // Add method to get API key from env
+
+	var analysisEngine *analysis.Engine = nil
+	if analysisConfig.OpenRouterAPIKey != "" {
+		var err error
+		analysisEngine, err = analysis.NewEngine(
+			analysisConfig,
+			supabaseClient,
+		)
+		if err != nil {
+			log.Printf("[Server] ⚠️  Failed to create analysis engine: %v", err)
+			log.Printf("[Server] ⚠️  Analysis engine disabled - continuing without AI analysis")
+		} else {
+			log.Printf("[Server] ✅ Analysis Engine initialized")
+		}
+	} else {
+		log.Printf("[Server] ⚠️  OpenRouter API key not set - analysis engine disabled")
 	}
-	log.Printf("[Server] ✅ Analysis Engine initialized")
 
-	// 4. Initialize Monitoring Engine
-	supabaseAdapter := monitoring.NewSupabaseAdapter(supabaseClient, cfg.SupabaseURL, cfg.SupabaseServiceKey)
-	binanceAdapter := monitoring.NewBinanceAdapter(binanceClient)
+	// 4. Initialize Monitoring Engine (only if analysis engine is available)
+	var monitoringEngine *monitoring.Engine = nil
+	if analysisEngine != nil {
+		supabaseAdapter := monitoring.NewSupabaseAdapter(supabaseClient, cfg.SupabaseURL, cfg.SupabaseServiceKey)
+		binanceAdapter := monitoring.NewBinanceAdapter(binanceClient)
 
-	monitoringConfig := monitoring.DefaultConfig()
-	monitoringEngine := monitoring.NewEngine(
-		monitoringConfig,
-		analysisEngine,
-		eventBus,
-		supabaseAdapter,
-		binanceAdapter,
-	)
-	log.Printf("[Server] ✅ Monitoring Engine initialized")
+		monitoringConfig := monitoring.DefaultConfig()
+		monitoringEngine = monitoring.NewEngine(
+			monitoringConfig,
+			analysisEngine,
+			eventBus,
+			supabaseAdapter,
+			binanceAdapter,
+		)
+		log.Printf("[Server] ✅ Monitoring Engine initialized")
+	} else {
+		log.Printf("[Server] ⚠️  Monitoring engine disabled (requires analysis engine)")
+	}
 
 	// 5. Initialize Trader Executor (event-driven)
 	traderExecutor := trader.NewExecutor(
@@ -213,14 +228,18 @@ func (s *Server) Start() error {
 		return fmt.Errorf("failed to start event bus: %w", err)
 	}
 
-	// Start Analysis Engine
-	if err := s.analysisEngine.Start(); err != nil {
-		return fmt.Errorf("failed to start analysis engine: %w", err)
+	// Start Analysis Engine (if available)
+	if s.analysisEngine != nil {
+		if err := s.analysisEngine.Start(); err != nil {
+			return fmt.Errorf("failed to start analysis engine: %w", err)
+		}
 	}
 
-	// Start Monitoring Engine
-	if err := s.monitoringEngine.Start(); err != nil {
-		return fmt.Errorf("failed to start monitoring engine: %w", err)
+	// Start Monitoring Engine (if available)
+	if s.monitoringEngine != nil {
+		if err := s.monitoringEngine.Start(); err != nil {
+			return fmt.Errorf("failed to start monitoring engine: %w", err)
+		}
 	}
 
 	// Start Trader Executor
@@ -263,16 +282,20 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		log.Printf("[Server] Warning: Trader executor shutdown error: %v", err)
 	}
 
-	// 4. Shutdown monitoring engine
-	log.Printf("[Server] Shutting down monitoring engine...")
-	if err := s.monitoringEngine.Stop(); err != nil {
-		log.Printf("[Server] Warning: Monitoring engine shutdown error: %v", err)
+	// 4. Shutdown monitoring engine (if available)
+	if s.monitoringEngine != nil {
+		log.Printf("[Server] Shutting down monitoring engine...")
+		if err := s.monitoringEngine.Stop(); err != nil {
+			log.Printf("[Server] Warning: Monitoring engine shutdown error: %v", err)
+		}
 	}
 
-	// 5. Shutdown analysis engine (stop analysis workers)
-	log.Printf("[Server] Shutting down analysis engine...")
-	if err := s.analysisEngine.Stop(); err != nil {
-		log.Printf("[Server] Warning: Analysis engine shutdown error: %v", err)
+	// 5. Shutdown analysis engine (if available)
+	if s.analysisEngine != nil {
+		log.Printf("[Server] Shutting down analysis engine...")
+		if err := s.analysisEngine.Stop(); err != nil {
+			log.Printf("[Server] Warning: Analysis engine shutdown error: %v", err)
+		}
 	}
 
 	// 6. Shutdown event bus (close all channels)

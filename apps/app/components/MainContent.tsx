@@ -54,6 +54,9 @@ interface MainContentProps {
   allTrades?: any[]; // Trade[]
   onCloseActivityPanel?: () => void;
   isMobile?: boolean;
+  // Cloud signal filter
+  showCloudSignalsOnly?: boolean;
+  onShowCloudSignalsOnlyChange?: (value: boolean) => void;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -91,6 +94,8 @@ const MainContent: React.FC<MainContentProps> = ({
   allTrades = [],
   onCloseActivityPanel,
   isMobile = false,
+  showCloudSignalsOnly = false,
+  onShowCloudSignalsOnlyChange,
 }) => {
   const { currentTier } = useSubscription();
   const [selectedSignal, setSelectedSignal] = useState<SignalLifecycle | null>(null);
@@ -129,7 +134,7 @@ const MainContent: React.FC<MainContentProps> = ({
               />
               <div className="mt-2 flex flex-1 overflow-hidden">
                 <div className={`${!isMobile ? 'flex-1' : 'w-full'} overflow-hidden`}>
-                  <TraderSignalsTable 
+                  <TraderSignalsTable
                     tickers={tickers}
                     traders={traders}
                     selectedTraderId={selectedTraderId}
@@ -149,6 +154,8 @@ const MainContent: React.FC<MainContentProps> = ({
                     onSignalDedupeThresholdChange={onSignalDedupeThresholdChange}
                     klineHistoryConfig={klineHistoryConfig}
                     onKlineHistoryConfigChange={onKlineHistoryConfigChange}
+                    showCloudSignalsOnly={showCloudSignalsOnly}
+                    onShowCloudSignalsOnlyChange={onShowCloudSignalsOnlyChange}
                   />
                 </div>
               </div>

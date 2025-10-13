@@ -131,6 +131,9 @@ const AppContent: React.FC = () => {
   // Activity panel state
   const [isActivityPanelOpen, setIsActivityPanelOpen] = useState<boolean>(true); // Always open
   const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
+
+  // Signal source filter state
+  const [showCloudSignalsOnly, setShowCloudSignalsOnly] = useState<boolean>(false);
   
   // Historical signals state
   const [historicalSignals, setHistoricalSignals] = useState<HistoricalSignal[]>([]);
@@ -1279,16 +1282,24 @@ const AppContent: React.FC = () => {
   // Calculate active signal count
   const activeSignalCount = allSignals.filter(signal => signal.status === 'active').length;
 
-  // Filter signal log based on machine status
-  // When machine is running, only show cloud signals
-  // When machine is not running, show browser-generated signals
+  // Filter signal log based on toggle state and machine status
+  // Priority: manual toggle > machine status
   const filteredSignalLog = useMemo(() => {
+    // If manual toggle is enabled, always show only cloud signals
+    if (showCloudSignalsOnly) {
+      return signalLog.filter(signal => signal.source === 'cloud');
+    }
+
+    // Otherwise, auto-filter based on machine status
+    // When machine is running, only show cloud signals
+    // When machine is not running, show browser-generated signals
     if (cloudExecution.machineStatus === 'running') {
       return signalLog.filter(signal => signal.source === 'cloud');
     }
+
     // Show all signals (browser-generated) when machine is not running
     return signalLog;
-  }, [signalLog, cloudExecution.machineStatus]);
+  }, [signalLog, cloudExecution.machineStatus, showCloudSignalsOnly]);
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen relative">
@@ -1334,6 +1345,8 @@ const AppContent: React.FC = () => {
         allTrades={allTrades}
         onCloseActivityPanel={() => setIsActivityPanelOpen(false)}
         isMobile={isMobile}
+        showCloudSignalsOnly={showCloudSignalsOnly}
+        onShowCloudSignalsOnlyChange={setShowCloudSignalsOnly}
       />
       <Modal
         isOpen={isModalOpen}

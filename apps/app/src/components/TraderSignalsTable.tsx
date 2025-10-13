@@ -31,6 +31,9 @@ interface TraderSignalsTableProps {
   // Kline history configuration
   klineHistoryConfig?: KlineHistoryConfig;
   onKlineHistoryConfigChange?: (config: KlineHistoryConfig) => void;
+  // Cloud signal filter
+  showCloudSignalsOnly?: boolean;
+  onShowCloudSignalsOnlyChange?: (value: boolean) => void;
 }
 
 function TraderSignalsTableComponent({
@@ -53,6 +56,8 @@ function TraderSignalsTableComponent({
   onSignalDedupeThresholdChange,
   klineHistoryConfig,
   onKlineHistoryConfigChange,
+  showCloudSignalsOnly = false,
+  onShowCloudSignalsOnlyChange,
 }: TraderSignalsTableProps) {
   const { currentTier } = useSubscription();
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
@@ -229,6 +234,22 @@ function TraderSignalsTableComponent({
         </div>
         
         <div className="flex items-center gap-3">
+          {/* Cloud signals toggle - only show when no trader selected */}
+          {!selectedTraderId && (
+            <button
+              onClick={() => onShowCloudSignalsOnlyChange?.(!showCloudSignalsOnly)}
+              className={`flex items-center gap-2 px-3 py-1 text-sm rounded-md transition-colors ${
+                showCloudSignalsOnly
+                  ? 'bg-[var(--nt-accent-lime)]/10 border border-[var(--nt-accent-lime)] text-[var(--nt-accent-lime)]'
+                  : 'bg-[var(--nt-bg-hover)] hover:bg-[var(--nt-bg-elevated)]'
+              }`}
+              title={showCloudSignalsOnly ? "Show all signals" : "Show only cloud signals"}
+            >
+              <span className="hidden sm:inline">{showCloudSignalsOnly ? 'Cloud Only' : 'All Signals'}</span>
+              <span className="sm:hidden">{showCloudSignalsOnly ? '☁️' : '📡'}</span>
+            </button>
+          )}
+
           {/* Sound toggle - only show when no trader selected */}
           {!selectedTraderId && (
             <button
@@ -542,26 +563,27 @@ export const TraderSignalsTable = React.memo(TraderSignalsTableComponent, (prevP
     // Compare basic selection props
     prevProps.selectedTraderId === nextProps.selectedTraderId &&
     prevProps.selectedSignalId === nextProps.selectedSignalId &&
-    
+
     // Compare scanning state
     prevProps.isHistoricalScanning === nextProps.isHistoricalScanning &&
     prevProps.historicalScanProgress?.percentComplete === nextProps.historicalScanProgress?.percentComplete &&
-    
+
     // Compare data lengths (not deep comparison for performance)
     prevProps.historicalSignals?.length === nextProps.historicalSignals?.length &&
     prevProps.traders?.length === nextProps.traders?.length &&
-    
+
     // Compare configuration objects by reference
     prevProps.historicalScanConfig === nextProps.historicalScanConfig &&
     prevProps.klineHistoryConfig === nextProps.klineHistoryConfig &&
     prevProps.signalDedupeThreshold === nextProps.signalDedupeThreshold &&
-    
+
     // Reference equality for tickers Map
     prevProps.tickers === nextProps.tickers &&
-    
+
     // Flag comparisons
-    prevProps.hasActiveFilter === nextProps.hasActiveFilter
-    
+    prevProps.hasActiveFilter === nextProps.hasActiveFilter &&
+    prevProps.showCloudSignalsOnly === nextProps.showCloudSignalsOnly
+
     // Note: Callbacks are assumed to be stable (wrapped in useCallback by parent)
   );
 });

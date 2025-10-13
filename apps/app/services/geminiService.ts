@@ -596,13 +596,36 @@ export async function generateStructuredAnalysis(
     };
     
     // Debug log the indicators being passed to AI
-    console.log(`[DEBUG] generateStructuredAnalysis for ${symbol}:`, {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [GEMINI_REQUEST] generateStructuredAnalysis for ${symbol}:`, {
         hasCalculatedIndicators: !!marketData.calculatedIndicators,
         indicatorCount: Object.keys(technicalIndicators).length,
         indicatorNames: Object.keys(technicalIndicators),
         klineCount: marketData.klines?.length || 0,
         aiAnalysisLimit: aiAnalysisLimit
     });
+
+    // Log the actual data being sent to Gemini
+    console.log(`[${timestamp}] [GEMINI_REQUEST] Technical indicators sent:`,
+        JSON.stringify(technicalIndicators, null, 2)
+    );
+
+    // Log sample of kline data being sent
+    if (marketData.klines && marketData.klines.length > 0) {
+        console.log(`[${timestamp}] [GEMINI_REQUEST] Klines sample (first/last):`, {
+            first: {
+                time: new Date(marketData.klines[0][0]).toISOString(),
+                open: parseFloat(marketData.klines[0][1]),
+                close: parseFloat(marketData.klines[0][4])
+            },
+            last: {
+                time: new Date(marketData.klines[marketData.klines.length - 1][0]).toISOString(),
+                open: parseFloat(marketData.klines[marketData.klines.length - 1][1]),
+                close: parseFloat(marketData.klines[marketData.klines.length - 1][4])
+            },
+            totalBars: marketData.klines.length
+        });
+    }
     
     // Import trader persona dynamically
     const { enhancePromptWithPersona } = await import('../src/constants/traderPersona');
@@ -652,16 +675,25 @@ Note:
     // Apply trader persona to enhance the prompt
     const enhancedPrompt = enhancePromptWithPersona(basePrompt);
 
+    // Log the full prompt being sent to Gemini (truncated for readability)
+    console.log(`[${timestamp}] [GEMINI_REQUEST] Full prompt preview (first 500 chars):`,
+        enhancedPrompt.substring(0, 500) + '...'
+    );
+    console.log(`[${timestamp}] [GEMINI_REQUEST] Prompt contains indicators section:`,
+        enhancedPrompt.includes('INDICATOR') || enhancedPrompt.includes('indicator')
+    );
+    console.log(`[${timestamp}] [GEMINI_REQUEST] Model: ${modelName}, Strategy: ${strategy.substring(0, 100)}...`);
+
     const startTime = Date.now();
-    
+
     try {
-        const model = getGenerativeModel(ai, { 
+        const model = getGenerativeModel(ai, {
             model: modelName,
             generationConfig: {
                 responseMimeType: "application/json",
             }
         });
-        
+
         const result = await aiRateLimiter.execute(
             () => model.generateContent(enhancedPrompt),
             modelName,
@@ -669,7 +701,19 @@ Note:
         );
         const response = result.response;
         const text = response.text();
-        
+
+        // Log Gemini's response
+        console.log(`[${timestamp}] [GEMINI_RESPONSE] Response for ${symbol} (${Date.now() - startTime}ms):`,
+            text.substring(0, 300) + (text.length > 300 ? '...' : '')
+        );
+
+        // Check if response indicates missing data
+        if (text.toLowerCase().includes('don\'t have') ||
+            text.toLowerCase().includes('missing') ||
+            text.toLowerCase().includes('insufficient')) {
+            console.warn(`[${timestamp}] [GEMINI_RESPONSE] ⚠️  Response suggests missing data for ${symbol}`);
+        }
+
         // Track successful analysis
         await observability.trackAnalysis(
             'structured',
@@ -680,7 +724,7 @@ Note:
             Date.now() - startTime,
             symbol
         );
-        
+
         return text;
     } catch (error) {
         console.error(`Error generating structured analysis for ${symbol}:`, error);

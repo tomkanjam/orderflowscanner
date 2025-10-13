@@ -11,6 +11,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+	"github.com/vyx/go-screener/internal/analysis"
+	"github.com/vyx/go-screener/internal/eventbus"
+	"github.com/vyx/go-screener/internal/monitoring"
+	"github.com/vyx/go-screener/internal/scheduler"
 	"github.com/vyx/go-screener/internal/trader"
 	"github.com/vyx/go-screener/pkg/binance"
 	"github.com/vyx/go-screener/pkg/config"
@@ -27,6 +31,14 @@ type Server struct {
 	binanceClient   *binance.Client
 	supabaseClient  *supabase.Client
 	yaegiExecutor   *yaegi.Executor
+
+	// Event-driven architecture
+	eventBus        *eventbus.EventBus
+	candleScheduler *scheduler.CandleScheduler
+	analysisEngine  *analysis.Engine
+	monitoringEngine *monitoring.Engine
+	traderExecutor  *trader.Executor
+
 	traderManager   *trader.Manager
 	traderHandler   *TraderHandler
 	corsHandler     *cors.Cors
@@ -35,29 +47,73 @@ type Server struct {
 
 // New creates a new server instance
 func New(cfg *config.Config) (*Server, error) {
+	log.Printf("[Server] Initializing event-driven architecture...")
+
 	// Initialize clients
 	binanceClient := binance.NewClient(cfg.BinanceAPIURL)
 	supabaseClient := supabase.NewClient(cfg.SupabaseURL, cfg.SupabaseServiceKey)
 
 	// Initialize Yaegi executor
-	executor, err := yaegi.NewExecutor()
+	yaegiExec, err := yaegi.NewExecutor()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create yaegi executor: %w", err)
 	}
 
-	// Initialize trader system
-	traderExecutor := trader.NewExecutor(executor, binanceClient, supabaseClient)
+	// 1. Initialize Event Bus
+	eventBus := eventbus.NewEventBus()
+	log.Printf("[Server] ✅ Event Bus initialized")
+
+	// 2. Initialize Candle Scheduler
+	schedulerConfig := scheduler.DefaultConfig()
+	candleScheduler := scheduler.NewCandleScheduler(eventBus, schedulerConfig)
+	log.Printf("[Server] ✅ Candle Scheduler initialized")
+
+	// 3. Initialize Analysis Engine
+	analysisConfig := analysis.DefaultConfig()
+	analysisEngine, err := analysis.NewEngine(
+		analysisConfig,
+		supabaseClient,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create analysis engine: %w", err)
+	}
+	log.Printf("[Server] ✅ Analysis Engine initialized")
+
+	// 4. Initialize Monitoring Engine
+	// TODO: Enable monitoring engine after creating adapter interfaces
+	// The monitoring engine requires specific interfaces for Supabase and Binance
+	// that don't match the existing client signatures
+	var monitoringEngine *monitoring.Engine = nil
+	log.Printf("[Server] ⚠️  Monitoring Engine disabled (requires interface adapters)")
+
+	// 5. Initialize Trader Executor (event-driven)
+	traderExecutor := trader.NewExecutor(
+		yaegiExec,
+		binanceClient,
+		supabaseClient,
+		analysisEngine,
+		eventBus,
+	)
+	log.Printf("[Server] ✅ Trader Executor initialized")
+
+	// 6. Initialize Trader Manager
 	traderManager := trader.NewManager(cfg, traderExecutor, supabaseClient)
 	traderHandler := NewTraderHandler(traderManager, supabaseClient)
+	log.Printf("[Server] ✅ Trader Manager initialized")
 
 	s := &Server{
-		config:         cfg,
-		binanceClient:  binanceClient,
-		supabaseClient: supabaseClient,
-		yaegiExecutor:  executor,
-		traderManager:  traderManager,
-		traderHandler:  traderHandler,
-		startTime:      time.Now(),
+		config:           cfg,
+		binanceClient:    binanceClient,
+		supabaseClient:   supabaseClient,
+		yaegiExecutor:    yaegiExec,
+		eventBus:         eventBus,
+		candleScheduler:  candleScheduler,
+		analysisEngine:   analysisEngine,
+		monitoringEngine: monitoringEngine,
+		traderExecutor:   traderExecutor,
+		traderManager:    traderManager,
+		traderHandler:    traderHandler,
+		startTime:        time.Now(),
 	}
 
 	// Setup router
@@ -132,33 +188,105 @@ func (s *Server) setupRouter() {
 	})
 }
 
-// Start starts the HTTP server
+// Start starts the HTTP server and all engines
 func (s *Server) Start() error {
-	log.Printf("Starting server on %s\n", s.httpServer.Addr)
-	log.Printf("Environment: %s\n", s.config.Environment)
-	log.Printf("Version: %s\n", s.config.Version)
+	log.Printf("[Server] Starting server on %s", s.httpServer.Addr)
+	log.Printf("[Server] Environment: %s", s.config.Environment)
+	log.Printf("[Server] Version: %s", s.config.Version)
 
 	// Test Supabase connection
 	if err := s.supabaseClient.HealthCheck(); err != nil {
-		log.Printf("Warning: Supabase health check failed: %v\n", err)
+		log.Printf("[Server] Warning: Supabase health check failed: %v", err)
 	} else {
-		log.Println("Supabase connection OK")
+		log.Printf("[Server] ✅ Supabase connection OK")
 	}
 
+	// Start Event Bus
+	if err := s.eventBus.Start(); err != nil {
+		return fmt.Errorf("failed to start event bus: %w", err)
+	}
+
+	// Start Analysis Engine
+	if err := s.analysisEngine.Start(); err != nil {
+		return fmt.Errorf("failed to start analysis engine: %w", err)
+	}
+
+	// Start Monitoring Engine (if enabled)
+	if s.monitoringEngine != nil {
+		if err := s.monitoringEngine.Start(); err != nil {
+			return fmt.Errorf("failed to start monitoring engine: %w", err)
+		}
+	}
+
+	// Start Trader Executor
+	if err := s.traderExecutor.Start(); err != nil {
+		return fmt.Errorf("failed to start trader executor: %w", err)
+	}
+
+	// Start Candle Scheduler (last, as it triggers events)
+	if err := s.candleScheduler.Start(); err != nil {
+		return fmt.Errorf("failed to start candle scheduler: %w", err)
+	}
+
+	log.Printf("[Server] ✅ All engines started successfully")
+
+	// Start HTTP server
 	return s.httpServer.ListenAndServe()
 }
 
 // Shutdown gracefully shuts down the server
 func (s *Server) Shutdown(ctx context.Context) error {
-	log.Println("Shutting down server...")
+	log.Printf("[Server] Shutting down...")
 
-	// Shutdown trader manager first (30 second timeout)
+	// Shutdown in reverse order of startup
+
+	// 1. Shutdown trader manager first (stop accepting new traders)
+	log.Printf("[Server] Shutting down trader manager...")
 	if err := s.traderManager.Shutdown(30 * time.Second); err != nil {
-		log.Printf("Warning: Trader manager shutdown error: %v", err)
+		log.Printf("[Server] Warning: Trader manager shutdown error: %v", err)
 	}
 
-	// Then shutdown HTTP server
-	return s.httpServer.Shutdown(ctx)
+	// 2. Shutdown candle scheduler (stop generating events)
+	log.Printf("[Server] Shutting down candle scheduler...")
+	if err := s.candleScheduler.Stop(); err != nil {
+		log.Printf("[Server] Warning: Candle scheduler shutdown error: %v", err)
+	}
+
+	// 3. Shutdown trader executor (stop processing traders)
+	log.Printf("[Server] Shutting down trader executor...")
+	if err := s.traderExecutor.Stop(); err != nil {
+		log.Printf("[Server] Warning: Trader executor shutdown error: %v", err)
+	}
+
+	// 4. Shutdown monitoring engine (if enabled)
+	if s.monitoringEngine != nil {
+		log.Printf("[Server] Shutting down monitoring engine...")
+		if err := s.monitoringEngine.Stop(); err != nil {
+			log.Printf("[Server] Warning: Monitoring engine shutdown error: %v", err)
+		}
+	}
+
+	// 5. Shutdown analysis engine (stop analysis workers)
+	log.Printf("[Server] Shutting down analysis engine...")
+	if err := s.analysisEngine.Stop(); err != nil {
+		log.Printf("[Server] Warning: Analysis engine shutdown error: %v", err)
+	}
+
+	// 6. Shutdown event bus (close all channels)
+	log.Printf("[Server] Shutting down event bus...")
+	if err := s.eventBus.Stop(); err != nil {
+		log.Printf("[Server] Warning: Event bus shutdown error: %v", err)
+	}
+
+	// 7. Shutdown HTTP server
+	log.Printf("[Server] Shutting down HTTP server...")
+	if err := s.httpServer.Shutdown(ctx); err != nil {
+		log.Printf("[Server] Warning: HTTP server shutdown error: %v", err)
+		return err
+	}
+
+	log.Printf("[Server] ✅ Shutdown complete")
+	return nil
 }
 
 // Handler functions

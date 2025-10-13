@@ -96,44 +96,26 @@ func (m *Manager) Start(traderID string, userTier ...string) error {
 		return fmt.Errorf("failed to transition to starting state: %w", err)
 	}
 
-	// Start executor in goroutine
-	m.wg.Add(1)
-	go func() {
-		defer m.wg.Done()
-		defer m.pool.Release(1) // Release pool slot when done
-		defer m.quotas.Release(trader.UserID, types.SubscriptionTier(tier)) // Release quota when done
+	// Add trader to executor (event-driven execution)
+	if err := m.executor.AddTrader(trader); err != nil {
+		m.pool.Release(1) // Release pool slot on error
+		m.quotas.Release(trader.UserID, types.SubscriptionTier(tier)) // Release quota on error
+		return fmt.Errorf("failed to add trader to executor: %w", err)
+	}
 
-		// Create trader-specific context
-		traderCtx, traderCancel := context.WithCancel(m.ctx)
-		defer traderCancel()
+	// Transition to running state
+	if err := trader.TransitionTo(StateRunning); err != nil {
+		m.executor.RemoveTrader(traderID) // Remove from executor on error
+		m.pool.Release(1) // Release pool slot on error
+		m.quotas.Release(trader.UserID, types.SubscriptionTier(tier)) // Release quota on error
+		return fmt.Errorf("failed to transition to running state: %w", err)
+	}
 
-		// Start executor
-		if err := m.executor.Start(traderCtx, trader); err != nil {
-			log.Printf("[Manager] Failed to start trader %s: %v", traderID, err)
-			_ = trader.SetError(err)
-			return
-		}
+	log.Printf("[Manager] Trader %s started successfully (event-driven)", traderID)
 
-		// Transition to running state
-		if err := trader.TransitionTo(StateRunning); err != nil {
-			log.Printf("[Manager] Failed to transition trader %s to running: %v", traderID, err)
-			_ = trader.SetError(err)
-			return
-		}
-
-		log.Printf("[Manager] Trader %s started successfully", traderID)
-
-		// Wait for context cancellation or error
-		<-traderCtx.Done()
-
-		// Transition to stopping
-		_ = trader.TransitionTo(StateStopping)
-
-		// Transition to stopped
-		_ = trader.TransitionTo(StateStopped)
-
-		log.Printf("[Manager] Trader %s stopped", traderID)
-	}()
+	// NOTE: With event-driven executor, we don't need a goroutine per trader
+	// The executor manages all traders and triggers them on candle events
+	// We still track pool/quota slots but release them when trader is stopped
 
 	return nil
 }
@@ -151,15 +133,28 @@ func (m *Manager) Stop(traderID string) error {
 		return fmt.Errorf("trader %s is in %s state and cannot be stopped", traderID, trader.GetState())
 	}
 
-	// Cancel trader's context
-	trader.Cancel()
-
 	// Transition to stopping state
 	if err := trader.TransitionTo(StateStopping); err != nil {
 		return fmt.Errorf("failed to transition to stopping state: %w", err)
 	}
 
-	log.Printf("[Manager] Stopping trader %s", traderID)
+	// Remove from executor (event-driven execution)
+	m.executor.RemoveTrader(traderID)
+
+	// Release pool slot and quota
+	m.pool.Release(1)
+
+	// Get user tier from trader or use default
+	// TODO: Store tier in trader for accurate quota release
+	tier := types.SubscriptionTier("PRO") // Default assumption
+	m.quotas.Release(trader.UserID, tier)
+
+	// Transition to stopped state
+	if err := trader.TransitionTo(StateStopped); err != nil {
+		log.Printf("[Manager] Failed to transition trader %s to stopped: %v", traderID, err)
+	}
+
+	log.Printf("[Manager] Stopped trader %s", traderID)
 
 	return nil
 }

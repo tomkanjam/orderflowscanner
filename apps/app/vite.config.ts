@@ -14,12 +14,12 @@ export default defineConfig(({ mode }) => {
           '@': path.resolve(__dirname, '.'),
         }
       },
-      server: {
-        headers: {
-          // Enable SharedArrayBuffer support
-          'Cross-Origin-Embedder-Policy': 'require-corp',
-          'Cross-Origin-Opener-Policy': 'same-origin',
-        }
-      }
+      // REMOVED: SharedArrayBuffer headers - no longer using shared memory
+      // server: {
+      //   headers: {
+      //     'Cross-Origin-Embedder-Policy': 'require-corp',
+      //     'Cross-Origin-Opener-Policy': 'same-origin',
+      //   }
+      // }
     };
 });

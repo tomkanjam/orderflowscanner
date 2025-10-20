@@ -6,6 +6,8 @@ import zoomPlugin from 'chartjs-plugin-zoom';
 import { Kline, CustomIndicatorConfig, CandlestickDataPoint, SignalLogEntry, HistoricalSignal, KlineInterval, IndicatorDataPoint } from '../types';
 import { useIndicatorWorker } from '../hooks/useIndicatorWorker';
 import { createEmptyDatasets, createIndicatorDatasets } from '../utils/chartHelpers';
+import { useKlineData } from '../src/hooks/useKlineData';
+import { useKlineDataContext } from '../src/contexts/KlineDataProvider';
 
 Chart.register(...registerables, CandlestickController, CandlestickElement, OhlcController, OhlcElement, Filler, zoomPlugin);
 
@@ -188,11 +190,11 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
   const priceCanvasRef = useRef<HTMLCanvasElement>(null);
   const priceChartInstanceRef = useRef<Chart | null>(null);
-  
+
   // Dynamic panel refs based on indicators
   const panelCanvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const panelChartInstanceRefs = useRef<(Chart | null)[]>([]);
-  
+
   // State for calculated indicator data
   const [calculatedIndicators, setCalculatedIndicators] = useState<Map<string, IndicatorDataPoint[]>>(new Map());
 
@@ -202,9 +204,31 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
   // State for crosshair synchronization
   const [crosshairX, setCrosshairX] = useState<number | null>(null);
-  
+
   // State for wheel zoom management and horizontal pan
   const [wheelZoomEnabled, setWheelZoomEnabled] = useState(true);
+
+  // Get data context for cache stats, refresh, and prefetching
+  const { cacheStats, invalidateSymbol, prefetchCorrelated } = useKlineDataContext();
+
+  // Use kline data hook for additional data management
+  const {
+    isLoading: dataLoading,
+    error: dataError,
+    isCached,
+    latency,
+    refetch
+  } = useKlineData({
+    symbol: symbol || '',
+    interval,
+    enabled: !!symbol && (!klines || klines.length === 0),
+    onSuccess: () => {
+      // Data loaded successfully - trigger prefetch for related symbols
+      if (symbol) {
+        prefetchCorrelated(symbol, interval);
+      }
+    }
+  });
   const wheelZoomTimeoutRef = useRef<NodeJS.Timeout>();
   const wheelEventHandlerRef = useRef<((e: WheelEvent) => void) | null>(null);
   
@@ -213,6 +237,15 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   
   // Use the indicator worker hook
   const { calculateIndicators, cancelCalculations } = useIndicatorWorker();
+
+  // Trigger prefetch when symbol changes
+  useEffect(() => {
+    if (symbol && symbol !== currentSymbolRef.current) {
+      // New symbol selected, prefetch correlated
+      prefetchCorrelated(symbol, interval);
+      currentSymbolRef.current = symbol;
+    }
+  }, [symbol, interval, prefetchCorrelated]);
 
   const destroyAllCharts = () => {
     // Destroy panel charts
@@ -956,7 +989,86 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
     <div className="tm-card shadow-lg p-2 mb-2 flex flex-col" style={{height: '480px'}}>
       {symbol ? (
         <>
+          {/* Data status bar */}
+          <div className="flex items-center justify-between px-2 py-1 mb-1 bg-[var(--tm-bg-secondary)] rounded text-xs">
+            <div className="flex items-center gap-3">
+              {/* Loading indicator */}
+              {dataLoading && (
+                <div className="flex items-center gap-1 text-[var(--tm-accent)]">
+                  <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Loading...</span>
+                </div>
+              )}
+
+              {/* Cache indicator */}
+              {!dataLoading && isCached && (
+                <div className="flex items-center gap-1 text-green-500">
+                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.293l-3-3a1 1 0 00-1.414 1.414L10.586 9.5H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" />
+                  </svg>
+                  <span>Cached</span>
+                </div>
+              )}
+
+              {/* Latency display */}
+              {latency > 0 && (
+                <span className="text-[var(--tm-text-muted)]">
+                  {latency}ms
+                </span>
+              )}
+
+              {/* Cache stats */}
+              {cacheStats.size > 0 && (
+                <span className="text-[var(--tm-text-muted)]">
+                  Cache: {cacheStats.hits}/{cacheStats.hits + cacheStats.misses} ({Math.round((cacheStats.hits / (cacheStats.hits + cacheStats.misses)) * 100)}%)
+                </span>
+              )}
+
+              {/* Error indicator */}
+              {dataError && (
+                <span className="text-red-500">
+                  ⚠️ {dataError}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Refresh button */}
+              <button
+                onClick={() => {
+                  if (symbol) {
+                    invalidateSymbol(symbol);
+                    refetch();
+                  }
+                }}
+                className="p-1 hover:bg-[var(--tm-bg-tertiary)] rounded transition-colors"
+                title="Refresh data"
+              >
+                <svg className="h-3 w-3 text-[var(--tm-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
           <div className={`${priceChartHeight} relative`}>
+            {/* Loading skeleton */}
+            {dataLoading && (!klines || klines.length === 0) && (
+              <div className="absolute inset-0 flex items-center justify-center bg-[var(--tm-bg-primary)] z-20">
+                <div className="text-center">
+                  <div className="animate-pulse">
+                    <div className="h-32 bg-[var(--tm-bg-secondary)] rounded mb-2"></div>
+                    <div className="h-4 bg-[var(--tm-bg-secondary)] rounded w-3/4 mx-auto mb-2"></div>
+                    <div className="h-4 bg-[var(--tm-bg-secondary)] rounded w-1/2 mx-auto"></div>
+                  </div>
+                  <p className="text-[var(--tm-text-muted)] text-sm mt-4">Loading chart data...</p>
+                </div>
+              </div>
+            )}
+
             <canvas ref={priceCanvasRef}></canvas>
             {/* Zoom controls */}
             <div className="absolute top-2 right-2 flex gap-2 z-10">

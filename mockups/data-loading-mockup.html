@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Layer Migration - Interactive Mockup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: #a0a0a0;
+            font-size: 1.1em;
+        }
+
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .architecture-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .architecture-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.2);
+        }
+
+        .architecture-card .icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .architecture-card h3 {
+            color: #ffffff;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .architecture-card p {
+            color: #a0a0a0;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .flow-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+
+        .flow-section h2 {
+            margin-bottom: 25px;
+            color: #ffffff;
+            font-size: 1.8em;
+        }
+
+        .flow-step {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .flow-step::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+            transition: width 0.5s ease;
+        }
+
+        .flow-step.active::before {
+            width: 100%;
+        }
+
+        .flow-step.completed {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .flow-step.loading {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .flow-content {
+            flex-grow: 1;
+            z-index: 1;
+        }
+
+        .flow-content h3 {
+            color: #ffffff;
+            margin-bottom: 5px;
+        }
+
+        .flow-content p {
+            color: #a0a0a0;
+            font-size: 0.9em;
+        }
+
+        .flow-metrics {
+            text-align: right;
+            z-index: 1;
+        }
+
+        .latency {
+            color: #10b981;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        .data-size {
+            color: #64748b;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+
+        .status-icon {
+            width: 30px;
+            height: 30px;
+            margin-right: 15px;
+            z-index: 1;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-card h4 {
+            color: #a0a0a0;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-value {
+            color: #ffffff;
+            font-size: 2em;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+
+        .metric-change {
+            color: #10b981;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+
+        .control-panel {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ffffff30;
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .implementation-status {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 40px;
+        }
+
+        .implementation-status h3 {
+            color: #fbbf24;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .status-list {
+            list-style: none;
+        }
+
+        .status-list li {
+            padding: 8px 0;
+            color: #e0e0e0;
+        }
+
+        .status-list li::before {
+            margin-right: 10px;
+        }
+
+        .status-list li.done::before {
+            content: '✅';
+        }
+
+        .status-list li.pending::before {
+            content: '⏳';
+        }
+
+        .flow-diagram {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .flow-diagram h2 {
+            margin-bottom: 30px;
+            color: #ffffff;
+        }
+
+        .flow-visual {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .flow-node {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            flex: 1;
+            margin: 0 10px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .flow-node.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.2);
+            transform: scale(1.05);
+        }
+
+        .flow-node h4 {
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+
+        .flow-node p {
+            color: #a0a0a0;
+            font-size: 0.85em;
+        }
+
+        .flow-arrow {
+            position: absolute;
+            top: 50%;
+            width: 30px;
+            height: 2px;
+            background: #667eea;
+            transform: translateY(-50%);
+        }
+
+        .flow-arrow::after {
+            content: '▶';
+            position: absolute;
+            right: -10px;
+            top: -8px;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Data Layer Migration</h1>
+            <p>Interactive mockup demonstrating the new server-side architecture with LRU caching</p>
+        </div>
+
+        <div class="architecture-grid">
+            <div class="architecture-card">
+                <div class="icon">🗄️</div>
+                <h3>Upstash Redis</h3>
+                <p>Global edge cache storing real-time market data with <10ms latency</p>
+            </div>
+            <div class="architecture-card">
+                <div class="icon">⚡</div>
+                <h3>Edge Functions</h3>
+                <p>Supabase Deno runtime executing in 29 regions worldwide</p>
+            </div>
+            <div class="architecture-card">
+                <div class="icon">💾</div>
+                <h3>LRU Cache</h3>
+                <p>Client-side cache for 100 symbols with intelligent eviction</p>
+            </div>
+        </div>
+
+        <div class="flow-diagram">
+            <h2>System Architecture Flow</h2>
+            <div class="flow-visual">
+                <div class="flow-node" id="node-1">
+                    <h4>📊 Binance API</h4>
+                    <p>Real-time WebSocket</p>
+                </div>
+                <div class="flow-arrow" style="left: 23%;"></div>
+                <div class="flow-node" id="node-2">
+                    <h4>🔄 Data Collector</h4>
+                    <p>VPS Service</p>
+                </div>
+                <div class="flow-arrow" style="left: 46%;"></div>
+                <div class="flow-node" id="node-3">
+                    <h4>🗄️ Redis</h4>
+                    <p>Upstash Cloud</p>
+                </div>
+                <div class="flow-arrow" style="left: 69%;"></div>
+                <div class="flow-node" id="node-4">
+                    <h4>⚡ Edge Function</h4>
+                    <p>get-klines</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flow-section">
+            <h2>Data Loading Flow Simulation</h2>
+
+            <div class="flow-step" id="step-1">
+                <div class="status-icon">
+                    <div class="spinner" style="display: none;"></div>
+                    <span id="icon-1">⏸️</span>
+                </div>
+                <div class="flow-content">
+                    <h3>⚡ Edge Function Request</h3>
+                    <p>Client requests kline data via POST to get-klines edge function</p>
+                </div>
+                <div class="flow-metrics">
+                    <div class="latency" id="latency-1">--</div>
+                    <div class="data-size" id="size-1">--</div>
+                </div>
+            </div>
+
+            <div class="flow-step" id="step-2">
+                <div class="status-icon">
+                    <div class="spinner" style="display: none;"></div>
+                    <span id="icon-2">⏸️</span>
+                </div>
+                <div class="flow-content">
+                    <h3>🗄️ Redis Query</h3>
+                    <p>Fetch sorted set data from Upstash Redis using ZRANGE</p>
+                </div>
+                <div class="flow-metrics">
+                    <div class="latency" id="latency-2">--</div>
+                    <div class="data-size" id="size-2">--</div>
+                </div>
+            </div>
+
+            <div class="flow-step" id="step-3">
+                <div class="status-icon">
+                    <div class="spinner" style="display: none;"></div>
+                    <span id="icon-3">⏸️</span>
+                </div>
+                <div class="flow-content">
+                    <h3>🔄 Data Transform</h3>
+                    <p>Parse JSON strings and format for client consumption</p>
+                </div>
+                <div class="flow-metrics">
+                    <div class="latency" id="latency-3">--</div>
+                    <div class="data-size" id="size-3">--</div>
+                </div>
+            </div>
+
+            <div class="flow-step" id="step-4">
+                <div class="status-icon">
+                    <div class="spinner" style="display: none;"></div>
+                    <span id="icon-4">⏸️</span>
+                </div>
+                <div class="flow-content">
+                    <h3>💾 LRU Cache Check</h3>
+                    <p>Check if data exists in local cache (100 symbol capacity)</p>
+                </div>
+                <div class="flow-metrics">
+                    <div class="latency" id="latency-4">--</div>
+                    <div class="data-size" id="size-4">--</div>
+                </div>
+            </div>
+
+            <div class="flow-step" id="step-5">
+                <div class="status-icon">
+                    <div class="spinner" style="display: none;"></div>
+                    <span id="icon-5">⏸️</span>
+                </div>
+                <div class="flow-content">
+                    <h3>🔍 Request Deduplication</h3>
+                    <p>Prevent thundering herd by sharing in-flight requests</p>
+                </div>
+                <div class="flow-metrics">
+                    <div class="latency" id="latency-5">--</div>
+                    <div class="data-size" id="size-5">--</div>
+                </div>
+            </div>
+
+            <div class="flow-step" id="step-6">
+                <div class="status-icon">
+                    <div class="spinner" style="display: none;"></div>
+                    <span id="icon-6">⏸️</span>
+                </div>
+                <div class="flow-content">
+                    <h3>📊 Chart Rendering</h3>
+                    <p>Update Chart.js candlestick chart with new data</p>
+                </div>
+                <div class="flow-metrics">
+                    <div class="latency" id="latency-6">--</div>
+                    <div class="data-size" id="size-6">--</div>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h4>Total Latency</h4>
+                    <div class="metric-value" id="total-latency">0ms</div>
+                    <div class="metric-change">Target: <200ms</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Memory Usage</h4>
+                    <div class="metric-value">95MB</div>
+                    <div class="metric-change">↓ 81% from 500MB</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Cache Hit Rate</h4>
+                    <div class="metric-value" id="cache-rate">0%</div>
+                    <div class="metric-change">After warmup: 85%</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Efficiency Gain</h4>
+                    <div class="metric-value">460x</div>
+                    <div class="metric-change">Execution reduction</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <button class="btn" id="simulate-btn" onclick="simulateFlow()">
+                🎯 Simulate Data Loading
+            </button>
+        </div>
+
+        <div class="implementation-status">
+            <h3>📋 Implementation Status</h3>
+            <ul class="status-list">
+                <li class="done">Edge function created (get-klines)</li>
+                <li class="done">Redis connection configured</li>
+                <li class="done">Environment variables fixed</li>
+                <li class="pending">KlineDataService implementation</li>
+                <li class="pending">LRU cache integration</li>
+                <li class="pending">Request deduplication logic</li>
+                <li class="pending">React component integration</li>
+                <li class="pending">Real-time WebSocket updates</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let isSimulating = false;
+        let simulationCount = 0;
+
+        const steps = [
+            { delay: 500, latency: 15, dataSize: '2KB', name: 'Edge Function' },
+            { delay: 800, latency: 8, dataSize: '45KB', name: 'Redis Query' },
+            { delay: 200, latency: 2, dataSize: '40KB', name: 'Transform' },
+            { delay: 100, latency: 0.1, dataSize: 'CACHE HIT', name: 'Cache Check' },
+            { delay: 50, latency: 0.05, dataSize: 'SKIPPED', name: 'Deduplication' },
+            { delay: 300, latency: 25, dataSize: '40KB', name: 'Chart Render' }
+        ];
+
+        async function simulateFlow() {
+            if (isSimulating) return;
+
+            isSimulating = true;
+            simulationCount++;
+            const btn = document.getElementById('simulate-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Simulating...';
+
+            // Reset all steps
+            for (let i = 1; i <= 6; i++) {
+                const step = document.getElementById(`step-${i}`);
+                step.classList.remove('active', 'completed', 'loading');
+                document.getElementById(`icon-${i}`).textContent = '⏸️';
+                document.getElementById(`latency-${i}`).textContent = '--';
+                document.getElementById(`size-${i}`).textContent = '--';
+            }
+
+            // Reset architecture nodes
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`node-${i}`).classList.remove('active');
+            }
+
+            let totalLatency = 0;
+
+            // Simulate each step
+            for (let i = 0; i < steps.length; i++) {
+                const stepNum = i + 1;
+                const step = document.getElementById(`step-${stepNum}`);
+                const icon = document.getElementById(`icon-${stepNum}`);
+                const latencyEl = document.getElementById(`latency-${stepNum}`);
+                const sizeEl = document.getElementById(`size-${stepNum}`);
+
+                // Start loading
+                step.classList.add('loading', 'active');
+                icon.textContent = '⏳';
+
+                // Animate architecture nodes
+                if (stepNum <= 4) {
+                    document.getElementById(`node-${stepNum}`).classList.add('active');
+                    if (stepNum > 1) {
+                        document.getElementById(`node-${stepNum - 1}`).classList.remove('active');
+                    }
+                }
+
+                await sleep(steps[i].delay);
+
+                // Complete step
+                step.classList.remove('loading');
+                step.classList.add('completed');
+                icon.textContent = '✅';
+
+                // Update metrics
+                const latency = simulationCount > 1 && i === 3 ? 0.01 : steps[i].latency;
+                latencyEl.textContent = `${latency}ms`;
+                sizeEl.textContent = steps[i].dataSize;
+                totalLatency += latency;
+
+                // Update total latency
+                document.getElementById('total-latency').textContent = `${totalLatency.toFixed(2)}ms`;
+            }
+
+            // Update cache hit rate based on simulation count
+            const cacheRate = Math.min(85, simulationCount * 15);
+            document.getElementById('cache-rate').textContent = `${cacheRate}%`;
+
+            // Remove active from last node
+            document.getElementById('node-4').classList.remove('active');
+
+            // Reset button
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = '🎯 Simulate Again';
+                isSimulating = false;
+            }, 1000);
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Add some interactivity to architecture cards
+        document.querySelectorAll('.architecture-card').forEach(card => {
+            card.addEventListener('click', function() {
+                this.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 300);
+            });
+        });
+
+        // Auto-run simulation on load
+        window.addEventListener('load', () => {
+            setTimeout(simulateFlow, 1000);
+        });
+    </script>
+</body>
+</html>

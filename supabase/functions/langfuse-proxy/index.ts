@@ -1,11 +1,8 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Langfuse } from 'https://esm.sh/langfuse@3'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { getCorsHeaders, handleCorsPreflightRequest } from '../_shared/cors.ts'
+import { validateAuth, checkRateLimit, rateLimitResponse, logAuthSuccess, unauthorizedResponse } from '../_shared/auth.ts'
 
 interface LangfuseEvent {
   type: 'generation' | 'stream-start' | 'stream-complete' | 'error' | 'analysis'
@@ -33,28 +30,34 @@ interface LangfuseEvent {
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+  const preflightResponse = handleCorsPreflightRequest(req)
+  if (preflightResponse) {
+    return preflightResponse
   }
 
+  // Get CORS headers for this request
+  const corsHeaders = getCorsHeaders(req)
+
   try {
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-    const authHeader = req.headers.get('Authorization')!
-    
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
+    // Validate authentication - langfuse logging requires authentication
+    const authResult = await validateAuth(req, {
+      requireAuth: true,
+      allowAnonymous: false
     })
 
-    // Verify user authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (!authResult.success) {
+      return unauthorizedResponse(authResult.error || 'Authentication required', corsHeaders)
     }
+
+    const authContext = authResult.context!
+
+    // Check rate limits
+    if (!checkRateLimit(authContext, 'langfuse-proxy')) {
+      return rateLimitResponse(authContext, corsHeaders)
+    }
+
+    // Log successful authentication
+    logAuthSuccess(authContext, 'langfuse-proxy')
 
     // Initialize Langfuse
     const langfuseSecretKey = Deno.env.get('LANGFUSE_SECRET_KEY')
@@ -85,17 +88,18 @@ serve(async (req) => {
       // Continue existing trace
       trace = langfuse.trace({
         id: event.traceId,
-        userId: user.id,
-        sessionId: `${user.id}-${new Date().toISOString().split('T')[0]}`,
+        userId: authContext.userId || 'anonymous',
+        sessionId: `${authContext.userId || 'anon'}-${new Date().toISOString().split('T')[0]}`,
       })
     } else {
       // Create new trace
       trace = langfuse.trace({
         name: `ai-${event.type}`,
-        userId: user.id,
-        sessionId: `${user.id}-${new Date().toISOString().split('T')[0]}`,
+        userId: authContext.userId || 'anonymous',
+        sessionId: `${authContext.userId || 'anon'}-${new Date().toISOString().split('T')[0]}`,
         metadata: {
-          userEmail: user.email,
+          userEmail: authContext.email,
+          userTier: authContext.userTier,
           timestamp: new Date(event.timestamp).toISOString(),
         }
       })

@@ -59,9 +59,14 @@ export function cleanupHistoricalData(
   activeSymbols: Set<string>,
   prioritySymbols?: Set<string>
 ): Map<string, Map<KlineInterval, Kline[]>> {
+  // Guard against undefined input
+  if (!historicalData) {
+    return new Map();
+  }
+
   let totalKlines = 0;
   const symbolKlineCounts = new Map<string, number>();
-  
+
   // Calculate total klines per symbol
   historicalData.forEach((intervalMap, symbol) => {
     let symbolTotal = 0;

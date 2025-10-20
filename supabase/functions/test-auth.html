@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authentication Security Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .test {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #333;
+        }
+        .pass {
+            color: #00ff00;
+            border-color: #00ff00;
+        }
+        .fail {
+            color: #ff0000;
+            border-color: #ff0000;
+        }
+        .warn {
+            color: #ffff00;
+            border-color: #ffff00;
+        }
+        .info {
+            color: #00ffff;
+        }
+        button {
+            background: #333;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #00ff00;
+            color: #000;
+        }
+        input {
+            background: #333;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 5px;
+            width: 400px;
+            margin: 5px;
+        }
+        pre {
+            background: #0a0a0a;
+            padding: 10px;
+            overflow-x: auto;
+        }
+        .rate-limit-info {
+            background: #222;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #444;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 Authentication & Rate Limiting Test Suite</h1>
+    <p class="info">Testing authentication, tier validation, and rate limiting</p>
+
+    <div id="config">
+        <h2>Configuration</h2>
+        <label>Supabase Project URL:</label>
+        <input type="text" id="projectUrl" placeholder="https://yourproject.supabase.co" value="https://jtpqkbybuxbcvqeffmtf.supabase.co">
+        <br><br>
+        <label>JWT Token (optional):</label>
+        <input type="text" id="authToken" placeholder="Bearer eyJ..." style="width: 600px;">
+        <br><br>
+        <div class="rate-limit-info">
+            <h3>Rate Limits by Tier:</h3>
+            <pre>
+Anonymous: 10 requests/minute
+Free:     100 requests/minute
+Pro:      500 requests/minute
+Elite:   1000 requests/minute
+            </pre>
+        </div>
+    </div>
+
+    <div id="controls">
+        <h2>Authentication Tests</h2>
+        <button onclick="testNoAuth()">Test No Auth (Anonymous)</button>
+        <button onclick="testInvalidAuth()">Test Invalid Token</button>
+        <button onclick="testValidAuth()">Test Valid Token</button>
+        <button onclick="testBroadcastAuth()">Test Broadcast (Pro+ Required)</button>
+        <br><br>
+        <h2>Rate Limit Tests</h2>
+        <button onclick="testRateLimit(15)">Test Rate Limit (15 requests)</button>
+        <button onclick="testRateLimit(50)">Test Rate Limit (50 requests)</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+
+        function getProjectUrl() {
+            return document.getElementById('projectUrl').value;
+        }
+
+        function getAuthToken() {
+            return document.getElementById('authToken').value || '';
+        }
+
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test ${type}`;
+            div.innerHTML = `<pre>${new Date().toISOString()} - ${message}</pre>`;
+            resultsDiv.appendChild(div);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+        }
+
+        async function makeRequest(endpoint, token = null) {
+            const url = `${getProjectUrl()}/functions/v1/${endpoint}`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'Origin': window.location.origin
+            };
+
+            if (token) {
+                headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        symbol: 'BTCUSDT',
+                        timeframe: '1h',
+                        limit: 10
+                    }),
+                    mode: 'cors'
+                });
+
+                const data = await response.json();
+                return {
+                    status: response.status,
+                    data,
+                    headers: {
+                        userTier: response.headers.get('X-User-Tier'),
+                        rateLimit: response.headers.get('X-RateLimit-Remaining'),
+                        retryAfter: response.headers.get('Retry-After')
+                    }
+                };
+            } catch (error) {
+                return {
+                    status: 0,
+                    error: error.message
+                };
+            }
+        }
+
+        async function testNoAuth() {
+            log('=== Testing Anonymous Access (No Auth) ===', 'info');
+
+            const result = await makeRequest('get-klines');
+
+            if (result.status === 200) {
+                log(`✅ Anonymous access allowed`, 'pass');
+                log(`User Tier: ${result.data.auth?.tier || 'unknown'}`, 'info');
+                log(`Authenticated: ${result.data.auth?.authenticated || false}`, 'info');
+
+                if (result.data.auth?.tier === 'anonymous') {
+                    log('✅ Correctly identified as anonymous tier', 'pass');
+                }
+            } else if (result.status === 429) {
+                log('⚠️ Rate limit exceeded for anonymous tier', 'warn');
+                log(`Retry after: ${result.headers.retryAfter}s`, 'info');
+            } else {
+                log(`❌ Unexpected response: ${result.status}`, 'fail');
+                log(`Error: ${JSON.stringify(result.data)}`, 'fail');
+            }
+        }
+
+        async function testInvalidAuth() {
+            log('=== Testing Invalid Token ===', 'info');
+
+            const result = await makeRequest('get-klines', 'Bearer invalid.token.here');
+
+            if (result.status === 200) {
+                log(`✅ Falls back to anonymous on invalid token`, 'pass');
+                log(`User Tier: ${result.data.auth?.tier || 'unknown'}`, 'info');
+            } else if (result.status === 401) {
+                log('✅ Invalid token rejected (if requireAuth=true)', 'pass');
+                log(`Error: ${result.data.error}`, 'info');
+            } else {
+                log(`⚠️ Unexpected response: ${result.status}`, 'warn');
+                log(`Response: ${JSON.stringify(result.data)}`, 'info');
+            }
+        }
+
+        async function testValidAuth() {
+            log('=== Testing Valid Token ===', 'info');
+
+            const token = getAuthToken();
+            if (!token) {
+                log('⚠️ No token provided. Add a valid JWT token to test authenticated access.', 'warn');
+                return;
+            }
+
+            const result = await makeRequest('get-klines', token);
+
+            if (result.status === 200) {
+                log(`✅ Authenticated access successful`, 'pass');
+                log(`User Tier: ${result.data.auth?.tier || 'unknown'}`, 'info');
+                log(`Authenticated: ${result.data.auth?.authenticated}`, 'info');
+
+                if (result.data.auth?.authenticated === true) {
+                    log('✅ User properly authenticated', 'pass');
+                }
+            } else if (result.status === 401) {
+                log('❌ Token rejected - may be expired or invalid', 'fail');
+                log(`Error: ${result.data.error}`, 'fail');
+            } else {
+                log(`❌ Unexpected response: ${result.status}`, 'fail');
+                log(`Error: ${JSON.stringify(result.data)}`, 'fail');
+            }
+        }
+
+        async function testBroadcastAuth() {
+            log('=== Testing Broadcast (Pro+ Required) ===', 'info');
+
+            const token = getAuthToken();
+
+            const url = `${getProjectUrl()}/functions/v1/broadcast-updates`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'Origin': window.location.origin
+            };
+
+            if (token) {
+                headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        channel: 'test',
+                        event: 'test-event',
+                        payload: { test: true }
+                    }),
+                    mode: 'cors'
+                });
+
+                const data = await response.json();
+
+                if (response.status === 200) {
+                    log('✅ Broadcast allowed - User has Pro+ tier', 'pass');
+                } else if (response.status === 403) {
+                    log('⚠️ Forbidden - Requires Pro tier or higher', 'warn');
+                    log(`Error: ${data.error}`, 'info');
+                } else if (response.status === 401) {
+                    log('❌ Unauthorized - Authentication required', 'fail');
+                    log(`Error: ${data.error}`, 'fail');
+                } else {
+                    log(`⚠️ Unexpected response: ${response.status}`, 'warn');
+                    log(`Response: ${JSON.stringify(data)}`, 'info');
+                }
+            } catch (error) {
+                log(`❌ Request failed: ${error.message}`, 'fail');
+            }
+        }
+
+        async function testRateLimit(count) {
+            log(`=== Testing Rate Limit (${count} requests) ===`, 'info');
+
+            const token = getAuthToken();
+            let successCount = 0;
+            let rateLimitHit = false;
+            let tier = 'unknown';
+
+            for (let i = 1; i <= count; i++) {
+                const result = await makeRequest('get-klines', token);
+
+                if (result.status === 200) {
+                    successCount++;
+                    tier = result.data.auth?.tier || 'unknown';
+
+                    if (i === 1) {
+                        log(`User Tier: ${tier}`, 'info');
+                    }
+
+                    if (i % 10 === 0) {
+                        log(`✅ Request ${i}: Success`, 'pass');
+                    }
+                } else if (result.status === 429) {
+                    rateLimitHit = true;
+                    log(`⚠️ Rate limit hit at request ${i}`, 'warn');
+                    log(`Tier: ${tier}`, 'info');
+                    log(`Retry after: ${result.headers.retryAfter || result.data.retryAfter}s`, 'info');
+
+                    // Check if rate limit is appropriate for tier
+                    const limits = {
+                        anonymous: 10,
+                        free: 100,
+                        pro: 500,
+                        elite: 1000
+                    };
+
+                    const expectedLimit = limits[tier] || 10;
+                    if (i <= expectedLimit) {
+                        log(`✅ Rate limit enforced correctly for ${tier} tier`, 'pass');
+                    } else {
+                        log(`⚠️ Rate limit seems higher than expected for ${tier} tier`, 'warn');
+                    }
+                    break;
+                } else {
+                    log(`❌ Request ${i} failed: ${result.status}`, 'fail');
+                    break;
+                }
+            }
+
+            if (!rateLimitHit && successCount === count) {
+                log(`✅ All ${count} requests succeeded - within rate limit`, 'pass');
+            }
+
+            log(`Summary: ${successCount}/${count} successful requests`, 'info');
+        }
+
+        // Auto-run basic tests on load
+        window.addEventListener('load', () => {
+            log('🔐 Authentication Test Suite Ready', 'info');
+            log('Click buttons above to run specific tests', 'info');
+        });
+    </script>
+</body>
+</html>

@@ -1106,12 +1106,27 @@ Remember to:
         if (!jsonMatch) {
             throw new Error('No JSON found in response');
         }
-        
-        const metadata = JSON.parse(jsonMatch[0]) as TraderMetadata;
-        
+
+        const parsed = JSON.parse(jsonMatch[0]);
+
+        // DEBUG: Log what Gemini actually returned
+        console.log('[generateTraderMetadata] Gemini response keys:', Object.keys(parsed));
+        console.log('[generateTraderMetadata] Has filterConditions?', 'filterConditions' in parsed);
+        console.log('[generateTraderMetadata] Has conditions?', 'conditions' in parsed);
+
+        // HOTFIX: Handle schema mismatch - Gemini may return "conditions" instead of "filterConditions"
+        // This happens when the database prompt is outdated or hasn't been migrated
+        if (parsed.conditions && !parsed.filterConditions) {
+            console.warn('[generateTraderMetadata] SCHEMA MISMATCH: Gemini returned "conditions", mapping to "filterConditions"');
+            parsed.filterConditions = parsed.conditions;
+            delete parsed.conditions;
+        }
+
+        const metadata = parsed as TraderMetadata;
+
         // Send completion
         onStream?.({ type: 'complete', metadata });
-        
+
         return metadata;
     } catch (error) {
         onStream?.({ type: 'error', error: error as Error });

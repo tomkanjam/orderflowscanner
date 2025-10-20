@@ -31,9 +31,15 @@ export function createSSEStream(handler: (controller: ReadableStreamDefaultContr
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        console.log('[SSE] Stream started');
         await handler(controller);
+        console.log('[SSE] Handler completed, waiting before close...');
+        // Small delay to ensure all data is flushed before closing
+        await new Promise(resolve => setTimeout(resolve, 100));
+        console.log('[SSE] Closing stream');
         controller.close();
       } catch (error) {
+        console.error('[SSE] Stream error:', error);
         // Send error event
         sendSSE(controller, 'error', {
           code: 'STREAM_ERROR',
@@ -49,7 +55,8 @@ export function createSSEStream(handler: (controller: ReadableStreamDefaultContr
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*'
+      'Access-Control-Allow-Origin': '*',
+      'X-Accel-Buffering': 'no' // Disable nginx buffering if behind proxy
     }
   });
 }

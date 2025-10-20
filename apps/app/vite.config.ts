@@ -14,12 +14,12 @@ export default defineConfig(({ mode }) => {
           '@': path.resolve(__dirname, '.'),
         }
       },
-      // REMOVED: SharedArrayBuffer headers - no longer using shared memory
-      // server: {
-      //   headers: {
-      //     'Cross-Origin-Embedder-Policy': 'require-corp',
-      //     'Cross-Origin-Opener-Policy': 'same-origin',
-      //   }
-      // }
+      // Enable SharedArrayBuffer support (required by SharedMarketData)
+      server: {
+        headers: {
+          'Cross-Origin-Embedder-Policy': 'require-corp',
+          'Cross-Origin-Opener-Policy': 'same-origin',
+        }
+      }
     };
 });

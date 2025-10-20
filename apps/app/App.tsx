@@ -39,6 +39,8 @@ import { BoundedMap, createBoundedMap } from './src/memory/BoundedCollections';
 import { UpdateBatcher, createTickerBatcher } from './src/optimization/UpdateBatcher';
 import { useThrottledState, useMemoryAwareState } from './src/hooks/useBoundedState';
 import { useCloudExecution } from './src/hooks/useCloudExecution';
+import { KlineDataProvider } from './src/contexts/KlineDataProvider';
+import { MarketDataProvider } from './src/contexts/MarketDataContext';
 
 // Define the type for the screenerHelpers module
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -1164,7 +1166,13 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  return <AppContent />;
+  return (
+    <MarketDataProvider>
+      <KlineDataProvider>
+        <AppContent />
+      </KlineDataProvider>
+    </MarketDataProvider>
+  );
 };
 
 export default App;

@@ -2,11 +2,14 @@
 
 export interface TraderMetadata {
   suggestedName: string;
-  description: string;
-  filterConditions: string[];
+  category?: string;
+  conditions: string[]; // Changed from filterConditions to match backend
   strategyInstructions: string;
-  indicators: any[]; // Using any to match existing CustomIndicatorConfig
-  riskParameters: {
+  timeframe?: string;
+  riskLevel?: string;
+  expectedWinRate?: number;
+  indicators?: any[]; // Using any to match existing CustomIndicatorConfig
+  riskParameters?: {
     stopLoss?: number;
     takeProfit?: number;
     maxPositions?: number;

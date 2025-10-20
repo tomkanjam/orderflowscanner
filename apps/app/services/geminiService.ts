@@ -1170,7 +1170,7 @@ export async function generateTrader(
         onStream?.({ type: 'progress', progress: 95 });
 
         const { filterCode, requiredTimeframes, language } = await generateFilterCode(
-            metadata.filterConditions,
+            metadata.conditions,
             modelName,
             klineInterval
         );
@@ -1178,11 +1178,11 @@ export async function generateTrader(
         // Combine results
         const traderGeneration: TraderGeneration = {
             suggestedName: metadata.suggestedName,
-            description: metadata.description,
+            description: metadata.strategyInstructions, // Use strategy instructions as description
             filterCode: filterCode,
-            filterDescription: metadata.filterConditions,
+            filterDescription: metadata.conditions,
             strategyInstructions: metadata.strategyInstructions,
-            indicators: metadata.indicators,
+            indicators: metadata.indicators || [],
             riskParameters: metadata.riskParameters,
             requiredTimeframes: requiredTimeframes,
             language: language // 'go' for all new traders

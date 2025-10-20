@@ -928,54 +928,48 @@ export async function generateFilterCode(
     modelName: string = 'gemini-2.5-pro',
     klineInterval: string = '1h'
 ): Promise<{ filterCode: string, requiredTimeframes?: string[], language: 'go' }> {
-    const conditionsList = conditions.map((c, i) => `${i + 1}. ${c}`).join('\n');
-
-    // IMPORTANT: Always use Go prompt for new traders
-    // The regenerate-filter-go prompt generates Go code for backend execution
-    const promptTemplate = await promptManager.getActivePromptContent('regenerate-filter-go', {
-        conditions: conditionsList,
-        klineInterval: klineInterval
-    });
-
-    if (!promptTemplate) {
-        throw new Error('Failed to load regenerate-filter-go prompt');
-    }
-
-    // Add the conditions and kline interval to the prompt
-    const baseSystemInstruction = `${promptTemplate}
-
-Given these conditions:
-${conditionsList}
-
-Kline interval: ${klineInterval}`;
-
     try {
-        // DO NOT use persona for filter code - we want clean, concise code
-        const model = getGenerativeModel(ai, {
-            model: modelName,
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
-        });
-
-        const result = await aiRateLimiter.execute(
-            () => model.generateContent(baseSystemInstruction),
-            modelName,
-            2 // Priority 2 for filter regeneration
-        );
-        const response = result.response;
-        const responseText = response.text().trim();
-
-        // Parse JSON response
-        let parsedResponse;
-        try {
-            parsedResponse = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('Failed to parse regenerate response as JSON:', responseText);
-            throw new Error('Failed to parse AI response as JSON');
+        // Call llm-proxy Edge Function via OpenRouter
+        const { supabase } = await import('../src/config/supabase');
+        if (!supabase) {
+            throw new Error('Supabase client not configured');
         }
 
-        const { filterCode, requiredTimeframes } = parsedResponse;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            throw new Error('Not authenticated');
+        }
+
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const response = await fetch(`${supabaseUrl}/functions/v1/llm-proxy`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+                operation: 'generate-filter-code',
+                params: {
+                    conditions,
+                    modelName,
+                    klineInterval
+                },
+                stream: false
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'Edge function call failed');
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error?.message || 'Filter code generation failed');
+        }
+
+        const { filterCode, requiredTimeframes } = result.data;
 
         if (!filterCode) {
             throw new Error('Response is missing filterCode');
@@ -991,7 +985,7 @@ Kline interval: ${klineInterval}`;
             console.warn('Generated code may not be valid Go - missing common Go patterns');
         }
 
-        console.log('[generateFilterCode] Successfully generated Go filter code');
+        console.log('[generateFilterCode] Successfully generated Go filter code via llm-proxy');
         console.log('[generateFilterCode] Required timeframes:', requiredTimeframes);
         console.log('[generateFilterCode] Code length:', filterCode.length);
 
@@ -1001,7 +995,7 @@ Kline interval: ${klineInterval}`;
             language: 'go'
         };
     } catch (error) {
-        console.error('Failed to regenerate filter code:', error);
+        console.error('Failed to generate filter code:', error);
         throw error;
     }
 }
@@ -1012,123 +1006,120 @@ export async function generateTraderMetadata(
     modelName: string = 'gemini-2.5-pro',
     onStream?: (update: StreamingUpdate) => void
 ): Promise<TraderMetadata> {
-    // Get the prompt from the prompt manager
-    const baseSystemInstruction = await promptManager.getActivePromptContent('generate-trader-metadata', {
-        userPrompt: userPrompt,
-        modelName: modelName
-    });
-
-    if (!baseSystemInstruction) {
-        throw new Error('Failed to load generate-trader-metadata prompt');
-    }
-
-    const prompt = `Create trader metadata based on this strategy: "${userPrompt}"
-
-Remember to:
-1. Create clear, testable conditions
-2. Include appropriate risk management
-3. Suggest relevant indicators
-4. Keep the name short and descriptive`;
-
     const startTime = Date.now();
 
     try {
-        // Apply trader persona to system instruction
-        const enhancedSystemInstruction = enhancePromptWithPersona(baseSystemInstruction);
-        
-        const model = getGenerativeModel(ai, { 
-            model: modelName,
-            // No responseMimeType for streaming
-        });
-
-        const result = await aiRateLimiter.execute(
-            () => model.generateContentStream({
-                systemInstruction: enhancedSystemInstruction,
-                contents: [{ role: 'user', parts: [{ text: prompt }] }]
-            }),
-            modelName,
-            1 // Priority 1 for trader generation
-        );
-        
-        let buffer = '';
-        let partialJson = '';
-        let isJsonStarted = false;
-        
         // Send initial progress
         onStream?.({ type: 'progress', progress: 0 });
-        
-        // Process the stream
-        for await (const chunk of result.stream) {
-            const chunkText = chunk.text();
-            buffer += chunkText;
-            
-            // Look for JSON start
-            if (!isJsonStarted && buffer.includes('{')) {
-                isJsonStarted = true;
-                const jsonStartIndex = buffer.indexOf('{');
-                partialJson = buffer.substring(jsonStartIndex);
-            } else if (isJsonStarted) {
-                partialJson += chunkText;
-            }
-            
-            // Try to extract and stream conditions as they appear
-            if (isJsonStarted && partialJson.includes('"filterConditions"')) {
-                const conditionsMatch = partialJson.match(/"filterConditions"\s*:\s*\[([\s\S]*?)\]/);
-                if (conditionsMatch) {
-                    try {
-                        const conditionsArray = JSON.parse(`[${conditionsMatch[1]}]`);
-                        conditionsArray.forEach((condition: string) => {
-                            onStream?.({ type: 'condition', condition });
-                        });
-                    } catch (e) {
-                        // Partial JSON, continue buffering
+
+        // Call llm-proxy Edge Function via OpenRouter
+        const { supabase } = await import('../src/config/supabase');
+        if (!supabase) {
+            throw new Error('Supabase client not configured');
+        }
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            throw new Error('Not authenticated');
+        }
+
+        // Call the llm-proxy Edge Function with SSE streaming
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const response = await fetch(`${supabaseUrl}/functions/v1/llm-proxy`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+                operation: 'generate-trader-metadata',
+                params: {
+                    userPrompt,
+                    modelName
+                },
+                stream: true
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'Edge function call failed');
+        }
+
+        if (!response.body) {
+            throw new Error('No response body');
+        }
+
+        // Process SSE stream
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let metadata: TraderMetadata | null = null;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (!line.trim() || !line.startsWith('data: ')) continue;
+
+                try {
+                    const data = JSON.parse(line.slice(6));
+
+                    if (data.type === 'progress') {
+                        onStream?.({ type: 'progress', progress: data.progress });
+                    } else if (data.type === 'condition') {
+                        onStream?.({ type: 'condition', condition: data.condition });
+                    } else if (data.type === 'strategy') {
+                        onStream?.({ type: 'strategy', strategyText: data.strategyText });
+                    } else if (data.type === 'complete') {
+                        metadata = data.metadata;
+                    } else if (data.type === 'error') {
+                        throw new Error(data.error?.message || 'Stream error');
                     }
+                } catch (parseError) {
+                    console.error('[generateTraderMetadata] Failed to parse SSE data:', parseError);
                 }
             }
-            
-            // Try to extract strategy instructions
-            if (isJsonStarted && partialJson.includes('"strategyInstructions"')) {
-                const strategyMatch = partialJson.match(/"strategyInstructions"\s*:\s*"([^"]*)"/);
-                if (strategyMatch) {
-                    onStream?.({ type: 'strategy', strategyText: strategyMatch[1] });
-                }
-            }
-            
-            // Update progress
-            onStream?.({ 
-                type: 'progress', 
-                progress: Math.min(90, Math.floor((partialJson.length / 2000) * 100)) 
-            });
-        }
-        
-        // Parse the complete response
-        const jsonMatch = buffer.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            throw new Error('No JSON found in response');
         }
 
-        const parsed = JSON.parse(jsonMatch[0]);
-
-        // DEBUG: Log what Gemini actually returned
-        console.log('[generateTraderMetadata] Gemini response keys:', Object.keys(parsed));
-        console.log('[generateTraderMetadata] Has filterConditions?', 'filterConditions' in parsed);
-        console.log('[generateTraderMetadata] Has conditions?', 'conditions' in parsed);
-
-        // HOTFIX: Handle schema mismatch - Gemini may return "conditions" instead of "filterConditions"
-        // This happens when the database prompt is outdated or hasn't been migrated
-        if (parsed.conditions && !parsed.filterConditions) {
-            console.warn('[generateTraderMetadata] SCHEMA MISMATCH: Gemini returned "conditions", mapping to "filterConditions"');
-            parsed.filterConditions = parsed.conditions;
-            delete parsed.conditions;
+        if (!metadata) {
+            throw new Error('No metadata received from stream');
         }
 
-        const metadata = parsed as TraderMetadata;
+        // Track the generation
+        await observability.trackGeneration(
+            userPrompt,
+            modelName,
+            '1h', // Default interval
+            250,
+            JSON.stringify(metadata),
+            null,
+            Date.now() - startTime
+        );
 
         // Send completion
         onStream?.({ type: 'complete', metadata });
 
         return metadata;
     } catch (error) {
+        console.error('[generateTraderMetadata] Error:', error);
+
+        await observability.trackGeneration(
+            userPrompt,
+            modelName,
+            '1h',
+            250,
+            null,
+            null,
+            Date.now() - startTime,
+            error instanceof Error ? error.message : String(error)
+        );
+
         onStream?.({ type: 'error', error: error as Error });
         throw error;
     }

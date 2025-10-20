@@ -31,6 +31,36 @@ func NewClient(baseURL, serviceKey string) *Client {
 }
 
 // GetTraders fetches all traders for a user
+// GetAllTraders fetches all enabled traders regardless of ownership
+func (c *Client) GetAllTraders(ctx context.Context) ([]types.Trader, error) {
+	url := fmt.Sprintf("%s/rest/v1/traders?enabled=eq.true&select=*", c.baseURL)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	c.setHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var traders []types.Trader
+	if err := json.NewDecoder(resp.Body).Decode(&traders); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return traders, nil
+}
+
 func (c *Client) GetTraders(ctx context.Context, userID string) ([]types.Trader, error) {
 	url := fmt.Sprintf("%s/rest/v1/traders?user_id=eq.%s&select=*", c.baseURL, userID)
 

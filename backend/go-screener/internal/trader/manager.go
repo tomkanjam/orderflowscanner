@@ -245,18 +245,18 @@ func (m *Manager) LoadTradersFromDB() error {
 	loaded := 0
 	failed := 0
 
-	// Fetch built-in traders from Supabase
-	builtInTraders, err := m.supabase.GetBuiltInTraders(m.ctx)
+	// Fetch ALL enabled traders from Supabase (built-in + user traders)
+	allTraders, err := m.supabase.GetAllTraders(m.ctx)
 	if err != nil {
-		log.Printf("[Manager] Failed to fetch built-in traders: %v", err)
+		log.Printf("[Manager] Failed to fetch traders: %v", err)
 		TradersLoadDuration.Observe(time.Since(startTime).Seconds())
 		return nil // Don't fail server startup, just log
 	}
 
-	log.Printf("[Manager] Found %d built-in traders in database", len(builtInTraders))
+	log.Printf("[Manager] Found %d enabled traders in database", len(allTraders))
 
 	// Convert and register each trader
-	for _, dbTrader := range builtInTraders {
+	for _, dbTrader := range allTraders {
 		// Convert database model to runtime model
 		trader, err := convertDBTraderToRuntime(&dbTrader)
 		if err != nil {
@@ -356,8 +356,8 @@ func (m *Manager) StartPolling(interval time.Duration) {
 
 // pollForChanges polls the database for trader changes and handles deletions
 func (m *Manager) pollForChanges() {
-	// Get all built-in traders from database
-	allTraders, err := m.supabase.GetBuiltInTraders(m.ctx)
+	// Get all enabled traders from database (built-in + user)
+	allTraders, err := m.supabase.GetAllTraders(m.ctx)
 	if err != nil {
 		log.Printf("[Manager] Poll error: %v", err)
 		return

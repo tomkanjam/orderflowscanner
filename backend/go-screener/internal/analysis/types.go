@@ -60,7 +60,7 @@ type Config struct {
 // DefaultConfig returns default analysis engine configuration
 func DefaultConfig() *Config {
 	return &Config{
-		DefaultModel:      "google/gemini-2.0-flash-exp:free",
+		DefaultModel:      "google/gemini-2.5-flash",
 		Temperature:       0.2, // Low for consistent analysis
 		MaxTokens:         4000,
 		QueueSize:         1000,

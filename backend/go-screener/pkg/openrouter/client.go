@@ -19,7 +19,7 @@ type Client struct {
 // Config holds OpenRouter client configuration
 type Config struct {
 	APIKey      string
-	Model       string        // Default model to use (e.g., "google/gemini-2.0-flash-exp:free")
+	Model       string        // Default model to use (e.g., "google/gemini-2.5-flash")
 	MaxRetries  int           // Maximum number of retry attempts
 	RetryDelay  time.Duration // Delay between retries
 	Temperature float64       // Default temperature for responses
@@ -30,7 +30,7 @@ type Config struct {
 func DefaultConfig(apiKey string) *Config {
 	return &Config{
 		APIKey:      apiKey,
-		Model:       "google/gemini-2.0-flash-exp:free", // Default to free Gemini 2.0 Flash
+		Model:       "google/gemini-2.5-flash", // Default to Gemini 2.5 Flash
 		MaxRetries:  3,
 		RetryDelay:  2 * time.Second,
 		Temperature: 0.2, // Low temperature for consistent trading analysis

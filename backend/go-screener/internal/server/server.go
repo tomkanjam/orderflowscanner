@@ -235,6 +235,10 @@ func (s *Server) Start() error {
 		log.Printf("[Server] ⚠️  Warning: Failed to load traders from DB: %v", err)
 	}
 
+	// Start polling for trader changes (deletions)
+	s.traderManager.StartPolling(5 * time.Second) // Poll every 5 seconds
+	log.Printf("[Server] ✅ Trader deletion detection enabled")
+
 	// Start Analysis Engine (if available)
 	if s.analysisEngine != nil {
 		if err := s.analysisEngine.Start(); err != nil {

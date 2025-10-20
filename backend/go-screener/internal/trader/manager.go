@@ -330,6 +330,68 @@ func (m *Manager) UnregisterTrader(traderID string) error {
 	return nil
 }
 
+// StartPolling starts background polling for trader changes (deletions)
+// This detects when traders are deleted from the database and stops them
+func (m *Manager) StartPolling(interval time.Duration) {
+	m.wg.Add(1)
+	go func() {
+		defer m.wg.Done()
+
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		log.Printf("[Manager] Started polling for trader changes (interval: %v)", interval)
+
+		for {
+			select {
+			case <-m.ctx.Done():
+				log.Printf("[Manager] Polling stopped (context cancelled)")
+				return
+			case <-ticker.C:
+				m.pollForChanges()
+			}
+		}
+	}()
+}
+
+// pollForChanges polls the database for trader changes and handles deletions
+func (m *Manager) pollForChanges() {
+	// Get all built-in traders from database
+	allTraders, err := m.supabase.GetBuiltInTraders(m.ctx)
+	if err != nil {
+		log.Printf("[Manager] Poll error: %v", err)
+		return
+	}
+
+	// Build set of database trader IDs
+	dbTraderIDs := make(map[string]bool)
+	for _, t := range allTraders {
+		dbTraderIDs[t.ID] = true
+	}
+
+	// Check for deletions (running traders not in database)
+	runningTraders := m.registry.GetByState(StateRunning)
+	stopped := 0
+
+	for _, trader := range runningTraders {
+		if !dbTraderIDs[trader.ID] {
+			log.Printf("[Manager] 🗑️  Detected deleted trader: %s (%s), stopping...", trader.ID, trader.Name)
+
+			if err := m.Stop(trader.ID); err != nil {
+				log.Printf("[Manager] ⚠️  Failed to stop deleted trader %s: %v", trader.ID, err)
+			} else {
+				log.Printf("[Manager] ✅ Stopped deleted trader: %s", trader.ID)
+				stopped++
+			}
+		}
+	}
+
+	// Log poll summary if any deletions were detected
+	if stopped > 0 {
+		log.Printf("[Manager] Poll complete: stopped %d deleted trader(s)", stopped)
+	}
+}
+
 // Shutdown gracefully shuts down the manager
 // Stops all traders and waits for them to complete with a timeout
 func (m *Manager) Shutdown(timeout time.Duration) error {

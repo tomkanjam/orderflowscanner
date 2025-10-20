@@ -88,9 +88,7 @@ export async function handleGenerateTraderMetadata(
         if (metadata.conditions) {
           metadata.conditions.forEach((condition: string, idx: number) => {
             sendMetadata(controller, 'condition', { index: idx, value: condition });
-
           });
-        }
         }
         if (metadata.strategyInstructions) {
           sendMetadata(controller, 'strategy', metadata.strategyInstructions);

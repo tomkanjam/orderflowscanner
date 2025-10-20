@@ -1057,32 +1057,39 @@ export async function generateTraderMetadata(
         let metadata: TraderMetadata | null = null;
 
         while (true) {
-            const { done, value } = await reader.read();
+            const { done, value} = await reader.read();
             if (done) break;
 
             buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n\n');
+            const lines = buffer.split('\n');
             buffer = lines.pop() || '';
 
+            let currentEvent = '';
             for (const line of lines) {
-                if (!line.trim() || !line.startsWith('data: ')) continue;
+                if (line.startsWith('event: ')) {
+                    currentEvent = line.slice(7).trim();
+                } else if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
 
-                try {
-                    const data = JSON.parse(line.slice(6));
-
-                    if (data.type === 'progress') {
-                        onStream?.({ type: 'progress', progress: data.progress });
-                    } else if (data.type === 'condition') {
-                        onStream?.({ type: 'condition', condition: data.condition });
-                    } else if (data.type === 'strategy') {
-                        onStream?.({ type: 'strategy', strategyText: data.strategyText });
-                    } else if (data.type === 'complete') {
-                        metadata = data.metadata;
-                    } else if (data.type === 'error') {
-                        throw new Error(data.error?.message || 'Stream error');
+                        if (currentEvent === 'progress') {
+                            onStream?.({ type: 'progress', progress: data.progress });
+                        } else if (currentEvent === 'metadata') {
+                            // Handle different metadata types
+                            if (data.type === 'condition') {
+                                onStream?.({ type: 'condition', condition: data.value.value || data.value });
+                            } else if (data.type === 'strategy') {
+                                onStream?.({ type: 'strategy', strategyText: data.value });
+                            }
+                        } else if (currentEvent === 'complete') {
+                            metadata = data.data;
+                        } else if (currentEvent === 'error') {
+                            throw new Error(data.message || 'Stream error');
+                        }
+                    } catch (parseError) {
+                        console.error('[generateTraderMetadata] Failed to parse SSE data:', parseError, line);
                     }
-                } catch (parseError) {
-                    console.error('[generateTraderMetadata] Failed to parse SSE data:', parseError);
+                    currentEvent = '';
                 }
             }
         }

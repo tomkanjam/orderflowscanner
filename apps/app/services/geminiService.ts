@@ -1055,22 +1055,38 @@ export async function generateTraderMetadata(
         const decoder = new TextDecoder();
         let buffer = '';
         let metadata: TraderMetadata | null = null;
+        let chunkCount = 0;
+
+        console.log('[generateTraderMetadata] Starting SSE stream processing...');
 
         while (true) {
             const { done, value} = await reader.read();
-            if (done) break;
+            if (done) {
+                console.log('[generateTraderMetadata] Stream done');
+                break;
+            }
 
-            buffer += decoder.decode(value, { stream: true });
+            chunkCount++;
+            const chunk = decoder.decode(value, { stream: true });
+            console.log(`[generateTraderMetadata] Chunk ${chunkCount}:`, chunk);
+
+            buffer += chunk;
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
 
             let currentEvent = '';
             for (const line of lines) {
+                console.log(`[generateTraderMetadata] Processing line:`, line);
+
                 if (line.startsWith('event: ')) {
                     currentEvent = line.slice(7).trim();
+                    console.log(`[generateTraderMetadata] Event: ${currentEvent}`);
                 } else if (line.startsWith('data: ')) {
                     try {
-                        const data = JSON.parse(line.slice(6));
+                        const dataStr = line.slice(6);
+                        console.log(`[generateTraderMetadata] Data string:`, dataStr);
+                        const data = JSON.parse(dataStr);
+                        console.log(`[generateTraderMetadata] Parsed data for event ${currentEvent}:`, data);
 
                         if (currentEvent === 'progress') {
                             onStream?.({ type: 'progress', progress: data.progress });
@@ -1082,6 +1098,7 @@ export async function generateTraderMetadata(
                                 onStream?.({ type: 'strategy', strategyText: data.value });
                             }
                         } else if (currentEvent === 'complete') {
+                            console.log('[generateTraderMetadata] Received complete event with metadata:', data.data);
                             metadata = data.data;
                         } else if (currentEvent === 'error') {
                             throw new Error(data.message || 'Stream error');
@@ -1093,6 +1110,8 @@ export async function generateTraderMetadata(
                 }
             }
         }
+
+        console.log('[generateTraderMetadata] Final metadata:', metadata);
 
         if (!metadata) {
             throw new Error('No metadata received from stream');

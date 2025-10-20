@@ -14,8 +14,11 @@
  */
 export function sendSSE(controller: ReadableStreamDefaultController, event: string, data: any): void {
   const encoder = new TextEncoder();
-  controller.enqueue(encoder.encode(`event: ${event}\n`));
-  controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+  const eventLine = `event: ${event}\n`;
+  const dataLine = `data: ${JSON.stringify(data)}\n\n`;
+  console.log(`[SSE] Sending event: ${event}, data:`, data);
+  controller.enqueue(encoder.encode(eventLine));
+  controller.enqueue(encoder.encode(dataLine));
 }
 
 /**

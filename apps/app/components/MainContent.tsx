@@ -10,7 +10,7 @@ import Loader from './Loader';
 import ErrorMessage from './ErrorMessage';
 import ActivityPanel from '../src/components/ActivityPanel';
 import { useSubscription } from '../src/contexts/SubscriptionContext';
-// REMOVED: sharedMarketData import - migrating to server-side execution
+import { sharedMarketData } from '../src/shared/SharedMarketData';
 import * as screenerHelpers from '../screenerHelpers'; 
 
 type ScreenerHelpersType = typeof screenerHelpers;
@@ -105,8 +105,8 @@ const MainContent: React.FC<MainContentProps> = ({
     if (!selectedSymbolForChart) {
       return undefined;
     }
-    // REMOVED: sharedMarketData.getKlines - will be replaced with server data
-    const klines: any[] = [];
+    // Get klines from sharedMarketData
+    const klines = sharedMarketData.getKlines(selectedSymbolForChart, klineInterval);
     console.log(`[DEBUG ${new Date().toISOString()}] Memoizing klines for ${selectedSymbolForChart}`, {
       klinesLength: klines.length,
       interval: klineInterval

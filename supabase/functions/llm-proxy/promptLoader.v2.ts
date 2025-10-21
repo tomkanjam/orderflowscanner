@@ -120,6 +120,11 @@ export class PromptLoaderV2 {
           return prompt.prompt;
         }
 
+        // Check if it has a content field (completion format)
+        if ('content' in prompt && typeof prompt.content === 'string') {
+          return prompt.content;
+        }
+
         // If we can't extract content, return null to trigger fallback
         console.warn(`[PromptLoader] Braintrust prompt '${slug}' has unexpected format`);
         return null;

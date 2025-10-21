@@ -40,6 +40,10 @@ export async function handleGenerateTraderMetadata(
       userDescription: userPrompt
     });
 
+    console.log(`[GenerateTraderMetadata] User prompt: "${userPrompt}"`);
+    console.log(`[GenerateTraderMetadata] Final prompt length: ${prompt.length} chars`);
+    console.log(`[GenerateTraderMetadata] Prompt contains userPrompt: ${prompt.includes(userPrompt)}`);
+
     // If streaming requested, return SSE stream
     if (stream) {
       return createSSEStream(async (controller) => {

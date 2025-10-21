@@ -123,10 +123,45 @@ export class SignalManager {
       currentPrice: filterResult.price,
       priceChange: 0,
     };
-    
+
     this.signals.set(signal.id, signal);
     this.notifyUpdate();
     return signal;
+  }
+
+  // Load initial signals from database (used on app initialization)
+  loadInitialSignals(dbSignals: Array<{
+    id: string;
+    trader_id: string;
+    symbol: string;
+    created_at: string;
+    price_at_signal?: number;
+    metadata?: any;
+  }>): void {
+    console.log(`[SignalManager] Loading ${dbSignals.length} initial signals from database`);
+
+    dbSignals.forEach(dbSignal => {
+      const signal: SignalLifecycle = {
+        id: dbSignal.id,
+        symbol: dbSignal.symbol,
+        strategyId: 'loaded-from-db', // Placeholder strategy ID
+        traderId: dbSignal.trader_id,
+        createdAt: new Date(dbSignal.created_at),
+        matchedConditions: dbSignal.metadata?.matched_conditions || [],
+        initialPrice: dbSignal.price_at_signal || dbSignal.metadata?.price_at_signal || 0,
+        status: 'new', // Default status for loaded signals
+        currentPrice: dbSignal.price_at_signal || dbSignal.metadata?.price_at_signal || 0,
+        priceChange: 0,
+      };
+
+      // Only add if not already exists (avoid duplicates)
+      if (!this.signals.has(signal.id)) {
+        this.signals.set(signal.id, signal);
+      }
+    });
+
+    console.log(`[SignalManager] Loaded ${this.signals.size} total signals`);
+    this.notifyUpdate();
   }
   
   // Update signal with analysis results

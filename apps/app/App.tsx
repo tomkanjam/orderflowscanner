@@ -19,6 +19,7 @@ import { useStrategy } from './src/contexts/StrategyContext';
 import { signalManager } from './src/services/signalManager';
 import { tradeManager } from './src/services/tradeManager';
 import { traderManager } from './src/services/traderManager';
+import { serverExecutionService } from './src/services/serverExecutionService';
 import { Trader } from './src/abstractions/trader.interfaces';
 import { useIndicatorWorker } from './hooks/useIndicatorWorker';
 import ActivityPanel from './src/components/ActivityPanel';
@@ -238,19 +239,46 @@ const AppContent: React.FC = () => {
       workflowManager.initialize().catch(error => {
         console.error('[WorkflowManager] Initialization error:', error);
       });
-      
+
       // Initialize trading manager
       tradingManager.initialize().catch(error => {
         console.error('[TradingManager] Initialization error:', error);
       });
+
+      // Initialize server execution Realtime subscriptions for signal updates
+      serverExecutionService.initializeRealtime().catch(error => {
+        console.error('[ServerExecutionService] Realtime initialization error:', error);
+      });
+
+      // Fetch existing signals from database and load into SignalManager
+      serverExecutionService.fetchRecentSignals(100).then(signals => {
+        if (signals.length > 0) {
+          console.log(`[App] Fetched ${signals.length} signals from database`);
+          // Convert TraderSignal format to SignalManager format
+          const dbSignals = signals.map(s => ({
+            id: s.id,
+            trader_id: s.trader_id,
+            symbol: s.symbols[0], // TraderSignal has array, database has single symbol
+            created_at: s.timestamp,
+            price_at_signal: s.metadata?.price_at_signal,
+            metadata: s.metadata
+          }));
+          signalManager.loadInitialSignals(dbSignals);
+        }
+      }).catch(error => {
+        console.error('[App] Failed to fetch initial signals:', error);
+      });
     }
-    
+
     return () => {
       // Cleanup on unmount
       tradingManager.shutdown().catch(error => {
         console.error('[TradingManager] Shutdown error:', error);
       });
       workflowManager.shutdown();
+      serverExecutionService.cleanup().catch(error => {
+        console.error('[ServerExecutionService] Cleanup error:', error);
+      });
     };
   }, [user, authLoading]);
   

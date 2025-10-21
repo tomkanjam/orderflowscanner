@@ -64,17 +64,32 @@ class ServerExecutionService {
       await this.signalChannel.unsubscribe();
     }
 
-    // Create new subscription
+    // Create new subscription - listen to database INSERT events instead of broadcasts
     this.signalChannel = supabase.channel('signals')
-      .on('broadcast', { event: 'new-signal' }, (payload) => {
-        const signal = payload.payload as TraderSignal;
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'signals'
+        },
+        (payload) => {
+          console.log('[ServerExecutionService] New signal from database:', payload);
+          const signal: TraderSignal = {
+            id: payload.new.id,
+            trader_id: payload.new.trader_id,
+            symbols: [payload.new.symbol], // Go backend saves one symbol per signal
+            timestamp: payload.new.created_at || payload.new.timestamp,
+            metadata: payload.new
+          };
 
-        // Notify all registered callbacks for this trader
-        const callback = this.signalCallbacks.get(signal.trader_id);
-        if (callback) {
-          callback(signal);
+          // Notify all registered callbacks for this trader
+          const callback = this.signalCallbacks.get(signal.trader_id);
+          if (callback) {
+            callback(signal);
+          }
         }
-      })
+      )
       .subscribe();
   }
 
@@ -176,6 +191,11 @@ class ServerExecutionService {
    * Get recent signals for a trader
    */
   async getTraderSignals(traderId: string, limit: number = 10): Promise<TraderSignal[]> {
+    if (!supabase) {
+      console.warn('[ServerExecutionService] Supabase not initialized');
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('trader_signals')
       .select('*')
@@ -188,6 +208,45 @@ class ServerExecutionService {
     }
 
     return data || [];
+  }
+
+  /**
+   * Fetch recent signals from the database (all traders)
+   * This is used on app initialization to load existing signals
+   */
+  async fetchRecentSignals(limit: number = 100): Promise<TraderSignal[]> {
+    if (!supabase) {
+      console.warn('[ServerExecutionService] Supabase not initialized - skipping signal fetch');
+      return [];
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('signals')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('[ServerExecutionService] Failed to fetch signals:', error);
+        return [];
+      }
+
+      // Convert database signals to TraderSignal format
+      const signals: TraderSignal[] = (data || []).map((signal: any) => ({
+        id: signal.id,
+        trader_id: signal.trader_id,
+        symbols: [signal.symbol], // Database stores one symbol per signal
+        timestamp: signal.created_at || signal.timestamp,
+        metadata: signal
+      }));
+
+      console.log(`[ServerExecutionService] Fetched ${signals.length} recent signals from database`);
+      return signals;
+    } catch (error) {
+      console.error('[ServerExecutionService] Error fetching signals:', error);
+      return [];
+    }
   }
 
   /**

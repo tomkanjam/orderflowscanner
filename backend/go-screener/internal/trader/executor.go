@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/vyx/go-screener/internal/analysis"
 	"github.com/vyx/go-screener/internal/eventbus"
 	"github.com/vyx/go-screener/pkg/binance"
@@ -181,6 +182,8 @@ func (e *Executor) handleCandleEvent(event *eventbus.CandleEvent) {
 
 // executeTrader executes a single trader's filter
 func (e *Executor) executeTrader(trader *Trader) {
+	log.Printf("[Executor] 🎯 DEBUG: Executing trader %s (has fixes: UUID+nil+klineData)", trader.ID)
+
 	// Recover from panics to prevent crashing
 	defer func() {
 		if r := recover(); r != nil {
@@ -193,6 +196,7 @@ func (e *Executor) executeTrader(trader *Trader) {
 	// Update last run timestamp
 	trader.UpdateLastRunAt()
 
+	log.Printf("[Executor] 🔍 Step 1: Getting symbols for trader %s", trader.ID)
 	// Get symbols to screen
 	symbols, err := e.getSymbolsToScreen(trader)
 	if err != nil {
@@ -200,12 +204,14 @@ func (e *Executor) executeTrader(trader *Trader) {
 		_ = trader.SetError(err)
 		return
 	}
+	log.Printf("[Executor] 🔍 Step 1 complete: Got %d symbols", len(symbols))
 
 	// Get timeframes from config (default to 5m if not specified)
 	timeframes := trader.Config.Timeframes
 	if len(timeframes) == 0 {
 		timeframes = []string{"5m"}
 	}
+	log.Printf("[Executor] 🔍 Step 2: Fetching kline data for %d symbols, %d timeframes", len(symbols), len(timeframes))
 
 	// Fetch kline data for all symbols and timeframes
 	klineData, err := e.fetchKlineData(symbols, timeframes)
@@ -214,11 +220,13 @@ func (e *Executor) executeTrader(trader *Trader) {
 		_ = trader.SetError(err)
 		return
 	}
+	log.Printf("[Executor] 🔍 Step 2 complete: Fetched kline data for %d symbols", len(klineData))
 
 	// Execute filter for each symbol
 	signals := make([]Signal, 0)
+	log.Printf("[Executor] 🔍 Step 3: Starting filter execution loop")
 
-	for _, symbol := range symbols {
+	for i, symbol := range symbols {
 		// Check context cancellation
 		select {
 		case <-e.ctx.Done():
@@ -226,24 +234,39 @@ func (e *Executor) executeTrader(trader *Trader) {
 		default:
 		}
 
+		log.Printf("[Executor] 🔍 Step 3.%d: Processing symbol %s", i+1, symbol)
+
 		// Get ticker data
+		log.Printf("[Executor] 🔍 Step 3.%d.a: Fetching ticker for %s", i+1, symbol)
 		ticker, err := e.binance.GetTicker(e.ctx, symbol)
 		if err != nil {
 			log.Printf("[Executor] Failed to fetch ticker for %s: %v", symbol, err)
 			continue
 		}
 
+		// Defensive nil check
+		if ticker == nil {
+			log.Printf("[Executor] WARNING: GetTicker returned nil ticker for %s (no error)", symbol)
+			continue
+		}
+
+		log.Printf("[Executor] 🔍 Step 3.%d.b: Ticker received for %s: LastPrice=%.8f", i+1, symbol, ticker.LastPrice)
+
 		// Ticker is already in simplified format
 		simplifiedTicker := ticker
 
+		log.Printf("[Executor] 🔍 Step 3.%d.c: Building klines map for %s", i+1, symbol)
 		// Prepare market data with klines map
 		klinesMap := make(map[string][]types.Kline)
-		for _, tf := range timeframes {
-			if klines, ok := klineData[symbol][tf]; ok {
-				klinesMap[tf] = klines
+		if symbolData, symbolExists := klineData[symbol]; symbolExists {
+			for _, tf := range timeframes {
+				if klines, ok := symbolData[tf]; ok {
+					klinesMap[tf] = klines
+				}
 			}
 		}
 
+		log.Printf("[Executor] 🔍 Step 3.%d.d: Creating marketData struct for %s", i+1, symbol)
 		marketData := &types.MarketData{
 			Symbol:    symbol,
 			Ticker:    simplifiedTicker,
@@ -251,10 +274,11 @@ func (e *Executor) executeTrader(trader *Trader) {
 			Timestamp: time.Now(),
 		}
 
+		log.Printf("[Executor] 🔍 Step 3.%d.e: Executing filter for %s", i+1, symbol)
 		// Execute filter with timeout
 		timeout := trader.Config.TimeoutPerRun
 		if timeout <= 0 {
-			timeout = 5 * time.Second // Default: 5 seconds
+			timeout = 1 * time.Second // Default: 1 second
 		}
 
 		matches, err := e.yaegi.ExecuteFilterWithTimeout(trader.Config.FilterCode, marketData, timeout)
@@ -263,10 +287,13 @@ func (e *Executor) executeTrader(trader *Trader) {
 			continue
 		}
 
+		log.Printf("[Executor] 🔍 Step 3.%d.f: Filter result for %s: matches=%v", i+1, symbol, matches)
+
 		// If matches, create signal
 		if matches {
+			log.Printf("[Executor] 🔍 Step 3.%d.g: Creating signal for %s", i+1, symbol)
 			signal := Signal{
-				ID:          fmt.Sprintf("%s-%s-%d", trader.ID, symbol, time.Now().Unix()),
+				ID:          uuid.New().String(),
 				TraderID:    trader.ID,
 				UserID:      trader.UserID,
 				Symbol:      symbol,
@@ -277,32 +304,46 @@ func (e *Executor) executeTrader(trader *Trader) {
 				CreatedAt:   time.Now(),
 			}
 
+			log.Printf("[Executor] 🔍 Step 3.%d.h: Appending signal for %s", i+1, symbol)
 			signals = append(signals, signal)
 
 			// Check signal limit
 			if trader.Config.MaxSignalsPerRun > 0 && len(signals) >= trader.Config.MaxSignalsPerRun {
+				log.Printf("[Executor] 🔍 Step 3.%d.i: Signal limit reached (%d), breaking", i+1, trader.Config.MaxSignalsPerRun)
 				break
 			}
 		}
+
+		log.Printf("[Executor] 🔍 Step 3.%d.z: Completed processing %s", i+1, symbol)
 	}
 
+	log.Printf("[Executor] 🔍 Step 4: Loop complete, generated %d signals", len(signals))
+
 	// Process signals: save to DB and queue for analysis
+	log.Printf("[Executor] 🔍 Step 4.1: Checking signal count: %d", len(signals))
 	if len(signals) > 0 {
+		log.Printf("[Executor] 🔍 Step 5: Saving %d signals to database", len(signals))
+		log.Printf("[Executor] 🔍 Step 5.1: Calling saveSignals function...")
 		// Save signals to database
 		if err := e.saveSignals(signals); err != nil {
 			log.Printf("[Executor] Failed to save signals for trader %s: %v", trader.ID, err)
 			_ = trader.SetError(err)
 			return
 		}
+		log.Printf("[Executor] 🔍 Step 5 complete: Signals saved successfully")
 
+		log.Printf("[Executor] 🔍 Step 6: Queueing signals for analysis...")
 		// Queue signals for analysis
 		if err := e.queueSignalsForAnalysis(trader, signals); err != nil {
 			log.Printf("[Executor] Failed to queue signals for analysis: %v", err)
 			// Don't return - signals are saved, analysis queue is best-effort
 		}
+		log.Printf("[Executor] 🔍 Step 6 complete: Analysis queuing complete")
 
+		log.Printf("[Executor] 🔍 Step 7: Updating trader signal count...")
 		// Update trader signal count
 		trader.IncrementSignalCount(int64(len(signals)))
+		log.Printf("[Executor] 🔍 Step 7 complete: Signal count updated")
 
 		log.Printf("[Executor] Trader %s generated %d signals", trader.ID, len(signals))
 	}
@@ -310,6 +351,16 @@ func (e *Executor) executeTrader(trader *Trader) {
 
 // queueSignalsForAnalysis queues signals for AI analysis
 func (e *Executor) queueSignalsForAnalysis(trader *Trader, signals []Signal) error {
+	log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Starting with %d signals", len(signals))
+	log.Printf("[Executor] 🔍 queueSignalsForAnalysis: e.analysisEng = %v (nil check)", e.analysisEng == nil)
+
+	// Skip if analysis engine is not configured
+	if e.analysisEng == nil {
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Analysis engine is nil, skipping")
+		return nil
+	}
+
+	log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Creating trader record...")
 	// TODO: Fetch full trader record from database when supabase client supports it
 	// For now, we'll create a minimal trader record from the trader struct
 	traderRecord := &types.Trader{
@@ -318,41 +369,67 @@ func (e *Executor) queueSignalsForAnalysis(trader *Trader, signals []Signal) err
 		Name:   trader.Name,
 		// Filter config will be nil - analysis engine should handle this
 	}
+	log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Trader record created")
 
-	for _, signal := range signals {
+	log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Looping through %d signals...", len(signals))
+	for i, signal := range signals {
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Processing signal %d/%d: %s", i+1, len(signals), signal.Symbol)
 		// Fetch market data for analysis
 		// Get timeframes from config
-		timeframes := trader.Config.Timeframes
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: trader.Config = %v (nil check)", trader.Config == nil)
+		var timeframes []string
+		if trader.Config != nil {
+			timeframes = trader.Config.Timeframes
+		}
 		if len(timeframes) == 0 {
 			timeframes = []string{"5m"}
 		}
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Using timeframes: %v", timeframes)
 
 		// Fetch klines for this symbol
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Fetching klines for %s...", signal.Symbol)
 		klinesMap := make(map[string][]types.Kline)
-		for _, tf := range timeframes {
+		for j, tf := range timeframes {
+			log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Fetching kline %d/%d for %s (%s)...", j+1, len(timeframes), signal.Symbol, tf)
+			log.Printf("[Executor] 🔍 queueSignalsForAnalysis: e.binance = %v (nil check)", e.binance == nil)
+			log.Printf("[Executor] 🔍 queueSignalsForAnalysis: e.ctx = %v (nil check)", e.ctx == nil)
+
 			klines, err := e.binance.GetKlines(e.ctx, signal.Symbol, tf, 100)
 			if err != nil {
 				log.Printf("[Executor] Failed to fetch klines for %s: %v", signal.Symbol, err)
 				continue
 			}
+			log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Fetched %d klines for %s (%s)", len(klines), signal.Symbol, tf)
 			klinesMap[tf] = klines
 		}
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Klines fetched successfully")
 
 		// Fetch ticker
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Fetching ticker for %s...", signal.Symbol)
 		simplifiedTicker, err := e.binance.GetTicker(e.ctx, signal.Symbol)
 		if err != nil {
 			log.Printf("[Executor] Failed to fetch ticker for %s: %v", signal.Symbol, err)
 			continue
 		}
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Ticker fetched successfully")
 
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Creating marketData struct...")
 		marketData := &types.MarketData{
 			Symbol:    signal.Symbol,
 			Ticker:    simplifiedTicker,
 			Klines:    klinesMap,
 			Timestamp: time.Now(),
 		}
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: marketData created successfully")
 
 		// Queue for analysis
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Creating analysis request...")
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: trader = %v (nil check)", trader == nil)
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: traderRecord = %v (nil check)", traderRecord == nil)
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: signal.ID = %s", signal.ID)
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: trader.ID = %s", trader.ID)
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: trader.UserID = %s", trader.UserID)
+
 		req := &analysis.AnalysisRequest{
 			SignalID:     signal.ID,
 			TraderID:     trader.ID,
@@ -364,11 +441,24 @@ func (e *Executor) queueSignalsForAnalysis(trader *Trader, signals []Signal) err
 			IsReanalysis: false,
 			QueuedAt:     time.Now(),
 		}
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Analysis request created successfully")
 
-		if err := e.analysisEng.QueueAnalysis(req); err != nil {
-			log.Printf("[Executor] Failed to queue signal %s for analysis: %v", signal.ID, err)
-			// Continue with other signals
-		}
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Calling QueueAnalysis...")
+
+		// Protect against panics inside analysisEngine
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("[Executor] QueueAnalysis panicked for signal %s: %v", signal.ID, r)
+				}
+			}()
+
+			if err := e.analysisEng.QueueAnalysis(req); err != nil {
+				log.Printf("[Executor] Failed to queue signal %s for analysis: %v", signal.ID, err)
+			}
+		}()
+
+		log.Printf("[Executor] 🔍 queueSignalsForAnalysis: QueueAnalysis completed successfully")
 	}
 
 	return nil
@@ -421,8 +511,14 @@ func (e *Executor) fetchKlineData(symbols []string, timeframes []string) (map[st
 
 // saveSignals saves signals to the database
 func (e *Executor) saveSignals(signals []Signal) error {
+	log.Printf("[Executor] 🔍 saveSignals: Starting with %d signals", len(signals))
+	log.Printf("[Executor] 🔍 saveSignals: e.supabase = %v (nil check)", e.supabase == nil)
+	log.Printf("[Executor] 🔍 saveSignals: e.ctx = %v (nil check)", e.ctx == nil)
+
 	// Convert to types.Signal and save
-	for _, signal := range signals {
+	for i, signal := range signals {
+		log.Printf("[Executor] 🔍 saveSignals: Processing signal %d/%d: %s", i+1, len(signals), signal.Symbol)
+
 		dbSignal := &types.Signal{
 			ID:                    signal.ID,
 			TraderID:              signal.TraderID,
@@ -438,11 +534,13 @@ func (e *Executor) saveSignals(signals []Signal) error {
 			MachineID:             nil,
 		}
 
+		log.Printf("[Executor] 🔍 saveSignals: Calling CreateSignal for %s...", signal.Symbol)
 		if err := e.supabase.CreateSignal(e.ctx, dbSignal); err != nil {
 			// Log error but continue (don't fail entire batch)
 			log.Printf("[Executor] Failed to save signal %s: %v", signal.ID, err)
 			continue
 		}
+		log.Printf("[Executor] 🔍 saveSignals: Successfully saved signal for %s", signal.Symbol)
 	}
 
 	return nil

@@ -655,19 +655,48 @@ return prevHist < 0 && currentHist > 0
 7. **Dereference pointers** with `*` when comparing values
 8. **Return boolean** as final statement
 9. **Use `data.Klines["interval"]`** to access timeframes
-10. **ONLY use the 16 available indicator functions** listed above
+10. **DO NOT use goroutines (`go` keyword)** - filters must execute synchronously
 
-## Unsupported Features (DO NOT USE)
+## Full Customization Available
 
-The following features are NOT yet available in Go. If conditions require these, politely inform the user:
+**You have complete access to:**
+- All kline data fields (Open, High, Low, Close, Volume, timestamps)
+- Go's `math` package for any calculations
+- Arrays, loops, and conditional logic
+- Custom indicator calculations beyond the helper functions
 
-- ❌ StochRSI (use regular Stochastic instead)
-- ❌ VWAP Series / VWAP Bands (basic VWAP only)
-- ❌ RSI Divergence Detection
-- ❌ ADX (Average Directional Index)
-- ❌ PVI (Positive Volume Index)
-- ❌ HVN (High Volume Nodes)
-- ❌ Generic Divergence Detection
+**Helper functions are conveniences, not limitations.** If a condition requires a calculation not available in the helper functions, you can implement it directly using raw kline data and standard Go.
+
+### Example of Custom Calculation
+
+```go
+// Custom momentum indicator (not using helpers)
+klines := data.Klines["5m"]
+if klines == nil || len(klines) < 20 {
+    return false
+}
+
+// Calculate custom weighted momentum
+customMomentum := 0.0
+for i := len(klines)-10; i < len(klines); i++ {
+    priceChange := (klines[i].Close - klines[i].Open) / klines[i].Open
+    volumeWeight := klines[i].Volume / klines[i-1].Volume
+    customMomentum += priceChange * volumeWeight
+}
+
+return customMomentum > 0.15
+```
+
+## Helper Functions Not Yet Available
+
+The following specialized indicators don't have helper functions yet, but you can implement them yourself using raw kline data:
+
+- StochRSI
+- VWAP Series / VWAP Bands (basic VWAP available)
+- RSI Divergence Detection
+- ADX (Average Directional Index)
+- PVI (Positive Volume Index)
+- HVN (High Volume Nodes)
 
 ## Progress Comments
 

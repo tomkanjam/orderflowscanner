@@ -285,6 +285,13 @@ func (m *Manager) LoadTradersFromDB() error {
 			continue
 		}
 
+		// Add trader to executor for event-driven execution
+		if err := m.executor.AddTrader(trader); err != nil {
+			log.Printf("[Manager] Failed to add trader %s (%s) to executor: %v",
+				trader.ID, trader.Name, err)
+			// Don't fail - trader is registered, just won't execute
+		}
+
 		loaded++
 		TradersLoadedFromDB.WithLabelValues("success").Inc()
 		log.Printf("[Manager] ✅ Loaded trader: %s (%s)", trader.ID, trader.Name)
@@ -464,8 +471,10 @@ func convertDBTraderToRuntime(dbTrader *types.Trader) (*Trader, error) {
 		Timeframes:        filter.RequiredTimeframes,
 		Indicators:        convertIndicators(filter.Indicators),
 		MaxSignalsPerRun:  10,              // Default limit
-		TimeoutPerRun:     5 * time.Second, // Default timeout
+		TimeoutPerRun:     1 * time.Second, // Default timeout
 	}
+
+	log.Printf("[Manager] DEBUG: Trader %s (%s) - Timeframes: %v", dbTrader.ID, dbTrader.Name, config.Timeframes)
 
 	// Handle empty user_id for built-in traders
 	userID := dbTrader.UserID

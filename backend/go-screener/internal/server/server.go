@@ -453,7 +453,7 @@ func (s *Server) handleExecuteFilter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Execute filter with timeout
-	result, err := s.yaegiExecutor.ExecuteFilterWithTimeout(req.Code, &req.MarketData, 5*time.Second)
+	result, err := s.yaegiExecutor.ExecuteFilterWithTimeout(req.Code, &req.MarketData, 1*time.Second)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Filter execution failed", err)
 		return

@@ -9,6 +9,7 @@ interface ActivityPanelProps {
   onClose: () => void;
   isMobile?: boolean;
   selectedSignalId?: string | null;
+  onRowClick?: (symbol: string, traderId?: string, signalId?: string) => void;
 }
 
 interface ActivityEvent {
@@ -25,13 +26,14 @@ interface ActivityEvent {
   details?: any;
 }
 
-const ActivityPanel: React.FC<ActivityPanelProps> = ({ 
-  signals, 
-  trades = [], 
-  isOpen, 
+const ActivityPanel: React.FC<ActivityPanelProps> = ({
+  signals,
+  trades = [],
+  isOpen,
   onClose,
   isMobile = false,
-  selectedSignalId 
+  selectedSignalId,
+  onRowClick
 }) => {
   const [filter, setFilter] = useState<'all' | 'signals' | 'trades'>('all');
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
@@ -314,12 +316,20 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
           <div className="divide-y divide-[var(--nt-border-default)]">
             {filteredEvents.map(event => {
               const isExpanded = expandedEvents.has(event.id);
-              
+
               return (
                 <div
                   key={event.id}
                   className="p-4 hover:bg-[var(--nt-bg-secondary)] cursor-pointer transition-colors"
-                  onClick={() => toggleEventExpanded(event.id)}
+                  onClick={() => {
+                    toggleEventExpanded(event.id);
+                    // Call onRowClick to select symbol for chart display
+                    if (onRowClick && event.symbol) {
+                      // Find the signal to get traderId
+                      const signal = signals.find(s => s.id === event.signalId);
+                      onRowClick(event.symbol, signal?.traderId, event.signalId);
+                    }
+                  }}
                 >
                   <div className="flex items-start gap-3">
                     <span className={`text-xl ${getEventColor(event.type)}`}>

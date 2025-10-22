@@ -223,6 +223,16 @@ func (e *Executor) executeTrader(trader *Trader) {
 	}
 	log.Printf("[Executor] 🔍 Step 2 complete: Fetched kline data for %d symbols", len(klineData))
 
+	// Batch fetch ticker data for all symbols
+	log.Printf("[Executor] 🔍 Step 2.5: Batch fetching ticker data for %d symbols", len(symbols))
+	tickerData, err := e.binance.GetMultipleTickers(e.ctx, symbols)
+	if err != nil {
+		log.Printf("[Executor] Failed to fetch ticker data for trader %s: %v", trader.ID, err)
+		_ = trader.SetError(err)
+		return
+	}
+	log.Printf("[Executor] 🔍 Step 2.5 complete: Fetched ticker data for %d symbols", len(tickerData))
+
 	// Execute filter for each symbol in parallel using worker pool
 	log.Printf("[Executor] 🔍 Step 3: Starting parallel filter execution with worker pool")
 
@@ -256,7 +266,7 @@ func (e *Executor) executeTrader(trader *Trader) {
 				log.Printf("[Executor] Worker %d processing symbol %s", workerID, symbol)
 
 				// Process symbol
-				signal, err := e.processSymbol(workerCtx, symbol, trader, klineData, timeframes)
+				signal, err := e.processSymbol(workerCtx, symbol, trader, klineData, tickerData, timeframes)
 				if err != nil {
 					log.Printf("[Executor] Worker %d: Error processing %s: %v", workerID, symbol, err)
 					errorCh <- err
@@ -507,7 +517,7 @@ func (e *Executor) fetchKlineData(symbols []string, timeframes []string) (map[st
 
 // processSymbol processes a single symbol through the filter
 // Returns a signal if the filter matches, nil otherwise
-func (e *Executor) processSymbol(ctx context.Context, symbol string, trader *Trader, klineData map[string]map[string][]types.Kline, timeframes []string) (*Signal, error) {
+func (e *Executor) processSymbol(ctx context.Context, symbol string, trader *Trader, klineData map[string]map[string][]types.Kline, tickerData map[string]*types.SimplifiedTicker, timeframes []string) (*Signal, error) {
 	// Check context cancellation
 	select {
 	case <-ctx.Done():
@@ -515,15 +525,15 @@ func (e *Executor) processSymbol(ctx context.Context, symbol string, trader *Tra
 	default:
 	}
 
-	// Get ticker data
-	ticker, err := e.binance.GetTicker(ctx, symbol)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch ticker: %w", err)
+	// Get ticker data from pre-fetched map
+	ticker, ok := tickerData[symbol]
+	if !ok {
+		return nil, fmt.Errorf("ticker data not found for symbol %s", symbol)
 	}
 
 	// Defensive nil check
 	if ticker == nil {
-		return nil, fmt.Errorf("GetTicker returned nil ticker")
+		return nil, fmt.Errorf("ticker is nil for symbol %s", symbol)
 	}
 
 	// Prepare market data with klines map

@@ -198,6 +198,53 @@ func parseFloat(s string) float64 {
 	return f
 }
 
+// GetMultipleTickers fetches ticker data for multiple symbols in a single API call
+func (c *Client) GetMultipleTickers(ctx context.Context, symbols []string) (map[string]*types.SimplifiedTicker, error) {
+	// Fetch all 24hr tickers in one call
+	url := fmt.Sprintf("%s/api/v3/ticker/24hr", c.apiURL)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch tickers: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("binance API error: %s - %s", resp.Status, string(body))
+	}
+
+	var tickers []types.Ticker
+	if err := json.NewDecoder(resp.Body).Decode(&tickers); err != nil {
+		return nil, fmt.Errorf("failed to decode tickers: %w", err)
+	}
+
+	// Create symbol set for quick lookup
+	symbolSet := make(map[string]bool, len(symbols))
+	for _, symbol := range symbols {
+		symbolSet[symbol] = true
+	}
+
+	// Filter to only requested symbols
+	result := make(map[string]*types.SimplifiedTicker, len(symbols))
+	for _, ticker := range tickers {
+		if symbolSet[ticker.Symbol] {
+			result[ticker.Symbol] = &types.SimplifiedTicker{
+				LastPrice:          parseFloat(ticker.LastPrice),
+				PriceChangePercent: parseFloat(ticker.PriceChangePercent),
+				QuoteVolume:        parseFloat(ticker.QuoteVolume),
+			}
+		}
+	}
+
+	return result, nil
+}
+
 // GetMultipleKlines fetches klines for multiple symbols concurrently
 func (c *Client) GetMultipleKlines(ctx context.Context, symbols []string, interval string, limit int) (map[string][]types.Kline, error) {
 	type result struct {

@@ -234,6 +234,8 @@ const AppContent: React.FC = () => {
   
   // Initialize workflow and trading managers
   useEffect(() => {
+    let unsubscribeSignals: (() => void) | null = null;
+
     if (user && !authLoading) {
       // Initialize workflow manager
       workflowManager.initialize().catch(error => {
@@ -248,6 +250,21 @@ const AppContent: React.FC = () => {
       // Initialize server execution Realtime subscriptions for signal updates
       serverExecutionService.initializeRealtime().catch(error => {
         console.error('[ServerExecutionService] Realtime initialization error:', error);
+      });
+
+      // Subscribe to real-time signal updates and add them to signalManager
+      unsubscribeSignals = serverExecutionService.onSignal((signal) => {
+        console.log('[App] Received new signal from real-time subscription:', signal);
+        // Convert TraderSignal to signalManager format
+        const dbSignal = {
+          id: signal.id,
+          trader_id: signal.trader_id,
+          symbol: signal.symbols[0], // TraderSignal has array, database has single symbol
+          created_at: signal.timestamp,
+          price_at_signal: signal.metadata?.price_at_signal,
+          metadata: signal.metadata
+        };
+        signalManager.addSignalFromDatabase(dbSignal);
       });
 
       // Fetch existing signals from database and load into SignalManager
@@ -270,8 +287,12 @@ const AppContent: React.FC = () => {
       });
     }
 
+    // Return cleanup function
     return () => {
       // Cleanup on unmount
+      if (unsubscribeSignals) {
+        unsubscribeSignals();
+      }
       tradingManager.shutdown().catch(error => {
         console.error('[TradingManager] Shutdown error:', error);
       });

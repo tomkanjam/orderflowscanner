@@ -163,6 +163,39 @@ export class SignalManager {
     console.log(`[SignalManager] Loaded ${this.signals.size} total signals`);
     this.notifyUpdate();
   }
+
+  // Add a new signal from real-time database updates
+  addSignalFromDatabase(dbSignal: {
+    id: string;
+    trader_id: string;
+    symbol: string;
+    created_at: string;
+    price_at_signal?: number;
+    metadata?: any;
+  }): void {
+    // Skip if signal already exists (avoid duplicates)
+    if (this.signals.has(dbSignal.id)) {
+      console.log(`[SignalManager] Signal ${dbSignal.id} already exists, skipping`);
+      return;
+    }
+
+    const signal: SignalLifecycle = {
+      id: dbSignal.id,
+      symbol: dbSignal.symbol,
+      strategyId: 'cloud-trader', // Mark as from cloud trader
+      traderId: dbSignal.trader_id,
+      createdAt: new Date(dbSignal.created_at),
+      matchedConditions: dbSignal.metadata?.matched_conditions || [],
+      initialPrice: dbSignal.price_at_signal || dbSignal.metadata?.price_at_signal || 0,
+      status: 'new',
+      currentPrice: dbSignal.price_at_signal || dbSignal.metadata?.price_at_signal || 0,
+      priceChange: 0,
+    };
+
+    this.signals.set(signal.id, signal);
+    console.log(`[SignalManager] Added new signal from database: ${signal.symbol} (trader: ${signal.traderId})`);
+    this.notifyUpdate();
+  }
   
   // Update signal with analysis results
   updateWithAnalysis(signalId: string, analysis: AnalysisResult) {

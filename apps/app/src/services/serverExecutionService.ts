@@ -49,6 +49,7 @@ export interface ExecutionResult {
 class ServerExecutionService {
   private signalChannel: RealtimeChannel | null = null;
   private signalCallbacks = new Map<string, (signal: TraderSignal) => void>();
+  private globalSignalCallback: ((signal: TraderSignal) => void) | null = null;
 
   /**
    * Initialize Realtime subscription for signal updates
@@ -83,7 +84,12 @@ class ServerExecutionService {
             metadata: payload.new
           };
 
-          // Notify all registered callbacks for this trader
+          // Notify global callback first (for signalManager)
+          if (this.globalSignalCallback) {
+            this.globalSignalCallback(signal);
+          }
+
+          // Notify trader-specific callbacks
           const callback = this.signalCallbacks.get(signal.trader_id);
           if (callback) {
             callback(signal);
@@ -91,6 +97,18 @@ class ServerExecutionService {
         }
       )
       .subscribe();
+  }
+
+  /**
+   * Register a global callback for all signal updates (e.g., for signalManager)
+   */
+  onSignal(callback: (signal: TraderSignal) => void): () => void {
+    this.globalSignalCallback = callback;
+
+    // Return cleanup function
+    return () => {
+      this.globalSignalCallback = null;
+    };
   }
 
   /**

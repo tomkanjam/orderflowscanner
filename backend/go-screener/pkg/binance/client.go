@@ -198,6 +198,14 @@ func parseFloat(s string) float64 {
 	return f
 }
 
+// Ticker24hr represents the REST API 24hr ticker response
+type Ticker24hr struct {
+	Symbol             string `json:"symbol"`
+	PriceChangePercent string `json:"priceChangePercent"`
+	LastPrice          string `json:"lastPrice"`
+	QuoteVolume        string `json:"quoteVolume"`
+}
+
 // GetMultipleTickers fetches ticker data for multiple symbols in a single API call
 func (c *Client) GetMultipleTickers(ctx context.Context, symbols []string) (map[string]*types.SimplifiedTicker, error) {
 	// Fetch all 24hr tickers in one call
@@ -219,7 +227,7 @@ func (c *Client) GetMultipleTickers(ctx context.Context, symbols []string) (map[
 		return nil, fmt.Errorf("binance API error: %s - %s", resp.Status, string(body))
 	}
 
-	var tickers []types.Ticker
+	var tickers []Ticker24hr
 	if err := json.NewDecoder(resp.Body).Decode(&tickers); err != nil {
 		return nil, fmt.Errorf("failed to decode tickers: %w", err)
 	}

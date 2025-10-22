@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"runtime"
 	"sync"
 	"time"
 
@@ -222,102 +223,97 @@ func (e *Executor) executeTrader(trader *Trader) {
 	}
 	log.Printf("[Executor] 🔍 Step 2 complete: Fetched kline data for %d symbols", len(klineData))
 
-	// Execute filter for each symbol
-	signals := make([]Signal, 0)
-	log.Printf("[Executor] 🔍 Step 3: Starting filter execution loop")
+	// Execute filter for each symbol in parallel using worker pool
+	log.Printf("[Executor] 🔍 Step 3: Starting parallel filter execution with worker pool")
 
-	for i, symbol := range symbols {
-		// Check context cancellation
-		select {
-		case <-e.ctx.Done():
-			return
-		default:
-		}
+	numWorkers := runtime.NumCPU()
+	log.Printf("[Executor] 🔍 Using %d workers (CPU cores)", numWorkers)
 
-		log.Printf("[Executor] 🔍 Step 3.%d: Processing symbol %s", i+1, symbol)
+	// Create channels for work distribution
+	symbolCh := make(chan string, len(symbols))
+	signalCh := make(chan *Signal, len(symbols))
+	errorCh := make(chan error, len(symbols))
 
-		// Get ticker data
-		log.Printf("[Executor] 🔍 Step 3.%d.a: Fetching ticker for %s", i+1, symbol)
-		ticker, err := e.binance.GetTicker(e.ctx, symbol)
-		if err != nil {
-			log.Printf("[Executor] Failed to fetch ticker for %s: %v", symbol, err)
-			continue
-		}
+	// Context for workers
+	workerCtx, workerCancel := context.WithCancel(e.ctx)
+	defer workerCancel()
 
-		// Defensive nil check
-		if ticker == nil {
-			log.Printf("[Executor] WARNING: GetTicker returned nil ticker for %s (no error)", symbol)
-			continue
-		}
+	// Start worker pool
+	var wg sync.WaitGroup
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
 
-		log.Printf("[Executor] 🔍 Step 3.%d.b: Ticker received for %s: LastPrice=%.8f", i+1, symbol, ticker.LastPrice)
+			for symbol := range symbolCh {
+				// Check context cancellation
+				select {
+				case <-workerCtx.Done():
+					return
+				default:
+				}
 
-		// Ticker is already in simplified format
-		simplifiedTicker := ticker
+				log.Printf("[Executor] Worker %d processing symbol %s", workerID, symbol)
 
-		log.Printf("[Executor] 🔍 Step 3.%d.c: Building klines map for %s", i+1, symbol)
-		// Prepare market data with klines map
-		klinesMap := make(map[string][]types.Kline)
-		if symbolData, symbolExists := klineData[symbol]; symbolExists {
-			for _, tf := range timeframes {
-				if klines, ok := symbolData[tf]; ok {
-					klinesMap[tf] = klines
+				// Process symbol
+				signal, err := e.processSymbol(workerCtx, symbol, trader, klineData, timeframes)
+				if err != nil {
+					log.Printf("[Executor] Worker %d: Error processing %s: %v", workerID, symbol, err)
+					errorCh <- err
+					continue
+				}
+
+				// Send signal if matched
+				if signal != nil {
+					log.Printf("[Executor] Worker %d: Signal generated for %s", workerID, symbol)
+					signalCh <- signal
 				}
 			}
+		}(i)
+	}
+
+	// Feed symbols to workers
+	go func() {
+		for _, symbol := range symbols {
+			symbolCh <- symbol
 		}
+		close(symbolCh)
+	}()
 
-		log.Printf("[Executor] 🔍 Step 3.%d.d: Creating marketData struct for %s", i+1, symbol)
-		marketData := &types.MarketData{
-			Symbol:    symbol,
-			Ticker:    simplifiedTicker,
-			Klines:    klinesMap,
-			Timestamp: time.Now(),
-		}
+	// Collect results in a separate goroutine
+	go func() {
+		wg.Wait()
+		close(signalCh)
+		close(errorCh)
+	}()
 
-		log.Printf("[Executor] 🔍 Step 3.%d.e: Executing filter for %s", i+1, symbol)
-		// Execute filter with timeout
-		timeout := trader.Config.TimeoutPerRun
-		if timeout <= 0 {
-			timeout = 1 * time.Second // Default: 1 second
-		}
+	// Collect signals with limit checking
+	signals := make([]Signal, 0)
+	maxSignals := trader.Config.MaxSignalsPerRun
+	if maxSignals <= 0 {
+		maxSignals = len(symbols) // No limit
+	}
 
-		matches, err := e.yaegi.ExecuteFilterWithTimeout(trader.Config.FilterCode, marketData, timeout)
-		if err != nil {
-			log.Printf("[Executor] Filter execution failed for %s: %v", symbol, err)
-			continue
-		}
-
-		log.Printf("[Executor] 🔍 Step 3.%d.f: Filter result for %s: matches=%v", i+1, symbol, matches)
-
-		// If matches, create signal
-		if matches {
-			log.Printf("[Executor] 🔍 Step 3.%d.g: Creating signal for %s", i+1, symbol)
-			signal := Signal{
-				ID:          uuid.New().String(),
-				TraderID:    trader.ID,
-				UserID:      trader.UserID,
-				Symbol:      symbol,
-				TriggeredAt: time.Now(),
-				Price:       simplifiedTicker.LastPrice,
-				Volume:      simplifiedTicker.QuoteVolume,
-				Metadata:    make(map[string]interface{}),
-				CreatedAt:   time.Now(),
-			}
-
-			log.Printf("[Executor] 🔍 Step 3.%d.h: Appending signal for %s", i+1, symbol)
-			signals = append(signals, signal)
+	for signal := range signalCh {
+		if signal != nil {
+			signals = append(signals, *signal)
 
 			// Check signal limit
-			if trader.Config.MaxSignalsPerRun > 0 && len(signals) >= trader.Config.MaxSignalsPerRun {
-				log.Printf("[Executor] 🔍 Step 3.%d.i: Signal limit reached (%d), breaking", i+1, trader.Config.MaxSignalsPerRun)
+			if len(signals) >= maxSignals {
+				log.Printf("[Executor] Signal limit reached (%d), canceling workers", maxSignals)
+				workerCancel() // Cancel all workers
+
+				// Drain remaining signals to prevent goroutine leak
+				go func() {
+					for range signalCh {
+					}
+				}()
 				break
 			}
 		}
-
-		log.Printf("[Executor] 🔍 Step 3.%d.z: Completed processing %s", i+1, symbol)
 	}
 
-	log.Printf("[Executor] 🔍 Step 4: Loop complete, generated %d signals", len(signals))
+	log.Printf("[Executor] 🔍 Step 4: Parallel processing complete, generated %d signals", len(signals))
 
 	// Process signals: save to DB and queue for analysis
 	log.Printf("[Executor] 🔍 Step 4.1: Checking signal count: %d", len(signals))
@@ -507,6 +503,74 @@ func (e *Executor) fetchKlineData(symbols []string, timeframes []string) (map[st
 	}
 
 	return result, nil
+}
+
+// processSymbol processes a single symbol through the filter
+// Returns a signal if the filter matches, nil otherwise
+func (e *Executor) processSymbol(ctx context.Context, symbol string, trader *Trader, klineData map[string]map[string][]types.Kline, timeframes []string) (*Signal, error) {
+	// Check context cancellation
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	// Get ticker data
+	ticker, err := e.binance.GetTicker(ctx, symbol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ticker: %w", err)
+	}
+
+	// Defensive nil check
+	if ticker == nil {
+		return nil, fmt.Errorf("GetTicker returned nil ticker")
+	}
+
+	// Prepare market data with klines map
+	klinesMap := make(map[string][]types.Kline)
+	if symbolData, symbolExists := klineData[symbol]; symbolExists {
+		for _, tf := range timeframes {
+			if klines, ok := symbolData[tf]; ok {
+				klinesMap[tf] = klines
+			}
+		}
+	}
+
+	marketData := &types.MarketData{
+		Symbol:    symbol,
+		Ticker:    ticker,
+		Klines:    klinesMap,
+		Timestamp: time.Now(),
+	}
+
+	// Execute filter with timeout
+	timeout := trader.Config.TimeoutPerRun
+	if timeout <= 0 {
+		timeout = 1 * time.Second // Default: 1 second
+	}
+
+	matches, err := e.yaegi.ExecuteFilterWithTimeout(trader.Config.FilterCode, marketData, timeout)
+	if err != nil {
+		return nil, fmt.Errorf("filter execution failed: %w", err)
+	}
+
+	// If matches, create signal
+	if matches {
+		signal := &Signal{
+			ID:          uuid.New().String(),
+			TraderID:    trader.ID,
+			UserID:      trader.UserID,
+			Symbol:      symbol,
+			TriggeredAt: time.Now(),
+			Price:       ticker.LastPrice,
+			Volume:      ticker.QuoteVolume,
+			Metadata:    make(map[string]interface{}),
+			CreatedAt:   time.Now(),
+		}
+		return signal, nil
+	}
+
+	return nil, nil
 }
 
 // saveSignals saves signals to the database

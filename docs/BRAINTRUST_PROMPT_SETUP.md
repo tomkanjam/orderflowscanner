@@ -105,7 +105,9 @@ klines5m := data.Klines["5m"]
 latestClose := klines5m[len(klines5m)-1].Close
 ```
 
-## Available Indicator Functions
+## Available Indicator Functions (Optional Helpers)
+
+**These are convenient shortcuts - NOT required!** You can write custom calculations directly using kline data if needed.
 
 All functions return **pointers** that can be `nil` - always check before using!
 
@@ -203,9 +205,38 @@ Your response:
 }
 ```
 
+## Full Customization Available
+
+**You have complete access to:**
+- All kline data fields (Open, High, Low, Close, Volume, timestamps)
+- Go's `math` package for any calculations
+- Arrays, loops, and conditional logic
+- Custom indicator calculations beyond the helper functions
+
+**Helper functions are conveniences, not limitations.** If a condition requires a calculation not available in the helper functions, you can implement it directly using raw kline data and standard Go.
+
+### Example: Custom Momentum Indicator
+```go
+// Custom weighted momentum (not using helpers)
+klines := data.Klines["5m"]
+if len(klines) < 20 {
+    return false
+}
+
+// Calculate custom metric
+customMomentum := 0.0
+for i := len(klines)-10; i < len(klines); i++ {
+    priceChange := (klines[i].Close - klines[i].Open) / klines[i].Open
+    volumeWeight := klines[i].Volume / klines[i-1].Volume
+    customMomentum += priceChange * volumeWeight
+}
+
+return customMomentum > 0.15
+```
+
 ## What NOT to Use
 
-### ❌ NO Helper Functions
+### ❌ NO Helper Functions for Signal Building
 ```go
 // WRONG - These don't exist!
 return types.BuildSimpleSignalResult(...)
@@ -214,6 +245,14 @@ return helpers.CreateSignal(...)
 
 ### ❌ NO Signal Building
 The code should ONLY return true/false. The backend automatically creates signals when true is returned.
+
+### ❌ NO Goroutines
+```go
+// WRONG - Do not use goroutines
+go func() { ... }()
+```
+
+Filter code must execute synchronously for proper timeout handling.
 
 ## Response Format
 

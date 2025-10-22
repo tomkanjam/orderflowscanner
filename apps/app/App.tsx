@@ -268,9 +268,16 @@ const AppContent: React.FC = () => {
       });
 
       // Fetch existing signals from database and load into SignalManager
-      serverExecutionService.fetchRecentSignals(100).then(signals => {
+      // Get current user's trader IDs for filtering
+      const traderIds = traders.map(t => t.id);
+      serverExecutionService.fetchRecentSignals({
+        limit: 50,
+        offset: 0,
+        traderIds,
+        userSpecific: true
+      }).then(signals => {
         if (signals.length > 0) {
-          console.log(`[App] Fetched ${signals.length} signals from database`);
+          console.log(`[App] Fetched ${signals.length} user-specific signals from database`);
           // Convert TraderSignal format to SignalManager format
           const dbSignals = signals.map(s => ({
             id: s.id,

@@ -229,21 +229,39 @@ class ServerExecutionService {
   }
 
   /**
-   * Fetch recent signals from the database (all traders)
+   * Fetch recent signals from the database (user-specific or all traders)
    * This is used on app initialization to load existing signals
    */
-  async fetchRecentSignals(limit: number = 100): Promise<TraderSignal[]> {
+  async fetchRecentSignals(options: {
+    limit?: number;
+    offset?: number;
+    traderIds?: string[];
+    userSpecific?: boolean;
+  } = {}): Promise<TraderSignal[]> {
+    const { limit = 50, offset = 0, traderIds, userSpecific = true } = options;
+
     if (!supabase) {
       console.warn('[ServerExecutionService] Supabase not initialized - skipping signal fetch');
       return [];
     }
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('signals')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(limit);
+        .range(offset, offset + limit - 1);
+
+      // Filter by user's traders if userSpecific is true
+      if (userSpecific) {
+        if (!traderIds || traderIds.length === 0) {
+          console.log('[ServerExecutionService] No trader IDs provided, returning empty array');
+          return [];
+        }
+        query = query.in('trader_id', traderIds);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('[ServerExecutionService] Failed to fetch signals:', error);
@@ -259,7 +277,7 @@ class ServerExecutionService {
         metadata: signal
       }));
 
-      console.log(`[ServerExecutionService] Fetched ${signals.length} recent signals from database`);
+      console.log(`[ServerExecutionService] Fetched ${signals.length} signals from database (offset: ${offset}, userSpecific: ${userSpecific})`);
       return signals;
     } catch (error) {
       console.error('[ServerExecutionService] Error fetching signals:', error);

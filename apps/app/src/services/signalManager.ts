@@ -137,8 +137,8 @@ export class SignalManager {
     created_at: string;
     price_at_signal?: number;
     metadata?: any;
-  }>): void {
-    console.log(`[SignalManager] Loading ${dbSignals.length} initial signals from database`);
+  }>, append: boolean = false): void {
+    console.log(`[SignalManager] Loading ${dbSignals.length} signals from database (append: ${append})`);
 
     dbSignals.forEach(dbSignal => {
       const signal: SignalLifecycle = {

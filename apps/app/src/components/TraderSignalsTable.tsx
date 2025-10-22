@@ -7,6 +7,8 @@ import { Bell, BellOff, TrendingUp, TrendingDown, AlertCircle, X, Eye } from 'lu
 import { WorkflowStatus } from './WorkflowStatus';
 import { AutoTradeButton } from './AutoTradeButton';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { useInView } from 'react-intersection-observer';
+import { useInfiniteSignals } from '../hooks/useInfiniteSignals';
 
 interface TraderSignalsTableProps {
   tickers: Map<string, Ticker>;
@@ -67,15 +69,39 @@ function TraderSignalsTableComponent({
   });
   const [showDedupeSettings, setShowDedupeSettings] = useState(false);
 
+  // Infinite scroll setup
+  const traderIds = useMemo(() => traders.map(t => t.id), [traders]);
+  const { loadMore, isLoading: isLoadingMore, hasMore, reset } = useInfiniteSignals({
+    traderIds,
+    batchSize: 50
+  });
+
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: '100px', // Start loading 100px before the bottom
+  });
+
+  // Load more when scrolling into view
+  useEffect(() => {
+    if (inView && hasMore && !isLoadingMore) {
+      loadMore();
+    }
+  }, [inView, hasMore, isLoadingMore, loadMore]);
+
+  // Reset infinite scroll when traders change
+  useEffect(() => {
+    reset();
+  }, [traderIds, reset]);
+
   // Subscribe to signal updates
   useEffect(() => {
     const unsubscribe = signalManager.subscribe((updatedSignals) => {
       setSignals(updatedSignals);
     });
-    
+
     // Initial load
     setSignals(signalManager.getSignals());
-    
+
     return unsubscribe;
   }, []);
 
@@ -542,7 +568,7 @@ function TraderSignalsTableComponent({
               );
             })}
             
-            {signals.length === 0 && historicalSignals.length === 0 && (
+            {signals.length === 0 && historicalSignals.length === 0 && !isLoadingMore && (
               <tr>
                 <td colSpan={8} className="text-center text-[var(--nt-text-muted)] p-4">
                   No signals generated yet. Enable your traders to start capturing signals.
@@ -551,6 +577,26 @@ function TraderSignalsTableComponent({
             )}
           </tbody>
         </table>
+
+        {/* Infinite scroll loader */}
+        {hasMore && (
+          <div ref={loadMoreRef} className="py-4 text-center">
+            {isLoadingMore ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--nt-accent-lime)]"></div>
+                <span className="text-sm text-[var(--nt-text-muted)]">Loading more signals...</span>
+              </div>
+            ) : (
+              <span className="text-xs text-[var(--nt-text-muted)]">Scroll to load more</span>
+            )}
+          </div>
+        )}
+
+        {!hasMore && signals.length > 0 && (
+          <div className="py-3 text-center">
+            <span className="text-xs text-[var(--nt-text-muted)]">All signals loaded</span>
+          </div>
+        )}
       </div>
     </div>
   );

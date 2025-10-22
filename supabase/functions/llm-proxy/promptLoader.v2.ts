@@ -1,179 +1,145 @@
 /**
- * Prompt Loader V2 - Braintrust Integration with Supabase Fallback
+ * Prompt Loader V2 - Braintrust REST API Integration
  *
- * Phase 2b: Uses Braintrust SDK for prompt management with Supabase fallback
+ * Phase 3: Uses Braintrust REST API directly (NO SDK, NO FALLBACK)
  *
  * Architecture:
- * 1. Try loading from Braintrust (if configured)
- * 2. Fall back to Supabase prompts table
- * 3. Cache prompts in memory (5-minute TTL)
+ * 1. Load from Braintrust REST API only
+ * 2. Cache prompts in memory (5-minute TTL)
+ * 3. Throw error if prompt not found (no fallback)
+ *
+ * Why REST API instead of SDK:
+ * - Braintrust SDK cannot find prompts created via REST API
+ * - SDK and REST API use different backends/metadata
+ * - Direct REST API calls are more reliable and debuggable
  */
 
-import { loadPrompt } from "npm:braintrust@0.0.157";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-
 export class PromptLoaderV2 {
-  private supabaseUrl: string;
-  private supabaseKey: string;
-  private braintrustProjectName: string;
-  private cache: Map<string, { content: string; cachedAt: number; source: 'braintrust' | 'supabase' }>;
+  private braintrustApiKey: string;
+  private braintrustProjectId: string;
+  private cache: Map<string, { content: string; cachedAt: number }>;
   private cacheTTL = 5 * 60 * 1000; // 5 minutes
-  private useBraintrust: boolean;
 
   constructor(
-    supabaseUrl: string,
-    supabaseKey: string,
-    braintrustProjectName = 'AI Trader',
-    useBraintrust = true
+    _supabaseUrl: string,
+    _supabaseKey: string,
+    _braintrustProjectNameOrId?: string | boolean, // Ignored - kept for backward compatibility
+    _useBraintrustOrKey?: boolean | string // Ignored - kept for backward compatibility
   ) {
-    this.supabaseUrl = supabaseUrl;
-    this.supabaseKey = supabaseKey;
-    this.braintrustProjectName = braintrustProjectName;
+    // Always get credentials from environment
+    this.braintrustApiKey = Deno.env.get('BRAINTRUST_API_KEY') || '';
+    this.braintrustProjectId = '5df22744-d29c-4b01-b18b-e3eccf2ddbba'; // Hardcoded for now
     this.cache = new Map();
-    this.useBraintrust = useBraintrust;
+
+    if (!this.braintrustApiKey) {
+      throw new Error('BRAINTRUST_API_KEY environment variable is required');
+    }
+
+    console.log(`[PromptLoaderV2] Initialized with project ID: ${this.braintrustProjectId}`);
+    console.log(`[PromptLoaderV2] API key length: ${this.braintrustApiKey.length} chars`);
   }
 
   /**
-   * Load a prompt by name
+   * Load a prompt by name from Braintrust REST API
    *
-   * Tries Braintrust first, falls back to Supabase
+   * NO FALLBACK - throws error if prompt not found
    *
-   * @param name - Prompt slug/name (e.g., 'regenerate-filter-go', 'generate-trader-metadata')
+   * @param slug - Prompt slug (e.g., 'regenerate-filter-go', 'generate-trader-metadata')
    * @returns Prompt content string
    */
-  async loadPrompt(name: string): Promise<string> {
+  async loadPrompt(slug: string): Promise<string> {
     // Check cache first
-    const cached = this.cache.get(name);
+    const cached = this.cache.get(slug);
     if (cached && Date.now() - cached.cachedAt < this.cacheTTL) {
-      console.log(`[PromptLoader] Cache hit for prompt: ${name} (source: ${cached.source})`);
+      console.log(`[PromptLoader] Cache hit for prompt: ${slug}`);
       return cached.content;
     }
 
-    console.log(`[PromptLoader] Loading prompt: ${name}`);
+    console.log(`[PromptLoader] Loading prompt from Braintrust: ${slug}`);
 
-    // Try Braintrust first (if enabled)
-    if (this.useBraintrust) {
-      try {
-        const content = await this.loadFromBraintrust(name);
-        if (content) {
-          // Cache the prompt
-          this.cache.set(name, {
-            content,
-            cachedAt: Date.now(),
-            source: 'braintrust'
-          });
-          console.log(`[PromptLoader] Loaded from Braintrust: ${name} (${content.length} chars)`);
-          return content;
-        }
-      } catch (error) {
-        console.warn(
-          `[PromptLoader] Braintrust load failed for '${name}', falling back to Supabase:`,
-          error instanceof Error ? error.message : 'Unknown error'
-        );
-      }
-    }
+    const content = await this.loadFromBraintrustAPI(slug);
 
-    // Fall back to Supabase
-    try {
-      const content = await this.loadFromSupabase(name);
+    // Cache the prompt
+    this.cache.set(slug, {
+      content,
+      cachedAt: Date.now()
+    });
 
-      // Cache the prompt
-      this.cache.set(name, {
-        content,
-        cachedAt: Date.now(),
-        source: 'supabase'
-      });
-
-      console.log(`[PromptLoader] Loaded from Supabase: ${name} (${content.length} chars)`);
-      return content;
-    } catch (error) {
-      console.error(`[PromptLoader] Failed to load prompt '${name}' from both sources:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Load prompt from Braintrust
-   *
-   * Note: Prompts must be created in Braintrust UI first
-   */
-  private async loadFromBraintrust(slug: string): Promise<string | null> {
-    try {
-      // Load prompt from Braintrust
-      // The SDK handles caching automatically (memory + disk)
-      const prompt = await loadPrompt({
-        projectName: this.braintrustProjectName,
-        slug
-      });
-
-      // Braintrust prompts return structured data
-      // We need to extract the text content
-      if (prompt && typeof prompt === 'object') {
-        // Check if it has messages array (chat format)
-        if ('messages' in prompt && Array.isArray(prompt.messages)) {
-          // Combine all messages into single string
-          return prompt.messages.map((msg: any) => msg.content || '').join('\n\n');
-        }
-
-        // Check if it has a prompt field (string format)
-        if ('prompt' in prompt && typeof prompt.prompt === 'string') {
-          return prompt.prompt;
-        }
-
-        // Check if it has a content field (completion format)
-        if ('content' in prompt && typeof prompt.content === 'string') {
-          return prompt.content;
-        }
-
-        // If we can't extract content, return null to trigger fallback
-        console.warn(`[PromptLoader] Braintrust prompt '${slug}' has unexpected format`);
-        return null;
-      }
-
-      return null;
-    } catch (error) {
-      // Return null to trigger fallback (don't throw)
-      return null;
-    }
-  }
-
-  /**
-   * Load prompt from Supabase (fallback)
-   */
-  private async loadFromSupabase(name: string): Promise<string> {
-    const supabase = createClient(this.supabaseUrl, this.supabaseKey);
-
-    const { data, error } = await supabase
-      .from('prompts')
-      .select('system_instruction, user_prompt_template')
-      .eq('id', name)
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to load prompt '${name}': ${error.message}`);
-    }
-
-    if (!data) {
-      throw new Error(`Prompt '${name}' not found in database`);
-    }
-
-    // Combine system_instruction and user_prompt_template (if exists)
-    const content = data.user_prompt_template
-      ? `${data.system_instruction}\n\n${data.user_prompt_template}`
-      : data.system_instruction;
-
+    console.log(`[PromptLoader] Loaded from Braintrust: ${slug} (${content.length} chars)`);
     return content;
+  }
+
+  /**
+   * Load prompt from Braintrust REST API
+   *
+   * Uses direct REST API call instead of SDK to avoid SDK/REST disconnect issue
+   */
+  private async loadFromBraintrustAPI(slug: string): Promise<string> {
+    const url = `https://api.braintrust.dev/v1/prompt?project_id=${this.braintrustProjectId}&slug=${slug}`;
+
+    console.log(`[PromptLoader] Fetching from Braintrust REST API: ${slug}`);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.braintrustApiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Braintrust API error (${response.status}): ${errorText}`
+      );
+    }
+
+    const data = await response.json();
+
+    // Response format: { objects: [...] }
+    if (!data.objects || data.objects.length === 0) {
+      throw new Error(`Prompt '${slug}' not found in Braintrust project`);
+    }
+
+    const promptObject = data.objects[0];
+
+    // Extract content from prompt_data structure
+    if (!promptObject.prompt_data || !promptObject.prompt_data.prompt) {
+      throw new Error(`Prompt '${slug}' has invalid structure - missing prompt_data.prompt`);
+    }
+
+    const promptData = promptObject.prompt_data.prompt;
+
+    // Handle different prompt formats
+    if (promptData.type === 'completion' && promptData.content) {
+      console.log(`[PromptLoader] Found completion-type prompt (${promptData.content.length} chars)`);
+      return promptData.content;
+    }
+
+    if (promptData.type === 'chat' && Array.isArray(promptData.messages)) {
+      console.log(`[PromptLoader] Found chat-type prompt (${promptData.messages.length} messages)`);
+      return promptData.messages.map((msg: any) => msg.content || '').join('\n\n');
+    }
+
+    if (typeof promptData === 'string') {
+      console.log(`[PromptLoader] Found string-type prompt (${promptData.length} chars)`);
+      return promptData;
+    }
+
+    throw new Error(
+      `Prompt '${slug}' has unsupported format. Type: ${promptData.type}, Keys: ${Object.keys(promptData).join(', ')}`
+    );
   }
 
   /**
    * Load a prompt and replace variables with provided values
    *
-   * @param name - Prompt name
+   * @param slug - Prompt slug
    * @param variables - Object with variable replacements (e.g., {conditions: '...', klineInterval: '1h'})
    * @returns Prompt with variables replaced
    */
-  async loadPromptWithVariables(name: string, variables: Record<string, string>): Promise<string> {
-    let prompt = await this.loadPrompt(name);
+  async loadPromptWithVariables(slug: string, variables: Record<string, string>): Promise<string> {
+    let prompt = await this.loadPrompt(slug);
 
     // Replace all {{variable}} placeholders
     for (const [key, value] of Object.entries(variables)) {
@@ -195,25 +161,10 @@ export class PromptLoaderV2 {
   /**
    * Get cache statistics
    */
-  getCacheStats(): { size: number; keys: string[]; sources: { braintrust: number; supabase: number } } {
-    const sources = { braintrust: 0, supabase: 0 };
-
-    for (const cached of this.cache.values()) {
-      sources[cached.source]++;
-    }
-
+  getCacheStats(): { size: number; keys: string[] } {
     return {
       size: this.cache.size,
-      keys: Array.from(this.cache.keys()),
-      sources
+      keys: Array.from(this.cache.keys())
     };
-  }
-
-  /**
-   * Enable or disable Braintrust
-   */
-  setBraintrustEnabled(enabled: boolean): void {
-    this.useBraintrust = enabled;
-    console.log(`[PromptLoader] Braintrust ${enabled ? 'enabled' : 'disabled'}`);
   }
 }

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an AI-powered cryptocurrency screener for Binance Spot markets that allows users to describe technical trading conditions in natural language. The application uses Firebase AI Logic with Google's Gemini models to convert natural language into executable screening filters and visualizes results with real-time charts. Top-tier users get access to fully automated AI trading with the use of LLM APIs.
+This is an AI-powered cryptocurrency screener for Binance Spot markets that allows users to describe technical trading conditions in natural language. The application uses LLM models to convert natural language into executable screening filters and visualizes results with real-time charts. Filters can be based on any standard or fully custom metric or indicator that can be calculated from Binance kline data. Top-tier users get access to fully automated AI trading with the use of LLM APIs.
 
 The app is not yet in production. There are no produciton users but we want to launch in a week.
 
@@ -18,9 +18,6 @@ Use pnpm
 - **Pro**: + Create up to 10 custom signals, notifications
 - **Elite**: + Unlimited signals, AI analysis/monitoring/trading
 
-## Sub-Agent use
-- Use the available research sub-agents
-- Notify the user of which sub-agent you're calling at each sub-agent call.
 
 ## GitHub Workflow
 
@@ -78,4 +75,4 @@ gh issue create --title "Fix X" --label "bug"
 
 - When creating an issue or project, write out which critical tasks it will be required to complete it(in the correct order): Design / Performance Optimization / Architecture / Topic Research /  Documentation Lookup / critical rish mitigation / etc
 - Critical tasks may need their own issues.
-- Make sure to actually complete each of these critical tasks
+- Make sure to actually complete each of these critical tasks.

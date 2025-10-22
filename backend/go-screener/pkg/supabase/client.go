@@ -151,6 +151,42 @@ func (c *Client) CreateSignal(ctx context.Context, signal *types.Signal) error {
 	return nil
 }
 
+// CreateSignalsBatch creates multiple signals in a single database request
+func (c *Client) CreateSignalsBatch(ctx context.Context, signals []*types.Signal) error {
+	if len(signals) == 0 {
+		return nil
+	}
+
+	url := fmt.Sprintf("%s/rest/v1/signals", c.baseURL)
+
+	// Marshal the entire array for batch insert
+	payload, err := json.Marshal(signals)
+	if err != nil {
+		return fmt.Errorf("failed to marshal signals: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(payload))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	c.setHeaders(req)
+	req.Header.Set("Prefer", "return=minimal")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("supabase API error: %s - %s", resp.Status, string(body))
+	}
+
+	return nil
+}
+
 // GetUser fetches user information by ID
 func (c *Client) GetUser(ctx context.Context, userID string) (*types.User, error) {
 	url := fmt.Sprintf("%s/rest/v1/user_profiles?id=eq.%s&select=*", c.baseURL, userID)

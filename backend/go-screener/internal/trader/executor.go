@@ -583,17 +583,14 @@ func (e *Executor) processSymbol(ctx context.Context, symbol string, trader *Tra
 	return nil, nil
 }
 
-// saveSignals saves signals to the database
+// saveSignals saves signals to the database using batch insert
 func (e *Executor) saveSignals(signals []Signal) error {
-	log.Printf("[Executor] 🔍 saveSignals: Starting with %d signals", len(signals))
-	log.Printf("[Executor] 🔍 saveSignals: e.supabase = %v (nil check)", e.supabase == nil)
-	log.Printf("[Executor] 🔍 saveSignals: e.ctx = %v (nil check)", e.ctx == nil)
+	log.Printf("[Executor] Saving %d signals in batch", len(signals))
 
-	// Convert to types.Signal and save
-	for i, signal := range signals {
-		log.Printf("[Executor] 🔍 saveSignals: Processing signal %d/%d: %s", i+1, len(signals), signal.Symbol)
-
-		dbSignal := &types.Signal{
+	// Convert to types.Signal slice
+	dbSignals := make([]*types.Signal, 0, len(signals))
+	for _, signal := range signals {
+		dbSignals = append(dbSignals, &types.Signal{
 			ID:                    signal.ID,
 			TraderID:              signal.TraderID,
 			UserID:                signal.UserID,
@@ -606,17 +603,15 @@ func (e *Executor) saveSignals(signals []Signal) error {
 			Count:                 1,
 			Source:                "cloud",
 			MachineID:             nil,
-		}
-
-		log.Printf("[Executor] 🔍 saveSignals: Calling CreateSignal for %s...", signal.Symbol)
-		if err := e.supabase.CreateSignal(e.ctx, dbSignal); err != nil {
-			// Log error but continue (don't fail entire batch)
-			log.Printf("[Executor] Failed to save signal %s: %v", signal.ID, err)
-			continue
-		}
-		log.Printf("[Executor] 🔍 saveSignals: Successfully saved signal for %s", signal.Symbol)
+		})
 	}
 
+	// Single batch insert
+	if err := e.supabase.CreateSignalsBatch(e.ctx, dbSignals); err != nil {
+		return fmt.Errorf("failed to save signals batch: %w", err)
+	}
+
+	log.Printf("[Executor] Successfully saved %d signals in batch", len(dbSignals))
 	return nil
 }
 

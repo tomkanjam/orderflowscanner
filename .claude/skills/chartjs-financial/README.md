@@ -1,0 +1,145 @@
+# Chart.js Financial Charts Skill
+
+A comprehensive Claude Code skill for working with Chart.js 4.x financial charts, specifically tailored for the AI-powered Binance crypto screener project.
+
+## Purpose
+
+This skill provides expert guidance on:
+- Implementing candlestick and OHLC charts
+- Creating multi-panel indicator displays (RSI, MACD, Volume, etc.)
+- Real-time data updates from WebSocket streams
+- Custom plugins (crosshair, signal markers)
+- Pan/zoom functionality with state preservation
+- Performance optimization for live trading data
+
+## Files
+
+### SKILL.md
+The main skill file containing:
+- Project context and current implementation
+- Core Chart.js patterns for financial data
+- Real-time update strategies
+- Custom plugin development
+- Performance optimization techniques
+- Best practices and common patterns
+- Debugging & troubleshooting guide
+- Project-specific integration patterns
+
+### examples.md
+Production-ready code examples from the project:
+- Complete price chart with candlesticks
+- Indicator panel charts (RSI, MACD, Volume)
+- Real-time data update patterns
+- Custom crosshair and signal marker plugins
+- Horizontal pan handlers
+- Chart synchronization across panels
+- Helper functions for dataset creation
+
+### reference.md
+Quick reference guide covering:
+- Package versions and imports
+- Data structures (CandlestickDataPoint, IndicatorDataPoint, Kline)
+- Chart types and scale configurations
+- Common plugin configurations
+- Project color scheme
+- Update modes and methods
+- Performance tips
+- Debugging checklist
+- External resources and documentation
+
+## Usage
+
+Claude Code will automatically invoke this skill when you're working on:
+- Chart rendering issues
+- Adding new indicators or chart types
+- Optimizing chart performance
+- Implementing pan/zoom features
+- Creating custom plugins
+- Debugging real-time updates
+- Synchronizing multiple chart panels
+
+Simply ask Claude Code for help with any Chart.js-related task, and this skill will provide context-aware guidance based on the project's existing patterns.
+
+## Key Features
+
+### Candlestick Charts
+- Proper time scale configuration for financial data
+- Custom up/down/unchanged coloring
+- OHLC tooltip formatting
+- Real-time candle updates
+
+### Multi-Panel Indicators
+- Synchronized zoom/pan across all panels
+- Independent y-axis scales
+- Dynamic panel heights based on indicator count
+- Empty state handling during calculations
+
+### Custom Plugins
+- **Crosshair**: Synchronized cursor across all chart panels with price label
+- **Signal Markers**: Highlight trading signals with colored vertical bars
+- Both plugins fully integrated with the project's real-time data flow
+
+### Performance
+- Animation disabled for real-time updates (`animation: false`)
+- Efficient update mode (`chart.update('none')`)
+- Web Worker-based indicator calculations
+- Optimized tooltip rendering
+- In-place data updates without chart recreation
+
+### Pan & Zoom
+- Mouse wheel zoom (15% per scroll)
+- Trackpad pinch support
+- Shift+Scroll horizontal panning
+- Double-click to reset zoom
+- Zoom state preservation across updates
+- Synchronized across all panels
+
+## Current Implementation
+
+The project uses:
+- **Chart.js 4.5.0** - Core charting library
+- **chartjs-chart-financial 0.2.1** - Candlestick/OHLC support
+- **chartjs-adapter-date-fns 3.0.0** - Time scale adapter
+- **chartjs-plugin-zoom 2.2.0** - Pan/zoom functionality
+
+Main component: `apps/app/components/ChartDisplay.tsx` (1100+ lines)
+Helpers: `apps/app/utils/chartHelpers.ts`
+
+## Best Practices from This Skill
+
+1. **Separate chart creation from data updates** - Use two useEffect hooks
+2. **Always destroy charts on unmount** - Prevent memory leaks
+3. **Preserve zoom state across updates** - Save/restore min/max
+4. **Use `'none'` update mode** - For real-time performance
+5. **Type everything properly** - Leverage TypeScript types
+6. **Sync indicator panels** - After every zoom/pan operation
+7. **Disable animations** - For real-time updates
+8. **Use Web Workers** - For heavy indicator calculations
+
+## Example Queries
+
+- "How do I add a new indicator to the chart?"
+- "The chart isn't updating when new data arrives"
+- "How do I implement a custom plugin?"
+- "Optimize chart performance for 100+ symbols"
+- "Add a volume overlay to the price chart"
+- "Why is zoom state lost after updating data?"
+- "Create a custom tooltip formatter"
+- "Sync crosshair across multiple chart panels"
+
+## Related Project Files
+
+- `apps/app/components/ChartDisplay.tsx` - Main chart component
+- `apps/app/utils/chartHelpers.ts` - Dataset creation helpers
+- `apps/app/hooks/useIndicatorWorker.ts` - Web Worker calculations
+- `apps/app/hooks/useKlineData.ts` - Data fetching hook
+- `apps/app/types.ts` - Type definitions
+- `apps/app/src/contexts/KlineDataProvider.tsx` - Data context
+
+## Created
+
+October 2025
+
+## Author
+
+Generated by Claude Code based on project patterns, Chart.js documentation, and real-world implementation analysis.

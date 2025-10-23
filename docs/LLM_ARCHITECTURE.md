@@ -8,7 +8,40 @@ This document provides a comprehensive overview of all LLM (Large Language Model
 
 ---
 
-## 🎯 Architecture Principles
+## 🎯 What We're Building
+
+### The App Concept
+
+An AI-powered cryptocurrency trading platform where users create **AI Traders** (agents with personality) that:
+
+1. **Detect** - Find trading setups matching criteria (Go filter code execution on backend)
+2. **Analyze** - Evaluate opportunities using AI with personality-driven reasoning (LLM calls)
+3. **Execute** - (Elite tier only) Automatically trade based on AI decisions
+
+### The "Trader" Concept (Critical)
+
+**NOT** just filters/signals. **Traders are AI agents with personality**:
+
+```typescript
+{
+  name: "The Patient Divergence Trader",
+  personality: {
+    style: "conservative",
+    riskTolerance: "medium",
+    patience: "high",
+    philosophy: "I only trade high-probability setups"
+  }
+}
+```
+
+This enables:
+- **Consistent AI behavior** (same trader = same decision style)
+- **User emotional connection** (users bond with "their trader")
+- **Better prompts** (personality = context = better LLM outputs)
+
+---
+
+## 🏗️ Architecture Principles
 
 ### 1. **Browser LLM Operations = MINIMAL**
 The browser should ONLY perform trader/filter creation operations. All analysis should happen on the backend.

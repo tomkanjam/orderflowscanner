@@ -42,6 +42,7 @@ type Trader struct {
 	Name        string                `json:"name"`
 	Description string                `json:"description"`
 	IsBuiltIn   bool                  `json:"is_built_in"`
+	Enabled     bool                  `json:"enabled"` // Whether trader is enabled/active
 	Filter      json.RawMessage       `json:"filter"` // Raw JSON to handle double-encoding
 	CreatedAt   time.Time             `json:"created_at"`
 	UpdatedAt   time.Time             `json:"updated_at"`

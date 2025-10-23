@@ -8,6 +8,26 @@ This document provides a comprehensive overview of all LLM (Large Language Model
 
 ---
 
+## 🎯 Architecture Principles
+
+### 1. **Browser LLM Operations = MINIMAL**
+The browser should ONLY perform trader/filter creation operations. All analysis should happen on the backend.
+
+### 2. **All Browser LLM Calls = Edge Functions**
+- ❌ NO direct Firebase AI calls
+- ❌ NO direct OpenRouter calls from browser
+- ✅ ALL calls go through `llm-proxy` edge function
+
+### 3. **All LLM Operations = OpenRouter + Braintrust**
+- ✅ OpenRouter for API calls
+- ✅ Braintrust for observability/tracing
+- ✅ Prompts managed in Braintrust
+
+### 4. **Firebase AI Logic = MUST BE REMOVED**
+Firebase AI Logic is legacy code that violates our architecture principles and must be completely removed (see issue #41).
+
+---
+
 ## 🏗️ Architecture Diagram
 
 ```
@@ -66,23 +86,23 @@ This document provides a comprehensive overview of all LLM (Large Language Model
 
 ## 📍 LLM Call Paths
 
-### 1. **Browser → Firebase AI Logic** (⚠️ LEGACY PATH)
+### 1. **Browser → Firebase AI Logic** (❌ LEGACY - MUST BE REMOVED)
 
 **Location**: `apps/app/services/geminiService.ts`
 
-**Functions Still Using Firebase AI**:
-- `generateFilterAndChartConfig()` - Generates JavaScript filter code
-- `generateFilterAndChartConfigStream()` - Streaming version
-- `getMarketAnalysis()` - Market analysis for browser
-- `generateStructuredAnalysis()` - AI analysis for signals
-- `getSymbolAnalysis()` - Per-symbol AI analysis
+**Functions Using Firebase AI** (ALL VIOLATE ARCHITECTURE):
+- ❌ `generateFilterAndChartConfig()` - Generates JavaScript filter code
+- ❌ `generateFilterAndChartConfigStream()` - Streaming version
+- ❌ `getMarketAnalysis()` - Market analysis (should be backend-only)
+- ❌ `generateStructuredAnalysis()` - Signal analysis (should be backend-only)
+- ❌ `getSymbolAnalysis()` - Symbol analysis (should be backend-only)
 
 **Flow**:
 ```
 Browser (geminiService.ts)
   → Firebase AI SDK (getGenerativeModel)
     → Google Vertex AI
-      → Gemini models
+      → Gemini models (NO BRAINTRUST TRACING)
 ```
 
 **Configuration**: `apps/app/config/firebase.ts`
@@ -90,12 +110,19 @@ Browser (geminiService.ts)
 export const ai = getAI(app, { backend: new VertexAIBackend() });
 ```
 
-**Why Still in Use**:
-- Used for browser-based signal creation (legacy flow)
-- Analysis functions for existing signals
-- JavaScript code generation (not Go)
+**Why This Violates Architecture**:
+1. Browser performing analysis operations (should be backend)
+2. No Braintrust observability
+3. Direct LLM calls from browser (should use edge functions)
+4. Duplicate integration path (we already have OpenRouter)
 
-**Status**: ⚠️ **Should be migrated** to OpenRouter for consistency
+**Status**: ❌ **MUST BE REMOVED** (see issue #41)
+
+**Migration Plan**:
+- Delete all these functions (analysis should be backend-only)
+- Remove `config/firebase.ts` entirely
+- Remove Firebase AI package dependencies
+- Browser should ONLY call trader creation functions
 
 ---
 
@@ -292,25 +319,32 @@ export const OPERATION_CONFIGS = {
 
 ---
 
-## ⚠️ Issues & Technical Debt
+## ⚠️ Critical Issues
 
-### 1. **Firebase AI Logic Still in Use**
+### 1. **Firebase AI Logic MUST BE REMOVED** (Issue #41)
 
-**Problem**: `geminiService.ts` still uses Firebase AI Logic for browser-based operations.
+**Problem**: `geminiService.ts` still uses Firebase AI Logic which violates architecture principles.
 
 **Impact**:
-- Two different LLM integration paths (confusing)
-- No Braintrust tracing for Firebase calls
-- Different API quota management
+- ❌ Two different LLM integration paths (confusion)
+- ❌ No Braintrust tracing for Firebase calls
+- ❌ Browser performing analysis (should be backend-only)
+- ❌ Direct LLM calls from browser (violates edge function requirement)
+- ❌ Duplicate dependencies and code
 
-**Functions to Migrate**:
-- `generateFilterAndChartConfig()`
-- `getMarketAnalysis()`
-- `generateStructuredAnalysis()`
-- `getSymbolAnalysis()`
+**Functions to DELETE** (not migrate - analysis should be backend-only):
+- ❌ `generateFilterAndChartConfig()` - Delete
+- ❌ `generateFilterAndChartConfigStream()` - Delete
+- ❌ `getMarketAnalysis()` - Delete (backend handles this)
+- ❌ `generateStructuredAnalysis()` - Delete (backend handles this)
+- ❌ `getSymbolAnalysis()` - Delete (backend handles this)
 
-**Recommendation**:
-Create new llm-proxy operations for these functions to achieve consistent OpenRouter + Braintrust integration.
+**Files to DELETE**:
+- ❌ `apps/app/config/firebase.ts` - Remove entirely
+- ❌ Remove `firebase` and `@firebase/ai` packages
+
+**Required Action**:
+Complete removal of all Firebase AI code. Browser should ONLY perform trader creation via llm-proxy edge function.
 
 ### 2. **Prompt Not in Braintrust**
 
@@ -331,48 +365,64 @@ Upload prompt from `backend/go-screener/prompts/regenerate-filter-go.md` to Brai
 
 ---
 
-## 🚀 Recommendations
+## 🚀 Required Actions
 
-### Short Term
+### Phase 1: Foundation (CRITICAL - Do First)
 
-1. **Upload Prompts to Braintrust** (issue #38)
-   - Upload `regenerate-filter-go`
-   - Upload any other prompts referenced in code
-   - Verify prompt versioning strategy
+1. **Upload ALL Prompts to Braintrust** (issue #38)
+   - ⚠️ BLOCKS ALL OTHER WORK
+   - Upload `regenerate-filter-go` from `backend/go-screener/prompts/`
+   - Upload `generate-trader-metadata` prompt
+   - Verify prompts load correctly from Braintrust API
+   - Test prompt versioning strategy
 
-2. **Test Model Switching** (issue #37)
+### Phase 2: Remove Firebase AI (Issue #41)
+
+2. **DELETE Firebase AI Code** (HIGH PRIORITY)
+   - ❌ Delete `apps/app/config/firebase.ts` entirely
+   - ❌ Delete all Firebase AI functions from `geminiService.ts`:
+     - `generateFilterAndChartConfig()`
+     - `generateFilterAndChartConfigStream()`
+     - `getMarketAnalysis()`
+     - `generateStructuredAnalysis()`
+     - `getSymbolAnalysis()`
+   - ❌ Remove Firebase AI imports
+   - ❌ Remove `firebase` and `@firebase/ai` packages
+   - ✅ Keep ONLY trader creation functions (already use llm-proxy)
+
+3. **Verify Browser Operations are Minimal**
+   - Browser should ONLY call trader creation operations
+   - All analysis should be backend-only
+   - Test that trader creation still works
+   - Remove any UI that called deleted functions
+
+### Phase 3: Optimization
+
+4. **Test Model Switching** (issue #37)
    - Once prompts are uploaded, test Claude Haiku
    - Compare quality/performance vs Gemini
    - Update config if Claude performs better
 
-### Long Term
-
-3. **Migrate Firebase AI Logic Calls**
-   - Create llm-proxy operations for analysis functions
-   - Add Braintrust tracing to all LLM calls
-   - Remove Firebase AI dependencies
-
-4. **Consolidate Prompt Management**
-   - All prompts should be in Braintrust
-   - Remove hardcoded prompts from code
-   - Implement prompt versioning strategy
-
 5. **Unified Observability**
-   - All LLM calls (browser, edge, backend) traced in Braintrust
-   - Consistent token usage tracking
-   - Error monitoring and alerting
+   - Verify all LLM calls traced in Braintrust
+   - Monitor token usage across all operations
+   - Set up alerts for errors/high costs
 
 ---
 
 ## 📊 Current State Summary
 
-| Component | LLM Provider | Observability | Status |
-|-----------|-------------|---------------|---------|
-| **Browser Signals** | Firebase AI (Vertex) | ❌ None | ⚠️ Legacy |
-| **Trader Creation** | OpenRouter (via llm-proxy) | ✅ Braintrust | ✅ Modern |
-| **Signal Analysis** | OpenRouter (Go backend) | ✅ Braintrust | ✅ Modern |
+| Component | LLM Provider | Observability | Status | Action Required |
+|-----------|-------------|---------------|---------|-----------------|
+| **Browser Signals** | Firebase AI (Vertex) | ❌ None | ❌ VIOLATION | **DELETE** (Issue #41) |
+| **Trader Creation** | OpenRouter (via llm-proxy) | ✅ Braintrust | ✅ Correct | Keep |
+| **Signal Analysis** | OpenRouter (Go backend) | ✅ Braintrust | ✅ Correct | Keep |
 
-**Goal**: Migrate all paths to OpenRouter + Braintrust for consistency and observability.
+**Target State**:
+- Browser: ONLY trader creation via llm-proxy
+- Backend: ALL analysis operations
+- All LLM calls: OpenRouter + Braintrust
+- Zero Firebase AI code
 
 ---
 

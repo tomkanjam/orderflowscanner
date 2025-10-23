@@ -15,13 +15,14 @@ import (
 )
 
 // WSClient handles WebSocket connections to Binance for kline streams
+// Uses a single connection with combined streams for all symbol+interval pairs
 type WSClient struct {
 	wsURL       string
 	conn        *websocket.Conn
 	mu          sync.RWMutex
 	cache       *cache.KlineCache
 	symbols     []string
-	interval    string
+	intervals   []string
 	ctx         context.Context
 	cancel      context.CancelFunc
 	reconnectCh chan struct{}
@@ -76,25 +77,28 @@ func NewWSClient(wsURL string, cache *cache.KlineCache) *WSClient {
 }
 
 // Connect establishes WebSocket connection and subscribes to kline streams
-func (w *WSClient) Connect(symbols []string, interval string) error {
+func (w *WSClient) Connect(symbols []string, intervals []string) error {
 	w.mu.Lock()
 	w.symbols = symbols
-	w.interval = interval
+	w.intervals = intervals
 	w.mu.Unlock()
 
-	// Build stream names
-	streams := make([]string, len(symbols))
-	for i, symbol := range symbols {
-		// Convert to lowercase for Binance WebSocket
-		streams[i] = fmt.Sprintf("%s@kline_%s", strings.ToLower(symbol), interval)
+	// Build stream names for all symbol+interval combinations
+	streams := make([]string, 0, len(symbols)*len(intervals))
+	for _, symbol := range symbols {
+		for _, interval := range intervals {
+			// Convert to lowercase for Binance WebSocket
+			stream := fmt.Sprintf("%s@kline_%s", strings.ToLower(symbol), interval)
+			streams = append(streams, stream)
+		}
 	}
 
 	// Build WebSocket URL with combined streams
 	streamParam := strings.Join(streams, "/")
 	url := fmt.Sprintf("%s/stream?streams=%s", w.wsURL, streamParam)
 
-	log.Printf("[WSClient] Connecting to %s", url)
-	log.Printf("[WSClient] Subscribing to %d symbols for interval %s", len(symbols), interval)
+	log.Printf("[WSClient] Connecting to WebSocket...")
+	log.Printf("[WSClient] Subscribing to %d symbols × %d intervals = %d streams", len(symbols), len(intervals), len(streams))
 
 	// Connect
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
@@ -226,10 +230,10 @@ func (w *WSClient) reconnectHandler() {
 			// Attempt to reconnect
 			w.mu.RLock()
 			symbols := w.symbols
-			interval := w.interval
+			intervals := w.intervals
 			w.mu.RUnlock()
 
-			if err := w.Connect(symbols, interval); err != nil {
+			if err := w.Connect(symbols, intervals); err != nil {
 				log.Printf("[WSClient] Reconnection failed: %v", err)
 
 				// Increase backoff
@@ -296,17 +300,19 @@ func (w *WSClient) GetStats() WSStats {
 	defer w.mu.RUnlock()
 
 	return WSStats{
-		IsConnected:  w.isConnected,
-		SymbolCount:  len(w.symbols),
-		Interval:     w.interval,
-		CacheStats:   w.cache.Stats(),
+		IsConnected:   w.isConnected,
+		SymbolCount:   len(w.symbols),
+		IntervalCount: len(w.intervals),
+		Intervals:     w.intervals,
+		CacheStats:    w.cache.Stats(),
 	}
 }
 
 // WSStats holds WebSocket statistics
 type WSStats struct {
-	IsConnected  bool
-	SymbolCount  int
-	Interval     string
-	CacheStats   cache.CacheStats
+	IsConnected   bool
+	SymbolCount   int
+	IntervalCount int
+	Intervals     []string
+	CacheStats    cache.CacheStats
 }

@@ -247,24 +247,32 @@ func (s *Server) Start() error {
 	}
 	log.Printf("[Server] Retrieved %d symbols for bootstrap", len(symbols))
 
-	// Fetch historical klines for cache (this takes ~3s but only happens once on startup)
-	klineData, err := s.binanceClient.GetMultipleKlines(context.Background(), symbols, "5m", 500)
-	if err != nil {
-		return fmt.Errorf("failed to fetch klines for bootstrap: %w", err)
-	}
+	// Define all intervals we want to cache
+	intervals := []string{"1m", "5m", "15m", "1h", "4h", "1d"}
+	log.Printf("[Server] Bootstrapping cache for %d intervals: %v", len(intervals), intervals)
 
-	// Populate cache
-	for symbol, klines := range klineData {
-		s.klineCache.Set(symbol, "5m", klines)
-	}
-	log.Printf("[Server] ✅ Kline cache bootstrapped with %d symbols (%d klines total)", len(symbols), s.klineCache.Size())
+	// Fetch historical klines for all intervals
+	for _, interval := range intervals {
+		log.Printf("[Server] Fetching %s klines for %d symbols...", interval, len(symbols))
+		klineData, err := s.binanceClient.GetMultipleKlines(context.Background(), symbols, interval, 500)
+		if err != nil {
+			return fmt.Errorf("failed to fetch %s klines for bootstrap: %w", interval, err)
+		}
 
-	// Start WebSocket connection for real-time updates
+		// Populate cache for this interval
+		for symbol, klines := range klineData {
+			s.klineCache.Set(symbol, interval, klines)
+		}
+		log.Printf("[Server] ✅ Cached %s klines for %d symbols", interval, len(klineData))
+	}
+	log.Printf("[Server] ✅ Kline cache bootstrapped: %d symbols × %d intervals = %d total klines", len(symbols), len(intervals), s.klineCache.Size())
+
+	// Start WebSocket connection for real-time updates on all intervals
 	log.Printf("[Server] 🔄 Connecting to Binance WebSocket...")
-	if err := s.wsClient.Connect(symbols, "5m"); err != nil {
+	if err := s.wsClient.Connect(symbols, intervals); err != nil {
 		return fmt.Errorf("failed to connect WebSocket: %w", err)
 	}
-	log.Printf("[Server] ✅ WebSocket connected and streaming kline updates")
+	log.Printf("[Server] ✅ WebSocket connected and streaming %d symbols × %d intervals = %d streams", len(symbols), len(intervals), len(symbols)*len(intervals))
 
 	// Start Event Bus
 	if err := s.eventBus.Start(); err != nil {

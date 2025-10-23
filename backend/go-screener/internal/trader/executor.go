@@ -12,6 +12,7 @@ import (
 	"github.com/vyx/go-screener/internal/analysis"
 	"github.com/vyx/go-screener/internal/eventbus"
 	"github.com/vyx/go-screener/pkg/binance"
+	"github.com/vyx/go-screener/pkg/cache"
 	"github.com/vyx/go-screener/pkg/supabase"
 	"github.com/vyx/go-screener/pkg/types"
 	"github.com/vyx/go-screener/pkg/yaegi"
@@ -25,6 +26,7 @@ type Executor struct {
 	supabase     *supabase.Client
 	analysisEng  AnalysisEngine
 	eventBus     *eventbus.EventBus
+	cache        *cache.KlineCache // WebSocket-fed kline cache
 
 	ctx          context.Context
 	cancel       context.CancelFunc
@@ -47,6 +49,7 @@ func NewExecutor(
 	supabase *supabase.Client,
 	analysisEng AnalysisEngine,
 	eventBus *eventbus.EventBus,
+	cache *cache.KlineCache,
 ) *Executor {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -56,6 +59,7 @@ func NewExecutor(
 		supabase:    supabase,
 		analysisEng: analysisEng,
 		eventBus:    eventBus,
+		cache:       cache,
 		ctx:         ctx,
 		cancel:      cancel,
 		traders:     make(map[string]*Trader),
@@ -497,19 +501,33 @@ func (e *Executor) fetchKlineData(symbols []string, timeframes []string) (map[st
 	limit := 250
 
 	for _, timeframe := range timeframes {
-		// Fetch klines for all symbols concurrently
-		klineMap, err := e.binance.GetMultipleKlines(e.ctx, symbols, timeframe, limit)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch klines for timeframe %s: %w", timeframe, err)
-		}
+		// Try to get klines from cache first (instant!)
+		cacheHits := 0
+		cacheMisses := 0
 
-		// Organize by symbol
-		for symbol, klines := range klineMap {
+		for _, symbol := range symbols {
+			klines, err := e.cache.Get(symbol, timeframe, limit)
+			if err != nil {
+				// Cache miss - fallback to REST API
+				cacheMisses++
+				log.Printf("[Executor] Cache miss for %s@%s, falling back to REST", symbol, timeframe)
+
+				klines, err = e.binance.GetKlines(e.ctx, symbol, timeframe, limit)
+				if err != nil {
+					log.Printf("[Executor] Failed to fetch klines for %s@%s: %v", symbol, timeframe, err)
+					continue
+				}
+			} else {
+				cacheHits++
+			}
+
 			if _, exists := result[symbol]; !exists {
 				result[symbol] = make(map[string][]types.Kline)
 			}
 			result[symbol][timeframe] = klines
 		}
+
+		log.Printf("[Executor] Kline fetch for %s: %d cache hits, %d cache misses", timeframe, cacheHits, cacheMisses)
 	}
 
 	return result, nil

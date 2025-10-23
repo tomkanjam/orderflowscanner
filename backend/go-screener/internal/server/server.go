@@ -17,6 +17,7 @@ import (
 	"github.com/vyx/go-screener/internal/scheduler"
 	"github.com/vyx/go-screener/internal/trader"
 	"github.com/vyx/go-screener/pkg/binance"
+	"github.com/vyx/go-screener/pkg/cache"
 	"github.com/vyx/go-screener/pkg/config"
 	"github.com/vyx/go-screener/pkg/supabase"
 	"github.com/vyx/go-screener/pkg/types"
@@ -31,6 +32,10 @@ type Server struct {
 	binanceClient   *binance.Client
 	supabaseClient  *supabase.Client
 	yaegiExecutor   *yaegi.Executor
+
+	// WebSocket & Cache
+	klineCache      *cache.KlineCache
+	wsClient        *binance.WSClient
 
 	// Event-driven architecture
 	eventBus        *eventbus.EventBus
@@ -58,6 +63,14 @@ func New(cfg *config.Config) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create yaegi executor: %w", err)
 	}
+
+	// Initialize kline cache (keep last 500 candles per symbol/interval)
+	klineCache := cache.NewKlineCache(500)
+	log.Printf("[Server] ✅ Kline Cache initialized (max 500 candles per symbol/interval)")
+
+	// Initialize WebSocket client
+	wsClient := binance.NewWSClient(cfg.BinanceWSURL, klineCache)
+	log.Printf("[Server] ✅ WebSocket Client initialized")
 
 	// 1. Initialize Event Bus
 	eventBus := eventbus.NewEventBus()
@@ -115,6 +128,7 @@ func New(cfg *config.Config) (*Server, error) {
 		supabaseClient,
 		analysisEngine,
 		eventBus,
+		klineCache,
 	)
 	log.Printf("[Server] ✅ Trader Executor initialized")
 
@@ -128,6 +142,8 @@ func New(cfg *config.Config) (*Server, error) {
 		binanceClient:    binanceClient,
 		supabaseClient:   supabaseClient,
 		yaegiExecutor:    yaegiExec,
+		klineCache:       klineCache,
+		wsClient:         wsClient,
 		eventBus:         eventBus,
 		candleScheduler:  candleScheduler,
 		analysisEngine:   analysisEngine,
@@ -223,6 +239,33 @@ func (s *Server) Start() error {
 		log.Printf("[Server] ✅ Supabase connection OK")
 	}
 
+	// Bootstrap kline cache with historical data (one-time cost on startup)
+	log.Printf("[Server] 🔄 Bootstrapping kline cache...")
+	symbols, err := s.binanceClient.GetTopSymbols(context.Background(), s.config.SymbolCount, s.config.MinVolume)
+	if err != nil {
+		return fmt.Errorf("failed to get symbols for bootstrap: %w", err)
+	}
+	log.Printf("[Server] Retrieved %d symbols for bootstrap", len(symbols))
+
+	// Fetch historical klines for cache (this takes ~3s but only happens once on startup)
+	klineData, err := s.binanceClient.GetMultipleKlines(context.Background(), symbols, "5m", 500)
+	if err != nil {
+		return fmt.Errorf("failed to fetch klines for bootstrap: %w", err)
+	}
+
+	// Populate cache
+	for symbol, klines := range klineData {
+		s.klineCache.Set(symbol, "5m", klines)
+	}
+	log.Printf("[Server] ✅ Kline cache bootstrapped with %d symbols (%d klines total)", len(symbols), s.klineCache.Size())
+
+	// Start WebSocket connection for real-time updates
+	log.Printf("[Server] 🔄 Connecting to Binance WebSocket...")
+	if err := s.wsClient.Connect(symbols, "5m"); err != nil {
+		return fmt.Errorf("failed to connect WebSocket: %w", err)
+	}
+	log.Printf("[Server] ✅ WebSocket connected and streaming kline updates")
+
 	// Start Event Bus
 	if err := s.eventBus.Start(); err != nil {
 		return fmt.Errorf("failed to start event bus: %w", err)
@@ -275,19 +318,25 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 	// Shutdown in reverse order of startup
 
-	// 1. Shutdown trader manager first (stop accepting new traders)
+	// 1. Shutdown WebSocket connection (stop receiving updates)
+	log.Printf("[Server] Shutting down WebSocket connection...")
+	if err := s.wsClient.Close(); err != nil {
+		log.Printf("[Server] Warning: WebSocket shutdown error: %v", err)
+	}
+
+	// 2. Shutdown trader manager (stop accepting new traders)
 	log.Printf("[Server] Shutting down trader manager...")
 	if err := s.traderManager.Shutdown(30 * time.Second); err != nil {
 		log.Printf("[Server] Warning: Trader manager shutdown error: %v", err)
 	}
 
-	// 2. Shutdown candle scheduler (stop generating events)
+	// 3. Shutdown candle scheduler (stop generating events)
 	log.Printf("[Server] Shutting down candle scheduler...")
 	if err := s.candleScheduler.Stop(); err != nil {
 		log.Printf("[Server] Warning: Candle scheduler shutdown error: %v", err)
 	}
 
-	// 3. Shutdown trader executor (stop processing traders)
+	// 4. Shutdown trader executor (stop processing traders)
 	log.Printf("[Server] Shutting down trader executor...")
 	if err := s.traderExecutor.Stop(); err != nil {
 		log.Printf("[Server] Warning: Trader executor shutdown error: %v", err)

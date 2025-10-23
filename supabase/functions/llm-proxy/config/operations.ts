@@ -42,8 +42,8 @@ export const OPERATION_CONFIGS = {
    * Braintrust scorers: ValidGoCode, FilterCodeRequirements, ConditionCoverage
    */
   'generate-filter-code': {
-    modelId: 'google/gemini-2.5-flash',
-    promptVersion: 'v1.0',
+    modelId: 'anthropic/claude-haiku-4.5',
+    promptVersion: 'v1.1',
     temperature: 0.4, // Lower temperature for code generation
     maxTokens: 4000,
     description: 'Generate Go filter code from trading conditions'

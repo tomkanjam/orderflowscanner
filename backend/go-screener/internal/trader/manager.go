@@ -319,6 +319,47 @@ func (m *Manager) RegisterTrader(trader *Trader) error {
 	return nil
 }
 
+// LoadTraderByID loads a single trader from the database by ID and adds it to the executor
+// This is used to hot-reload newly created traders without server restart
+func (m *Manager) LoadTraderByID(traderID string) error {
+	log.Printf("[Manager] Loading trader %s from database", traderID)
+
+	// Fetch trader from database
+	dbTrader, err := m.supabase.GetTrader(m.ctx, traderID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch trader: %w", err)
+	}
+
+	// Check if enabled
+	if !dbTrader.Enabled {
+		return fmt.Errorf("trader %s is not enabled", traderID)
+	}
+
+	// Convert database model to runtime model
+	trader, err := convertDBTraderToRuntime(dbTrader)
+	if err != nil {
+		return fmt.Errorf("failed to convert trader: %w", err)
+	}
+
+	// Validate filter code
+	if err := m.yaegi.ValidateCode(trader.Config.FilterCode); err != nil {
+		return fmt.Errorf("invalid filter code: %w", err)
+	}
+
+	// Register trader in registry
+	if err := m.RegisterTrader(trader); err != nil {
+		return fmt.Errorf("failed to register trader: %w", err)
+	}
+
+	// Add trader to executor for event-driven execution
+	if err := m.executor.AddTrader(trader); err != nil {
+		return fmt.Errorf("failed to add trader to executor: %w", err)
+	}
+
+	log.Printf("[Manager] ✅ Loaded trader: %s (%s)", trader.ID, trader.Name)
+	return nil
+}
+
 // UnregisterTrader removes a trader from the manager
 func (m *Manager) UnregisterTrader(traderID string) error {
 	// Stop trader if running

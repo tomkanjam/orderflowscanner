@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -180,6 +181,26 @@ func (h *TraderHandler) GetManagerMetrics(w http.ResponseWriter, r *http.Request
 
 	metrics := h.manager.GetMetrics()
 	respondJSON(w, http.StatusOK, metrics)
+}
+
+// ReloadTrader handles POST /api/v1/traders/{id}/reload
+// Loads a trader from the database and adds it to the executor without restart
+func (h *TraderHandler) ReloadTrader(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	traderID := vars["id"]
+
+	// Load trader from database
+	if err := h.manager.LoadTraderByID(traderID); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Trader %s loaded successfully", traderID),
+	})
 }
 
 // AuthMiddleware validates Supabase JWT tokens

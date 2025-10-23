@@ -210,6 +210,7 @@ func (s *Server) setupRouter() {
 
 	traderAPI.HandleFunc("/{id}/start", s.traderHandler.StartTrader).Methods("POST")
 	traderAPI.HandleFunc("/{id}/stop", s.traderHandler.StopTrader).Methods("POST")
+	traderAPI.HandleFunc("/{id}/reload", s.traderHandler.ReloadTrader).Methods("POST")
 	traderAPI.HandleFunc("/{id}/status", s.traderHandler.GetTraderStatus).Methods("GET")
 	traderAPI.HandleFunc("/active", s.traderHandler.ListActiveTraders).Methods("GET")
 	traderAPI.HandleFunc("/metrics", s.traderHandler.GetManagerMetrics).Methods("GET")

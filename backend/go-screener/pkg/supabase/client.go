@@ -120,6 +120,40 @@ func (c *Client) GetBuiltInTraders(ctx context.Context) ([]types.Trader, error) 
 	return traders, nil
 }
 
+// GetTrader fetches a single trader by ID
+func (c *Client) GetTrader(ctx context.Context, traderID string) (*types.Trader, error) {
+	url := fmt.Sprintf("%s/rest/v1/traders?id=eq.%s&select=*", c.baseURL, traderID)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	c.setHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("supabase API error: %s - %s", resp.Status, string(body))
+	}
+
+	var traders []types.Trader
+	if err := json.NewDecoder(resp.Body).Decode(&traders); err != nil {
+		return nil, fmt.Errorf("failed to decode trader: %w", err)
+	}
+
+	if len(traders) == 0 {
+		return nil, fmt.Errorf("trader not found: %s", traderID)
+	}
+
+	return &traders[0], nil
+}
+
 // CreateSignal creates a new signal in the database
 func (c *Client) CreateSignal(ctx context.Context, signal *types.Signal) error {
 	url := fmt.Sprintf("%s/rest/v1/signals", c.baseURL)

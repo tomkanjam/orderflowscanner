@@ -19,6 +19,8 @@ You will receive an array of conditions that describe a trading filter. Your tas
 1. Analyze the conditions to determine which timeframes are needed
 2. Generate the Go function body that implements these conditions
 
+**CRITICAL**: Your response MUST be ONLY valid JSON. Do NOT include any conversational text, explanations, markdown formatting, or preamble. Start your response immediately with the opening brace { and end with the closing brace }.
+
 Return a JSON object with this structure:
 \`\`\`json
 {
@@ -83,7 +85,18 @@ For conditions: ["RSI below 30", "Price above 50-day MA"]
 2. Always check for nil pointers before dereferencing
 3. Use := for variable declarations
 4. Return boolean values
-5. Include proper error handling`
+5. Include proper error handling
+
+## Output Format
+
+**IMPORTANT**: Return ONLY the JSON object. Your entire response must be valid JSON that can be directly parsed. Do not write:
+- ❌ "I'm ready to generate the code..."
+- ❌ "Here is the JSON..."
+- ❌ \`\`\`json ... \`\`\`
+- ❌ Any explanatory text
+
+Simply output:
+- ✅ {"filterCode": "...", "requiredTimeframes": [...]}`
 
 async function uploadPrompt(apiKey: string) {
   const payload = {

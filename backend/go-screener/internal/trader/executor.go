@@ -401,13 +401,17 @@ func (e *Executor) queueSignalsForAnalysis(trader *Trader, signals []Signal) err
 		klinesMap := make(map[string][]types.Kline)
 		for j, tf := range timeframes {
 			log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Fetching kline %d/%d for %s (%s)...", j+1, len(timeframes), signal.Symbol, tf)
-			log.Printf("[Executor] 🔍 queueSignalsForAnalysis: e.binance = %v (nil check)", e.binance == nil)
-			log.Printf("[Executor] 🔍 queueSignalsForAnalysis: e.ctx = %v (nil check)", e.ctx == nil)
 
-			klines, err := e.binance.GetKlines(e.ctx, signal.Symbol, tf, 100)
+			// Try cache first (instant!)
+			klines, err := e.cache.Get(signal.Symbol, tf, 100)
 			if err != nil {
-				log.Printf("[Executor] Failed to fetch klines for %s: %v", signal.Symbol, err)
-				continue
+				// Cache miss - fallback to REST API
+				log.Printf("[Executor] Cache miss for %s@%s in queueSignalsForAnalysis, falling back to REST", signal.Symbol, tf)
+				klines, err = e.binance.GetKlines(e.ctx, signal.Symbol, tf, 100)
+				if err != nil {
+					log.Printf("[Executor] Failed to fetch klines for %s@%s: %v", signal.Symbol, tf, err)
+					continue
+				}
 			}
 			log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Fetched %d klines for %s (%s)", len(klines), signal.Symbol, tf)
 			klinesMap[tf] = klines

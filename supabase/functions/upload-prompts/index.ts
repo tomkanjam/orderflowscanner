@@ -29,11 +29,13 @@ Return a JSON object with this structure:
 }
 \`\`\`
 
-## Input Format
+## Trading Conditions to Implement
 
-You will receive:
-- \`conditions\`: An array of strings describing the trading conditions
-- \`klineInterval\`: The default timeframe preference (e.g., "1h", "5m")
+{{conditions}}
+
+## Preferred Timeframe
+
+{{klineInterval}}
 
 ## For the filterCode:
 

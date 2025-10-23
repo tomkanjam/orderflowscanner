@@ -3,17 +3,42 @@
 /**
  * Upload regenerate-filter-go prompt to Braintrust
  *
- * Usage:
+ * Usage Option 1 (Environment Variable):
  *   BRAINTRUST_API_KEY=xxx deno run --allow-read --allow-net --allow-env scripts/upload-prompt-to-braintrust.ts
+ *
+ * Usage Option 2 (Interactive):
+ *   deno run --allow-read --allow-net --allow-env scripts/upload-prompt-to-braintrust.ts
+ *   (Script will prompt for API key)
+ *
+ * Get your API key from: https://www.braintrust.dev/ → Organization Settings → API Keys
  */
 
 const BRAINTRUST_API_URL = 'https://api.braintrust.dev/v1'
 const PROJECT_ID = '5df22744-d29c-4b01-b18b-e3eccf2ddbba'
 
+async function promptForApiKey(): Promise<string> {
+  console.log('\nBraintrust API Key not found in environment.')
+  console.log('Get your API key from: https://www.braintrust.dev/ → Organization Settings → API Keys\n')
+
+  const buf = new Uint8Array(1024)
+  await Deno.stdout.write(new TextEncoder().encode('Enter your Braintrust API key: '))
+  const n = await Deno.stdin.read(buf)
+  if (n === null) {
+    throw new Error('Failed to read API key from stdin')
+  }
+
+  return new TextDecoder().decode(buf.subarray(0, n)).trim()
+}
+
 async function main() {
-  const apiKey = Deno.env.get('BRAINTRUST_API_KEY')
+  let apiKey = Deno.env.get('BRAINTRUST_API_KEY')
+
   if (!apiKey) {
-    console.error('Error: BRAINTRUST_API_KEY environment variable not set')
+    apiKey = await promptForApiKey()
+  }
+
+  if (!apiKey) {
+    console.error('Error: BRAINTRUST_API_KEY is required')
     Deno.exit(1)
   }
 

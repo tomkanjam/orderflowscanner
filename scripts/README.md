@@ -1,58 +1,87 @@
-# Scripts
+# Upload Braintrust Prompts Script
 
-## Upload Prompts to Braintrust
+## Purpose
 
-### Prerequisites
+This script uploads the `regenerate-filter-go` prompt to Braintrust programmatically using the Braintrust REST API.
 
-1. **Get your Braintrust API Key**:
-   - Go to https://www.braintrust.dev/app/settings/api-keys
-   - Create a new API key
-   - Copy it (you'll only see it once!)
+## Prerequisites
 
-2. **Get your Project ID**:
-   - Go to your "AI Trader" project in Braintrust
-   - Click Settings
-   - Copy the Project ID
+1. **Deno** installed on your system
+   - Install from: https://deno.land/
+   - Check version: `deno --version`
 
-### Usage
+2. **Braintrust API Key**
+   - Get it from: https://www.braintrust.dev/ → Organization Settings → API Keys
+   - Click "Create API Key" if you don't have one
+
+## Usage
+
+### Option 1: Using Environment Variable (Recommended for CI/CD)
 
 ```bash
-# Set environment variables
-export BRAINTRUST_API_KEY="your_api_key_here"
-export BRAINTRUST_PROJECT_ID="your_project_id_here"
-
-# Run the upload script
-npx tsx scripts/upload-prompts-to-braintrust.ts
+BRAINTRUST_API_KEY=your_api_key_here \
+  deno run --allow-read --allow-net --allow-env scripts/upload-prompt-to-braintrust.ts
 ```
 
-### What It Does
+### Option 2: Interactive Mode (Recommended for local development)
 
-1. Loads the prompt content from `docs/BRAINTRUST_PROMPT_SETUP.md`
-2. Creates/updates the `generate-filter-code` prompt in Braintrust via REST API
-3. Configures it to use Gemini 2.5 Flash model
-4. Sets proper JSON response format
+```bash
+deno run --allow-read --allow-net --allow-env scripts/upload-prompt-to-braintrust.ts
+```
 
-### After Upload
+The script will prompt you to enter your API key.
 
-1. **Verify**: Visit https://www.braintrust.dev/ and check that the prompt appears
-2. **Test**: Use Braintrust playground to test with sample inputs
-3. **Deploy**: Mark as production version
-4. **Test End-to-End**: Create a trader in the UI and check Fly logs
+## What the Script Does
 
-### Troubleshooting
+1. Reads the full prompt content from `backend/go-screener/prompts/regenerate-filter-go.md`
+2. Uploads it to Braintrust project "AI Trader" with:
+   - **Slug**: `regenerate-filter-go`
+   - **Model**: `google/gemini-2.5-flash`
+   - **Temperature**: 0.4
+   - **Max Tokens**: 4000
+3. Uses HTTP `PUT` method to create or replace the existing prompt
 
-**"BRAINTRUST_API_KEY environment variable is required"**
-- Make sure you've exported the API key as shown above
-- Don't include quotes around the value when exporting
+## Expected Output
 
-**"HTTP 401: Unauthorized"**
-- Your API key may be invalid or expired
-- Generate a new one from Braintrust settings
+```
+Reading prompt from ./backend/go-screener/prompts/regenerate-filter-go.md...
+Loaded 20817 characters from prompt file
+Uploading prompt to Braintrust...
+✅ Successfully uploaded prompt!
+   ID: <prompt-id>
+   Slug: regenerate-filter-go
+   Model: google/gemini-2.5-flash
 
-**"HTTP 404: Project not found"**
-- Check your PROJECT_ID is correct
-- Make sure you have access to the project
+You can now test trader creation in the UI.
+```
 
-**"Could not find prompt content markers"**
-- The `BRAINTRUST_PROMPT_SETUP.md` file may have been modified
-- Check that the prompt content is still between the markers
+## Troubleshooting
+
+### Error: "Invalid authorization token format"
+
+This likely means your API key is incorrect or expired. Get a fresh API key from Braintrust.
+
+### Error: "Project not found"
+
+Make sure you're using the correct Braintrust organization that contains the "AI Trader" project.
+
+### Error: "File not found"
+
+Run the script from the repository root directory:
+```bash
+cd /path/to/ai-powered-binance-crypto-screener
+deno run --allow-read --allow-net --allow-env scripts/upload-prompt-to-braintrust.ts
+```
+
+## Security Notes
+
+- **Never commit API keys to version control**
+- The script accepts API keys via environment variable or interactive input
+- API keys are not logged or stored by the script
+- Use environment variables in CI/CD pipelines
+
+## Related Issues
+
+- #38 - Upload regenerate-filter-go prompt to Braintrust
+- #37 - Switch trader/filter creation LLM to Claude Haiku (blocked by #38)
+- #41 - Remove Firebase AI code (blocked by #38)

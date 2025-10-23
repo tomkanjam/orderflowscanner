@@ -4,7 +4,7 @@ import { signalManager } from './signalManager';
 import { tradeManager } from './tradeManager';
 import { traderManager } from './traderManager';
 import { KlineInterval } from '../../types';
-import { getSymbolAnalysis } from '../../services/geminiService';
+// REMOVED: getSymbolAnalysis - All analysis now handled by backend (Go server)
 import { getPositionContext } from '../utils/positionContext';
 
 export interface WorkflowSchedule {
@@ -243,46 +243,43 @@ class WorkflowManager {
       return;
     }
 
-    // Build monitoring prompt
-    const prompt = await this.buildMonitoringPrompt(signal, trader, kline);
-    
-    // Get AI analysis
-    const analysis = await getSymbolAnalysis(
-      signal.symbol,
-      null, // ticker will be fetched internally
-      null, // historicalData will be fetched internally
-      prompt,
-      trader.ai_model || 'gemini-2.5-flash',
-      workflow.interval as KlineInterval,
-      100, // kline limit
-      trader.indicators
-    );
+    // TODO: Browser-side analysis removed per architecture (issue #41)
+    // All signal analysis now happens on the backend (Go server)
+    // This workflow manager may need to be removed or refactored to only
+    // manage backend analysis requests, not perform analysis in the browser
 
-    // Parse decision from analysis
+    console.warn('[WorkflowManager] Browser-side analysis is deprecated - backend handles all analysis');
+
+    // Temporary: Skip analysis and deactivate workflow
+    // In the future, this should trigger backend analysis via API call
+    await this.deactivateWorkflow(workflow.id);
+    return;
+
+    // REMOVED CODE (now handled by backend):
+    // - buildMonitoringPrompt()
+    // - getSymbolAnalysis() call
+    // - parseMonitoringDecision()
+
+    /* Original code commented out - all analysis now on backend:
+    const prompt = await this.buildMonitoringPrompt(signal, trader, kline);
+    const analysis = await getSymbolAnalysis(...);
     const decision = this.parseMonitoringDecision(analysis);
-    
-    // Record decision
     await this.recordMonitoringDecision(signal.id, kline, decision);
 
-    // Execute decision
     switch (decision.decision) {
       case 'enter':
-        // Update signal to ready status
         signalManager.updateSignalStatus(signal.id, 'ready');
-        // The signal lifecycle will handle trade creation
         await this.deactivateWorkflow(workflow.id);
         break;
-        
       case 'abandon':
         signalManager.updateSignalStatus(signal.id, 'expired');
         await this.deactivateWorkflow(workflow.id);
         break;
-        
       case 'continue':
-        // Just continue monitoring
         console.log(`[WorkflowManager] Continuing to monitor ${signal.symbol}`);
         break;
     }
+    */
   }
 
   private async executePositionManagement(workflow: WorkflowSchedule, kline: number[]) {

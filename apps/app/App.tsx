@@ -6,7 +6,7 @@ import MainContent from './components/MainContent';
 import Modal from './components/Modal';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
 import { fetchTopPairsAndInitialKlines, connectWebSocket, connectMultiIntervalWebSocket } from './services/binanceService';
-import { getSymbolAnalysis, getMarketAnalysis } from './services/geminiService';
+// REMOVED: getSymbolAnalysis, getMarketAnalysis - All analysis now handled by backend
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS, DEFAULT_KLINE_INTERVAL, DEFAULT_GEMINI_MODEL, GEMINI_MODELS, MAX_SIGNAL_LOG_ENTRIES } from './constants';
 import * as screenerHelpers from './screenerHelpers';
 import { useHistoricalScanner } from './hooks/useHistoricalScanner';
@@ -1058,9 +1058,14 @@ const AppContent: React.FC = () => {
     setIsModalOpen(true);
 
     try {
+        // TODO: Market analysis removed - all analysis now handled by backend (issue #41)
+        setModalContent(<p className="text-[var(--nt-warning)]">Market analysis feature temporarily disabled. All analysis now handled by backend server.</p>);
+
+        /* Original code commented out:
         const topTickersList = Array.from(tickers.values()).sort((a,b) => parseFloat(b.q) - parseFloat(a.q)).slice(0,10);
         const analysisText = await getMarketAnalysis(topTickersList, internalGeminiModelName, klineInterval);
         setModalContent(<div className="whitespace-pre-wrap text-sm md:text-base">{analysisText}</div>);
+        */
     } catch (error) {
         console.error("Market Analysis error:", error);
         const errorMessage = error instanceof Error ? error.message : "Failed to get market analysis.";

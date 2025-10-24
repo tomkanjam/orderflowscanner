@@ -7,6 +7,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { activityTracker } from '../services/activityTracker';
 
 interface ExpandableSignalCardProps {
@@ -95,7 +100,9 @@ export function ExpandableSignalCard({
   };
 
   return (
-    <div
+    <Collapsible
+      open={isExpanded}
+      onOpenChange={onToggleExpand}
       className={`
         border border-border rounded-lg overflow-hidden
         transition-all duration-200 ease-out
@@ -104,14 +111,14 @@ export function ExpandableSignalCard({
         ${isSelected ? 'ring-2 ring-primary' : ''}
       `}
     >
-      {/* Collapsed Header */}
-      <div
-        className="flex items-center gap-2 px-3 h-10 cursor-pointer"
-        onClick={() => {
-          onSelect?.();
-          onToggleExpand?.();
-        }}
-      >
+      {/* Header - CollapsibleTrigger */}
+      <CollapsibleTrigger asChild>
+        <div
+          className="flex items-center gap-2 px-3 h-10 cursor-pointer w-full"
+          onClick={(e) => {
+            onSelect?.();
+          }}
+        >
         {/* Type icon - no color */}
         <div className="flex-shrink-0 text-muted-foreground">
           {signal.isBuiltIn ? (
@@ -214,16 +221,11 @@ export function ExpandableSignalCard({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+        </div>
+      </CollapsibleTrigger>
 
       {/* Expanded Content */}
-      <div
-        className={`
-          transition-all duration-200 ease-out
-          ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
-          overflow-y-auto overflow-x-hidden
-        `}
-      >
+      <CollapsibleContent className="overflow-y-auto overflow-x-hidden max-h-96">
         <div className="px-4 pb-4 pt-2 space-y-3">
           {/* Description */}
           <p className="text-sm text-muted-foreground leading-relaxed">
@@ -267,7 +269,7 @@ export function ExpandableSignalCard({
             {signal.category && <span className="uppercase tracking-wider">{signal.category}</span>}
           </div>
         </div>
-      </div>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

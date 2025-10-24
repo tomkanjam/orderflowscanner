@@ -276,12 +276,13 @@ export class SharedMarketData {
       this.klineView[baseOffset + i] = 0;
     }
     
-    // Write new klines
+    // Write new klines - take the LAST N candles (most recent data)
     const klinesToWrite = Math.min(klines.length, MAX_KLINES_PER_SYMBOL);
+    const startIndex = Math.max(0, klines.length - klinesToWrite);
     for (let i = 0; i < klinesToWrite; i++) {
-      const kline = klines[i];
+      const kline = klines[startIndex + i];
       const offset = baseOffset + i * KLINE_SIZE;
-      
+
       this.klineView[offset + 0] = kline[0];
       this.klineView[offset + 1] = parseFloat(kline[1]);
       this.klineView[offset + 2] = parseFloat(kline[2]);

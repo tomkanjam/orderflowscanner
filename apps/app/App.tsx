@@ -151,9 +151,14 @@ const AppContent: React.FC = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Ensure aiAnalysisLimit exists with default
+        // Migration: Cap screenerLimit to current constant (prevents old cached values)
+        const migratedScreenerLimit = Math.min(
+          parsed.screenerLimit || KLINE_HISTORY_LIMIT,
+          KLINE_HISTORY_LIMIT
+        );
+
         return {
-          screenerLimit: parsed.screenerLimit || KLINE_HISTORY_LIMIT,
+          screenerLimit: migratedScreenerLimit,
           analysisLimit: parsed.analysisLimit || KLINE_HISTORY_LIMIT_FOR_ANALYSIS,
           aiAnalysisLimit: parsed.aiAnalysisLimit || 100
         };

@@ -107,22 +107,6 @@ const MainContent: React.FC<MainContentProps> = ({
     }
     // Get klines from sharedMarketData
     const klines = sharedMarketData.getKlines(selectedSymbolForChart, klineInterval);
-
-    // DEBUG: Check timestamp range to diagnose chart gap issue
-    if (klines.length > 0) {
-      const firstTime = new Date(klines[0][0]);
-      const lastTime = new Date(klines[klines.length - 1][0]);
-      const timeGapMinutes = (lastTime.getTime() - firstTime.getTime()) / 60000;
-      console.log(`[CHART DEBUG] Klines for ${selectedSymbolForChart}:`, {
-        count: klines.length,
-        firstTime: firstTime.toISOString(),
-        lastTime: lastTime.toISOString(),
-        timeGapMinutes: timeGapMinutes.toFixed(0),
-        expectedGapMinutes: klines.length * (klineInterval === '1m' ? 1 : klineInterval === '5m' ? 5 : 15),
-        timestamps: klines.map(k => new Date(k[0]).toISOString()).slice(0, 5).concat(['...'], klines.map(k => new Date(k[0]).toISOString()).slice(-5))
-      });
-    }
-
     return klines;
   }, [selectedSymbolForChart, klineInterval]);
   

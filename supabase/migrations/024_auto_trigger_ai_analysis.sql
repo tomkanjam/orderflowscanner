@@ -38,17 +38,18 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Get Edge Function URL from environment or use default
-  edge_function_url := current_setting('app.edge_function_url', true);
+  -- Get Edge Function URL from standard Supabase environment variable
+  edge_function_url := current_setting('SUPABASE_URL', true);
   IF edge_function_url IS NULL OR edge_function_url = '' THEN
-    -- Build default URL using Supabase project reference
-    edge_function_url := current_setting('app.supabase_url', true) || '/functions/v1/ai-analysis';
+    RAISE WARNING 'SUPABASE_URL not configured - cannot trigger AI analysis';
+    RETURN NEW;
   END IF;
+  edge_function_url := edge_function_url || '/functions/v1/ai-analysis';
 
-  -- Get service role key (must be set via Supabase secrets)
-  service_role_key := current_setting('app.service_role_key', true);
+  -- Get service role key from standard Supabase environment variable
+  service_role_key := current_setting('SUPABASE_SERVICE_ROLE_KEY', true);
   IF service_role_key IS NULL OR service_role_key = '' THEN
-    RAISE WARNING 'Service role key not configured - cannot trigger AI analysis';
+    RAISE WARNING 'SUPABASE_SERVICE_ROLE_KEY not configured - cannot trigger AI analysis';
     RETURN NEW;
   END IF;
 

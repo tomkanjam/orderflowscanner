@@ -31,20 +31,9 @@ COMMENT ON COLUMN traders.auto_execute_trades IS
 
 ## Step 2: Apply Migration 024 (Auto-Trigger Function)
 
-**NOTE:** First, you need to set Supabase secrets for the trigger to work:
+**NOTE:** This migration uses your existing `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` environment variables that are already configured in your Supabase project. No additional secrets needed!
 
-### Set Secrets (via Supabase Dashboard → Project Settings → Vault)
-
-1. Go to Project Settings → Edge Functions → Secrets
-2. Add these secrets:
-   - Name: `app.service_role_key`
-   - Value: Your `SUPABASE_SERVICE_ROLE_KEY` (from .env or Supabase Dashboard → Settings → API)
-
-3. Add URL secret:
-   - Name: `app.supabase_url`
-   - Value: Your Supabase project URL (e.g., `https://ktyjpnvgqspdzhbwcxpe.supabase.co`)
-
-### Then run the migration:
+### Run the migration:
 
 Go to Supabase Dashboard → SQL Editor → New Query
 
@@ -87,17 +76,18 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Get Edge Function URL from environment or use default
-  edge_function_url := current_setting('app.edge_function_url', true);
+  -- Get Edge Function URL from standard Supabase environment variable
+  edge_function_url := current_setting('SUPABASE_URL', true);
   IF edge_function_url IS NULL OR edge_function_url = '' THEN
-    -- Build default URL using Supabase project reference
-    edge_function_url := current_setting('app.supabase_url', true) || '/functions/v1/ai-analysis';
+    RAISE WARNING 'SUPABASE_URL not configured - cannot trigger AI analysis';
+    RETURN NEW;
   END IF;
+  edge_function_url := edge_function_url || '/functions/v1/ai-analysis';
 
-  -- Get service role key (must be set via Supabase secrets)
-  service_role_key := current_setting('app.service_role_key', true);
+  -- Get service role key from standard Supabase environment variable
+  service_role_key := current_setting('SUPABASE_SERVICE_ROLE_KEY', true);
   IF service_role_key IS NULL OR service_role_key = '' THEN
-    RAISE WARNING 'Service role key not configured - cannot trigger AI analysis';
+    RAISE WARNING 'SUPABASE_SERVICE_ROLE_KEY not configured - cannot trigger AI analysis';
     RETURN NEW;
   END IF;
 
@@ -193,11 +183,11 @@ trigger_name              | event_manipulation | event_object_table
 auto_trigger_ai_analysis  | INSERT             | trader_signals
 ```
 
-### Check that secrets are set:
+### Check that environment variables are accessible:
 
 ```sql
-SELECT current_setting('app.service_role_key', true) IS NOT NULL as service_key_set,
-       current_setting('app.supabase_url', true) IS NOT NULL as url_set;
+SELECT current_setting('SUPABASE_SERVICE_ROLE_KEY', true) IS NOT NULL as service_key_set,
+       current_setting('SUPABASE_URL', true) IS NOT NULL as url_set;
 ```
 
 Expected output:
@@ -207,7 +197,7 @@ service_key_set | url_set
 t               | t
 ```
 
-If either is `f`, you need to set the secrets via Dashboard → Project Settings → Vault.
+These should already be set since you have existing `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_URL` secrets in your project.
 
 ## Done!
 

@@ -1,0 +1,15 @@
+# Test environment configuration
+# Copy this file to .env.test and fill in your test values
+
+# Skip integration tests (set to 'true' to skip, useful for CI without live services)
+SKIP_INTEGRATION_TESTS=false
+
+# Supabase Configuration (use local Supabase or test project)
+SUPABASE_URL=http://localhost:54321
+SUPABASE_SERVICE_KEY=your-test-service-key
+
+# Edge Function URL (local or test deployment)
+EDGE_FUNCTION_URL=http://localhost:54321/functions/v1/ai-analysis
+
+# Optional: Use a test Gemini API key if testing against live API
+# GEMINI_API_KEY=your-test-gemini-key

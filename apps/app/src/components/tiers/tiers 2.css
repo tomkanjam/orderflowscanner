@@ -1,0 +1,567 @@
+/**
+ * Tier Selection Modal & Components Styles
+ *
+ * Styles for tier selection modal, tier cards, and create signal button.
+ * Uses TradeMind design system variables.
+ *
+ * IMPORTANT: Green/lime gradient (NOT purple) per user feedback
+ */
+
+/* ============================================================================
+   Create Signal with AI Button
+   ============================================================================ */
+
+.create-signal-btn {
+  width: 100%;
+  padding: 12px 20px;
+  /* Green/lime gradient - NOT purple */
+  background: linear-gradient(135deg, #10b981 0%, #8efbba 100%);
+  color: var(--tm-text-inverse);
+  border: none;
+  border-radius: var(--tm-radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  transition: all var(--tm-transition-base);
+}
+
+.create-signal-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+}
+
+.create-signal-btn:active {
+  transform: scale(0.98);
+}
+
+.create-signal-btn:focus {
+  outline: 3px solid var(--tm-accent);
+  outline-offset: 2px;
+}
+
+.btn-icon {
+  font-size: 1.1rem;
+  color: #0a0a0b;
+}
+
+/* ============================================================================
+   Modal Overlay
+   ============================================================================ */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  animation: fadeIn 200ms ease-out;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ============================================================================
+   Modal Container
+   ============================================================================ */
+
+.modal-container {
+  background-color: var(--tm-bg-secondary);
+  border-radius: var(--tm-radius-lg);
+  max-width: 1200px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--tm-shadow-xl);
+  animation: scaleIn 200ms ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ============================================================================
+   Modal Header
+   ============================================================================ */
+
+.modal-header {
+  padding: var(--tm-space-6);
+  border-bottom: 1px solid var(--tm-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.modal-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--tm-text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.modal-subtitle {
+  font-size: 0.875rem;
+  color: var(--tm-text-secondary);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--tm-text-muted);
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+  transition: all var(--tm-transition-base);
+}
+
+.modal-close:hover {
+  color: var(--tm-text-primary);
+  background-color: var(--tm-bg-hover);
+}
+
+/* ============================================================================
+   Modal Content
+   ============================================================================ */
+
+.modal-content {
+  padding: var(--tm-space-6);
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+/* Mobile: Stack vertically */
+@media (max-width: 768px) {
+  .modal-content {
+    flex-direction: column;
+  }
+}
+
+/* ============================================================================
+   Tier Card
+   ============================================================================ */
+
+.tier-card {
+  background-color: var(--tm-bg-tertiary);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-lg);
+  padding: 1.5rem;
+  transition: all var(--tm-transition-base);
+  cursor: pointer;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tier-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.tier-card:focus-within {
+  outline: 3px solid var(--tm-accent);
+  outline-offset: 2px;
+}
+
+/* Highlighted Tier (Starter) */
+.tier-highlighted {
+  border: 2px solid rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+}
+
+/* Recommended Tier (Lite) */
+.tier-recommended {
+  border: 2px solid var(--tm-accent);
+  box-shadow: 0 0 20px rgba(142, 251, 186, 0.2);
+}
+
+/* Locked Tier (Pro) */
+.tier-locked {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.tier-locked:hover {
+  transform: none;
+}
+
+/* ============================================================================
+   Tier Header
+   ============================================================================ */
+
+.tier-header {
+  margin-bottom: 1rem;
+}
+
+.tier-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tier-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--tm-text-primary);
+  letter-spacing: 0.025em;
+}
+
+.tier-badge {
+  font-size: 0.65rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-popular {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.badge-recommended {
+  background-color: rgba(142, 251, 186, 0.2);
+  color: var(--tm-accent);
+}
+
+.badge-locked {
+  background-color: rgba(161, 161, 170, 0.2);
+  color: var(--tm-text-muted);
+}
+
+.badge-current {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--tm-success);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.tier-price {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--tm-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.price-period {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--tm-text-muted);
+}
+
+/* ============================================================================
+   Tier Description
+   ============================================================================ */
+
+.tier-description {
+  font-size: 0.875rem;
+  color: var(--tm-text-secondary);
+  margin-bottom: 1rem;
+}
+
+/* ============================================================================
+   Tier Features
+   ============================================================================ */
+
+.tier-features {
+  list-style: none;
+  margin-bottom: 1.5rem;
+  flex-grow: 1;
+}
+
+.tier-features li {
+  font-size: 0.875rem;
+  color: var(--tm-text-secondary);
+  padding: 0.375rem 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tier-features .feature-subtitle {
+  color: var(--tm-text-muted);
+  font-style: italic;
+  font-size: 0.8125rem;
+}
+
+.check {
+  color: var(--tm-success);
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.check.highlight {
+  color: var(--tm-accent);
+  font-size: 1rem;
+}
+
+/* ============================================================================
+   Tier CTA Buttons
+   ============================================================================ */
+
+.tier-cta {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--tm-radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all var(--tm-transition-base);
+}
+
+.btn-primary {
+  background-color: var(--tm-accent);
+  color: var(--tm-text-inverse);
+}
+
+.btn-primary:hover {
+  background-color: var(--tm-accent-hover);
+}
+
+.btn-secondary {
+  background-color: var(--tm-bg-active);
+  color: var(--tm-text-primary);
+  border: 1px solid var(--tm-border);
+}
+
+.btn-secondary:hover {
+  background-color: var(--tm-bg-hover);
+  border-color: var(--tm-border-light);
+}
+
+.btn-current {
+  background-color: var(--tm-bg-active);
+  color: var(--tm-text-muted);
+  border: 1px solid var(--tm-border);
+  cursor: not-allowed;
+}
+
+.tier-cta:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   Waitlist Form
+   ============================================================================ */
+
+.waitlist-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.waitlist-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: var(--tm-bg-secondary);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-md);
+  color: var(--tm-text-primary);
+  font-size: 0.875rem;
+  transition: all var(--tm-transition-base);
+}
+
+.waitlist-input:focus {
+  outline: none;
+  border-color: var(--tm-accent);
+  box-shadow: 0 0 0 3px rgba(142, 251, 186, 0.1);
+}
+
+.waitlist-input::placeholder {
+  color: var(--tm-text-muted);
+}
+
+.waitlist-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.waitlist-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: rgba(16, 185, 129, 0.1);
+  border-radius: var(--tm-radius-md);
+  text-align: center;
+}
+
+.success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background-color: var(--tm-success);
+  color: var(--tm-bg-primary);
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 1.25rem;
+}
+
+.waitlist-success p {
+  margin: 0;
+  color: var(--tm-success);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+/* Email display for logged-in users */
+.waitlist-email-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--tm-bg-tertiary);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-md);
+  color: var(--tm-text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+
+.email-icon {
+  flex-shrink: 0;
+}
+
+.email-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Error message */
+.waitlist-error {
+  padding: 0.75rem 1rem;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--tm-radius-md);
+  color: #ef4444;
+  font-size: 0.875rem;
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+/* Loading state for buttons */
+.btn-loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 0.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Success animation */
+.waitlist-success {
+  animation: fadeInScale 0.3s ease-out;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ============================================================================
+   Mobile Responsive
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .modal-container {
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+    animation: slideUp 200ms ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .modal-header {
+    padding: 1rem;
+  }
+
+  .modal-title {
+    font-size: 1.5rem;
+  }
+
+  .modal-content {
+    padding: 1rem;
+  }
+
+  .tier-card {
+    padding: 1rem;
+  }
+
+  .tier-card:hover {
+    transform: none;
+  }
+}

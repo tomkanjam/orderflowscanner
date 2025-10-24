@@ -130,18 +130,24 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Get Edge Function URL from standard Supabase environment variable
-  edge_function_url := current_setting('SUPABASE_URL', true);
+  -- Get Edge Function URL from Supabase Vault
+  SELECT decrypted_secret INTO edge_function_url
+  FROM vault.decrypted_secrets
+  WHERE name = 'supabase_url';
+
   IF edge_function_url IS NULL OR edge_function_url = '' THEN
-    RAISE WARNING 'SUPABASE_URL not configured - cannot trigger AI analysis';
+    RAISE WARNING 'supabase_url not found in vault - cannot trigger AI analysis';
     RETURN NEW;
   END IF;
   edge_function_url := edge_function_url || '/functions/v1/ai-analysis';
 
-  -- Get service role key from standard Supabase environment variable
-  service_role_key := current_setting('SUPABASE_SERVICE_ROLE_KEY', true);
+  -- Get service role key from Supabase Vault
+  SELECT decrypted_secret INTO service_role_key
+  FROM vault.decrypted_secrets
+  WHERE name = 'service_role_key';
+
   IF service_role_key IS NULL OR service_role_key = '' THEN
-    RAISE WARNING 'SUPABASE_SERVICE_ROLE_KEY not configured - cannot trigger AI analysis';
+    RAISE WARNING 'service_role_key not found in vault - cannot trigger AI analysis';
     RETURN NEW;
   END IF;
 

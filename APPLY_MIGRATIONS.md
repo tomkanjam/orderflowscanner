@@ -29,9 +29,24 @@ COMMENT ON COLUMN traders.auto_execute_trades IS
   'When true, automatically execute trades based on AI analysis (Elite tier only, requires auto_analyze_signals=true)';
 ```
 
-## Step 2: Apply Migration 024 (Auto-Trigger Function)
+## Step 2: Create Vault Secrets
 
-**NOTE:** This migration uses your existing `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` environment variables that are already configured in your Supabase project. No additional secrets needed!
+Before applying migration 024, you need to create two secrets in Supabase Vault:
+
+1. **Go to Supabase Dashboard → Database → Vault**
+2. **Click "New Secret"**
+3. **Create first secret:**
+   - Name: `supabase_url`
+   - Secret: Your project URL (e.g., `https://ktyjpnvgqspdzhbwcxpe.supabase.co`)
+   - Get it from: Dashboard → Settings → API → Project URL
+4. **Create second secret:**
+   - Name: `service_role_key`
+   - Secret: Your service role key
+   - Get it from: Dashboard → Settings → API → service_role (secret key)
+
+**Why Vault?** Database functions cannot access environment variables directly. Vault provides secure, encrypted storage accessible from within Postgres.
+
+## Step 3: Apply Migration 024 (Auto-Trigger Function)
 
 ### Run the migration:
 
@@ -76,18 +91,24 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Get Edge Function URL from standard Supabase environment variable
-  edge_function_url := current_setting('SUPABASE_URL', true);
+  -- Get Edge Function URL from Supabase Vault
+  SELECT decrypted_secret INTO edge_function_url
+  FROM vault.decrypted_secrets
+  WHERE name = 'supabase_url';
+
   IF edge_function_url IS NULL OR edge_function_url = '' THEN
-    RAISE WARNING 'SUPABASE_URL not configured - cannot trigger AI analysis';
+    RAISE WARNING 'supabase_url not found in vault - cannot trigger AI analysis';
     RETURN NEW;
   END IF;
   edge_function_url := edge_function_url || '/functions/v1/ai-analysis';
 
-  -- Get service role key from standard Supabase environment variable
-  service_role_key := current_setting('SUPABASE_SERVICE_ROLE_KEY', true);
+  -- Get service role key from Supabase Vault
+  SELECT decrypted_secret INTO service_role_key
+  FROM vault.decrypted_secrets
+  WHERE name = 'service_role_key';
+
   IF service_role_key IS NULL OR service_role_key = '' THEN
-    RAISE WARNING 'SUPABASE_SERVICE_ROLE_KEY not configured - cannot trigger AI analysis';
+    RAISE WARNING 'service_role_key not found in vault - cannot trigger AI analysis';
     RETURN NEW;
   END IF;
 
@@ -183,21 +204,22 @@ trigger_name              | event_manipulation | event_object_table
 auto_trigger_ai_analysis  | INSERT             | trader_signals
 ```
 
-### Check that environment variables are accessible:
+### Check that Vault secrets are accessible:
 
 ```sql
-SELECT current_setting('SUPABASE_SERVICE_ROLE_KEY', true) IS NOT NULL as service_key_set,
-       current_setting('SUPABASE_URL', true) IS NOT NULL as url_set;
+SELECT name,
+       (decrypted_secret IS NOT NULL AND decrypted_secret != '') as is_set
+FROM vault.decrypted_secrets
+WHERE name IN ('supabase_url', 'service_role_key');
 ```
 
 Expected output:
 ```
-service_key_set | url_set
-----------------+---------
-t               | t
+name              | is_set
+------------------+--------
+supabase_url      | t
+service_role_key  | t
 ```
-
-These should already be set since you have existing `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_URL` secrets in your project.
 
 ## Done!
 

@@ -129,10 +129,9 @@ Follow instructions in `APPLY_MIGRATIONS.md`:
 
 1. **Go to Supabase Dashboard → SQL Editor**
 2. **Run Migration 023** (add columns)
-3. **Set Secrets:**
-   - Dashboard → Project Settings → Vault
-   - Add `app.service_role_key` (your SUPABASE_SERVICE_ROLE_KEY)
-   - Add `app.supabase_url` (your project URL)
+3. **Create Vault Secrets** (Dashboard → Database → Vault):
+   - Add `supabase_url` (your project URL from Settings → API)
+   - Add `service_role_key` (your service role key from Settings → API)
 4. **Run Migration 024** (create trigger)
 5. **Verify** using SQL queries in guide
 
@@ -273,8 +272,9 @@ Once deployed, monitor:
 - [x] TypeScript interfaces updated
 - [x] UI components added
 - [x] Documentation written
-- [ ] Migrations applied (manual step)
-- [ ] Secrets configured (manual step)
+- [x] Vault implementation (using vault.decrypted_secrets)
+- [ ] Migrations applied (manual step - see APPLY_MIGRATIONS.md)
+- [ ] Vault secrets created (manual step - see APPLY_MIGRATIONS.md)
 - [ ] Testing completed (manual step)
 - [ ] Production deployment
 

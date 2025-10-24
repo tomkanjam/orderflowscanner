@@ -129,9 +129,9 @@ Follow instructions in `APPLY_MIGRATIONS.md`:
 
 1. **Go to Supabase Dashboard → SQL Editor**
 2. **Run Migration 023** (add columns)
-3. **Create Vault Secrets** (Dashboard → Database → Vault):
-   - Add `supabase_url` (your project URL from Settings → API)
-   - Add `service_role_key` (your service role key from Settings → API)
+3. **Verify Vault Secrets** exist (already configured):
+   - ✅ `project_url` (Edge Function URL)
+   - ✅ `service_role_key` (Service role authentication)
 4. **Run Migration 024** (create trigger)
 5. **Verify** using SQL queries in guide
 

@@ -133,10 +133,10 @@ BEGIN
   -- Get Edge Function URL from Supabase Vault
   SELECT decrypted_secret INTO edge_function_url
   FROM vault.decrypted_secrets
-  WHERE name = 'supabase_url';
+  WHERE name = 'project_url';
 
   IF edge_function_url IS NULL OR edge_function_url = '' THEN
-    RAISE WARNING 'supabase_url not found in vault - cannot trigger AI analysis';
+    RAISE WARNING 'project_url not found in vault - cannot trigger AI analysis';
     RETURN NEW;
   END IF;
   edge_function_url := edge_function_url || '/functions/v1/ai-analysis';

@@ -29,20 +29,28 @@ COMMENT ON COLUMN traders.auto_execute_trades IS
   'When true, automatically execute trades based on AI analysis (Elite tier only, requires auto_analyze_signals=true)';
 ```
 
-## Step 2: Create Vault Secrets
+## Step 2: Verify Vault Secrets
 
-Before applying migration 024, you need to create two secrets in Supabase Vault:
+**Good news!** You already have the required secrets in Vault:
+- ✅ `project_url` (Edge Function URL)
+- ✅ `service_role_key` (Service role authentication)
 
-1. **Go to Supabase Dashboard → Database → Vault**
-2. **Click "New Secret"**
-3. **Create first secret:**
-   - Name: `supabase_url`
-   - Secret: Your project URL (e.g., `https://ktyjpnvgqspdzhbwcxpe.supabase.co`)
-   - Get it from: Dashboard → Settings → API → Project URL
-4. **Create second secret:**
-   - Name: `service_role_key`
-   - Secret: Your service role key
-   - Get it from: Dashboard → Settings → API → service_role (secret key)
+**Verify they exist:**
+
+```sql
+SELECT name,
+       (decrypted_secret IS NOT NULL AND decrypted_secret != '') as is_set
+FROM vault.decrypted_secrets
+WHERE name IN ('project_url', 'service_role_key');
+```
+
+Expected output:
+```
+name              | is_set
+------------------+--------
+project_url       | t
+service_role_key  | t
+```
 
 **Why Vault?** Database functions cannot access environment variables directly. Vault provides secure, encrypted storage accessible from within Postgres.
 
@@ -94,10 +102,10 @@ BEGIN
   -- Get Edge Function URL from Supabase Vault
   SELECT decrypted_secret INTO edge_function_url
   FROM vault.decrypted_secrets
-  WHERE name = 'supabase_url';
+  WHERE name = 'project_url';
 
   IF edge_function_url IS NULL OR edge_function_url = '' THEN
-    RAISE WARNING 'supabase_url not found in vault - cannot trigger AI analysis';
+    RAISE WARNING 'project_url not found in vault - cannot trigger AI analysis';
     RETURN NEW;
   END IF;
   edge_function_url := edge_function_url || '/functions/v1/ai-analysis';
@@ -210,14 +218,14 @@ auto_trigger_ai_analysis  | INSERT             | trader_signals
 SELECT name,
        (decrypted_secret IS NOT NULL AND decrypted_secret != '') as is_set
 FROM vault.decrypted_secrets
-WHERE name IN ('supabase_url', 'service_role_key');
+WHERE name IN ('project_url', 'service_role_key');
 ```
 
 Expected output:
 ```
 name              | is_set
 ------------------+--------
-supabase_url      | t
+project_url       | t
 service_role_key  | t
 ```
 

@@ -446,7 +446,23 @@ Enable auto-analysis → Signals automatically analyzed
 - ✅ Future auto-execution requires auto-analysis (dependency check)
 
 ## Completion
-(Add this section when closing the issue)
-**Closed:** YYYY-MM-DD HH:mm:ss
-**Outcome:** [Success|Abandoned|Merged into X]
-**Commits:** [list relevant commit hashes]
+
+**Closed:** 2025-10-24 14:47:00
+**Outcome:** Success - Auto-trigger working with Go backend
+
+**Commits:**
+- 7b48722 - fix: use existing Vault secret names (project_url instead of supabase_url)
+- 3ffe95b - fix: use Supabase Vault for database trigger secrets
+- f11cb46 - fix: update auto-trigger to watch signals table (Go backend)
+
+**Architecture Clarification:**
+- OLD path (unused): Supabase Cron → Edge Functions → trader_signals
+- NEW path (production): Fly.io Go backend → signals → auto-trigger → ai-analysis
+
+**Final Status:**
+- ✅ Trigger watching correct table (signals)
+- ✅ Signal_analyses table created
+- ✅ Toggle columns exist
+- ✅ Vault secrets configured
+- ✅ Test trader enabled for auto-analysis
+- ✅ Ready for production use

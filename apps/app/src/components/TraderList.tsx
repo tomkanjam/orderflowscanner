@@ -287,7 +287,7 @@ export function TraderList({
                 const access = getSignalAccess(trader, currentTier);
                 const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
                 const isSelected = selectedTraderId === trader.id;
-                const isExpanded = expandedCardIds.has(trader.id);
+                const isExpanded = expandedCardId === trader.id;
                 const canEditDelete = profile?.is_admin || trader.createdBy === profile?.id;
 
                 return (
@@ -332,7 +332,7 @@ export function TraderList({
                 const access = getSignalAccess(trader, currentTier);
                 const isFavorite = true; // Always true in favorites tab
                 const isSelected = selectedTraderId === trader.id;
-                const isExpanded = expandedCardIds.has(trader.id);
+                const isExpanded = expandedCardId === trader.id;
                 const effectivelyEnabled = getEffectiveEnabled(trader);
                 const canEditDelete = profile?.is_admin || trader.createdBy === profile?.id;
 

@@ -107,13 +107,7 @@ export function ExpandableSignalCard({
       {/* Collapsed Header */}
       <div
         className="flex items-center gap-2 px-3 h-10 cursor-pointer"
-        onClick={() => {
-          if (onToggleExpand) {
-            onToggleExpand();
-          } else if (onSelect) {
-            onSelect();
-          }
-        }}
+        onClick={onToggleExpand}
       >
         {/* Type icon - no color */}
         <div className="flex-shrink-0 text-muted-foreground">
@@ -139,6 +133,13 @@ export function ExpandableSignalCard({
             {getStatusBadge()!.text}
           </span>
         )}
+
+        {/* Chevron indicator */}
+        <ChevronDown
+          className={`w-4 h-4 flex-shrink-0 text-muted-foreground transition-transform duration-200 ${
+            isExpanded ? 'rotate-180' : ''
+          }`}
+        />
 
         {/* Menu */}
         <DropdownMenu>
@@ -215,10 +216,6 @@ export function ExpandableSignalCard({
                 Delete
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onSelect?.(); }}>
-              <span className="mr-2">📊</span>
-              View Details
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

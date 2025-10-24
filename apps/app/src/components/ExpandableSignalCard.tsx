@@ -107,13 +107,7 @@ export function ExpandableSignalCard({
       {/* Collapsed Header */}
       <div
         className="flex items-center gap-2 px-3 h-10 cursor-pointer"
-        onClick={() => {
-          if (onToggleExpand) {
-            onToggleExpand();
-          } else if (onSelect) {
-            onSelect();
-          }
-        }}
+        onClick={onSelect}
       >
         {/* Type icon - no color */}
         <div className="flex-shrink-0 text-muted-foreground">
@@ -215,10 +209,6 @@ export function ExpandableSignalCard({
                 Delete
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onSelect?.(); }}>
-              <span className="mr-2">📊</span>
-              View Details
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

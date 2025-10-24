@@ -107,7 +107,10 @@ export function ExpandableSignalCard({
       {/* Collapsed Header */}
       <div
         className="flex items-center gap-2 px-3 h-10 cursor-pointer"
-        onClick={onSelect}
+        onClick={() => {
+          onSelect?.();
+          onToggleExpand?.();
+        }}
       >
         {/* Type icon - no color */}
         <div className="flex-shrink-0 text-muted-foreground">

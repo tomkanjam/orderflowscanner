@@ -28,6 +28,10 @@ export interface Trader {
   category?: string;
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   adminNotes?: string;
+
+  // Automation toggles (Elite tier only)
+  auto_analyze_signals?: boolean; // Automatically trigger AI analysis for new signals (default: false)
+  auto_execute_trades?: boolean; // Automatically execute trades based on AI analysis (default: false)
   
   // Metadata
   createdAt: Date;

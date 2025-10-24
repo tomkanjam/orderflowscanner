@@ -60,6 +60,10 @@ export function TraderForm({
   const [adminNotes, setAdminNotes] = useState(editingTrader?.adminNotes || '');
   const [defaultEnabled, setDefaultEnabled] = useState(editingTrader?.default_enabled || false);
 
+  // Automation toggles
+  const [autoAnalyzeSignals, setAutoAnalyzeSignals] = useState(editingTrader?.auto_analyze_signals || false);
+  const [autoExecuteTrades, setAutoExecuteTrades] = useState(editingTrader?.auto_execute_trades || false);
+
   // Track the original conditions and interval to detect changes
   const originalConditionsRef = useRef<string[]>(editingTrader?.filter?.description || []);
   const originalIntervalRef = useRef<KlineInterval>(editingTrader?.filter?.interval || KlineInterval.ONE_MINUTE);
@@ -357,7 +361,10 @@ export function TraderForm({
             difficulty: isBuiltIn ? difficulty : undefined,
             adminNotes: isBuiltIn ? adminNotes : undefined,
             default_enabled: isBuiltIn ? defaultEnabled : undefined
-          })
+          }),
+          // Automation toggles
+          auto_analyze_signals: autoAnalyzeSignals,
+          auto_execute_trades: autoExecuteTrades
         });
         
         onTraderCreated?.(updated);
@@ -390,6 +397,9 @@ export function TraderForm({
             modelTier: modelTier,
             maxConcurrentAnalysis: maxConcurrentAnalysis
           },
+          // Automation toggles
+          auto_analyze_signals: autoAnalyzeSignals,
+          auto_execute_trades: autoExecuteTrades,
           // Admin fields for new traders
           ...(profile?.is_admin && {
             isBuiltIn,
@@ -829,6 +839,59 @@ export function TraderForm({
               Maximum number of signals from this trader that can be analyzed simultaneously (1-10)
             </p>
           </div>
+
+          {/* Automation Settings (Elite tier only) */}
+          {currentTier === 'elite' && (
+            <div className="space-y-4 p-4 bg-[var(--nt-bg-tertiary)] rounded-lg border border-[var(--nt-border-light)]">
+              <div className="font-medium text-sm text-[var(--nt-text-primary)]">
+                Automation Settings
+              </div>
+              <p className="text-xs text-[var(--nt-text-muted)]">
+                Control automatic AI analysis and trade execution for this trader
+              </p>
+
+              {/* Auto-Analyze Signals Toggle */}
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="autoAnalyzeSignals"
+                  checked={autoAnalyzeSignals}
+                  onChange={(e) => setAutoAnalyzeSignals(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-[var(--nt-border-default)] bg-[var(--nt-bg-secondary)]
+                    text-[var(--nt-accent-lime)] focus:ring-[var(--nt-accent-lime)] focus:ring-offset-0"
+                />
+                <label htmlFor="autoAnalyzeSignals" className="flex-1 cursor-pointer">
+                  <div className="font-medium text-sm text-[var(--nt-text-primary)]">
+                    Auto-Analyze Signals
+                  </div>
+                  <p className="text-xs text-[var(--nt-text-muted)] mt-1">
+                    Automatically run AI analysis on every new signal from this trader
+                  </p>
+                </label>
+              </div>
+
+              {/* Auto-Execute Trades Toggle (Coming Soon) */}
+              <div className="flex items-start gap-3 opacity-50">
+                <input
+                  type="checkbox"
+                  id="autoExecuteTrades"
+                  checked={autoExecuteTrades}
+                  disabled={true}
+                  className="mt-1 h-4 w-4 rounded border-[var(--nt-border-default)] bg-[var(--nt-bg-secondary)]
+                    text-[var(--nt-accent-lime)] focus:ring-[var(--nt-accent-lime)] focus:ring-offset-0"
+                />
+                <label htmlFor="autoExecuteTrades" className="flex-1">
+                  <div className="font-medium text-sm text-[var(--nt-text-primary)]">
+                    Auto-Execute Trades
+                    <span className="ml-2 text-xs text-[var(--nt-text-muted)]">(Coming Soon)</span>
+                  </div>
+                  <p className="text-xs text-[var(--nt-text-muted)] mt-1">
+                    Automatically execute trades based on AI analysis recommendations
+                  </p>
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* Admin-only fields for built-in signals */}
           {profile?.is_admin && (

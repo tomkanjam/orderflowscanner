@@ -130,14 +130,20 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Get Edge Function URL from environment
-  edge_function_url := current_setting('app.edge_function_url', true);
-  IF edge_function_url IS NULL THEN
-    edge_function_url := 'https://' || current_setting('app.supabase_url', true) || '/functions/v1/ai-analysis';
+  -- Get Edge Function URL from standard Supabase environment variable
+  edge_function_url := current_setting('SUPABASE_URL', true);
+  IF edge_function_url IS NULL OR edge_function_url = '' THEN
+    RAISE WARNING 'SUPABASE_URL not configured - cannot trigger AI analysis';
+    RETURN NEW;
   END IF;
+  edge_function_url := edge_function_url || '/functions/v1/ai-analysis';
 
-  -- Get service role key (set via Supabase secrets)
-  service_role_key := current_setting('app.service_role_key', true);
+  -- Get service role key from standard Supabase environment variable
+  service_role_key := current_setting('SUPABASE_SERVICE_ROLE_KEY', true);
+  IF service_role_key IS NULL OR service_role_key = '' THEN
+    RAISE WARNING 'SUPABASE_SERVICE_ROLE_KEY not configured - cannot trigger AI analysis';
+    RETURN NEW;
+  END IF;
 
   -- Build request payload
   analysis_payload := jsonb_build_object(
@@ -189,27 +195,7 @@ COMMENT ON TRIGGER auto_trigger_ai_analysis ON trader_signals IS
   'Auto-triggers AI analysis for new signals (Elite tier only)';
 ```
 
-#### 2. Set Supabase Secrets
-
-Via Supabase Dashboard or CLI:
-
-```bash
-# Set service role key for trigger to use
-supabase secrets set app.service_role_key=<SUPABASE_SERVICE_ROLE_KEY>
-
-# Set Edge Function URL (optional - will use default if not set)
-supabase secrets set app.edge_function_url=https://xxx.supabase.co/functions/v1/ai-analysis
-```
-
-**Alternative:** Use environment variables in `supabase/config.toml`:
-
-```toml
-[secrets]
-app.service_role_key = "env(SUPABASE_SERVICE_ROLE_KEY)"
-app.edge_function_url = "env(EDGE_FUNCTION_URL)"
-```
-
-#### 3. Update ai-analysis Edge Function (Optional Enhancement)
+#### 2. Update ai-analysis Edge Function (Optional Enhancement)
 
 Add trigger context logging in `supabase/functions/ai-analysis/index.ts`:
 
@@ -291,7 +277,7 @@ const traderData = {
 };
 ```
 
-#### 5. Testing
+#### 3. Testing
 
 **Unit Test (SQL):**
 ```sql
@@ -341,7 +327,7 @@ VALUES (
 - Edge Function timeout → should log warning, not fail
 - Invalid payload → should log error, continue
 
-#### 6. Monitoring
+#### 4. Monitoring
 
 **Add to Grafana/Observability:**
 - Trigger execution count (via Postgres logs)

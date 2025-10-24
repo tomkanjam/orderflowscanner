@@ -402,7 +402,7 @@ func (m *Manager) StartPolling(interval time.Duration) {
 	}()
 }
 
-// pollForChanges polls the database for trader changes and handles deletions
+// pollForChanges polls the database for trader changes and handles deletions AND additions
 func (m *Manager) pollForChanges() {
 	// Get all enabled traders from database (built-in + user)
 	allTraders, err := m.supabase.GetAllTraders(m.ctx)
@@ -417,7 +417,50 @@ func (m *Manager) pollForChanges() {
 		dbTraderIDs[t.ID] = true
 	}
 
-	// Check for deletions (running traders not in database)
+	// Get all registered trader IDs
+	registeredTraderIDs := make(map[string]bool)
+	allRegistered := m.registry.List()
+	for _, trader := range allRegistered {
+		registeredTraderIDs[trader.ID] = true
+	}
+
+	// Check for NEW traders (in database but not registered)
+	loaded := 0
+	for _, dbTrader := range allTraders {
+		if !registeredTraderIDs[dbTrader.ID] {
+			log.Printf("[Manager] ➕ Detected new trader: %s (%s), loading...", dbTrader.ID, dbTrader.Name)
+
+			// Convert and load the trader
+			trader, err := convertDBTraderToRuntime(&dbTrader)
+			if err != nil {
+				log.Printf("[Manager] ⚠️  Failed to convert new trader %s: %v", dbTrader.ID, err)
+				continue
+			}
+
+			// Validate filter code
+			if err := m.yaegi.ValidateCode(trader.Config.FilterCode); err != nil {
+				log.Printf("[Manager] ⚠️  Invalid filter code for new trader %s: %v", dbTrader.ID, err)
+				continue
+			}
+
+			// Register trader
+			if err := m.RegisterTrader(trader); err != nil {
+				log.Printf("[Manager] ⚠️  Failed to register new trader %s: %v", dbTrader.ID, err)
+				continue
+			}
+
+			// Add to executor
+			if err := m.executor.AddTrader(trader); err != nil {
+				log.Printf("[Manager] ⚠️  Failed to add new trader %s to executor: %v", dbTrader.ID, err)
+				continue
+			}
+
+			log.Printf("[Manager] ✅ Loaded new trader: %s (%s)", trader.ID, trader.Name)
+			loaded++
+		}
+	}
+
+	// Check for DELETIONS (running traders not in database)
 	runningTraders := m.registry.GetByState(StateRunning)
 	stopped := 0
 
@@ -434,9 +477,9 @@ func (m *Manager) pollForChanges() {
 		}
 	}
 
-	// Log poll summary if any deletions were detected
-	if stopped > 0 {
-		log.Printf("[Manager] Poll complete: stopped %d deleted trader(s)", stopped)
+	// Log poll summary if any changes were detected
+	if loaded > 0 || stopped > 0 {
+		log.Printf("[Manager] Poll complete: loaded %d new trader(s), stopped %d deleted trader(s)", loaded, stopped)
 	}
 }
 

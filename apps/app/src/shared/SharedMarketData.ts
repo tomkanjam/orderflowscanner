@@ -13,7 +13,7 @@ import { BitSet } from '../utils/BitSet';
 const TICKER_SIZE = 10; // floats per ticker (price, volume, change%, etc.)
 const KLINE_SIZE = 6; // floats per kline (time, O, H, L, C, V)
 const MAX_SYMBOLS = 200;
-const MAX_KLINES_PER_SYMBOL = 1440;
+const MAX_KLINES_PER_SYMBOL = 150; // Limit to 150 candles per symbol-interval
 const MAX_INTERVALS = 6;
 
 // Memory offsets

@@ -34,7 +34,7 @@ export const useKlineData = (options: UseKlineDataOptions): UseKlineDataResult =
   const {
     symbol,
     interval,
-    limit = 100,
+    limit = 150,
     enabled = true,
     refetchInterval,
     onSuccess,

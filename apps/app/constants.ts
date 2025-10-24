@@ -2,7 +2,7 @@ import { KlineInterval, GeminiModelOption } from './types';
 
 export const API_BASE_URL = 'https://api.binance.com/api/v3';
 export const TOP_N_PAIRS_LIMIT = 100;
-export const KLINE_HISTORY_LIMIT = 1440;
+export const KLINE_HISTORY_LIMIT = 150; // Number of candles to fetch and display (user configurable in future)
 export const KLINE_HISTORY_LIMIT_FOR_ANALYSIS = 100; // Added for symbol analysis
 
 export const KLINE_INTERVALS: { value: KlineInterval; label: string }[] = [

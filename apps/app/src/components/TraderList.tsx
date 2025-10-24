@@ -36,22 +36,14 @@ export function TraderList({
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCloudPanel, setShowCloudPanel] = useState(false);
-  const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(new Set());
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const { currentTier, preferences, canCreateSignal, remainingSignals, toggleFavoriteSignal, profile } = useSubscription();
   const { user } = useAuth();
   const cloudExecution = useCloudExecution();
 
-  // Toggle card expansion
+  // Toggle card expansion - only one card can be expanded at a time
   const handleToggleExpand = useCallback((traderId: string) => {
-    setExpandedCardIds(prev => {
-      const next = new Set(prev);
-      if (next.has(traderId)) {
-        next.delete(traderId);
-      } else {
-        next.add(traderId);
-      }
-      return next;
-    });
+    setExpandedCardId(prev => prev === traderId ? null : traderId);
   }, []);
 
   useEffect(() => {
@@ -213,7 +205,7 @@ export function TraderList({
                     const access = getSignalAccess(trader, currentTier);
                     const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
                     const isSelected = selectedTraderId === trader.id;
-                    const isExpanded = expandedCardIds.has(trader.id);
+                    const isExpanded = expandedCardId === trader.id;
                     const effectivelyEnabled = getEffectiveEnabled(trader);
 
                     return (

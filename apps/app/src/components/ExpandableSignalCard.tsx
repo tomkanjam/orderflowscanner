@@ -102,7 +102,10 @@ export function ExpandableSignalCard({
   return (
     <Collapsible
       open={isExpanded}
-      onOpenChange={onToggleExpand}
+      onOpenChange={(open) => {
+        onToggleExpand?.();
+        onSelect?.();
+      }}
       className={`
         border border-border rounded-lg overflow-hidden
         transition-all duration-200 ease-out
@@ -112,13 +115,7 @@ export function ExpandableSignalCard({
       `}
     >
       {/* Header - CollapsibleTrigger */}
-      <CollapsibleTrigger asChild>
-        <div
-          className="flex items-center gap-2 px-3 h-10 cursor-pointer w-full"
-          onClick={(e) => {
-            onSelect?.();
-          }}
-        >
+      <CollapsibleTrigger className="flex items-center gap-2 px-3 h-10 cursor-pointer w-full">
         {/* Type icon - no color */}
         <div className="flex-shrink-0 text-muted-foreground">
           {signal.isBuiltIn ? (
@@ -221,7 +218,6 @@ export function ExpandableSignalCard({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-        </div>
       </CollapsibleTrigger>
 
       {/* Expanded Content */}

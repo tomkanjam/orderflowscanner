@@ -53,16 +53,38 @@ signals INSERT → trigger → llm-proxy Edge Function → OpenRouter → Braint
 2. ✅ Migration 028 applied successfully via MCP tool
 3. ✅ Trigger now calling `/llm-proxy` with `analyze-signal` operation
 
-**⏳ Pending:**
-1. Upload analyze-signal prompt to Braintrust:
-   ```bash
-   BRAINTRUST_API_KEY=xxx deno run --allow-all scripts/upload-analyze-signal-prompt.ts
-   ```
-2. Test end-to-end auto-trigger flow:
-   - Verify test trader has auto_analyze_signals=true
-   - Wait for signal or manually insert test signal
-   - Check Braintrust dashboard for traces
-   - Verify signal_analyses table has new row
+### 2025-10-25 09:01 - Fixed Case-Sensitive Tier Checking
+
+**✅ Additional Fix:**
+1. ✅ Fixed subscription tier case sensitivity issue (ELITE vs elite)
+   - Updated trigger to use `LOWER(up.subscription_tier)` for comparison
+   - Trigger now properly detects Elite tier users
+
+**⏳ BLOCKING ISSUE - Prompt Upload Required:**
+
+The auto-trigger is NOT working because the `analyze-signal` prompt doesn't exist in Braintrust yet. The llm-proxy's promptLoader requires this prompt to be uploaded before it can process analysis requests.
+
+**Evidence:**
+- New signals created: ✓ (5 signals in last minute)
+- Trigger firing: ✓ (case-sensitivity fixed)
+- llm-proxy calls in Edge Function logs: ✗ (zero calls)
+- Signal analyses created: ✗ (zero analyses)
+- Postgres logs: No "Triggered AI analysis" messages after tier fix
+
+**Root Cause:**
+The promptLoader in llm-proxy tries to load `analyze-signal` from Braintrust and fails silently (or errors), preventing the analysis from running.
+
+**Required Action:**
+```bash
+# Upload the prompt (requires BRAINTRUST_API_KEY from user)
+BRAINTRUST_API_KEY=xxx deno run --allow-all scripts/upload-analyze-signal-prompt.ts
+```
+
+After upload, test with trader `4b0b340d-a940-46ce-b0e5-d83ce404f350` which:
+- ✓ Enabled: true
+- ✓ auto_analyze_signals: true
+- ✓ Tier: ELITE
+- ✓ Generates signals every minute
 
 **Files Modified:**
 - `supabase/functions/llm-proxy/config/operations.ts` - Added analyze-signal config

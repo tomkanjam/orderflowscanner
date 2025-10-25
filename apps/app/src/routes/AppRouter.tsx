@@ -65,9 +65,9 @@ const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const AppRouter: React.FC = () => {
   console.log('[AppRouter] Router initialized');
-  
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/app">
       <Routes>
         {/* Main app route */}
         <Route path="/" element={<App />} />

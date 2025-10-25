@@ -14,4 +14,5 @@ export default defineConfig({
   build: {
     inlineStylesheets: 'auto',
   },
+  outDir: '../../dist',
 });

@@ -5,6 +5,11 @@ export default defineConfig(({ mode }) => {
     // Load env vars from the root directory
     const env = loadEnv(mode, path.resolve(__dirname, '../..'), '');
     return {
+      base: '/app/',
+      build: {
+        outDir: '../../dist/app',
+        emptyOutDir: true,
+      },
       define: {
         // Firebase AI Logic handles API keys securely on the server side
         // No need to expose API keys in the frontend

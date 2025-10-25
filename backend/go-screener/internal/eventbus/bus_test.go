@@ -294,3 +294,152 @@ func BenchmarkPublishWithMultipleSubscribers(b *testing.B) {
 		bus.PublishCandleEvent(event)
 	}
 }
+
+// Candle Close Event Tests
+
+func TestCandleCloseEventPubSub(t *testing.T) {
+	bus := NewEventBus()
+	err := bus.Start()
+	if err != nil {
+		t.Fatalf("Failed to start bus: %v", err)
+	}
+	defer bus.Stop()
+
+	// Subscribe
+	ch := bus.SubscribeCandleClose()
+	if ch == nil {
+		t.Fatal("Subscription channel is nil")
+	}
+
+	// Check subscriber count
+	if bus.GetCandleCloseSubscriberCount() != 1 {
+		t.Errorf("Expected 1 subscriber, got %d", bus.GetCandleCloseSubscriberCount())
+	}
+
+	// Publish event
+	closeTime := time.Now()
+	event := &CandleCloseEvent{
+		Symbol:    "BTCUSDT",
+		Interval:  "1m",
+		CloseTime: closeTime,
+	}
+
+	bus.PublishCandleCloseEvent(event)
+
+	// Receive event
+	select {
+	case received := <-ch:
+		if received.Symbol != event.Symbol {
+			t.Errorf("Expected symbol %s, got %s", event.Symbol, received.Symbol)
+		}
+		if received.Interval != event.Interval {
+			t.Errorf("Expected interval %s, got %s", event.Interval, received.Interval)
+		}
+		if !received.CloseTime.Equal(closeTime) {
+			t.Errorf("Expected close time %v, got %v", closeTime, received.CloseTime)
+		}
+	case <-time.After(1 * time.Second):
+		t.Error("Timeout waiting for candle close event")
+	}
+}
+
+func TestMultipleCandleCloseSubscribers(t *testing.T) {
+	bus := NewEventBus()
+	err := bus.Start()
+	if err != nil {
+		t.Fatalf("Failed to start bus: %v", err)
+	}
+	defer bus.Stop()
+
+	// Create multiple subscribers
+	ch1 := bus.SubscribeCandleClose()
+	ch2 := bus.SubscribeCandleClose()
+	ch3 := bus.SubscribeCandleClose()
+
+	if bus.GetCandleCloseSubscriberCount() != 3 {
+		t.Errorf("Expected 3 subscribers, got %d", bus.GetCandleCloseSubscriberCount())
+	}
+
+	// Publish event
+	event := &CandleCloseEvent{
+		Symbol:    "ETHUSDT",
+		Interval:  "5m",
+		CloseTime: time.Now(),
+	}
+
+	bus.PublishCandleCloseEvent(event)
+
+	// All subscribers should receive the event
+	received := 0
+	timeout := time.After(1 * time.Second)
+
+	for i := 0; i < 3; i++ {
+		select {
+		case <-ch1:
+			received++
+		case <-ch2:
+			received++
+		case <-ch3:
+			received++
+		case <-timeout:
+			t.Errorf("Timeout: only received %d/3 events", received)
+			return
+		}
+	}
+
+	if received != 3 {
+		t.Errorf("Expected 3 events received, got %d", received)
+	}
+}
+
+func TestCandleCloseEventNonBlockingPublish(t *testing.T) {
+	bus := NewEventBus()
+	err := bus.Start()
+	if err != nil {
+		t.Fatalf("Failed to start bus: %v", err)
+	}
+	defer bus.Stop()
+
+	// Subscribe but don't read from channel
+	_ = bus.SubscribeCandleClose()
+
+	// Publish many events - should not block
+	for i := 0; i < 2000; i++ {
+		event := &CandleCloseEvent{
+			Symbol:    "BTCUSDT",
+			Interval:  "1m",
+			CloseTime: time.Now(),
+		}
+		bus.PublishCandleCloseEvent(event)
+	}
+
+	// If we get here without blocking, test passes
+	t.Log("Published 2000 candle close events without blocking")
+}
+
+func BenchmarkPublishCandleCloseEvent(b *testing.B) {
+	bus := NewEventBus()
+	bus.Start()
+	defer bus.Stop()
+
+	// Create subscriber
+	ch := bus.SubscribeCandleClose()
+
+	// Consume events in background
+	go func() {
+		for range ch {
+			// Discard
+		}
+	}()
+
+	event := &CandleCloseEvent{
+		Symbol:    "BTCUSDT",
+		Interval:  "1m",
+		CloseTime: time.Now(),
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bus.PublishCandleCloseEvent(event)
+	}
+}

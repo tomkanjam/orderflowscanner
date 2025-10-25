@@ -77,6 +77,59 @@ Signal INSERT → Database Trigger → llm-proxy → signal_analyses table
 
 ---
 
+## Continuous Monitoring: Two Separate Workflows
+
+### 1. Setup Monitoring (Conditional)
+**Trigger:** Initial analysis returns decision="wait"
+**Purpose:** Watch setup until it becomes tradeable or invalid
+**Stops when:** Decision changes to "enter_trade" or "bad_setup"
+
+```
+Signal created → Initial analysis → decision="wait"
+                                         ↓
+                                   Start monitoring
+                                         ↓
+                    [Candle close] → Reanalyze → decision="wait"
+                                         ↓
+                                   Continue monitoring
+                                         ↓
+                    [Candle close] → Reanalyze → decision="enter_trade"
+                                         ↓
+                                   STOP monitoring → Open position
+```
+
+**Frequency:** Only ~20-30% of signals need this
+
+### 2. Position Management (Always)
+**Trigger:** Position opened (from either immediate entry or monitored setup)
+**Purpose:** Actively manage trade (adjust SL/TP, scale out, close)
+**Stops when:** Position fully closed
+
+```
+Position opened → Start management workflow
+                         ↓
+        [Candle close] → Manage position → action="hold"
+                         ↓
+        [Candle close] → Manage position → action="adjust_sl"
+                         ↓
+        [Candle close] → Manage position → action="reduce" (partial exit)
+                         ↓
+        [Candle close] → Manage position → action="close"
+                         ↓
+                   STOP management
+```
+
+**Frequency:** Every open position, every candle close
+
+**Key Differences:**
+- Setup monitoring: Watching for ENTRY opportunity
+- Position management: Managing ACTIVE trade
+- Different prompts, different decision types
+- Setup monitoring can be skipped if immediate decision
+- Position management always runs for open positions
+
+---
+
 ## Architecture Alignment Analysis
 
 ### Current Stack vs. Vision
@@ -126,14 +179,45 @@ Signal INSERT → Database Trigger → llm-proxy → signal_analyses table
 **Complexity:** Medium
 
 **Tasks:**
-1. Subscribe monitoring engine to `candle_close` events
-2. Implement HTTP client to call llm-proxy (analyze-signal operation)
-3. Update registry to track which signals need reanalysis
-4. Load active monitors from `signals` table (status='monitoring')
-5. Implement reanalysis limits (max 5 per signal, or trader-configured)
+1. Add decision listener to detect "wait" decisions from initial analysis
+2. When decision="wait", create monitoring workflow in Go engine
+3. Subscribe monitoring engine to `candle_close` events for monitored symbols
+4. Implement HTTP client to call llm-proxy (analyze-signal operation)
+5. Update registry to track which signals need reanalysis
+6. Implement decision-based workflow termination:
+   - decision="enter_trade" → stop monitoring, trigger order
+   - decision="bad_setup" → stop monitoring, expire signal
+   - decision="wait" → continue monitoring
+7. Implement reanalysis limits (max 5 per signal, or trader-configured)
+
+**Implementation approach:**
+
+**Option A: Database trigger listens to signal_analyses**
+```sql
+-- After initial analysis is written to signal_analyses
+CREATE TRIGGER on_analysis_decision
+AFTER INSERT ON signal_analyses
+FOR EACH ROW
+WHEN (NEW.decision = 'wait')
+EXECUTE FUNCTION notify_start_monitoring();
+```
+Then Go backend listens for PostgreSQL NOTIFY
+
+**Option B: llm-proxy returns decision, caller creates workflow**
+- Database trigger calls llm-proxy
+- llm-proxy returns decision
+- Database trigger checks decision
+- If "wait", makes second HTTP call to Go backend to start monitoring
+
+**Recommendation: Option A**
+- Cleaner separation of concerns
+- Go backend owns monitoring logic
+- Database trigger only responsible for initial analysis
 
 **Files to modify:**
-- `backend/go-screener/internal/monitoring/engine.go` (add candle close listener)
+- `supabase/migrations/029_monitoring_trigger.sql` (add decision listener)
+- `backend/go-screener/internal/monitoring/engine.go` (PostgreSQL NOTIFY listener)
+- `backend/go-screener/internal/monitoring/engine.go` (candle close listener)
 - Add HTTP client for llm-proxy calls
 - `backend/go-screener/internal/monitoring/adapters.go` (Supabase queries)
 
@@ -141,6 +225,7 @@ Signal INSERT → Database Trigger → llm-proxy → signal_analyses table
 - ✅ Uses existing llm-proxy endpoint
 - ✅ Uses existing signal_analyses table
 - ✅ Reuses analyze-signal operation
+- ✅ Decision-driven workflow creation
 
 **No re-architecture needed** - extends current system
 
@@ -232,22 +317,31 @@ CREATE TABLE position_management_decisions (...);
 5. Analysis stored in signal_analyses
 ```
 
-### Phase 1-2 Flow (Continuous Monitoring)
+### Phase 1-2 Flow (Conditional Continuous Monitoring)
 ```
 1. User creates signal
 2. Signal INSERT → signals table
 3. Database trigger fires (initial analysis)
-4. Signal status → 'monitoring'
-5. Go monitoring engine loads signal
-6. Binance WebSocket → candle close (interval matches trader.filter.interval)
-7. Monitoring engine → HTTP POST to llm-proxy (analyze-signal)
-8. Decision stored in signal_analyses
-9. If decision='enter' → create order, status='in_position'
-10. If decision='abandon' → status='expired'
-11. If decision='continue' → wait for next candle close (go to step 6)
+4. Analysis returns decision (enter_trade | bad_setup | wait)
+5. IF decision = "wait":
+   a. Signal status → 'monitoring'
+   b. Go monitoring engine creates workflow
+   c. Binance WebSocket → candle close (interval matches trader.filter.interval)
+   d. Monitoring engine → HTTP POST to llm-proxy (analyze-signal)
+   e. Decision stored in signal_analyses
+   f. If new decision='enter_trade' → create order, status='in_position', STOP monitoring
+   g. If new decision='bad_setup' → status='expired', STOP monitoring
+   h. If new decision='wait' → continue to next candle close (repeat from c)
+6. IF decision = "enter_trade" (on first analysis):
+   - Create order immediately, SKIP monitoring phase
+7. IF decision = "bad_setup" (on first analysis):
+   - Mark signal as expired immediately, SKIP monitoring phase
 ```
 
-**Key Point:** Steps 1-5 are identical to current implementation!
+**Key Insight:** Monitoring is CONDITIONAL, not automatic!
+- Only ~20-30% of signals will need continuous monitoring
+- Most signals get immediate decision (enter or abandon)
+- Much more efficient than analyzing every signal at every candle
 
 ---
 
@@ -280,21 +374,41 @@ CREATE TABLE position_management_decisions (...);
 - ~1100 tokens per signal
 - Let's say 100 signals/day
 - Total: 110,000 tokens/day
+- Cost: $0.055/day ($1.65/month)
 
-**With Continuous Monitoring (5 reanalyses per signal):**
-- ~1100 tokens × 5 reanalyses = 5,500 tokens per signal
+**With Conditional Continuous Monitoring:**
+
+Assumptions:
 - 100 signals/day
-- Total: 550,000 tokens/day
+- 20% need monitoring (decision="wait")
+- Average 3 reanalyses before enter/abandon
+- 80% get immediate decision (no monitoring)
+
+**Breakdown:**
+- Immediate decisions: 80 signals × 1100 tokens = 88,000 tokens
+- Monitored setups: 20 signals × (1 initial + 3 reanalyses) × 1100 = 88,000 tokens
+- **Total: 176,000 tokens/day**
+
+**Position Management (separate):**
+- Assume 10 positions/day
+- Average 8 candles until close (8 reanalyses)
+- 10 positions × 8 × 1100 = 88,000 tokens/day
+
+**Grand Total with Full System:**
+- Setup analysis + monitoring: 176,000 tokens/day
+- Position management: 88,000 tokens/day
+- **Combined: 264,000 tokens/day**
 
 **Cost Impact:**
-- 5x increase in token usage
-- At $0.50/1M tokens (Gemini 2.5 Flash): $0.275/day
-- Monthly: ~$8.25
+- 2.4x increase vs one-time only (not 5x!)
+- At $0.50/1M tokens (Gemini 2.5 Flash): $0.132/day
+- Monthly: ~$3.96 (very reasonable!)
 
-**Optimization strategies:**
-- Limit max reanalyses per signal (default: 5)
-- Only reanalyze if price movement > threshold
-- Use cheaper model for monitoring (same flash model is fine)
+**Why Much Lower Than Expected:**
+- Most signals get immediate decision (no continuous monitoring needed)
+- Only "wait" decisions trigger continuous analysis
+- Position management is separate workflow (only for open positions)
+- Natural throttling through decision gates
 
 ---
 
@@ -388,6 +502,26 @@ One-time analysis    Continuous monitoring    Workflow state      Position manag
 ```
 
 **The vision document describes the end state, but we can reach it incrementally without throwing away any current work.**
+
+### Critical Correction: Conditional vs Universal Monitoring
+
+**What I Initially Misunderstood:**
+- ❌ Every signal gets monitored at every candle close
+- ❌ High token usage (5x increase)
+
+**What It Actually Is:**
+- ✅ Only signals with decision="wait" get continuous monitoring (~20-30%)
+- ✅ Most signals get immediate decision (enter or abandon)
+- ✅ Moderate token usage (2.4x increase, ~$4/month)
+- ✅ Two separate workflows:
+  1. Setup monitoring (conditional, for "wait" decisions)
+  2. Position management (always, for open positions)
+
+**This Makes the System:**
+- Much more efficient (natural throttling through decisions)
+- More cost-effective than initially projected
+- Easier to implement (fewer active monitors to track)
+- Better aligned with actual trading behavior
 
 ---
 

@@ -68,31 +68,62 @@ signals INSERT → trigger → llm-proxy Edge Function → OpenRouter → Braint
 3. ✅ Added database write capability to analyzeSignal operation (stores to signal_analyses table)
 4. ✅ Redeployed llm-proxy (version 37)
 
-**⏳ BLOCKING ISSUE - llm-proxy Returning 500 Errors:**
+**⏳ BLOCKING ISSUE #1 - Braintrust Metrics Validation Error:**
 
-The auto-trigger is firing but llm-proxy is returning HTTP 500 errors consistently.
+llm-proxy returning HTTP 500 due to Braintrust metrics validation failure.
 
-**Evidence:**
-- New signals created: ✓ (signals generating every minute)
-- Trigger firing: ✓ (case-sensitivity fixed, tier check working)
-- llm-proxy calls: ✓ (many POST requests to /llm-proxy)
-- llm-proxy responses: ✗ (HTTP 500, execution time 3-7 seconds)
-- Signal analyses created: ✗ (zero analyses in signal_analyses table)
+**Root Cause:** span.log() was logging non-numeric `decision` field in metrics object
+**Fix:** Removed `decision` from metrics (Braintrust only accepts numbers)
+**Result:** Redeployed llm-proxy (version 38), HTTP 200 responses confirmed
 
-**Execution Pattern:**
-- 3-7 second execution time suggests reaching OpenRouter API call stage
-- Consistent 500 errors across all requests (version 37)
-- No detailed error logs accessible via CLI
+### 2025-10-25 [CURRENT SESSION] - Database Write Fixed
 
-**Possible Causes:**
-1. OpenRouter API call failing (wrong model ID, API key issue, etc.)
-2. JSON response parsing failing
-3. Database write failing after successful analysis
-4. Parameter mismatch in openRouterClient.generateStructuredResponse() call
+**⏳ BLOCKING ISSUE #2 - Database Write Failing Silently:**
 
-**Next Steps:**
-- Need to see detailed Edge Function console logs to identify exact error
-- Or add more robust error logging/handling in analyzeSignal operation
+llm-proxy returning HTTP 200 but zero analyses in signal_analyses table.
+
+**Root Cause Investigation:**
+- Checked table schema: `signal_analyses` requires NOT NULL fields `trader_id` and `user_id`
+- analyzeSignal.ts was only inserting `signal_id` (missing required fields)
+- Also attempting to insert `metadata` field which doesn't exist in table
+- Metadata fields need to be mapped to individual columns: `raw_ai_response`, `analysis_latency_ms`, `gemini_tokens_used`, `model_name`
+
+**✅ Fixed:**
+1. ✅ Added `trader_id` and `user_id` to database insert payload
+2. ✅ Mapped metadata object to individual table columns
+3. ✅ Redeployed llm-proxy (version 39)
+4. ✅ Verified: 20 analyses successfully written to signal_analyses table
+
+**Evidence of Success:**
+```sql
+SELECT COUNT(*) FROM signal_analyses;
+-- Result: 20 (previously 0)
+```
+
+**Sample Analysis Data:**
+- Decision: wait
+- Confidence: 60%
+- Model: google/gemini-2.5-flash
+- Tokens: ~1100 per analysis
+- Latency: 3.7-4.1 seconds per analysis
+- All required fields populated: signal_id, trader_id, user_id, decision, confidence, reasoning, key_levels, trade_plan
+
+**End-to-End Verification:**
+```sql
+-- Verified: Only traders with auto_analyze_signals=true get analyses
+Trader "Three Red Candles Short" (auto_analyze_signals=true): 3/3 signals analyzed ✓
+Trader "Three Green Candles 1m" (auto_analyze_signals=false): 0/7 signals analyzed ✓
+```
+
+**✅ ISSUE RESOLVED - Auto-Trigger Working End-to-End:**
+
+Complete flow now operational:
+1. ✅ Signal INSERT → Database trigger fires
+2. ✅ Trigger calls /llm-proxy with analyze-signal operation
+3. ✅ llm-proxy → OpenRouter API → Gemini 2.5 Flash
+4. ✅ Braintrust tracing captures full execution
+5. ✅ Analysis written to signal_analyses table
+6. ✅ Only Elite tier + auto_analyze_signals=true traders
 
 **Files Modified:**
 - `supabase/functions/llm-proxy/config/operations.ts` - Added analyze-signal config
@@ -214,3 +245,14 @@ The `signals` table doesn't store klines/calculatedIndicators. Two options:
 **Option B (Complex):** Update Go backend to store signal_data JSONB with full market context
 
 Recommend Option A for MVP - llm-proxy can fetch recent klines for the symbol.
+## Completion
+
+**Closed:** 2025-10-25 09:35:29
+**Outcome:** Success
+**Commits:** 
+- 053fafa - Initial implementation (llm-proxy analyze-signal operation, migration 028, Braintrust prompt)
+- 03db32b - Fixed database write (added trader_id/user_id, mapped metadata fields)
+
+**Final Status:**
+Auto-trigger AI analysis working end-to-end with full Braintrust observability. All success criteria met.
+

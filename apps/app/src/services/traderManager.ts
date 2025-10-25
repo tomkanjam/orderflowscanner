@@ -415,6 +415,9 @@ export class TraderManager implements ITraderManager {
       admin_notes: trader.adminNotes,
       // Language field for Go/JavaScript execution routing
       language: trader.filter?.language || 'javascript',
+      // Automation toggles
+      auto_analyze_signals: trader.auto_analyze_signals,
+      auto_execute_trades: trader.auto_execute_trades,
     };
   }
 
@@ -456,6 +459,9 @@ export class TraderManager implements ITraderManager {
         category: data.category,
         difficulty: data.difficulty,
         adminNotes: data.admin_notes,
+        // Automation toggles
+        auto_analyze_signals: data.auto_analyze_signals,
+        auto_execute_trades: data.auto_execute_trades,
       };
     } catch (error) {
       console.error('[TraderManager] Error deserializing trader', data.name, error);

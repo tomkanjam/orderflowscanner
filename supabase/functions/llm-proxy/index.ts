@@ -15,6 +15,7 @@ import { PromptLoaderV2 } from "./promptLoader.v2.ts";
 import { handleGenerateTrader } from "./operations/generateTrader.ts";
 import { handleGenerateTraderMetadata } from "./operations/generateTraderMetadata.ts";
 import { handleGenerateFilterCode } from "./operations/generateFilterCode.ts";
+import { handleAnalyzeSignal } from "./operations/analyzeSignal.ts";
 import { getOperationConfig } from "./config/operations.ts";
 
 const corsHeaders = {
@@ -126,8 +127,7 @@ serve(async (req) => {
 /**
  * Route operation to appropriate handler
  *
- * NOTE: Signal analysis operations (generate-analysis, symbol-analysis, market-analysis)
- * are handled by the Go backend directly via OpenRouter, not through edge functions.
+ * NOTE: analyze-signal is called by database triggers (service role), not by browser.
  * Browser should only call trader creation operations.
  *
  * All LLM configuration (model, temperature, etc.) is determined by config/operations.ts
@@ -142,11 +142,12 @@ async function routeOperation(
   const validOperations = [
     'generate-trader',
     'generate-trader-metadata',
-    'generate-filter-code'
+    'generate-filter-code',
+    'analyze-signal' // Called by database trigger (service role)
   ];
 
   if (!validOperations.includes(operation)) {
-    throw new Error(`Unknown operation: ${operation}. Browser should only call trader creation operations.`);
+    throw new Error(`Unknown operation: ${operation}. Valid operations: ${validOperations.join(', ')}`);
   }
 
   // Get operation config
@@ -162,7 +163,10 @@ async function routeOperation(
     case 'generate-filter-code':
       return await handleGenerateFilterCode(params, openRouterClient, promptLoader, config);
 
+    case 'analyze-signal':
+      return await handleAnalyzeSignal(params, openRouterClient, promptLoader, config);
+
     default:
-      throw new Error(`Unknown operation: ${operation}. Browser should only call trader creation operations.`);
+      throw new Error(`Unknown operation: ${operation}. Valid operations: ${validOperations.join(', ')}`);
   }
 }

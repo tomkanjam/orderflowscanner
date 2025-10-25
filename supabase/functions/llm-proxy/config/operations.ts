@@ -62,6 +62,21 @@ export const OPERATION_CONFIGS = {
     temperature: 0.6,
     maxTokens: 6000,
     description: 'Generate complete trader from user description'
+  },
+
+  /**
+   * Analyze trading signal with AI
+   *
+   * Purpose: Evaluate signal quality and generate trade decision
+   * Optimization goal: Analysis accuracy, decision quality, reasoning clarity
+   * Braintrust scorers: DecisionAccuracy, ReasoningQuality, RiskAssessment
+   */
+  'analyze-signal': {
+    modelId: 'google/gemini-2.5-flash',
+    promptVersion: 'v1.0',
+    temperature: 0.2, // Low temperature for consistent analysis
+    maxTokens: 2000,
+    description: 'Analyze trading signal and generate decision'
   }
 };
 

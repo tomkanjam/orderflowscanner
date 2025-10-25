@@ -68,13 +68,13 @@ func New(cfg *config.Config) (*Server, error) {
 	klineCache := cache.NewKlineCache(500)
 	log.Printf("[Server] ✅ Kline Cache initialized (max 500 candles per symbol/interval)")
 
-	// Initialize WebSocket client
-	wsClient := binance.NewWSClient(cfg.BinanceWSURL, klineCache)
-	log.Printf("[Server] ✅ WebSocket Client initialized")
-
 	// 1. Initialize Event Bus
 	eventBus := eventbus.NewEventBus()
 	log.Printf("[Server] ✅ Event Bus initialized")
+
+	// Initialize WebSocket client (with eventBus for candle close events)
+	wsClient := binance.NewWSClient(cfg.BinanceWSURL, klineCache, eventBus)
+	log.Printf("[Server] ✅ WebSocket Client initialized")
 
 	// 2. Initialize Candle Scheduler
 	schedulerConfig := scheduler.DefaultConfig()

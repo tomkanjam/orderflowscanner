@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/vyx/go-screener/internal/eventbus"
 	"github.com/vyx/go-screener/pkg/cache"
 	"github.com/vyx/go-screener/pkg/types"
 )
@@ -17,17 +18,20 @@ import (
 // WSClient handles WebSocket connections to Binance for kline streams
 // Uses a single connection with combined streams for all symbol+interval pairs
 type WSClient struct {
-	wsURL       string
-	conn        *websocket.Conn
-	mu          sync.RWMutex
-	cache       *cache.KlineCache
-	symbols     []string
-	intervals   []string
-	ctx         context.Context
-	cancel      context.CancelFunc
-	reconnectCh chan struct{}
-	doneCh      chan struct{}
-	isConnected bool
+	wsURL              string
+	conn               *websocket.Conn
+	mu                 sync.RWMutex
+	cache              *cache.KlineCache
+	eventBus           *eventbus.EventBus
+	symbols            []string
+	intervals          []string
+	ctx                context.Context
+	cancel             context.CancelFunc
+	reconnectCh        chan struct{}
+	doneCh             chan struct{}
+	isConnected        bool
+	lastClosedCandles  map[string]int64  // key: "BTCUSDT-1m", value: closeTime (deduplication)
+	lastClosedMu       sync.RWMutex
 }
 
 // KlineEvent represents a Binance kline WebSocket event
@@ -63,16 +67,18 @@ type StreamMessage struct {
 }
 
 // NewWSClient creates a new WebSocket client for Binance kline streams
-func NewWSClient(wsURL string, cache *cache.KlineCache) *WSClient {
+func NewWSClient(wsURL string, cache *cache.KlineCache, eventBus *eventbus.EventBus) *WSClient {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &WSClient{
-		wsURL:       wsURL,
-		cache:       cache,
-		ctx:         ctx,
-		cancel:      cancel,
-		reconnectCh: make(chan struct{}, 1),
-		doneCh:      make(chan struct{}),
+		wsURL:             wsURL,
+		cache:             cache,
+		eventBus:          eventBus,
+		ctx:               ctx,
+		cancel:            cancel,
+		reconnectCh:       make(chan struct{}, 1),
+		doneCh:            make(chan struct{}),
+		lastClosedCandles: make(map[string]int64),
 	}
 }
 
@@ -192,6 +198,34 @@ func (w *WSClient) handleKlineEvent(message []byte) error {
 
 	// Update cache
 	w.cache.Update(event.Symbol, event.Kline.Interval, kline)
+
+	// Emit candle close event (with deduplication)
+	if w.eventBus != nil {
+		key := fmt.Sprintf("%s-%s", event.Symbol, event.Kline.Interval)
+
+		// Check if we already processed this candle
+		w.lastClosedMu.RLock()
+		lastCloseTime := w.lastClosedCandles[key]
+		w.lastClosedMu.RUnlock()
+
+		if lastCloseTime != event.Kline.CloseTime {
+			// Update last closed candle time
+			w.lastClosedMu.Lock()
+			w.lastClosedCandles[key] = event.Kline.CloseTime
+			w.lastClosedMu.Unlock()
+
+			// Emit event
+			closeTime := time.Unix(event.Kline.CloseTime/1000, 0)
+			w.eventBus.PublishCandleCloseEvent(&eventbus.CandleCloseEvent{
+				Symbol:    event.Symbol,
+				Interval:  event.Kline.Interval,
+				Kline:     kline,
+				CloseTime: closeTime,
+			})
+
+			log.Printf("[WSClient] Candle closed: %s-%s at %s", event.Symbol, event.Kline.Interval, closeTime.Format("15:04:05"))
+		}
+	}
 
 	return nil
 }

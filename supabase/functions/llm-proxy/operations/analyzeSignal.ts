@@ -111,8 +111,7 @@ export async function handleAnalyzeSignal(
       output: analysisResult,
       metrics: {
         total_tokens: result.tokensUsed,
-        confidence: analysisResult.confidence,
-        decision: analysisResult.decision
+        confidence: analysisResult.confidence
       }
     });
 
@@ -132,13 +131,18 @@ export async function handleAnalyzeSignal(
           },
           body: JSON.stringify({
             signal_id: signalId,
+            trader_id: traderId,
+            user_id: userId,
             decision: analysisResult.decision,
             confidence: analysisResult.confidence,
             reasoning: analysisResult.reasoning,
             key_levels: analysisResult.keyLevels,
             trade_plan: analysisResult.tradePlan,
             technical_indicators: analysisResult.technicalIndicators,
-            metadata: analysisResult.metadata
+            raw_ai_response: analysisResult.metadata.rawAiResponse,
+            analysis_latency_ms: analysisResult.metadata.analysisLatencyMs,
+            gemini_tokens_used: analysisResult.metadata.tokensUsed,
+            model_name: analysisResult.metadata.modelName
           })
         });
 

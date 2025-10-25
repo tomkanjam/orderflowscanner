@@ -116,6 +116,45 @@ export async function handleAnalyzeSignal(
       }
     });
 
+    // Store analysis in signal_analyses table
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const insertResponse = await fetch(`${supabaseUrl}/rest/v1/signal_analyses`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+            'apikey': supabaseKey,
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({
+            signal_id: signalId,
+            decision: analysisResult.decision,
+            confidence: analysisResult.confidence,
+            reasoning: analysisResult.reasoning,
+            key_levels: analysisResult.keyLevels,
+            trade_plan: analysisResult.tradePlan,
+            technical_indicators: analysisResult.technicalIndicators,
+            metadata: analysisResult.metadata
+          })
+        });
+
+        if (!insertResponse.ok) {
+          const errorText = await insertResponse.text();
+          console.error(`[AnalyzeSignal] Failed to store analysis: ${errorText}`);
+        } else {
+          console.log(`[AnalyzeSignal] Analysis stored for signal ${signalId}`);
+        }
+      } catch (dbError) {
+        console.error(`[AnalyzeSignal] Database error:`, dbError);
+      }
+    } else {
+      console.warn('[AnalyzeSignal] Missing Supabase credentials - analysis not stored');
+    }
+
     return {
       data: analysisResult,
       usage: { total_tokens: result.tokensUsed }

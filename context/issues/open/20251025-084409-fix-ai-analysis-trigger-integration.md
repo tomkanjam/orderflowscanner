@@ -60,31 +60,39 @@ signals INSERT → trigger → llm-proxy Edge Function → OpenRouter → Braint
    - Updated trigger to use `LOWER(up.subscription_tier)` for comparison
    - Trigger now properly detects Elite tier users
 
-**⏳ BLOCKING ISSUE - Prompt Upload Required:**
+### 2025-10-25 09:25 - Prompt Uploaded, Database Write Added
 
-The auto-trigger is NOT working because the `analyze-signal` prompt doesn't exist in Braintrust yet. The llm-proxy's promptLoader requires this prompt to be uploaded before it can process analysis requests.
+**✅ Completed:**
+1. ✅ Uploaded `analyze-signal` prompt to Braintrust successfully
+2. ✅ Updated BRAINTRUST_API_KEY secret with new key
+3. ✅ Added database write capability to analyzeSignal operation (stores to signal_analyses table)
+4. ✅ Redeployed llm-proxy (version 37)
+
+**⏳ BLOCKING ISSUE - llm-proxy Returning 500 Errors:**
+
+The auto-trigger is firing but llm-proxy is returning HTTP 500 errors consistently.
 
 **Evidence:**
-- New signals created: ✓ (5 signals in last minute)
-- Trigger firing: ✓ (case-sensitivity fixed)
-- llm-proxy calls in Edge Function logs: ✗ (zero calls)
-- Signal analyses created: ✗ (zero analyses)
-- Postgres logs: No "Triggered AI analysis" messages after tier fix
+- New signals created: ✓ (signals generating every minute)
+- Trigger firing: ✓ (case-sensitivity fixed, tier check working)
+- llm-proxy calls: ✓ (many POST requests to /llm-proxy)
+- llm-proxy responses: ✗ (HTTP 500, execution time 3-7 seconds)
+- Signal analyses created: ✗ (zero analyses in signal_analyses table)
 
-**Root Cause:**
-The promptLoader in llm-proxy tries to load `analyze-signal` from Braintrust and fails silently (or errors), preventing the analysis from running.
+**Execution Pattern:**
+- 3-7 second execution time suggests reaching OpenRouter API call stage
+- Consistent 500 errors across all requests (version 37)
+- No detailed error logs accessible via CLI
 
-**Required Action:**
-```bash
-# Upload the prompt (requires BRAINTRUST_API_KEY from user)
-BRAINTRUST_API_KEY=xxx deno run --allow-all scripts/upload-analyze-signal-prompt.ts
-```
+**Possible Causes:**
+1. OpenRouter API call failing (wrong model ID, API key issue, etc.)
+2. JSON response parsing failing
+3. Database write failing after successful analysis
+4. Parameter mismatch in openRouterClient.generateStructuredResponse() call
 
-After upload, test with trader `4b0b340d-a940-46ce-b0e5-d83ce404f350` which:
-- ✓ Enabled: true
-- ✓ auto_analyze_signals: true
-- ✓ Tier: ELITE
-- ✓ Generates signals every minute
+**Next Steps:**
+- Need to see detailed Edge Function console logs to identify exact error
+- Or add more robust error logging/handling in analyzeSignal operation
 
 **Files Modified:**
 - `supabase/functions/llm-proxy/config/operations.ts` - Added analyze-signal config

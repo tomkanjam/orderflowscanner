@@ -3,9 +3,14 @@
   "installCommand": "corepack enable && pnpm install",
   "outputDirectory": "dist",
   "framework": null,
+  "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/app/:path((?!.*\\.).*)",
+      "source": "/app",
+      "destination": "/app/index.html"
+    },
+    {
+      "source": "/app/:path(.*)",
       "destination": "/app/index.html"
     }
   ],

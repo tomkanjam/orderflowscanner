@@ -35,7 +35,36 @@ signals INSERT → trigger → llm-proxy Edge Function → OpenRouter → Braint
 
 ## Progress
 
-Issue created, starting implementation.
+### 2025-10-25 08:50 - Implementation Complete (Code)
+
+**✅ Completed:**
+1. Added `analyze-signal` operation to llm-proxy config (operations.ts)
+2. Created analyzeSignal operation handler with full Braintrust tracing
+3. Registered handler in llm-proxy index.ts routing
+4. Created analysis prompt template (prompts/analyze-signal.md)
+5. Created migration 028 to update trigger endpoint and payload
+6. Created Braintrust prompt upload script
+7. Committed all changes (commit: 053fafa)
+
+**⏳ Pending (Manual Steps):**
+1. Deploy llm-proxy Edge Function to Supabase:
+   ```bash
+   supabase functions deploy llm-proxy --project-ref jtpqkbybuxbcvqeffmtf
+   ```
+2. Apply migration 028 via Supabase Dashboard SQL Editor
+3. Upload analyze-signal prompt to Braintrust:
+   ```bash
+   BRAINTRUST_API_KEY=xxx deno run --allow-all scripts/upload-analyze-signal-prompt.ts
+   ```
+4. Test end-to-end auto-trigger flow
+
+**Files Modified:**
+- `supabase/functions/llm-proxy/config/operations.ts` - Added analyze-signal config
+- `supabase/functions/llm-proxy/index.ts` - Registered analyze-signal handler
+- `supabase/functions/llm-proxy/operations/analyzeSignal.ts` - New operation handler
+- `supabase/functions/llm-proxy/prompts/analyze-signal.md` - Prompt template
+- `supabase/migrations/028_update_trigger_to_use_llm_proxy.sql` - Updated trigger
+- `scripts/upload-analyze-signal-prompt.ts` - Braintrust upload utility
 
 ## Spec
 

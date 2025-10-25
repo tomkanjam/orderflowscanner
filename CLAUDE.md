@@ -109,3 +109,7 @@ Small bugs/typos don't need initiative linking. Just:
 - For large work, create PROJECT parent issue with sub-issues
 - Edit Progress section instead of appending updates
 - Move completed issues to `context/issues/closed/` with Completion section filled out
+
+
+## Reference:
+- Supabase Project: jtpqkbybuxbcvqeffmtf

@@ -1,6 +1,6 @@
 # AI Trader Architecture
 
-**Last Updated:** 2025-10-24
+**Last Updated:** 2025-10-25
 
 ## System Overview
 
@@ -32,13 +32,14 @@ AI-powered cryptocurrency screener with fully automated trading. Users describe 
          │
          v
 ┌─────────────────┐
-│ 4. Signal       │  trader_signals table → Realtime broadcast
-│    Creation     │  Auto-trigger AI analysis (Elite tier)
+│ 4. Signal       │  signals table → Database trigger fires
+│    Creation     │  Auto-trigger AI analysis (Elite tier + auto_analyze_signals=true)
 └────────┬────────┘
          │
          v
 ┌─────────────────┐
-│ 5. AI Analysis  │  ai-analysis Edge Function → Gemini 2.5 Flash
+│ 5. AI Analysis  │  Database trigger → llm-proxy (analyze-signal operation)
+│                 │  OpenRouter → Gemini 2.5 Flash → Braintrust traced
 │                 │  Output: decision, confidence, key levels, trade plan
 └────────┬────────┘
          │
@@ -181,57 +182,131 @@ if (matched) {
 
 ---
 
-## 4. AI Signal Analysis
+## 4. AI Signal Analysis (Auto-Trigger)
 
-**Entry Point:** `/ai-analysis` Edge Function (Elite tier only)
+**Entry Point:** Database trigger → `/llm-proxy` (analyze-signal operation)
 
-### Analysis Process (ai-analysis/index.ts:37-94)
-```typescript
-// 1. Validate authentication
-if (!authHeader?.startsWith('Bearer ')) throw new Error('Unauthorized');
+### Auto-Trigger Mechanism (migration 028)
 
-// 2. Parse request (AnalysisRequest)
-const { signalId, symbol, strategy, price, klines, calculatedIndicators } = req.json();
+**Database Trigger:** `trigger_ai_analysis_on_signal()`
+- Fires on: AFTER INSERT on `signals` table
+- Conditions:
+  1. User has Elite subscription tier (`subscription_tier = 'elite'`)
+  2. Trader has auto-analysis enabled (`auto_analyze_signals = true`)
+- Action: Async HTTP POST to `/llm-proxy` via `pg_net`
 
-// 3. Build prompt with market context
-const prompt = promptBuilder.buildAnalysisPrompt({
-  symbol, strategy, price, klines, indicators
-});
-
-// 4. Call Gemini 2.5 Flash
-const { analysis, tokensUsed } = await geminiClient.generateStructuredAnalysis(prompt);
-
-// 5. Calculate key levels
-const keyLevels = keyLevelCalculator.calculateKeyLevels(
-  price, klines, calculatedIndicators, analysis.decision
-);
-
-// 6. Return structured response
-return {
-  decision: 'enter_trade' | 'bad_setup' | 'wait',
-  confidence: 85.5,
-  reasoning: "...",
-  keyLevels: { entry, stopLoss, takeProfit[], support[], resistance[] },
-  tradePlan: { setup, execution, invalidation, riskReward }
-};
+```sql
+-- Trigger payload structure
+{
+  "operation": "analyze-signal",
+  "params": {
+    "signalId": "uuid",
+    "symbol": "BTCUSDT",
+    "traderId": "uuid",
+    "userId": "uuid",
+    "timestamp": "2025-10-25T07:00:00Z",
+    "price": 50000.0,
+    "strategy": { "instructions": "..." }
+  }
+}
 ```
 
-**Model:** Gemini 2.5 Flash (fast, low latency)
+### Analysis Process (analyzeSignal.ts:16-161)
+```typescript
+return await traced(async (span) => {
+  // 1. Log operation inputs to Braintrust
+  span.log({
+    input: { signalId, symbol, traderId, price, strategy },
+    metadata: { operation: 'analyze-signal', modelId, userId, timestamp }
+  });
+
+  // 2. Load prompt from Braintrust
+  const prompt = await promptLoader.loadPromptWithVariables('analyze-signal', {
+    symbol, price, strategy, timestamp
+  });
+
+  // 3. Call OpenRouter (Gemini 2.5 Flash)
+  const result = await openRouterClient.generateStructuredResponse(prompt, {
+    temperature: 0.7,
+    max_tokens: 2000,
+    modelName: 'google/gemini-2.5-flash'
+  });
+
+  // 4. Validate response structure
+  if (!result.data.decision || !['enter_trade', 'bad_setup', 'wait'].includes(result.data.decision)) {
+    throw new Error('Invalid decision in response');
+  }
+
+  // 5. Build analysis result
+  const analysisResult = {
+    signalId,
+    decision: result.data.decision,
+    confidence: result.data.confidence,
+    reasoning: result.data.reasoning,
+    keyLevels: result.data.keyLevels || { entry, stopLoss, takeProfit, support, resistance },
+    tradePlan: result.data.tradePlan || { setup, execution, invalidation, riskReward },
+    technicalIndicators: result.data.technicalContext || {},
+    metadata: { tokensUsed, modelName, rawAiResponse }
+  };
+
+  // 6. Store analysis in signal_analyses table
+  await fetch(`${SUPABASE_URL}/rest/v1/signal_analyses`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'apikey': SUPABASE_SERVICE_ROLE_KEY
+    },
+    body: JSON.stringify({
+      signal_id: signalId,
+      trader_id: traderId,
+      user_id: userId,
+      decision: analysisResult.decision,
+      confidence: analysisResult.confidence,
+      reasoning: analysisResult.reasoning,
+      key_levels: analysisResult.keyLevels,
+      trade_plan: analysisResult.tradePlan,
+      technical_indicators: analysisResult.technicalIndicators,
+      raw_ai_response: metadata.rawAiResponse,
+      analysis_latency_ms: metadata.analysisLatencyMs,
+      gemini_tokens_used: metadata.tokensUsed,
+      model_name: metadata.modelName
+    })
+  });
+
+  // 7. Log operation outputs to Braintrust
+  span.log({
+    output: analysisResult,
+    metrics: { total_tokens: result.tokensUsed, confidence: analysisResult.confidence }
+  });
+
+  return { data: analysisResult, usage: { total_tokens: result.tokensUsed } };
+}, { name: "analyze_signal", type: "task" });
+```
+
+**Model:** Gemini 2.5 Flash (fast, low latency, via OpenRouter)
 
 **Storage:** `signal_analyses` table (RLS-protected)
-- decision, confidence, reasoning
-- key_levels (JSONB), trade_plan (JSONB)
-- raw_ai_response, analysis_latency_ms, gemini_tokens_used
+- Required: signal_id, trader_id, user_id, decision, confidence, reasoning, key_levels, trade_plan
+- Optional: technical_indicators, raw_ai_response, analysis_latency_ms, gemini_tokens_used, model_name
+- All fields properly mapped from metadata object
 
 **Performance:**
-- Latency: 2-5 seconds
+- Latency: 3.7-4.1 seconds per analysis
+- Tokens: ~1100 per analysis
 - Realtime broadcast: Enabled on `signal_analyses` table
 
+**Braintrust Tracing:**
+- Full operation trace (inputs, outputs, metrics)
+- Prompt loaded from Braintrust (slug: `analyze-signal`)
+- Token usage tracked
+- Confidence scores logged
+
 **Files:**
-- `supabase/functions/ai-analysis/index.ts`
-- `supabase/functions/ai-analysis/geminiClient.ts`
-- `supabase/functions/ai-analysis/promptBuilder.ts`
-- `supabase/functions/ai-analysis/keyLevelCalculator.ts`
+- `supabase/migrations/028_update_trigger_to_use_llm_proxy.sql`
+- `supabase/functions/llm-proxy/operations/analyzeSignal.ts`
+- `supabase/functions/llm-proxy/prompts/analyze-signal.md`
+- `supabase/functions/llm-proxy/config/operations.ts`
 
 ---
 
@@ -289,6 +364,7 @@ return await traced(async (span) => {
 - `generate_trader` (parent span)
 - `generate_trader_metadata` (child span)
 - `generate_filter_code` (child span)
+- `analyze_signal` (signal analysis task)
 - `openrouter_chat` (LLM span)
 
 **Metrics Logged:**
@@ -368,19 +444,25 @@ return await traced(async (span) => {
 - `filter` (JSONB): code, description[], interval, requiredTimeframes[], language
 - `strategy` (JSONB): instructions, aiAnalysisLimit, modelTier, maxConcurrentAnalysis
 - `metrics` (JSONB): executions, signals, trades
+- `auto_analyze_signals` (boolean): Enable auto AI analysis on signal creation
 - `user_id`, `tier`, `isBuiltIn`, `accessTier`, `default_enabled`
 
-**trader_signals**
-- `id`, `trader_id`, `symbols[]`, `timestamp`, `metadata` (JSONB)
-- Auto-triggers AI analysis for Elite users
+**signals**
+- `id`, `trader_id`, `symbol`, `timestamp`, `price_at_signal`, `metadata` (JSONB)
+- AFTER INSERT trigger: `trigger_ai_analysis_on_signal()`
+  - Fires only for Elite tier users with `auto_analyze_signals=true`
+  - Async HTTP POST to `/llm-proxy` (analyze-signal operation)
+  - Uses `pg_net` extension for non-blocking HTTP calls
 
 **signal_analyses**
-- `id`, `signal_id`, `trader_id`, `user_id`
-- `decision` (enter_trade|bad_setup|wait), `confidence`, `reasoning`
+- `id`, `signal_id`, `trader_id`, `user_id` (all required, NOT NULL)
+- `decision` (enter_trade|bad_setup|wait), `confidence`, `reasoning` (all required)
 - `key_levels` (JSONB): entry, stopLoss, takeProfit[], support[], resistance[]
 - `trade_plan` (JSONB): setup, execution, invalidation, riskReward
-- `raw_ai_response`, `analysis_latency_ms`, `gemini_tokens_used`, `model_name`
+- `technical_indicators` (JSONB, optional)
+- `raw_ai_response`, `analysis_latency_ms`, `gemini_tokens_used`, `model_name` (optional)
 - Realtime enabled
+- Foreign key: signal_id → signals(id)
 
 **execution_history**
 - `id`, `trader_id`, `started_at`, `completed_at`
@@ -397,6 +479,8 @@ return await traced(async (span) => {
 **Files:**
 - `supabase/migrations/001_create_traders_tables.sql`
 - `supabase/migrations/014_create_signal_analyses_table.sql`
+- `supabase/migrations/024_auto_trigger_ai_analysis.sql` (initial trigger)
+- `supabase/migrations/028_update_trigger_to_use_llm_proxy.sql` (updated for llm-proxy)
 
 ---
 
@@ -442,7 +526,9 @@ return await traced(async (span) => {
 - **Trader Creation:** 5-10s (2 LLM calls: metadata + filter code)
 - **Filter Execution:** <1s per trader (all symbols in parallel)
 - **Signal Detection:** Real-time (1-min cron trigger)
-- **AI Analysis:** 2-5s (Gemini 2.5 Flash)
+- **AI Analysis (Auto-Trigger):** 3.7-4.1s (Gemini 2.5 Flash via OpenRouter)
+  - Database trigger → llm-proxy → OpenRouter → Braintrust → Database write
+  - ~1100 tokens per analysis
 - **Database Queries:** <100ms (indexed, RLS-optimized)
 
 ---
@@ -480,8 +566,9 @@ GO_SERVER_URL=https://xxx.fly.dev
 - Filter code generation (Go language)
 - Filter execution (Edge Functions)
 - Signal creation + Realtime broadcast
-- AI analysis (Elite tier)
-- Braintrust instrumentation (all LLM operations)
+- AI analysis auto-trigger (Elite tier + auto_analyze_signals=true)
+- Braintrust instrumentation (all LLM operations including analyze-signal)
+- Database trigger integration (signals → llm-proxy)
 - Database schema with RLS
 - Authentication + subscription tiers
 
@@ -492,7 +579,12 @@ GO_SERVER_URL=https://xxx.fly.dev
 - Exchange credentials encryption
 - Live trading mode (currently demo only)
 
-**Estimated Completion:** 70% of core workflow functional
+**Estimated Completion:** 75% of core workflow functional
+
+**Recent Milestones:**
+- ✅ Auto-trigger AI analysis via database trigger (Oct 25, 2025)
+- ✅ Full Braintrust instrumentation for analyze-signal operation
+- ✅ End-to-end signal → analysis → storage working
 
 ---
 
@@ -508,6 +600,9 @@ GO_SERVER_URL=https://xxx.fly.dev
 - `supabase/functions/llm-proxy/operations/generateTrader.ts`
 - `supabase/functions/llm-proxy/operations/generateFilterCode.ts`
 - `supabase/functions/llm-proxy/operations/generateTraderMetadata.ts`
+- `supabase/functions/llm-proxy/operations/analyzeSignal.ts` (auto-trigger AI analysis)
+- `supabase/functions/llm-proxy/config/operations.ts`
+- `supabase/functions/llm-proxy/prompts/analyze-signal.md`
 - `supabase/functions/llm-proxy/promptLoader.v2.ts`
 - `supabase/functions/llm-proxy/openRouterClient.ts`
 
@@ -516,15 +611,11 @@ GO_SERVER_URL=https://xxx.fly.dev
 - `supabase/functions/trigger-executions/index.ts`
 - `supabase/functions/_shared/goServerClient.ts`
 
-### AI Analysis
-- `supabase/functions/ai-analysis/index.ts`
-- `supabase/functions/ai-analysis/geminiClient.ts`
-- `supabase/functions/ai-analysis/promptBuilder.ts`
-- `supabase/functions/ai-analysis/keyLevelCalculator.ts`
-
 ### Database
 - `supabase/migrations/001_create_traders_tables.sql`
 - `supabase/migrations/014_create_signal_analyses_table.sql`
+- `supabase/migrations/024_auto_trigger_ai_analysis.sql`
+- `supabase/migrations/028_update_trigger_to_use_llm_proxy.sql`
 
 ### Go Backend (Pending Integration)
 - `backend/go-screener/cmd/server/main.go`

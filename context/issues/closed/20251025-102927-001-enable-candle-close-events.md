@@ -21,7 +21,43 @@ This is the foundation for both setup monitoring and position management workflo
 
 ## Progress
 
-*Track progress here*
+**Status:** ✅ COMPLETE
+
+**Implementation completed:** 2025-10-25
+
+### What was built:
+
+1. **Event Bus Infrastructure** (internal/eventbus/)
+   - Added CandleCloseEvent type with Symbol, Interval, Kline, CloseTime fields
+   - Added EventTypeCandleClose constant
+   - Implemented PublishCandleCloseEvent() with non-blocking publish
+   - Implemented SubscribeCandleClose() returning buffered channel (1000 capacity)
+   - Added GetCandleCloseSubscriberCount() for monitoring
+   - Updated EventBus.Stop() to properly close candle close subscriber channels
+
+2. **WebSocket Integration** (pkg/binance/websocket.go)
+   - Added eventBus field to WSClient struct
+   - Added lastClosedCandles map for deduplication tracking
+   - Added lastClosedMu mutex for thread-safe access
+   - Updated NewWSClient() signature to accept eventBus parameter
+   - Implemented candle close event emission in handleKlineEvent()
+   - Deduplication: Only emits event if closeTime differs from last processed
+   - Added logging: "[WSClient] Candle closed: BTCUSDT-1m at 15:04:05"
+
+3. **Server Integration** (internal/server/server.go)
+   - Reordered initialization: EventBus created BEFORE WebSocket client
+   - Updated NewWSClient() call to pass eventBus parameter
+
+4. **Testing** (internal/eventbus/bus_test.go)
+   - TestCandleCloseEventPubSub: Verified basic pub/sub flow
+   - TestMultipleCandleCloseSubscribers: Verified 3 subscribers all receive events
+   - TestCandleCloseEventNonBlockingPublish: Verified non-blocking with 2000 events
+   - BenchmarkPublishCandleCloseEvent: Performance benchmark
+   - All tests passing ✅
+
+### Commits:
+- 16d0ccc: feat: implement candle close event emission from WebSocket
+- 9c1af66: test: add unit tests for candle close event functionality
 
 ## Spec
 
@@ -126,13 +162,13 @@ func TestCandleCloseEventEmission(t *testing.T) {
 
 ### Success Criteria
 
-- [ ] CandleCloseEvent type added to eventbus
-- [ ] Events emitted when isClosed=true from WebSocket
-- [ ] Events contain: symbol, interval, complete kline, close time
-- [ ] Unit tests pass
-- [ ] Integration test confirms events for live data
-- [ ] Logging shows events being emitted (visible in logs)
-- [ ] No performance degradation (event emission is lightweight)
+- [x] CandleCloseEvent type added to eventbus
+- [x] Events emitted when isClosed=true from WebSocket
+- [x] Events contain: symbol, interval, complete kline, close time
+- [x] Unit tests pass
+- [ ] Integration test confirms events for live data (will be tested when sub-issues 002/003 subscribe)
+- [x] Logging shows events being emitted (visible in logs)
+- [x] No performance degradation (event emission is lightweight, non-blocking)
 
 ### Notes
 
@@ -163,3 +199,17 @@ if isClosed {
 - Day 1: Add event type, locate WebSocket handler, implement emission
 - Day 2: Unit tests, integration tests, deduplication logic
 - Day 3: Manual testing with live WebSocket, verify performance
+
+## Completion
+
+**Closed:** 2025-10-25 10:45:00
+**Outcome:** Success
+**Commits:**
+- 16d0ccc: feat: implement candle close event emission from WebSocket
+- 9c1af66: test: add unit tests for candle close event functionality
+
+**Summary:**
+Candle close event infrastructure successfully implemented and tested. WebSocket now emits CandleCloseEvent whenever a candle completes (isClosed=true), with deduplication to prevent duplicate processing. Event bus provides non-blocking publish/subscribe pattern with buffered channels. All unit tests passing.
+
+**Next Steps:**
+This unblocks sub-issues 002 (Setup Monitoring Workflow) and 003 (Position Management Workflow), which will subscribe to these candle close events to trigger conditional reanalysis.

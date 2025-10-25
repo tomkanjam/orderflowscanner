@@ -44,7 +44,7 @@ Currently we have basic auto-trigger AI analysis (migration 028) that analyzes s
 
 ## Sub-issues
 
-- [ ] `context/issues/open/20251025-102927-001-enable-candle-close-events.md` - Enable candle close event emission (Go backend)
+- [x] `context/issues/closed/20251025-102927-001-enable-candle-close-events.md` - ✅ Enable candle close event emission (Go backend)
 - [ ] `context/issues/open/20251025-102927-002-setup-monitoring-workflow.md` - Implement setup monitoring (conditional)
 - [ ] `context/issues/open/20251025-102927-003-position-management-workflow.md` - Implement position management (always active)
 - [ ] `context/issues/open/20251025-102927-004-workflow-state-management.md` - Add workflow_schedules table (optional enhancement)
@@ -52,7 +52,7 @@ Currently we have basic auto-trigger AI analysis (migration 028) that analyzes s
 
 ## Progress
 
-*Track overall project progress here*
+**2025-10-25:** ✅ Sub-issue 001 completed - Candle close events now emitted from WebSocket
 
 ## Spec
 

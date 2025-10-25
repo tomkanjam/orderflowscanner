@@ -46,17 +46,23 @@ signals INSERT → trigger → llm-proxy Edge Function → OpenRouter → Braint
 6. Created Braintrust prompt upload script
 7. Committed all changes (commit: 053fafa)
 
-**⏳ Pending (Manual Steps):**
-1. Deploy llm-proxy Edge Function to Supabase:
-   ```bash
-   supabase functions deploy llm-proxy --project-ref jtpqkbybuxbcvqeffmtf
-   ```
-2. Apply migration 028 via Supabase Dashboard SQL Editor
-3. Upload analyze-signal prompt to Braintrust:
+### 2025-10-25 08:55 - Deployment Complete
+
+**✅ Deployed:**
+1. ✅ llm-proxy Edge Function deployed to Supabase (project: jtpqkbybuxbcvqeffmtf)
+2. ✅ Migration 028 applied successfully via MCP tool
+3. ✅ Trigger now calling `/llm-proxy` with `analyze-signal` operation
+
+**⏳ Pending:**
+1. Upload analyze-signal prompt to Braintrust:
    ```bash
    BRAINTRUST_API_KEY=xxx deno run --allow-all scripts/upload-analyze-signal-prompt.ts
    ```
-4. Test end-to-end auto-trigger flow
+2. Test end-to-end auto-trigger flow:
+   - Verify test trader has auto_analyze_signals=true
+   - Wait for signal or manually insert test signal
+   - Check Braintrust dashboard for traces
+   - Verify signal_analyses table has new row
 
 **Files Modified:**
 - `supabase/functions/llm-proxy/config/operations.ts` - Added analyze-signal config

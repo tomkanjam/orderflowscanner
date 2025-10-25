@@ -1,8 +1,25 @@
 # Automated Trading Workflows
 
+> **Status:** Future Architecture / Not Yet Implemented
+> **Last Updated:** 2025-10-25
+>
+> **Current Implementation:**
+> We currently have **basic auto-trigger AI analysis** via database trigger (migration 028):
+> - Signal INSERT → Database trigger → llm-proxy (analyze-signal) → signal_analyses table
+> - Provides immediate one-time analysis on signal creation
+> - Elite tier + auto_analyze_signals gating
+> - See `architecture.md` Section 4 for details
+>
+> **This Document:**
+> Describes the **future continuous monitoring system** that will:
+> - Monitor setups at each candle close (not just initial analysis)
+> - Actively manage open positions at each candle close
+> - Use event-driven architecture based on WebSocket candle close events
+> - Provide continuous re-analysis until position closure
+
 ## Overview
 
-This document defines the automated workflows for continuous signal monitoring and position management. These workflows ensure that AI traders analyze setups at each candle close and actively manage positions until closure.
+This document defines the planned automated workflows for continuous signal monitoring and position management. These workflows will ensure that AI traders analyze setups at each candle close and actively manage positions until closure.
 
 ## Core Workflows
 
@@ -793,8 +810,8 @@ class WorkflowErrorHandler {
 
 ### Signal Lifecycle Enhancement
 ```typescript
-// Current: new → analyzing → monitoring → ready → in_position → closed
-// Enhanced: Automated analysis at each stage
+// Planned Lifecycle: new → analyzing → monitoring → ready → in_position → closed
+// This will add automated analysis at each candle close during monitoring
 
 class EnhancedSignalLifecycle {
   async transitionToMonitoring(signalId: string) {

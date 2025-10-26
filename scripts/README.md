@@ -69,7 +69,7 @@ Make sure you're using the correct Braintrust organization that contains the "AI
 
 Run the script from the repository root directory:
 ```bash
-cd /path/to/ai-powered-binance-crypto-screener
+cd /path/to/vyx
 deno run --allow-read --allow-net --allow-env scripts/upload-prompt-to-braintrust.ts
 ```
 

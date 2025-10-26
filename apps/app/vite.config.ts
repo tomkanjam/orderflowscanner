@@ -5,9 +5,9 @@ export default defineConfig(({ mode }) => {
     // Load env vars from the root directory
     const env = loadEnv(mode, path.resolve(__dirname, '../..'), '');
     return {
-      base: '/app/',
+      base: '/',
       build: {
-        outDir: '../../dist/app',
+        outDir: 'dist',
         emptyOutDir: true,
       },
       define: {

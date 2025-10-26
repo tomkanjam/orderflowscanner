@@ -13,7 +13,6 @@ This is the marketing site for TradeMind AI, built with Astro for optimal perfor
 
 ## Setup
 
-
 1. Copy `.env.example` to `.env.local` and add your Supabase credentials:
    ```bash
    cp .env.example .env.local

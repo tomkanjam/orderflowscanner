@@ -14,5 +14,6 @@ export default defineConfig({
   build: {
     inlineStylesheets: 'auto',
   },
-  outDir: '../../dist',
+  // Output to dist when building from apps/web (Vercel deployment)
+  // When building from root, use pnpm build:web which handles the path
 });

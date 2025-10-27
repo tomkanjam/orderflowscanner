@@ -67,7 +67,7 @@ export const AppRouter: React.FC = () => {
   console.log('[AppRouter] Router initialized');
 
   return (
-    <BrowserRouter basename="/app">
+    <BrowserRouter basename="/">
       <Routes>
         {/* Main app route */}
         <Route path="/" element={<App />} />

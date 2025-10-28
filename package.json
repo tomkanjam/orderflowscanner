@@ -3,13 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "pnpm -r --parallel dev",
-    "build": "pnpm build:clean && pnpm build:web && pnpm build:app",
+    "dev": "pnpm --filter app dev",
+    "build": "pnpm build:clean && pnpm build:app",
     "build:clean": "rm -rf dist",
-    "build:web": "pnpm --filter web build",
     "build:app": "pnpm --filter app build",
-    "dev:app": "pnpm --filter app dev",
-    "dev:web": "pnpm --filter web dev"
+    "dev:app": "pnpm --filter app dev"
   },
   "devDependencies": {
     "typescript": "~5.7.2"

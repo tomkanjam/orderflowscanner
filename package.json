@@ -4,9 +4,10 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "pnpm --filter app dev",
-    "build": "pnpm build:clean && pnpm build:app",
-    "build:clean": "rm -rf dist",
+    "build": "pnpm build:clean && pnpm build:app && pnpm build:copy",
+    "build:clean": "rm -rf dist apps/app/dist",
     "build:app": "pnpm --filter app build",
+    "build:copy": "cp -r apps/app/dist dist",
     "dev:app": "pnpm --filter app dev"
   },
   "devDependencies": {

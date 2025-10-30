@@ -255,7 +255,40 @@ export class TraderManager implements ITraderManager {
     }
   }
 
-  async enableTrader(id: string): Promise<void> {
+  async enableTrader(
+    id: string,
+    options?: {
+      userTier?: string | null;
+      userId?: string | null;
+      skipTierCheck?: boolean;
+    }
+  ): Promise<void> {
+    const trader = this.traders.get(id);
+    if (!trader) {
+      throw new Error(`Trader ${id} not found`);
+    }
+
+    // [TIER ENFORCEMENT] Check if user can enable this trader
+    if (!options?.skipTierCheck && trader.ownershipType === 'user') {
+      const { canEnableTrader } = await import('../utils/tierAccess');
+
+      // Count currently enabled custom traders for this user
+      const enabledCount = Array.from(this.traders.values()).filter(
+        t => t.userId === options?.userId && t.enabled && t.ownershipType === 'user'
+      ).length;
+
+      const { canEnable, reason } = canEnableTrader(
+        trader,
+        options?.userTier as any,
+        options?.userId || null,
+        enabledCount
+      );
+
+      if (!canEnable) {
+        throw new Error(reason || 'Cannot enable trader due to tier restrictions');
+      }
+    }
+
     await this.updateTrader(id, { enabled: true });
   }
 
@@ -513,20 +546,28 @@ export class TraderManager implements ITraderManager {
   /**
    * Toggle user preference for a trader
    * For built-in traders: updates localStorage
-   * For custom traders: updates database enabled field
+   * For custom traders: updates database enabled field with tier validation
    */
-  async toggleUserPreference(traderId: string, userId?: string): Promise<void> {
+  async toggleUserPreference(
+    traderId: string,
+    userId?: string,
+    userTier?: string | null
+  ): Promise<void> {
     const trader = this.traders.get(traderId);
     if (!trader) {
       throw new Error(`Trader ${traderId} not found`);
     }
 
     if (!trader.isBuiltIn) {
-      // Custom traders: toggle database field
+      // Custom traders: toggle database field with tier validation
       if (trader.enabled) {
         await this.disableTrader(traderId);
       } else {
-        await this.enableTrader(traderId);
+        await this.enableTrader(traderId, {
+          userTier,
+          userId: userId || null,
+          skipTierCheck: false
+        });
       }
       return;
     }

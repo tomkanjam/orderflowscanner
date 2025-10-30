@@ -127,9 +127,13 @@ export function TraderList({
 
   const handleToggleTrader = async (trader: Trader) => {
     try {
-      await traderManager.toggleUserPreference(trader.id, user?.id);
+      await traderManager.toggleUserPreference(trader.id, user?.id, currentTier);
     } catch (error) {
       console.error('Failed to toggle trader:', error);
+      // Show user-friendly error message
+      if (error instanceof Error) {
+        alert(error.message);
+      }
     }
   };
 

@@ -14,18 +14,18 @@ export function canAccessFeature(
 }
 
 /**
- * Filter traders based on user's tier access and ownership.
- * Defense-in-depth: Prevents execution of inaccessible traders.
+ * Filter traders based on user's tier access for VISIBILITY only.
+ * Users can see their own custom traders regardless of tier.
  *
  * Rules:
- * - Users can always access their own custom signals (userId matches)
+ * - Users can always VIEW their own custom signals (userId matches)
  * - Built-in signals require tier >= signal.accessTier
  * - Invalid inputs return empty array (fail-secure)
  *
  * @param traders - Array of traders to filter
  * @param userTier - User's subscription tier (or 'anonymous' or null)
  * @param userId - User's ID (or null for anonymous)
- * @returns Filtered array of accessible traders
+ * @returns Filtered array of visible traders
  */
 export function filterTradersByTierAccess(
   traders: Trader[],
@@ -49,7 +49,7 @@ export function filterTradersByTierAccess(
       return false;
     }
 
-    // Rule 1: Users can always access their own custom signals
+    // Rule 1: Users can always VIEW their own custom signals (but not necessarily enable them)
     // Custom signals are identified by having a userId
     if (trader.userId && trader.userId === userId) {
       return true;
@@ -70,10 +70,81 @@ export function filterTradersByTierAccess(
   });
 
   console.log(
-    `[tierAccess] Filtered ${traders.length} traders → ${filtered.length} accessible (tier: ${normalizedTier}, userId: ${userId || 'null'})`
+    `[tierAccess] Filtered ${traders.length} traders → ${filtered.length} visible (tier: ${normalizedTier}, userId: ${userId || 'null'})`
   );
 
   return filtered;
+}
+
+/**
+ * Check if user can ENABLE/RUN a specific trader based on their tier.
+ * This is stricter than visibility - enforces quota limits for custom traders.
+ *
+ * Tier Limits:
+ * - Anonymous: Cannot enable any traders
+ * - Free: Cannot enable any custom traders (0 quota)
+ * - Pro: Can enable up to 10 custom traders
+ * - Elite: Can enable unlimited custom traders
+ *
+ * @param trader - The trader to check
+ * @param userTier - User's subscription tier (or 'anonymous' or null)
+ * @param userId - User's ID (or null for anonymous)
+ * @param currentEnabledCount - How many custom traders the user currently has enabled
+ * @returns Object with canEnable boolean and optional reason string
+ */
+export function canEnableTrader(
+  trader: Trader,
+  userTier: SubscriptionTier | 'anonymous' | null,
+  userId: string | null,
+  currentEnabledCount: number = 0
+): { canEnable: boolean; reason?: string } {
+  const tier = userTier || 'anonymous';
+
+  // Built-in traders: only need tier access
+  if (trader.isBuiltIn) {
+    const hasAccess = canAccessFeature(tier, trader.accessTier);
+    return {
+      canEnable: hasAccess,
+      reason: hasAccess ? undefined : `Requires ${trader.accessTier} tier or higher`
+    };
+  }
+
+  // Custom traders: check ownership and quota
+  if (trader.userId !== userId) {
+    return {
+      canEnable: false,
+      reason: 'You can only enable your own custom traders'
+    };
+  }
+
+  // Check tier quota for custom traders
+  const tierLimits = {
+    anonymous: 0,
+    free: 0,
+    pro: 10,
+    elite: Infinity
+  };
+
+  const maxTraders = tierLimits[tier];
+
+  // If trader is already enabled, don't count it in the limit check
+  const effectiveEnabledCount = trader.enabled ? currentEnabledCount - 1 : currentEnabledCount;
+
+  if (effectiveEnabledCount >= maxTraders) {
+    if (maxTraders === 0) {
+      return {
+        canEnable: false,
+        reason: `${tier === 'anonymous' ? 'Sign in and upgrade' : 'Upgrade'} to Pro to enable custom traders`
+      };
+    } else {
+      return {
+        canEnable: false,
+        reason: `You've reached the limit of ${maxTraders} custom traders for ${tier} tier. Upgrade to Elite for unlimited.`
+      };
+    }
+  }
+
+  return { canEnable: true };
 }
 
 export interface SignalAccess {

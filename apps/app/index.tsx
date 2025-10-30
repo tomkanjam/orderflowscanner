@@ -2,6 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './src/styles/main.css';
+import './src/styles/mobile.css';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { StrategyProvider } from './src/contexts/StrategyContext';
 import { SubscriptionProvider } from './src/contexts/SubscriptionContext';

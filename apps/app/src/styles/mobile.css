@@ -268,7 +268,7 @@
     height: 40px;
     display: flex;
     align-items: center;
-    justify-center;
+    justify-content: center;
     transition: transform 0.2s ease;
   }
 

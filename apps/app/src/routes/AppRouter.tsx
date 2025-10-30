@@ -7,9 +7,6 @@ import { UserManager } from '../components/admin/UserManager';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { StyleGuide } from '../pages/StyleGuide';
-import { StyleGuideNeonTerminal } from '../pages/StyleGuideNeonTerminal';
-import { StyleGuideLinearRobinhood } from '../pages/StyleGuideLinearRobinhood';
-import { StyleGuideSupabase } from '../pages/StyleGuideSupabase';
 
 // Placeholder components for other admin pages
 const PromptEvaluation: React.FC = () => (
@@ -71,12 +68,9 @@ export const AppRouter: React.FC = () => {
       <Routes>
         {/* Main app route */}
         <Route path="/" element={<App />} />
-        
+
         {/* Style guide routes */}
         <Route path="/style-guide" element={<StyleGuide />} />
-        <Route path="/style-guide-neon" element={<StyleGuideNeonTerminal />} />
-        <Route path="/style-guide-linear" element={<StyleGuideLinearRobinhood />} />
-        <Route path="/style-guide-supabase" element={<StyleGuideSupabase />} />
         
         {/* Admin routes */}
         <Route

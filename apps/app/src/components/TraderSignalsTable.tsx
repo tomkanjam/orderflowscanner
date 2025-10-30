@@ -70,7 +70,16 @@ function TraderSignalsTableComponent({
   const [showDedupeSettings, setShowDedupeSettings] = useState(false);
 
   // Infinite scroll setup
-  const traderIds = useMemo(() => traders.map(t => t.id), [traders]);
+  const traderIds = useMemo(() => {
+    // When a specific trader is selected, fetch only that trader's signals
+    // (even if disabled, to support explicit viewing)
+    if (selectedTraderId) {
+      return [selectedTraderId];
+    }
+
+    // Default view: only fetch signals from enabled traders
+    return traders.filter(t => t.enabled).map(t => t.id);
+  }, [traders, selectedTraderId]);
   const { loadMore, isLoading: isLoadingMore, hasMore, reset } = useInfiniteSignals({
     traderIds,
     batchSize: 50
@@ -176,11 +185,22 @@ function TraderSignalsTableComponent({
 
   // Filter and sort signals by timestamp, newest first
   const sortedSignals = useMemo(() => {
-    const filteredSignals = selectedTraderId 
-      ? signals.filter(s => s.traderId === selectedTraderId)
-      : signals;
+    let filteredSignals: SignalLifecycle[];
+
+    if (selectedTraderId) {
+      // Explicit trader selection: show only that trader's signals
+      // (works regardless of enabled state)
+      filteredSignals = signals.filter(s => s.traderId === selectedTraderId);
+    } else {
+      // Default view: filter out signals from disabled traders
+      filteredSignals = signals.filter(s => {
+        const trader = traders.find(t => t.id === s.traderId);
+        return trader?.enabled !== false;
+      });
+    }
+
     return [...filteredSignals].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }, [signals, selectedTraderId]);
+  }, [signals, selectedTraderId, traders]);
 
   // Filter and sort historical signals by klineTimestamp
   const sortedHistoricalSignals = useMemo(() => {

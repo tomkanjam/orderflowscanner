@@ -12,7 +12,8 @@ import ActivityPanel from '../src/components/ActivityPanel';
 import { useSubscription } from '../src/contexts/SubscriptionContext';
 import { sharedMarketData } from '../src/shared/SharedMarketData';
 import * as screenerHelpers from '../screenerHelpers';
-import { MobileTab } from '../src/components/mobile/BottomNavigation'; 
+import { MobileTab } from '../src/components/mobile/BottomNavigation';
+import { BottomSheet } from '../src/components/mobile/BottomSheet'; 
 
 type ScreenerHelpersType = typeof screenerHelpers;
 
@@ -192,6 +193,23 @@ const MainContent: React.FC<MainContentProps> = ({
                   onRowClick={onRowClick}
                 />
               </div>
+            )}
+
+            {/* Bottom Sheet for Signal Details (Elite tier) */}
+            {currentTier === 'elite' && selectedSignal && (
+              <BottomSheet
+                isOpen={true}
+                onClose={() => setSelectedSignal(null)}
+                title="Signal Details"
+                initialState="peek"
+              >
+                <SignalHistorySidebar
+                  signal={selectedSignal}
+                  onClose={() => setSelectedSignal(null)}
+                  tickers={tickers}
+                  traders={traders || []}
+                />
+              </BottomSheet>
             )}
           </>
         )}

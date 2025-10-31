@@ -548,22 +548,22 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
               },
               layout: { padding: { top: 5, bottom: 0, left: 60, right: 35 } }, 
               plugins: {
-                legend: { 
-                    display: true, 
-                    labels: { 
-                        color: '#f5f5f7', 
-                        boxWidth: 15, 
-                        padding: 10, 
-                        usePointStyle: true, 
-                        pointStyle: 'rect' 
-                    } 
+                legend: {
+                    display: !isMobile,  // Hide legend on mobile
+                    labels: {
+                        color: '#f5f5f7',
+                        boxWidth: 15,
+                        padding: 10,
+                        usePointStyle: true,
+                        pointStyle: 'rect'
+                    }
                 },
-                title: { 
-                    display: true, 
-                    text: `${symbol} - ${interval} Chart`, 
-                    color: '#f5f5f7', 
-                    font: { size: 14 }, 
-                    padding: { bottom: 5 } 
+                title: {
+                    display: !isMobile,  // Hide title on mobile
+                    text: `${symbol} - ${interval} Chart`,
+                    color: '#f5f5f7',
+                    font: { size: 14 },
+                    padding: { bottom: 5 }
                 },
                 tooltip: { 
                     mode: 'index', 

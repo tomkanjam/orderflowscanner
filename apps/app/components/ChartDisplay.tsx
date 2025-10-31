@@ -1073,7 +1073,8 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
             )}
 
             <canvas ref={priceCanvasRef}></canvas>
-            {/* Zoom controls */}
+            {/* Zoom controls - Hidden on mobile */}
+            {!isMobile && (
             <div className="absolute top-2 right-2 flex gap-2 z-10">
               <button
                 onClick={resetZoom}
@@ -1086,6 +1087,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 Scroll to zoom X-axis
               </div>
             </div>
+            )}
           </div>
           {panelIndicators.map((indicator, idx) => (
             <div key={indicator.id} className={`${panelHeight} relative border-t border-[var(--tm-border)]`}>

@@ -987,10 +987,11 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   }
 
   return (
-    <div className={`tm-card shadow-lg flex flex-col h-full ${isMobile ? 'p-1 mb-0' : 'p-2 mb-2'}`}>
+    <div className={`tm-card shadow-lg flex flex-col h-full ${isMobile ? 'p-0 mb-0' : 'p-2 mb-2'}`}>
       {symbol ? (
         <>
-          {/* Data status bar */}
+          {/* Data status bar - Hidden on mobile */}
+          {!isMobile && (
           <div className="flex items-center justify-between px-2 py-1 mb-1 bg-[var(--tm-bg-secondary)] rounded text-xs">
             <div className="flex items-center gap-3">
               {/* Loading indicator */}
@@ -1054,6 +1055,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
               </button>
             </div>
           </div>
+          )}
 
           <div className={`${priceChartHeight} relative`}>
             {/* Loading skeleton */}

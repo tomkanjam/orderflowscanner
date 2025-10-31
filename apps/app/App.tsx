@@ -138,7 +138,7 @@ const AppContent: React.FC = () => {
   // Mobile navigation state
   const isMobile = useIsMobile(); // Use hook instead of state
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
-  const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>('chart');
+  const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>('activity');
 
   // Signal source filter state
   const [showCloudSignalsOnly, setShowCloudSignalsOnly] = useState<boolean>(false);

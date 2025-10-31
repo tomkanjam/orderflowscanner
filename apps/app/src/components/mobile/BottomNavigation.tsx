@@ -1,7 +1,7 @@
 import React from 'react';
-import { BarChart3, List, PlusCircle, Activity } from 'lucide-react';
+import { Activity, Users, PlusCircle } from 'lucide-react';
 
-export type MobileTab = 'chart' | 'signals' | 'create' | 'activity';
+export type MobileTab = 'activity' | 'traders' | 'create';
 
 interface BottomNavigationProps {
   activeTab: MobileTab;
@@ -16,29 +16,23 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 }) => {
   const tabs = [
     {
-      id: 'chart' as MobileTab,
-      label: 'Chart',
-      icon: BarChart3,
-      color: 'text-cyan-500'
-    },
-    {
-      id: 'signals' as MobileTab,
-      label: 'Signals',
-      icon: List,
+      id: 'activity' as MobileTab,
+      label: 'Activity',
+      icon: Activity,
       color: 'text-lime-500',
       badge: signalCount > 0 ? signalCount : undefined
+    },
+    {
+      id: 'traders' as MobileTab,
+      label: 'Traders',
+      icon: Users,
+      color: 'text-cyan-500'
     },
     {
       id: 'create' as MobileTab,
       label: 'Create',
       icon: PlusCircle,
       color: 'text-purple-500'
-    },
-    {
-      id: 'activity' as MobileTab,
-      label: 'Activity',
-      icon: Activity,
-      color: 'text-amber-500'
     }
   ];
 

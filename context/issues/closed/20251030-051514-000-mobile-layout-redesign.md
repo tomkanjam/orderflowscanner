@@ -8,10 +8,11 @@
 
 The app currently has basic responsive layout (vertical stacking on mobile) but lacks mobile-specific optimizations. With significant mobile user base expected at launch, we need a comprehensive mobile redesign focused on:
 
-1. **Chart-first layout** - Chart at top, signals table below (user requirement)
-2. **Touch-optimized interactions** - Gestures, tap targets, simplified navigation
-3. **Space efficiency** - Collapsible navigation, drawer patterns, optimized information density
-4. **Performance** - Fast chart rendering, smooth scrolling, efficient data loading
+1. **Tab-based navigation** - Activity (chart + signals), Traders (trader cards), Create (signal creation)
+2. **Activity tab layout** - Chart at top (45vh), signals scrollable below
+3. **Touch-optimized interactions** - Gestures, tap targets, simplified navigation
+4. **Space efficiency** - Collapsible navigation, drawer patterns, optimized information density
+5. **Performance** - Fast chart rendering, smooth scrolling, efficient data loading
 
 Current mobile implementation gaps:
 - Sidebar takes full width on mobile (inefficient use of space)
@@ -94,8 +95,8 @@ The mobile experience is now on par with desktop, providing top-tier UX for mobi
 // Mobile Layout (< 768px):
 <div className="flex flex-col h-screen">
   <Header /> {/* Logo, connection status, user menu */}
-  <MainContent /> {/* Chart + Signals - grows to fill space */}
-  <BottomNav /> {/* Quick access: Chart, Signals, Create, Activity */}
+  <MainContent /> {/* Content based on active tab */}
+  <BottomNav /> {/* Quick access: Activity, Traders, Create */}
   <SideDrawer /> {/* Full sidebar content - slides in from left */}
 </div>
 ```
@@ -110,9 +111,13 @@ The mobile experience is now on par with desktop, providing top-tier UX for mobi
 
 **B. Bottom Navigation Bar**
 - Height: 64px
-- 4 tabs: Chart, Signals, Create Signal, Activity
-- Active state with lime accent
+- 3 tabs: Activity, Traders, Create
+- **Activity Tab**: Chart (top 45vh) + Signals (bottom, scrollable) on same page
+- **Traders Tab**: Trader cards view (to be implemented)
+- **Create Tab**: Signal creation UI (to be implemented)
+- Active state with lime/cyan/purple accent per tab
 - Icons + labels
+- Badge on Activity tab shows active signal count
 - Fixed position at bottom
 
 **C. Sidebar Drawer**
@@ -130,32 +135,34 @@ The mobile experience is now on par with desktop, providing top-tier UX for mobi
 
 ---
 
-### 2. CHART-FIRST MOBILE LAYOUT
+### 2. ACTIVITY TAB LAYOUT
 
-**Layout Priority:**
+**Layout Implementation:**
 ```tsx
-// Portrait Mode (default):
-<main className="flex-1 flex flex-col overflow-hidden">
-  {activeTab === 'chart' && (
-    <ChartSection /> {/* Takes 60% of available height */}
-  )}
-  {activeTab === 'signals' && (
-    <SignalsSection /> {/* Takes 100% of available height */}
-  )}
-  {activeTab === 'activity' && (
-    <ActivitySection /> {/* Takes 100% of available height */}
-  )}
-</main>
+// Activity Tab (default view):
+<div className="h-full flex flex-col overflow-hidden">
+  {/* Chart Section - Fixed 45vh */}
+  <div className="h-[45vh] flex-shrink-0 border-b">
+    <ChartDisplay /> {/* Full chart with all features */}
+  </div>
 
-// Landscape Mode:
-// Split view: Chart 50% left, Signals 50% right
+  {/* Signals Section - Remaining space, scrollable */}
+  <div className="flex-1 overflow-hidden">
+    <TraderSignalsTable /> {/* Scrollable signals list */}
+  </div>
+</div>
+
+// Traders Tab:
+<TradersCardView /> {/* To be implemented - grid of trader cards */}
+
+// Create Tab:
+<CreateSignalForm /> {/* To be implemented - mobile-optimized creation UI */}
 ```
 
 **Chart Section (Mobile Optimized):**
 - **Height:**
-  - Portrait: 60% of available viewport height (minus header/bottom nav)
-  - Landscape: Full height
-  - Minimum: 300px
+  - Fixed: 45vh (45% of viewport height)
+  - Allows signals section to get approximately 40vh (after subtracting header/nav)
 - **Touch Gestures:**
   - Pinch-to-zoom (price axis)
   - Two-finger pan (time axis scroll)

@@ -100,7 +100,7 @@ const MainContent: React.FC<MainContentProps> = ({
   isMobile = false,
   showCloudSignalsOnly = false,
   onShowCloudSignalsOnlyChange,
-  activeMobileTab = 'chart',
+  activeMobileTab = 'activity',
 }) => {
   const { currentTier } = useSubscription();
   const [selectedSignal, setSelectedSignal] = useState<SignalLifecycle | null>(null);
@@ -125,46 +125,59 @@ const MainContent: React.FC<MainContentProps> = ({
 
         {!initialLoading && !initialError && (
           <>
-            {/* Chart Tab */}
-            {activeMobileTab === 'chart' && (
-              <div className="h-full flex flex-col">
-                <ChartDisplay
-                  symbol={selectedSymbolForChart}
-                  klines={chartKlines}
-                  indicators={chartConfigForDisplay}
-                  interval={klineInterval}
-                  signalLog={signalLog}
-                  historicalSignals={historicalSignals}
-                />
+            {/* Activity Tab - Chart on top, Signals below */}
+            {activeMobileTab === 'activity' && (
+              <div className="h-full flex flex-col overflow-hidden">
+                {/* Chart Section - Fixed height */}
+                <div className="h-[45vh] flex-shrink-0 border-b border-border">
+                  <ChartDisplay
+                    symbol={selectedSymbolForChart}
+                    klines={chartKlines}
+                    indicators={chartConfigForDisplay}
+                    interval={klineInterval}
+                    signalLog={signalLog}
+                    historicalSignals={historicalSignals}
+                  />
+                </div>
+
+                {/* Signals Section - Scrollable */}
+                <div className="flex-1 overflow-hidden">
+                  <TraderSignalsTable
+                    tickers={tickers}
+                    traders={traders}
+                    selectedTraderId={selectedTraderId}
+                    onSelectTrader={onSelectTrader}
+                    onRowClick={onRowClick}
+                    onSignalSelect={setSelectedSignal}
+                    selectedSignalId={selectedSignal?.id || null}
+                    hasActiveFilter={hasActiveFilter}
+                    onRunHistoricalScan={onRunHistoricalScan}
+                    isHistoricalScanning={isHistoricalScanning}
+                    historicalScanProgress={historicalScanProgress}
+                    historicalScanConfig={historicalScanConfig}
+                    onHistoricalScanConfigChange={onHistoricalScanConfigChange}
+                    onCancelHistoricalScan={onCancelHistoricalScan}
+                    historicalSignals={historicalSignals}
+                    signalDedupeThreshold={signalDedupeThreshold}
+                    onSignalDedupeThresholdChange={onSignalDedupeThresholdChange}
+                    klineHistoryConfig={klineHistoryConfig}
+                    onKlineHistoryConfigChange={onKlineHistoryConfigChange}
+                    showCloudSignalsOnly={showCloudSignalsOnly}
+                    onShowCloudSignalsOnlyChange={onShowCloudSignalsOnlyChange}
+                  />
+                </div>
               </div>
             )}
 
-            {/* Signals Tab */}
-            {activeMobileTab === 'signals' && (
-              <div className="h-full overflow-hidden">
-                <TraderSignalsTable
-                  tickers={tickers}
-                  traders={traders}
-                  selectedTraderId={selectedTraderId}
-                  onSelectTrader={onSelectTrader}
-                  onRowClick={onRowClick}
-                  onSignalSelect={setSelectedSignal}
-                  selectedSignalId={selectedSignal?.id || null}
-                  hasActiveFilter={hasActiveFilter}
-                  onRunHistoricalScan={onRunHistoricalScan}
-                  isHistoricalScanning={isHistoricalScanning}
-                  historicalScanProgress={historicalScanProgress}
-                  historicalScanConfig={historicalScanConfig}
-                  onHistoricalScanConfigChange={onHistoricalScanConfigChange}
-                  onCancelHistoricalScan={onCancelHistoricalScan}
-                  historicalSignals={historicalSignals}
-                  signalDedupeThreshold={signalDedupeThreshold}
-                  onSignalDedupeThresholdChange={onSignalDedupeThresholdChange}
-                  klineHistoryConfig={klineHistoryConfig}
-                  onKlineHistoryConfigChange={onKlineHistoryConfigChange}
-                  showCloudSignalsOnly={showCloudSignalsOnly}
-                  onShowCloudSignalsOnlyChange={onShowCloudSignalsOnlyChange}
-                />
+            {/* Traders Tab - TODO: Implement trader cards */}
+            {activeMobileTab === 'traders' && (
+              <div className="h-full flex items-center justify-center p-4">
+                <div className="text-center">
+                  <h2 className="text-xl font-bold mb-2">Traders</h2>
+                  <p className="text-muted-foreground">
+                    Trader cards view coming soon
+                  </p>
+                </div>
               </div>
             )}
 
@@ -177,21 +190,6 @@ const MainContent: React.FC<MainContentProps> = ({
                     Open the menu to create a new trading signal
                   </p>
                 </div>
-              </div>
-            )}
-
-            {/* Activity Tab */}
-            {activeMobileTab === 'activity' && (
-              <div className="h-full">
-                <ActivityPanel
-                  signals={allSignals}
-                  trades={allTrades}
-                  isOpen={true}
-                  onClose={() => {}} // Not used on mobile full-screen view
-                  isMobile={isMobile}
-                  selectedSignalId={selectedSignal?.id || null}
-                  onRowClick={onRowClick}
-                />
               </div>
             )}
 

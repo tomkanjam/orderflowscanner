@@ -137,6 +137,7 @@ const MainContent: React.FC<MainContentProps> = ({
                     interval={klineInterval}
                     signalLog={signalLog}
                     historicalSignals={historicalSignals}
+                    isMobile={true}
                   />
                 </div>
 

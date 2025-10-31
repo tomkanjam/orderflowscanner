@@ -15,9 +15,10 @@ interface ChartDisplayProps {
   symbol: string | null;
   klines: Kline[] | undefined;
   indicators: CustomIndicatorConfig[] | null;
-  interval: KlineInterval; 
+  interval: KlineInterval;
   signalLog: SignalLogEntry[];
   historicalSignals?: HistoricalSignal[];
+  isMobile?: boolean;
 }
 
 // Signal marker plugin for highlighting signals on the chart
@@ -186,7 +187,7 @@ const crosshairPlugin = {
     }
 };
 
-const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, historicalSignals = [] }) => {
+const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, historicalSignals = [], isMobile = false }) => {
 
   const priceCanvasRef = useRef<HTMLCanvasElement>(null);
   const priceChartInstanceRef = useRef<Chart | null>(null);
@@ -986,7 +987,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   }
 
   return (
-    <div className="tm-card shadow-lg p-2 mb-2 flex flex-col" style={{height: '480px'}}>
+    <div className={`tm-card shadow-lg flex flex-col h-full ${isMobile ? 'p-1 mb-0' : 'p-2 mb-2'}`}>
       {symbol ? (
         <>
           {/* Data status bar */}

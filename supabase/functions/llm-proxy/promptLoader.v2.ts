@@ -21,18 +21,19 @@ export class PromptLoaderV2 {
   private cacheTTL = 5 * 60 * 1000; // 5 minutes
 
   constructor(
-    _supabaseUrl: string,
-    _supabaseKey: string,
-    _braintrustProjectNameOrId?: string | boolean, // Ignored - kept for backward compatibility
-    _useBraintrustOrKey?: boolean | string // Ignored - kept for backward compatibility
+    braintrustApiKey: string,
+    braintrustProjectId: string
   ) {
-    // Always get credentials from environment
-    this.braintrustApiKey = Deno.env.get('BRAINTRUST_API_KEY') || '';
-    this.braintrustProjectId = '5df22744-d29c-4b01-b18b-e3eccf2ddbba'; // Hardcoded for now
+    this.braintrustApiKey = braintrustApiKey;
+    this.braintrustProjectId = braintrustProjectId;
     this.cache = new Map();
 
     if (!this.braintrustApiKey) {
-      throw new Error('BRAINTRUST_API_KEY environment variable is required');
+      throw new Error('BRAINTRUST_API_KEY is required');
+    }
+
+    if (!this.braintrustProjectId) {
+      throw new Error('BRAINTRUST_PROJECT_ID is required');
     }
 
     console.log(`[PromptLoaderV2] Initialized with project ID: ${this.braintrustProjectId}`);

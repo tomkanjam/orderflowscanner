@@ -28,6 +28,35 @@ The app is not yet in production. There are no produciton users but we want to l
 Use pnpm
 Use only production supabase and production fly environments. No local stuff!
 
+### Environment Variables
+Required for all environments:
+- `BRAINTRUST_API_KEY` - Braintrust API authentication
+- `BRAINTRUST_PROJECT_ID` - Braintrust project ID (5df22744-d29c-4b01-b18b-e3eccf2ddbba)
+- `SUPABASE_URL` - Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase admin key
+- `OPENROUTER_API_KEY` - OpenRouter API key for LLM calls
+
+### Prompt Management Architecture
+
+**Braintrust is the ONLY source of truth for all LLM prompts. No exceptions.**
+
+- All prompts are stored in Braintrust (https://www.braintrust.dev/app/AI%20Trader/p/prompts)
+- NO local .md files with prompt content
+- NO hardcoded prompts in code
+- NO database tables with prompt content
+- NO fallback mechanisms
+
+Current prompts:
+- `regenerate-filter-go` - Go filter code generation (731 lines with full indicator API docs)
+- `analyze-signal` - Trading signal analysis and decision making
+
+Upload script: `scripts/upload-all-prompts-to-braintrust.ts`
+
+To update prompts:
+1. Edit in Braintrust UI or via API
+2. Changes take effect immediately (5-minute cache TTL)
+3. Version history tracked automatically in Braintrust
+
 ## Tier Access Rules
 - **Anonymous**: View basic signals, charts, real-time triggers only
 - **Free**: + More signals, history, favorites (NO custom signals)

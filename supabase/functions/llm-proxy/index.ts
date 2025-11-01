@@ -26,23 +26,26 @@ const corsHeaders = {
 
 // Initialize services
 const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') || '';
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const APP_URL = Deno.env.get('APP_URL') || 'https://vyx.app';
 const BRAINTRUST_API_KEY = Deno.env.get('BRAINTRUST_API_KEY') || '';
+const BRAINTRUST_PROJECT_ID = Deno.env.get('BRAINTRUST_PROJECT_ID') || '';
 const BRAINTRUST_PROJECT_NAME = Deno.env.get('BRAINTRUST_PROJECT_NAME') || 'AI Trader';
 
-// Initialize Braintrust logger
-if (BRAINTRUST_API_KEY) {
-  console.log('[LLM Proxy] Initializing Braintrust logger...');
-  initLogger({
-    projectName: BRAINTRUST_PROJECT_NAME,
-    apiKey: BRAINTRUST_API_KEY
-  });
-  console.log(`[LLM Proxy] Braintrust logger initialized for project: ${BRAINTRUST_PROJECT_NAME}`);
-} else {
-  console.warn('[LLM Proxy] BRAINTRUST_API_KEY not set - tracing disabled');
+if (!BRAINTRUST_API_KEY) {
+  throw new Error('Missing required environment variable: BRAINTRUST_API_KEY');
 }
+
+if (!BRAINTRUST_PROJECT_ID) {
+  throw new Error('Missing required environment variable: BRAINTRUST_PROJECT_ID');
+}
+
+// Initialize Braintrust logger
+console.log('[LLM Proxy] Initializing Braintrust logger...');
+initLogger({
+  projectName: BRAINTRUST_PROJECT_NAME,
+  apiKey: BRAINTRUST_API_KEY
+});
+console.log(`[LLM Proxy] Braintrust logger initialized for project: ${BRAINTRUST_PROJECT_NAME}`);
 
 // Initialize OpenRouter client
 // Note: Default model is overridden per-operation via getOperationConfig()
@@ -52,16 +55,14 @@ const openRouterClient = new OpenRouterClient(
   APP_URL
 );
 
-// Initialize PromptLoaderV2 with Braintrust + Supabase fallback
+// Initialize PromptLoaderV2 (Braintrust only, no fallback)
 const promptLoader = new PromptLoaderV2(
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
-  BRAINTRUST_PROJECT_NAME,
-  !!BRAINTRUST_API_KEY // Only use Braintrust if API key is set
+  BRAINTRUST_API_KEY,
+  BRAINTRUST_PROJECT_ID
 );
 
 console.log('[LLM Proxy] Edge function initialized');
-console.log(`[LLM Proxy] Prompt loading: Braintrust ${BRAINTRUST_API_KEY ? 'enabled' : 'disabled'} with Supabase fallback`);
+console.log('[LLM Proxy] ✓ Prompt loading: Braintrust only (no fallback)');
 
 serve(async (req) => {
   // Handle CORS preflight

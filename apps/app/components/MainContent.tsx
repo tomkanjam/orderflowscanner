@@ -13,7 +13,8 @@ import { useSubscription } from '../src/contexts/SubscriptionContext';
 import { sharedMarketData } from '../src/shared/SharedMarketData';
 import * as screenerHelpers from '../screenerHelpers';
 import { MobileTab } from '../src/components/mobile/BottomNavigation';
-import { BottomSheet } from '../src/components/mobile/BottomSheet'; 
+import { BottomSheet } from '../src/components/mobile/BottomSheet';
+import { TradersTabMobile } from '../src/components/mobile/TradersTabMobile'; 
 
 type ScreenerHelpersType = typeof screenerHelpers;
 
@@ -170,16 +171,16 @@ const MainContent: React.FC<MainContentProps> = ({
               </div>
             )}
 
-            {/* Traders Tab - TODO: Implement trader cards */}
+            {/* Traders Tab */}
             {activeMobileTab === 'traders' && (
-              <div className="h-full flex items-center justify-center p-4">
-                <div className="text-center">
-                  <h2 className="text-xl font-bold mb-2">Traders</h2>
-                  <p className="text-muted-foreground">
-                    Trader cards view coming soon
-                  </p>
-                </div>
-              </div>
+              <TradersTabMobile
+                traders={traders || []}
+                onToggleTrader={onSelectTrader}
+                onSelectTrader={(trader) => {
+                  // Could open trader details modal in future
+                  console.log('Selected trader:', trader);
+                }}
+              />
             )}
 
             {/* Create Tab - TODO: Implement mobile create signal form */}

@@ -181,3 +181,7 @@ If issues discovered after cleanup:
 - Keep upload scripts (`upload-prompt-to-braintrust.ts`, etc.) - needed for future updates
 - Consider keeping ONE copy of regenerate-filter-go.md in `docs/reference/` as developer reference (but clearly mark as NOT source of truth)
 - This is a one-way migration - after completion, all prompt changes happen in Braintrust UI or via API
+## Completion
+**Closed:** 2025-11-01 10:35:00
+**Outcome:** Success
+**Commits:** 455242f

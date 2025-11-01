@@ -125,7 +125,7 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
                 type="number"
                 value={positionSize}
                 onChange={(e) => setPositionSize(e.target.value)}
-                className="w-full px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground focus:border-primary focus:outline-none"
+                className="w-full px-3 py-2 bg-muted border border-border rounded text-foreground focus:border-primary focus:outline-none"
                 placeholder="100"
               />
             </div>
@@ -134,7 +134,7 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
               <select
                 value={leverage}
                 onChange={(e) => setLeverage(e.target.value)}
-                className="w-full px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground focus:border-primary focus:outline-none"
+                className="w-full px-3 py-2 bg-muted border border-border rounded text-foreground focus:border-primary focus:outline-none"
               >
                 <option value="1">1x (Spot)</option>
                 <option value="2">2x</option>
@@ -153,7 +153,7 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
                 id="useRecommended"
                 checked={useRecommended}
                 onChange={(e) => setUseRecommended(e.target.checked)}
-                className="rounded border-[#2a3441] bg-muted text-primary focus:ring-[#8efbba]"
+                className="rounded border-border bg-muted text-primary focus:ring-primary"
               />
               <label htmlFor="useRecommended" className="text-sm text-foreground">
                 Use AI recommended levels
@@ -171,7 +171,7 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
               value={stopLoss}
               onChange={(e) => setStopLoss(e.target.value)}
               disabled={useRecommended && !!signal.analysis?.keyLevels?.stopLoss}
-              className="w-full px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground focus:border-primary focus:outline-none disabled:opacity-50"
+              className="w-full px-3 py-2 bg-muted border border-border rounded text-foreground focus:border-primary focus:outline-none disabled:opacity-50"
               placeholder={direction === 'long' ? 'Below entry' : 'Above entry'}
             />
           </div>
@@ -187,7 +187,7 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
                   value={takeProfit1}
                   onChange={(e) => setTakeProfit1(e.target.value)}
                   disabled={useRecommended && !!signal.analysis?.keyLevels?.takeProfit?.[0]}
-                  className="flex-1 px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground text-sm focus:border-primary focus:outline-none disabled:opacity-50"
+                  className="flex-1 px-3 py-2 bg-muted border border-border rounded text-foreground text-sm focus:border-primary focus:outline-none disabled:opacity-50"
                   placeholder="First target"
                 />
                 <span className="text-xs text-green-400 w-16 text-right">
@@ -201,7 +201,7 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
                   value={takeProfit2}
                   onChange={(e) => setTakeProfit2(e.target.value)}
                   disabled={useRecommended && !!signal.analysis?.keyLevels?.takeProfit?.[1]}
-                  className="flex-1 px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground text-sm focus:border-primary focus:outline-none disabled:opacity-50"
+                  className="flex-1 px-3 py-2 bg-muted border border-border rounded text-foreground text-sm focus:border-primary focus:outline-none disabled:opacity-50"
                   placeholder="Second target (optional)"
                 />
                 <span className="text-xs text-green-400 w-16 text-right">
@@ -215,7 +215,7 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
                   value={takeProfit3}
                   onChange={(e) => setTakeProfit3(e.target.value)}
                   disabled={useRecommended && !!signal.analysis?.keyLevels?.takeProfit?.[2]}
-                  className="flex-1 px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground text-sm focus:border-primary focus:outline-none disabled:opacity-50"
+                  className="flex-1 px-3 py-2 bg-muted border border-border rounded text-foreground text-sm focus:border-primary focus:outline-none disabled:opacity-50"
                   placeholder="Third target (optional)"
                 />
                 <span className="text-xs text-green-400 w-16 text-right">
@@ -262,7 +262,7 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
         <div className="flex gap-3 p-4 border-t border-border">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 bg-muted text-foreground rounded hover:bg-[#2a3441] transition-colors"
+            className="flex-1 px-4 py-2 bg-muted text-foreground rounded hover:bg-muted/80 transition-colors"
           >
             Cancel
           </button>

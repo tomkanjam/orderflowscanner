@@ -60,13 +60,13 @@ export function StrategyManager() {
             placeholder="Strategy Name"
             value={newStrategy.name}
             onChange={(e) => setNewStrategy({ ...newStrategy, name: e.target.value })}
-            className="w-full px-3 py-2 bg-background border border-[#2a3441] rounded text-foreground mb-2"
+            className="w-full px-3 py-2 bg-background border border-border rounded text-foreground mb-2"
           />
           <textarea
             placeholder="Strategy Description (e.g., 'Buy when RSI is oversold and price bounces off support')"
             value={newStrategy.description}
             onChange={(e) => setNewStrategy({ ...newStrategy, description: e.target.value })}
-            className="w-full px-3 py-2 bg-background border border-[#2a3441] rounded text-foreground mb-2 h-20 resize-none"
+            className="w-full px-3 py-2 bg-background border border-border rounded text-foreground mb-2 h-20 resize-none"
           />
           <div className="flex gap-2">
             <button
@@ -81,7 +81,7 @@ export function StrategyManager() {
                 setIsAdding(false);
                 setNewStrategy({ name: '', description: '' });
               }}
-              className="px-3 py-1 bg-[#2a3441] text-foreground rounded hover:bg-[#3a4451] transition-colors flex items-center gap-1"
+              className="px-3 py-1 bg-muted text-foreground rounded hover:bg-muted/80 transition-colors flex items-center gap-1"
             >
               <X className="h-4 w-4" />
               Cancel
@@ -101,7 +101,7 @@ export function StrategyManager() {
               className={`p-3 rounded-lg border transition-all ${
                 activeStrategy?.id === strategy.id
                   ? 'bg-muted border-primary'
-                  : 'bg-background border-border hover:border-[#2a3441]'
+                  : 'bg-background border-border hover:border-border'
               }`}
             >
               {editingId === strategy.id ? (
@@ -111,12 +111,12 @@ export function StrategyManager() {
                     type="text"
                     value={editStrategy.name}
                     onChange={(e) => setEditStrategy({ ...editStrategy, name: e.target.value })}
-                    className="w-full px-2 py-1 bg-background border border-[#2a3441] rounded text-foreground mb-2"
+                    className="w-full px-2 py-1 bg-background border border-border rounded text-foreground mb-2"
                   />
                   <textarea
                     value={editStrategy.description}
                     onChange={(e) => setEditStrategy({ ...editStrategy, description: e.target.value })}
-                    className="w-full px-2 py-1 bg-background border border-[#2a3441] rounded text-foreground mb-2 h-16 resize-none text-sm"
+                    className="w-full px-2 py-1 bg-background border border-border rounded text-foreground mb-2 h-16 resize-none text-sm"
                   />
                   <div className="flex gap-2">
                     <button
@@ -127,7 +127,7 @@ export function StrategyManager() {
                     </button>
                     <button
                       onClick={() => setEditingId(null)}
-                      className="px-2 py-1 bg-[#2a3441] text-foreground rounded text-sm hover:bg-[#3a4451] transition-colors"
+                      className="px-2 py-1 bg-muted text-foreground rounded text-sm hover:bg-muted/80 transition-colors"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -147,7 +147,7 @@ export function StrategyManager() {
                       </button>
                       <button
                         onClick={() => deleteStrategy(strategy.id)}
-                        className="p-1 text-muted-foreground hover:text-[#ef4444] transition-colors"
+                        className="p-1 text-muted-foreground hover:text-destructive transition-colors"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

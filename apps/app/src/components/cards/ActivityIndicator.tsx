@@ -57,10 +57,10 @@ export const ActivityIndicator: React.FC<ActivityIndicatorProps> = ({
 
   // Determine color and animation based on state
   const stateClasses = {
-    triggered: 'bg-lime-500', // #C6FF00 approximation in Tailwind
+    triggered: 'bg-lime-500', // Bright lime for triggered state
     recent: 'bg-yellow-500',  // Warning color
     active: 'bg-green-500',   // Success color
-    idle: 'bg-gray-500',      // Muted color
+    idle: 'bg-muted-foreground', // Muted color using shadcn token
   };
 
   // Add pulse animation for certain states

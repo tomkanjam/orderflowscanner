@@ -64,15 +64,14 @@ export const CardExpandable: React.FC<CardExpandableProps> = ({
       {showIcon && onToggle && (
         <button
           onClick={onToggle}
-          className="signal-card__expand-button absolute top-4 right-4 p-1 rounded hover:bg-white/5 transition-colors"
+          className="absolute top-4 right-4 p-1 rounded hover:bg-muted/50 transition-colors"
           aria-expanded={expanded}
           aria-label={expanded ? 'Collapse' : 'Expand'}
         >
           {icon || (
-            <ChevronDown 
+            <ChevronDown
               className={`
-                signal-card__expand-icon
-                w-4 h-4 text-gray-400 transition-transform duration-200
+                w-4 h-4 text-muted-foreground transition-transform duration-200
                 ${expanded ? 'rotate-180' : ''}
               `}
             />
@@ -83,7 +82,6 @@ export const CardExpandable: React.FC<CardExpandableProps> = ({
       {/* Expandable Content Container */}
       <div
         className={`
-          signal-card__expandable
           overflow-hidden
           transition-all duration-200 ease-out
           ${isAnimating ? 'pointer-events-none' : ''}

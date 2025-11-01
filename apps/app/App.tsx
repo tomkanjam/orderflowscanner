@@ -2,6 +2,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
+import { MobileHeader } from './src/components/mobile/MobileHeader';
+import { BottomNavigation, MobileTab } from './src/components/mobile/BottomNavigation';
+import { SideDrawer } from './src/components/mobile/SideDrawer';
+import { useIsMobile } from './src/components/mobile/hooks/useMediaQuery';
 
 import Modal from './components/Modal';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, GeminiModelOption, SignalLogEntry, SignalHistoryEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from './types';
@@ -130,7 +134,11 @@ const AppContent: React.FC = () => {
   
   // Activity panel state
   const [isActivityPanelOpen, setIsActivityPanelOpen] = useState<boolean>(true); // Always open
-  const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 768);
+
+  // Mobile navigation state
+  const isMobile = useIsMobile(); // Use hook instead of state
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+  const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>('activity');
 
   // Signal source filter state
   const [showCloudSignalsOnly, setShowCloudSignalsOnly] = useState<boolean>(false);
@@ -315,15 +323,7 @@ const AppContent: React.FC = () => {
     };
   }, [user, authLoading]);
   
-  // Handle window resize for mobile detection
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // Mobile detection now handled by useIsMobile hook
   
   // Use refs to avoid stale closures
   const tickersRef = useRef(tickers);
@@ -1172,6 +1172,106 @@ const AppContent: React.FC = () => {
     return signalLog;
   }, [signalLog, cloudExecution.machineStatus, showCloudSignalsOnly]);
 
+  // Connection status for mobile header
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
+
+  // Track connection status for mobile header
+  useEffect(() => {
+    if (statusText === 'Live') {
+      setConnectionStatus('connected');
+    } else if (statusText === 'Disconnected' || statusText === 'WS Failed') {
+      setConnectionStatus('disconnected');
+    } else {
+      setConnectionStatus('reconnecting');
+    }
+  }, [statusText]);
+
+  // Mobile layout
+  if (isMobile) {
+    return (
+      <div className="mobile-layout">
+        {/* Mobile Header */}
+        <MobileHeader
+          onMenuClick={() => setIsDrawerOpen(true)}
+          connectionStatus={connectionStatus}
+        />
+
+        {/* Side Drawer with Sidebar */}
+        <SideDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)}>
+          <Sidebar
+            onSelectedTraderChange={setSelectedTraderId}
+            tickerCount={tickers.size}
+            symbolCount={allSymbols.length}
+            signalCount={activeSignalCount}
+            onDataUpdateCallback={(callback) => { dataUpdateCallbackRef.current = callback; }}
+          />
+        </SideDrawer>
+
+        {/* Main Content */}
+        <div className="mobile-content">
+          <MainContent
+            statusText={statusText}
+            statusLightClass={statusLightClass}
+            initialLoading={initialLoading}
+            initialError={initialError}
+            allSymbols={allSymbols}
+            tickers={tickers}
+            traders={traders}
+            selectedTraderId={selectedTraderId}
+            onSelectTrader={setSelectedTraderId}
+            currentFilterFn={null}
+            klineInterval={klineInterval}
+            selectedSymbolForChart={selectedSymbolForChart}
+            chartConfigForDisplay={chartConfigForDisplay}
+            onRowClick={handleRowClick}
+            selectedSignalId={selectedSignalId}
+            onAiInfoClick={handleAiInfoClick}
+            signalLog={filteredSignalLog}
+            historicalSignals={historicalSignals}
+            hasActiveFilter={multiTraderEnabled && traders.some(t => t.enabled)}
+            onRunHistoricalScan={handleRunHistoricalScan}
+            isHistoricalScanning={multiTraderEnabled && traders.some(t => t.enabled) ? isMultiTraderHistoricalScanning : isHistoricalScanning}
+            historicalScanProgress={multiTraderEnabled && traders.some(t => t.enabled) ? multiTraderHistoricalProgress : historicalScanProgress}
+            historicalScanConfig={historicalScanConfig}
+            onHistoricalScanConfigChange={setHistoricalScanConfig}
+            onCancelHistoricalScan={multiTraderEnabled && traders.some(t => t.enabled) ? cancelMultiTraderHistoricalScan : cancelHistoricalScan}
+            signalDedupeThreshold={signalDedupeThreshold}
+            onSignalDedupeThresholdChange={setSignalDedupeThreshold}
+            klineHistoryConfig={klineHistoryConfig}
+            onKlineHistoryConfigChange={setKlineHistoryConfig}
+            isActivityPanelOpen={isActivityPanelOpen}
+            allSignals={allSignals}
+            allTrades={allTrades}
+            onCloseActivityPanel={() => setIsActivityPanelOpen(false)}
+            isMobile={isMobile}
+            showCloudSignalsOnly={showCloudSignalsOnly}
+            onShowCloudSignalsOnlyChange={setShowCloudSignalsOnly}
+            activeMobileTab={activeMobileTab}
+          />
+        </div>
+
+        {/* Bottom Navigation */}
+        <div className="mobile-bottom-nav">
+          <BottomNavigation
+            activeTab={activeMobileTab}
+            onTabChange={setActiveMobileTab}
+            signalCount={activeSignalCount}
+          />
+        </div>
+
+        {/* Modal */}
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title={modalTitle}
+        >
+          {modalContent}
+        </Modal>
+      </div>
+    );
+  }
+
+  // Desktop layout
   return (
     <div className="flex flex-col md:flex-row min-h-screen relative">
       <Sidebar

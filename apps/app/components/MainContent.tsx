@@ -11,7 +11,14 @@ import ErrorMessage from './ErrorMessage';
 import ActivityPanel from '../src/components/ActivityPanel';
 import { useSubscription } from '../src/contexts/SubscriptionContext';
 import { sharedMarketData } from '../src/shared/SharedMarketData';
-import * as screenerHelpers from '../screenerHelpers'; 
+import * as screenerHelpers from '../screenerHelpers';
+import { MobileTab } from '../src/components/mobile/BottomNavigation';
+import { BottomSheet } from '../src/components/mobile/BottomSheet';
+import { TraderList } from '../src/components/TraderList';
+import { CreateSignalButton } from '../src/components/tiers/CreateSignalButton';
+import { FilterInput } from '../src/components/FilterInput';
+import { TabBar } from '../src/components/TabBar';
+import { useDebouncedValue } from '../src/hooks/useDebouncedValue'; 
 
 type ScreenerHelpersType = typeof screenerHelpers;
 
@@ -57,6 +64,8 @@ interface MainContentProps {
   // Cloud signal filter
   showCloudSignalsOnly?: boolean;
   onShowCloudSignalsOnlyChange?: (value: boolean) => void;
+  // Mobile tab routing
+  activeMobileTab?: MobileTab;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -96,10 +105,16 @@ const MainContent: React.FC<MainContentProps> = ({
   isMobile = false,
   showCloudSignalsOnly = false,
   onShowCloudSignalsOnlyChange,
+  activeMobileTab = 'activity',
 }) => {
   const { currentTier } = useSubscription();
   const [selectedSignal, setSelectedSignal] = useState<SignalLifecycle | null>(null);
-  
+
+  // Traders tab state (mobile)
+  const [traderFilterQuery, setTraderFilterQuery] = useState('');
+  const [activeTraderTab, setActiveTraderTab] = useState<'builtin' | 'personal' | 'favorites'>('builtin');
+  const debouncedTraderQuery = useDebouncedValue(traderFilterQuery, 300);
+
   // Memoize klines to prevent unnecessary recalculations
   const chartKlines = useMemo(() => {
     if (!selectedSymbolForChart) {
@@ -110,7 +125,143 @@ const MainContent: React.FC<MainContentProps> = ({
     return klines;
   }, [selectedSymbolForChart, klineInterval]);
   
-  
+
+  // Mobile layout - render based on active tab
+  if (isMobile) {
+    return (
+      <div className="w-full h-full overflow-hidden">
+        {initialLoading && <Loader text="Fetching initial market data..." />}
+        <ErrorMessage message={initialError} />
+
+        {!initialLoading && !initialError && (
+          <>
+            {/* Activity Tab - Chart on top, Signals below */}
+            {activeMobileTab === 'activity' && (
+              <div className="h-full flex flex-col overflow-hidden">
+                {/* Chart Section - Fixed height */}
+                <div className="h-[45vh] flex-shrink-0 border-b border-border">
+                  <ChartDisplay
+                    symbol={selectedSymbolForChart}
+                    klines={chartKlines}
+                    indicators={chartConfigForDisplay}
+                    interval={klineInterval}
+                    signalLog={signalLog}
+                    historicalSignals={historicalSignals}
+                    isMobile={true}
+                  />
+                </div>
+
+                {/* Signals Section - Scrollable */}
+                <div className="flex-1 overflow-hidden">
+                  <TraderSignalsTable
+                    tickers={tickers}
+                    traders={traders}
+                    selectedTraderId={selectedTraderId}
+                    onSelectTrader={onSelectTrader}
+                    onRowClick={onRowClick}
+                    onSignalSelect={setSelectedSignal}
+                    selectedSignalId={selectedSignal?.id || null}
+                    hasActiveFilter={hasActiveFilter}
+                    onRunHistoricalScan={onRunHistoricalScan}
+                    isHistoricalScanning={isHistoricalScanning}
+                    historicalScanProgress={historicalScanProgress}
+                    historicalScanConfig={historicalScanConfig}
+                    onHistoricalScanConfigChange={onHistoricalScanConfigChange}
+                    onCancelHistoricalScan={onCancelHistoricalScan}
+                    historicalSignals={historicalSignals}
+                    signalDedupeThreshold={signalDedupeThreshold}
+                    onSignalDedupeThresholdChange={onSignalDedupeThresholdChange}
+                    klineHistoryConfig={klineHistoryConfig}
+                    onKlineHistoryConfigChange={onKlineHistoryConfigChange}
+                    showCloudSignalsOnly={showCloudSignalsOnly}
+                    onShowCloudSignalsOnlyChange={onShowCloudSignalsOnlyChange}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Traders Tab - Reuses Sidebar components */}
+            {activeMobileTab === 'traders' && (
+              <div className="h-full overflow-y-auto p-4 flex flex-col bg-background">
+                {/* Create Signal Button */}
+                <div className="mb-4">
+                  <CreateSignalButton onClick={() => setActiveMobileTab('create')} />
+                </div>
+
+                {/* Search/Filter Input */}
+                <div className="mb-4">
+                  <FilterInput
+                    value={traderFilterQuery}
+                    onChange={setTraderFilterQuery}
+                    placeholder="Search signals..."
+                  />
+                </div>
+
+                {/* Tab Bar */}
+                <div className="mb-4">
+                  <TabBar
+                    tabs={[
+                      { id: 'builtin', label: 'Built-in' },
+                      { id: 'personal', label: 'Personal' },
+                      { id: 'favorites', label: 'Favorites' }
+                    ]}
+                    activeTab={activeTraderTab}
+                    onTabChange={(tab) => setActiveTraderTab(tab as 'builtin' | 'personal' | 'favorites')}
+                  />
+                </div>
+
+                {/* Trader List */}
+                <div className="flex-1">
+                  <TraderList
+                    onCreateTrader={() => setActiveMobileTab('create')}
+                    onEditTrader={(trader) => {
+                      // Could open edit modal in future
+                      console.log('Edit trader:', trader);
+                    }}
+                    onSelectTrader={onSelectTrader}
+                    selectedTraderId={selectedTraderId}
+                    activeTab={activeTraderTab}
+                    filterQuery={debouncedTraderQuery}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Create Tab - TODO: Implement mobile create signal form */}
+            {activeMobileTab === 'create' && (
+              <div className="h-full flex items-center justify-center p-4">
+                <div className="text-center">
+                  <h2 className="text-xl font-bold mb-2">Create Signal</h2>
+                  <p className="text-muted-foreground">
+                    Open the menu to create a new trading signal
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom Sheet for Signal Details (Elite tier) */}
+            {currentTier === 'elite' && selectedSignal && (
+              <BottomSheet
+                isOpen={true}
+                onClose={() => setSelectedSignal(null)}
+                title="Signal Details"
+                initialState="peek"
+              >
+                <SignalHistorySidebar
+                  signal={selectedSignal}
+                  onClose={() => setSelectedSignal(null)}
+                  tickers={tickers}
+                  traders={traders || []}
+                />
+              </BottomSheet>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop layout
   return (
     <div className="w-full md:w-2/3 xl:w-3/4 flex-grow flex h-screen overflow-hidden">
       <div className="flex-grow flex flex-col overflow-hidden">
@@ -128,6 +279,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 interval={klineInterval}
                 signalLog={signalLog} // Pass signalLog to ChartDisplay
                 historicalSignals={historicalSignals} // Pass historicalSignals to ChartDisplay
+                isMobile={false}
               />
               <div className="mt-2 flex flex-1 overflow-hidden">
                 <div className={`${!isMobile ? 'flex-1' : 'w-full'} overflow-hidden`}>
@@ -161,11 +313,11 @@ const MainContent: React.FC<MainContentProps> = ({
         </main>
         </div>
       </div>
-      
+
       {/* Signal History Sidebar - Elite tier only */}
-      {selectedSignal && currentTier === 'elite' && (
+      {selectedSignal && currentTier === 'elite' && !isMobile && (
         <div className="w-96 border-l border-[var(--nt-border-default)] bg-[var(--nt-bg-primary)] h-full overflow-hidden flex-shrink-0">
-          <SignalHistorySidebar 
+          <SignalHistorySidebar
             signal={selectedSignal}
             onClose={() => setSelectedSignal(null)}
             tickers={tickers}

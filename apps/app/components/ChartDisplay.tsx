@@ -15,9 +15,10 @@ interface ChartDisplayProps {
   symbol: string | null;
   klines: Kline[] | undefined;
   indicators: CustomIndicatorConfig[] | null;
-  interval: KlineInterval; 
+  interval: KlineInterval;
   signalLog: SignalLogEntry[];
   historicalSignals?: HistoricalSignal[];
+  isMobile?: boolean;
 }
 
 // Signal marker plugin for highlighting signals on the chart
@@ -186,7 +187,7 @@ const crosshairPlugin = {
     }
 };
 
-const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, historicalSignals = [] }) => {
+const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, historicalSignals = [], isMobile = false }) => {
 
   const priceCanvasRef = useRef<HTMLCanvasElement>(null);
   const priceChartInstanceRef = useRef<Chart | null>(null);
@@ -547,22 +548,22 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
               },
               layout: { padding: { top: 5, bottom: 0, left: 60, right: 35 } }, 
               plugins: {
-                legend: { 
-                    display: true, 
-                    labels: { 
-                        color: '#f5f5f7', 
-                        boxWidth: 15, 
-                        padding: 10, 
-                        usePointStyle: true, 
-                        pointStyle: 'rect' 
-                    } 
+                legend: {
+                    display: !isMobile,  // Hide legend on mobile
+                    labels: {
+                        color: '#f5f5f7',
+                        boxWidth: 15,
+                        padding: 10,
+                        usePointStyle: true,
+                        pointStyle: 'rect'
+                    }
                 },
-                title: { 
-                    display: true, 
-                    text: `${symbol} - ${interval} Chart`, 
-                    color: '#f5f5f7', 
-                    font: { size: 14 }, 
-                    padding: { bottom: 5 } 
+                title: {
+                    display: !isMobile,  // Hide title on mobile
+                    text: `${symbol} - ${interval} Chart`,
+                    color: '#f5f5f7',
+                    font: { size: 14 },
+                    padding: { bottom: 5 }
                 },
                 tooltip: { 
                     mode: 'index', 
@@ -986,10 +987,11 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   }
 
   return (
-    <div className="tm-card shadow-lg p-2 mb-2 flex flex-col" style={{height: '480px'}}>
+    <div className={`tm-card shadow-lg flex flex-col ${isMobile ? 'h-full p-0 mb-0' : 'p-2 mb-2'}`} style={!isMobile ? {height: '480px'} : undefined}>
       {symbol ? (
         <>
-          {/* Data status bar */}
+          {/* Data status bar - Hidden on mobile */}
+          {!isMobile && (
           <div className="flex items-center justify-between px-2 py-1 mb-1 bg-[var(--tm-bg-secondary)] rounded text-xs">
             <div className="flex items-center gap-3">
               {/* Loading indicator */}
@@ -1053,6 +1055,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
               </button>
             </div>
           </div>
+          )}
 
           <div className={`${priceChartHeight} relative`}>
             {/* Loading skeleton */}
@@ -1070,7 +1073,8 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
             )}
 
             <canvas ref={priceCanvasRef}></canvas>
-            {/* Zoom controls */}
+            {/* Zoom controls - Hidden on mobile */}
+            {!isMobile && (
             <div className="absolute top-2 right-2 flex gap-2 z-10">
               <button
                 onClick={resetZoom}
@@ -1083,6 +1087,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
                 Scroll to zoom X-axis
               </div>
             </div>
+            )}
           </div>
           {panelIndicators.map((indicator, idx) => (
             <div key={indicator.id} className={`${panelHeight} relative border-t border-[var(--tm-border)]`}>

@@ -987,7 +987,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   }
 
   return (
-    <div className={`tm-card shadow-lg flex flex-col h-full ${isMobile ? 'p-0 mb-0' : 'p-2 mb-2'}`}>
+    <div className={`tm-card shadow-lg flex flex-col ${isMobile ? 'h-full p-0 mb-0' : 'p-2 mb-2'}`} style={!isMobile ? {height: '480px'} : undefined}>
       {symbol ? (
         <>
           {/* Data status bar - Hidden on mobile */}

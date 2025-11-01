@@ -234,6 +234,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 interval={klineInterval}
                 signalLog={signalLog} // Pass signalLog to ChartDisplay
                 historicalSignals={historicalSignals} // Pass historicalSignals to ChartDisplay
+                isMobile={false}
               />
               <div className="mt-2 flex flex-1 overflow-hidden">
                 <div className={`${!isMobile ? 'flex-1' : 'w-full'} overflow-hidden`}>

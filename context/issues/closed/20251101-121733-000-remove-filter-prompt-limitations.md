@@ -21,7 +21,21 @@ This causes the LLM to:
 - Initiative: End-to-end trader workflow implementation
 
 ## Progress
-Issue created. Ready for deep analysis and restructuring.
+
+**COMPLETED**: Prompt restructured and deployed successfully.
+
+1. ✅ Restructured prompt with "Unlimited Capability" emphasized at line 119
+2. ✅ Added 4 complete custom implementation examples (StochRSI, ADX, RSI Divergence, Ichimoku)
+3. ✅ Condensed helper section and marked as "Optional Convenience"
+4. ✅ Deleted "Not Yet Available" section entirely
+5. ✅ Uploaded to Braintrust with metadata (version 3.0)
+6. ✅ All 4 test cases passed:
+   - Stochastic RSI K below 40: Generated custom StochRSI implementation
+   - ADX above 25: Generated custom ADX from scratch
+   - Bullish RSI divergence: Generated custom divergence detection
+   - Ichimoku cloud bullish: Generated full Ichimoku calculation
+
+**Braintrust Version**: 1000196066663639760 (uploaded 2025-11-01 12:21:12)
 
 ## Spec
 
@@ -415,4 +429,39 @@ After prompt update, test these requests:
 5. Add to prompt update guidelines for future
 
 ## Completion
-(Will be added when issue is closed)
+
+**Closed:** 2025-11-01 12:25:00
+**Outcome:** Success
+**Commits:** 49f5611
+
+### Summary
+
+Successfully restructured the filter generation prompt to eliminate all implied limitations. The LLM now understands it can implement ANY indicator from raw kline data, not just those with helper functions.
+
+### Changes Made
+
+1. **New Prompt Structure**:
+   - "Unlimited Capability" section at line 119 (before helpers)
+   - 4 complete custom implementation examples (200+ lines of working code)
+   - Helper section reduced from 550 to ~150 lines
+   - Marked helpers as "Optional Convenience"
+   - Deleted "Not Yet Available" section entirely
+
+2. **Braintrust Deployment**:
+   - Version: 3.0
+   - Transaction ID: 1000196066663639760
+   - Metadata includes: changelog, git commit, issue reference
+
+3. **Testing Results** (4/4 passed):
+   - ✅ Stochastic RSI: Generated correct custom implementation
+   - ✅ ADX: Generated from scratch with +DM, -DM, TR calculations
+   - ✅ RSI Divergence: Generated custom divergence detection logic
+   - ✅ Ichimoku Cloud: Generated all components (Tenkan, Kijun, Senkou A/B)
+
+### Impact
+
+Users can now request ANY technical indicator and the LLM will implement it from scratch using raw kline data. No more "this indicator isn't available yet" responses.
+
+### Monitoring
+
+Check Braintrust traces at https://www.braintrust.dev/app/AI%20Trader/p/logs for quality and success rate over the next few days.

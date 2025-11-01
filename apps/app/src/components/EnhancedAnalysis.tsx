@@ -85,14 +85,14 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
   };
 
   return (
-    <div className="bg-[#0d1421] border border-[#1a2332] rounded-lg p-4">
+    <div className="bg-background border border-border rounded-lg p-4">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-[#8efbba]">AI Analysis - {symbol}</h3>
+        <h3 className="text-lg font-semibold text-primary">AI Analysis - {symbol}</h3>
         <div className="flex items-center gap-3">
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="px-3 py-2 bg-[#1a2332] border border-[#2a3441] rounded text-[#e2e8f0] text-sm"
+            className="px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground text-sm"
           >
             <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Fast)</option>
             <option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (Advanced)</option>
@@ -100,7 +100,7 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
           <button
             onClick={runAnalysis}
             disabled={isAnalyzing || !activeStrategy}
-            className="px-4 py-2 bg-[#8efbba] text-[#0d1421] rounded hover:bg-[#7ce3a8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 bg-primary text-background rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isAnalyzing ? 'Analyzing...' : 'Analyze'}
           </button>
@@ -108,7 +108,7 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
       </div>
 
       {!activeStrategy && (
-        <div className="text-center py-8 text-[#64748b]">
+        <div className="text-center py-8 text-muted-foreground">
           <AlertCircle className="h-8 w-8 mx-auto mb-2" />
           <p>Please select a strategy to run analysis</p>
         </div>
@@ -123,7 +123,7 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
       {analysis && (
         <div className="space-y-4">
           {/* Model indicator */}
-          <div className="text-xs text-[#64748b] text-right">
+          <div className="text-xs text-muted-foreground text-right">
             Model: {selectedModel === 'gemini-2.0-flash-exp' ? 'Gemini 2.0 Flash' : 'Gemini 1.5 Pro'}
           </div>
           
@@ -131,7 +131,7 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
           <div className="flex items-center gap-3">
             {getDecisionIcon()}
             <div>
-              <p className="text-sm text-[#64748b]">Decision</p>
+              <p className="text-sm text-muted-foreground">Decision</p>
               <p className={`font-semibold ${getDecisionColor()}`}>
                 {analysis.decision.replace('_', ' ').toUpperCase()}
                 {analysis.direction && ` - ${analysis.direction.toUpperCase()}`}
@@ -141,48 +141,48 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
 
           {/* Confidence */}
           <div>
-            <p className="text-sm text-[#64748b] mb-1">Confidence</p>
-            <div className="w-full bg-[#1a2332] rounded-full h-2">
+            <p className="text-sm text-muted-foreground mb-1">Confidence</p>
+            <div className="w-full bg-muted rounded-full h-2">
               <div
-                className="bg-[#8efbba] h-2 rounded-full transition-all duration-500"
+                className="bg-primary h-2 rounded-full transition-all duration-500"
                 style={{ width: `${analysis.confidence * 100}%` }}
               />
             </div>
-            <p className="text-sm text-[#e2e8f0] mt-1">{(analysis.confidence * 100).toFixed(1)}%</p>
+            <p className="text-sm text-foreground mt-1">{(analysis.confidence * 100).toFixed(1)}%</p>
           </div>
 
           {/* Reasoning */}
           <div>
-            <p className="text-sm text-[#64748b] mb-1">Reasoning</p>
-            <p className="text-[#e2e8f0] text-sm">{analysis.reasoning}</p>
+            <p className="text-sm text-muted-foreground mb-1">Reasoning</p>
+            <p className="text-foreground text-sm">{analysis.reasoning}</p>
           </div>
 
           {/* Key Levels */}
           {analysis.keyLevels && (
             <div>
-              <p className="text-sm text-[#64748b] mb-2">Key Levels</p>
+              <p className="text-sm text-muted-foreground mb-2">Key Levels</p>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {analysis.keyLevels.entry && (
                   <div>
-                    <p className="text-[#64748b]">Entry</p>
-                    <p className="text-[#e2e8f0] font-mono">${analysis.keyLevels.entry.toFixed(4)}</p>
+                    <p className="text-muted-foreground">Entry</p>
+                    <p className="text-foreground font-mono">${analysis.keyLevels.entry.toFixed(4)}</p>
                   </div>
                 )}
                 {analysis.keyLevels.stopLoss && (
                   <div>
-                    <p className="text-[#64748b]">Stop Loss</p>
+                    <p className="text-muted-foreground">Stop Loss</p>
                     <p className="text-red-400 font-mono">${analysis.keyLevels.stopLoss.toFixed(4)}</p>
                   </div>
                 )}
                 {analysis.keyLevels.takeProfit && analysis.keyLevels.takeProfit[0] && (
                   <div>
-                    <p className="text-[#64748b]">Take Profit 1</p>
+                    <p className="text-muted-foreground">Take Profit 1</p>
                     <p className="text-green-400 font-mono">${analysis.keyLevels.takeProfit[0].toFixed(4)}</p>
                   </div>
                 )}
                 {analysis.keyLevels.takeProfit && analysis.keyLevels.takeProfit[1] && (
                   <div>
-                    <p className="text-[#64748b]">Take Profit 2</p>
+                    <p className="text-muted-foreground">Take Profit 2</p>
                     <p className="text-green-400 font-mono">${analysis.keyLevels.takeProfit[1].toFixed(4)}</p>
                   </div>
                 )}
@@ -193,31 +193,31 @@ export function EnhancedAnalysis({ symbol, marketData, onAnalysisComplete }: Enh
           {/* Chart Analysis */}
           {analysis.chartAnalysis && (
             <div>
-              <p className="text-sm text-[#64748b] mb-1">Chart Analysis</p>
-              <p className="text-[#e2e8f0] text-sm">{analysis.chartAnalysis}</p>
+              <p className="text-sm text-muted-foreground mb-1">Chart Analysis</p>
+              <p className="text-foreground text-sm">{analysis.chartAnalysis}</p>
             </div>
           )}
 
           {/* Trade Decision */}
           {analysis.decision === 'enter_trade' && (
-            <div className="mt-4 p-3 bg-[#1a2332] rounded-lg border border-[#8efbba]">
-              <p className="text-[#8efbba] font-semibold mb-2">Trade Recommendation</p>
+            <div className="mt-4 p-3 bg-muted rounded-lg border border-primary">
+              <p className="text-primary font-semibold mb-2">Trade Recommendation</p>
               <div className="space-y-1 text-sm">
-                <p className="text-[#e2e8f0]">
-                  <span className="text-[#64748b]">Direction:</span> {analysis.direction?.toUpperCase()}
+                <p className="text-foreground">
+                  <span className="text-muted-foreground">Direction:</span> {analysis.direction?.toUpperCase()}
                 </p>
                 {analysis.keyLevels && (
                   <>
-                    <p className="text-[#e2e8f0]">
-                      <span className="text-[#64748b]">Risk:</span> ${
+                    <p className="text-foreground">
+                      <span className="text-muted-foreground">Risk:</span> ${
                         Math.abs(analysis.keyLevels.entry! - analysis.keyLevels.stopLoss!).toFixed(4)
                       } ({(
                         (Math.abs(analysis.keyLevels.entry! - analysis.keyLevels.stopLoss!) / analysis.keyLevels.entry!) * 100
                       ).toFixed(2)}%)
                     </p>
                     {analysis.keyLevels.takeProfit?.[0] && (
-                      <p className="text-[#e2e8f0]">
-                        <span className="text-[#64748b]">Reward:</span> ${
+                      <p className="text-foreground">
+                        <span className="text-muted-foreground">Reward:</span> ${
                           Math.abs(analysis.keyLevels.takeProfit[0] - analysis.keyLevels.entry!).toFixed(4)
                         } ({(
                           (Math.abs(analysis.keyLevels.takeProfit[0] - analysis.keyLevels.entry!) / analysis.keyLevels.entry!) * 100

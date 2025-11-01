@@ -10,6 +10,9 @@
     "build:copy": "cp -r apps/app/dist dist",
     "dev:app": "pnpm --filter app dev"
   },
+  "dependencies": {
+    "shadcn": "^3.5.0"
+  },
   "devDependencies": {
     "typescript": "~5.7.2"
   }

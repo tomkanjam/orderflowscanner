@@ -33,16 +33,16 @@ export function PortfolioMetrics() {
     : metrics.avgWin > 0 ? Infinity : 0;
   
   return (
-    <div className="bg-[#0d1421] border border-[#1a2332] rounded-lg p-4">
-      <h3 className="text-lg font-semibold text-[#8efbba] mb-4 flex items-center gap-2">
+    <div className="bg-background border border-border rounded-lg p-4">
+      <h3 className="text-lg font-semibold text-primary mb-4 flex items-center gap-2">
         <BarChart3 className="h-5 w-5" />
         Portfolio Performance
       </h3>
       
       {/* Main Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-        <div className="bg-[#1a2332] rounded-lg p-3">
-          <p className="text-xs text-[#64748b] mb-1">Total P&L</p>
+        <div className="bg-muted rounded-lg p-3">
+          <p className="text-xs text-muted-foreground mb-1">Total P&L</p>
           <p className={`text-lg font-bold ${
             metrics.totalPnL >= 0 ? 'text-green-500' : 'text-red-500'
           }`}>
@@ -55,36 +55,36 @@ export function PortfolioMetrics() {
           </p>
         </div>
         
-        <div className="bg-[#1a2332] rounded-lg p-3">
-          <p className="text-xs text-[#64748b] mb-1">Win Rate</p>
+        <div className="bg-muted rounded-lg p-3">
+          <p className="text-xs text-muted-foreground mb-1">Win Rate</p>
           <p className={`text-lg font-bold ${
             metrics.winRate >= 50 ? 'text-green-500' : 'text-yellow-500'
           }`}>
             {metrics.winRate.toFixed(1)}%
           </p>
-          <p className="text-xs text-[#64748b]">
+          <p className="text-xs text-muted-foreground">
             {metrics.closedTrades} trades
           </p>
         </div>
         
-        <div className="bg-[#1a2332] rounded-lg p-3">
-          <p className="text-xs text-[#64748b] mb-1">Avg Win/Loss</p>
+        <div className="bg-muted rounded-lg p-3">
+          <p className="text-xs text-muted-foreground mb-1">Avg Win/Loss</p>
           <div className="flex items-center gap-2">
             <span className="text-sm text-green-400">+{metrics.avgWin.toFixed(2)}%</span>
-            <span className="text-xs text-[#64748b]">/</span>
+            <span className="text-xs text-muted-foreground">/</span>
             <span className="text-sm text-red-400">{metrics.avgLoss.toFixed(2)}%</span>
           </div>
-          <p className="text-xs text-[#64748b]">
+          <p className="text-xs text-muted-foreground">
             PF: {profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)}
           </p>
         </div>
         
-        <div className="bg-[#1a2332] rounded-lg p-3">
-          <p className="text-xs text-[#64748b] mb-1">Open Positions</p>
-          <p className="text-lg font-bold text-[#8efbba]">
+        <div className="bg-muted rounded-lg p-3">
+          <p className="text-xs text-muted-foreground mb-1">Open Positions</p>
+          <p className="text-lg font-bold text-primary">
             {metrics.openPositions}
           </p>
-          <p className="text-xs text-[#64748b]">
+          <p className="text-xs text-muted-foreground">
             Active
           </p>
         </div>
@@ -92,9 +92,9 @@ export function PortfolioMetrics() {
       
       {/* Trade Distribution */}
       {metrics.closedTrades > 0 && (
-        <div className="bg-[#1a2332] rounded-lg p-3">
-          <p className="text-xs text-[#64748b] mb-2">Win/Loss Distribution</p>
-          <div className="relative h-4 bg-[#0d1421] rounded-full overflow-hidden">
+        <div className="bg-muted rounded-lg p-3">
+          <p className="text-xs text-muted-foreground mb-2">Win/Loss Distribution</p>
+          <div className="relative h-4 bg-background rounded-full overflow-hidden">
             <div 
               className="absolute left-0 top-0 h-full bg-green-500/50"
               style={{ width: `${metrics.winRate}%` }}

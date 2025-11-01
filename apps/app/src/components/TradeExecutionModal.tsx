@@ -87,23 +87,23 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#0d1421] border border-[#1a2332] rounded-lg max-w-lg w-full max-h-[90vh] overflow-auto">
+      <div className="bg-background border border-border rounded-lg max-w-lg w-full max-h-[90vh] overflow-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[#1a2332]">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-3">
             {direction === 'long' ? 
               <TrendingUp className="h-5 w-5 text-green-500" /> : 
               <TrendingDown className="h-5 w-5 text-red-500" />
             }
-            <h2 className="text-lg font-semibold text-[#8efbba]">
+            <h2 className="text-lg font-semibold text-primary">
               Execute {direction.toUpperCase()} Trade - {signal.symbol}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-[#1a2332] rounded transition-colors"
+            className="p-1 hover:bg-muted rounded transition-colors"
           >
-            <X className="h-5 w-5 text-[#64748b]" />
+            <X className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
         
@@ -111,8 +111,8 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
         <div className="p-4 space-y-4">
           {/* Entry Price */}
           <div>
-            <label className="text-sm text-[#64748b] mb-1 block">Entry Price</label>
-            <div className="px-3 py-2 bg-[#1a2332] rounded text-[#e2e8f0] font-mono">
+            <label className="text-sm text-muted-foreground mb-1 block">Entry Price</label>
+            <div className="px-3 py-2 bg-muted rounded text-foreground font-mono">
               ${entryPrice.toFixed(4)}
             </div>
           </div>
@@ -120,21 +120,21 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
           {/* Position Size */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm text-[#64748b] mb-1 block">Position Size (USDT)</label>
+              <label className="text-sm text-muted-foreground mb-1 block">Position Size (USDT)</label>
               <input
                 type="number"
                 value={positionSize}
                 onChange={(e) => setPositionSize(e.target.value)}
-                className="w-full px-3 py-2 bg-[#1a2332] border border-[#2a3441] rounded text-[#e2e8f0] focus:border-[#8efbba] focus:outline-none"
+                className="w-full px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground focus:border-primary focus:outline-none"
                 placeholder="100"
               />
             </div>
             <div>
-              <label className="text-sm text-[#64748b] mb-1 block">Leverage</label>
+              <label className="text-sm text-muted-foreground mb-1 block">Leverage</label>
               <select
                 value={leverage}
                 onChange={(e) => setLeverage(e.target.value)}
-                className="w-full px-3 py-2 bg-[#1a2332] border border-[#2a3441] rounded text-[#e2e8f0] focus:border-[#8efbba] focus:outline-none"
+                className="w-full px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground focus:border-primary focus:outline-none"
               >
                 <option value="1">1x (Spot)</option>
                 <option value="2">2x</option>
@@ -153,9 +153,9 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
                 id="useRecommended"
                 checked={useRecommended}
                 onChange={(e) => setUseRecommended(e.target.checked)}
-                className="rounded border-[#2a3441] bg-[#1a2332] text-[#8efbba] focus:ring-[#8efbba]"
+                className="rounded border-[#2a3441] bg-muted text-primary focus:ring-[#8efbba]"
               />
-              <label htmlFor="useRecommended" className="text-sm text-[#e2e8f0]">
+              <label htmlFor="useRecommended" className="text-sm text-foreground">
                 Use AI recommended levels
               </label>
             </div>
@@ -163,7 +163,7 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
           
           {/* Stop Loss */}
           <div>
-            <label className="text-sm text-[#64748b] mb-1 block">
+            <label className="text-sm text-muted-foreground mb-1 block">
               Stop Loss <span className="text-red-400">({calculateRisk()}% risk)</span>
             </label>
             <input
@@ -171,23 +171,23 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
               value={stopLoss}
               onChange={(e) => setStopLoss(e.target.value)}
               disabled={useRecommended && !!signal.analysis?.keyLevels?.stopLoss}
-              className="w-full px-3 py-2 bg-[#1a2332] border border-[#2a3441] rounded text-[#e2e8f0] focus:border-[#8efbba] focus:outline-none disabled:opacity-50"
+              className="w-full px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground focus:border-primary focus:outline-none disabled:opacity-50"
               placeholder={direction === 'long' ? 'Below entry' : 'Above entry'}
             />
           </div>
           
           {/* Take Profits */}
           <div className="space-y-2">
-            <label className="text-sm text-[#64748b]">Take Profit Levels</label>
+            <label className="text-sm text-muted-foreground">Take Profit Levels</label>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-[#64748b] w-8">TP1</span>
+                <span className="text-xs text-muted-foreground w-8">TP1</span>
                 <input
                   type="number"
                   value={takeProfit1}
                   onChange={(e) => setTakeProfit1(e.target.value)}
                   disabled={useRecommended && !!signal.analysis?.keyLevels?.takeProfit?.[0]}
-                  className="flex-1 px-3 py-2 bg-[#1a2332] border border-[#2a3441] rounded text-[#e2e8f0] text-sm focus:border-[#8efbba] focus:outline-none disabled:opacity-50"
+                  className="flex-1 px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground text-sm focus:border-primary focus:outline-none disabled:opacity-50"
                   placeholder="First target"
                 />
                 <span className="text-xs text-green-400 w-16 text-right">
@@ -195,13 +195,13 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-[#64748b] w-8">TP2</span>
+                <span className="text-xs text-muted-foreground w-8">TP2</span>
                 <input
                   type="number"
                   value={takeProfit2}
                   onChange={(e) => setTakeProfit2(e.target.value)}
                   disabled={useRecommended && !!signal.analysis?.keyLevels?.takeProfit?.[1]}
-                  className="flex-1 px-3 py-2 bg-[#1a2332] border border-[#2a3441] rounded text-[#e2e8f0] text-sm focus:border-[#8efbba] focus:outline-none disabled:opacity-50"
+                  className="flex-1 px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground text-sm focus:border-primary focus:outline-none disabled:opacity-50"
                   placeholder="Second target (optional)"
                 />
                 <span className="text-xs text-green-400 w-16 text-right">
@@ -209,13 +209,13 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-[#64748b] w-8">TP3</span>
+                <span className="text-xs text-muted-foreground w-8">TP3</span>
                 <input
                   type="number"
                   value={takeProfit3}
                   onChange={(e) => setTakeProfit3(e.target.value)}
                   disabled={useRecommended && !!signal.analysis?.keyLevels?.takeProfit?.[2]}
-                  className="flex-1 px-3 py-2 bg-[#1a2332] border border-[#2a3441] rounded text-[#e2e8f0] text-sm focus:border-[#8efbba] focus:outline-none disabled:opacity-50"
+                  className="flex-1 px-3 py-2 bg-muted border border-[#2a3441] rounded text-foreground text-sm focus:border-primary focus:outline-none disabled:opacity-50"
                   placeholder="Third target (optional)"
                 />
                 <span className="text-xs text-green-400 w-16 text-right">
@@ -226,9 +226,9 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
           </div>
           
           {/* Risk/Reward Summary */}
-          <div className="bg-[#1a2332] rounded-lg p-3 space-y-2">
+          <div className="bg-muted rounded-lg p-3 space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-[#64748b]">Risk/Reward Ratio:</span>
+              <span className="text-muted-foreground">Risk/Reward Ratio:</span>
               <span className={`font-mono ${
                 parseFloat(calculateRiskReward()) >= 2 ? 'text-green-400' : 
                 parseFloat(calculateRiskReward()) >= 1 ? 'text-yellow-400' : 'text-red-400'
@@ -237,8 +237,8 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-[#64748b]">Total Position:</span>
-              <span className="text-[#e2e8f0] font-mono">
+              <span className="text-muted-foreground">Total Position:</span>
+              <span className="text-foreground font-mono">
                 ${(parseFloat(positionSize || '0') * parseFloat(leverage)).toFixed(2)} USDT
               </span>
             </div>
@@ -246,12 +246,12 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
           
           {/* AI Analysis */}
           {signal.analysis && (
-            <div className="bg-[#1a2332] rounded-lg p-3">
+            <div className="bg-muted rounded-lg p-3">
               <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-[#8efbba] mt-0.5" />
+                <AlertCircle className="h-4 w-4 text-primary mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm text-[#64748b] mb-1">AI Analysis:</p>
-                  <p className="text-sm text-[#e2e8f0]">{signal.analysis.reasoning}</p>
+                  <p className="text-sm text-muted-foreground mb-1">AI Analysis:</p>
+                  <p className="text-sm text-foreground">{signal.analysis.reasoning}</p>
                 </div>
               </div>
             </div>
@@ -259,16 +259,16 @@ export function TradeExecutionModal({ signal, onClose, onExecute }: TradeExecuti
         </div>
         
         {/* Footer */}
-        <div className="flex gap-3 p-4 border-t border-[#1a2332]">
+        <div className="flex gap-3 p-4 border-t border-border">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 bg-[#1a2332] text-[#e2e8f0] rounded hover:bg-[#2a3441] transition-colors"
+            className="flex-1 px-4 py-2 bg-muted text-foreground rounded hover:bg-[#2a3441] transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleExecute}
-            className="flex-1 px-4 py-2 bg-[#8efbba] text-[#0d1421] rounded hover:bg-[#7ce3a8] transition-colors font-medium"
+            className="flex-1 px-4 py-2 bg-primary text-background rounded hover:bg-primary/90 transition-colors font-medium"
           >
             Execute {direction.toUpperCase()}
           </button>

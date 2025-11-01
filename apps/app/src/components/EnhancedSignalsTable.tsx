@@ -112,17 +112,17 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
   };
   
   return (
-    <div className="bg-[#0d1421] rounded-lg border border-[#1a2332]">
+    <div className="bg-background rounded-lg border border-border">
       {/* Status Filter Tabs - Elite tier only */}
       {currentTier === 'elite' && (
-        <div className="border-b border-[#1a2332] p-4">
+        <div className="border-b border-border p-4">
           <div className="flex items-center gap-2 overflow-x-auto">
             <button
               onClick={() => setStatusFilter('all')}
               className={`px-3 py-1 rounded text-sm transition-colors ${
                 statusFilter === 'all' 
-                  ? 'bg-[#8efbba] text-[#0d1421]' 
-                  : 'bg-[#1a2332] text-[#64748b] hover:text-[#e2e8f0]'
+                  ? 'bg-primary text-background' 
+                  : 'bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >
               All ({statusCounts.total})
@@ -131,8 +131,8 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
             onClick={() => setStatusFilter('new')}
             className={`px-3 py-1 rounded text-sm transition-colors ${
               statusFilter === 'new' 
-                ? 'bg-[#8efbba] text-[#0d1421]' 
-                : 'bg-[#1a2332] text-[#64748b] hover:text-[#e2e8f0]'
+                ? 'bg-primary text-background' 
+                : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
             New ({statusCounts.new})
@@ -141,8 +141,8 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
             onClick={() => setStatusFilter('monitoring')}
             className={`px-3 py-1 rounded text-sm transition-colors ${
               statusFilter === 'monitoring' 
-                ? 'bg-[#8efbba] text-[#0d1421]' 
-                : 'bg-[#1a2332] text-[#64748b] hover:text-[#e2e8f0]'
+                ? 'bg-primary text-background' 
+                : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
             Monitoring ({statusCounts.monitoring})
@@ -151,8 +151,8 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
             onClick={() => setStatusFilter('ready')}
             className={`px-3 py-1 rounded text-sm transition-colors ${
               statusFilter === 'ready' 
-                ? 'bg-[#8efbba] text-[#0d1421]' 
-                : 'bg-[#1a2332] text-[#64748b] hover:text-[#e2e8f0]'
+                ? 'bg-primary text-background' 
+                : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
             Ready ({statusCounts.ready})
@@ -161,8 +161,8 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
             onClick={() => setStatusFilter('in_position')}
             className={`px-3 py-1 rounded text-sm transition-colors ${
               statusFilter === 'in_position' 
-                ? 'bg-[#8efbba] text-[#0d1421]' 
-                : 'bg-[#1a2332] text-[#64748b] hover:text-[#e2e8f0]'
+                ? 'bg-primary text-background' 
+                : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
             Active ({statusCounts.in_position})
@@ -171,8 +171,8 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
             onClick={() => setStatusFilter('closed')}
             className={`px-3 py-1 rounded text-sm transition-colors ${
               statusFilter === 'closed' 
-                ? 'bg-[#8efbba] text-[#0d1421]' 
-                : 'bg-[#1a2332] text-[#64748b] hover:text-[#e2e8f0]'
+                ? 'bg-primary text-background' 
+                : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
             Closed ({statusCounts.closed})
@@ -185,25 +185,25 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-[#1a2332]">
-              <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase"></th>
-              <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Symbol</th>
+            <tr className="border-b border-border">
+              <th className="p-3 text-left text-xs font-medium text-muted-foreground uppercase"></th>
+              <th className="p-3 text-left text-xs font-medium text-muted-foreground uppercase">Symbol</th>
               {currentTier === 'elite' && (
-                <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Status</th>
+                <th className="p-3 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
               )}
-              <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Entry</th>
-              <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Current</th>
-              <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Change</th>
-              <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">P&L</th>
-              <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Time</th>
-              <th className="p-3 text-left text-xs font-medium text-[#64748b] uppercase">Actions</th>
+              <th className="p-3 text-left text-xs font-medium text-muted-foreground uppercase">Entry</th>
+              <th className="p-3 text-left text-xs font-medium text-muted-foreground uppercase">Current</th>
+              <th className="p-3 text-left text-xs font-medium text-muted-foreground uppercase">Change</th>
+              <th className="p-3 text-left text-xs font-medium text-muted-foreground uppercase">P&L</th>
+              <th className="p-3 text-left text-xs font-medium text-muted-foreground uppercase">Time</th>
+              <th className="p-3 text-left text-xs font-medium text-muted-foreground uppercase">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredSignals.map(signal => (
               <React.Fragment key={signal.id}>
                 <tr 
-                  className="border-b border-[#1a2332] hover:bg-[#1a2332] transition-colors cursor-pointer"
+                  className="border-b border-border hover:bg-muted transition-colors cursor-pointer"
                   onClick={(e) => {
                     // If clicking on action buttons, don't toggle expansion or select chart
                     if ((e.target as HTMLElement).closest('button')) {
@@ -215,11 +215,11 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
                 >
                   <td className="p-3">
                     {expandedRows.has(signal.id) ? 
-                      <ChevronDown className="h-4 w-4 text-[#64748b]" /> : 
-                      <ChevronRight className="h-4 w-4 text-[#64748b]" />
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" /> : 
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     }
                   </td>
-                  <td className="p-3 font-medium text-[#e2e8f0]">{signal.symbol}</td>
+                  <td className="p-3 font-medium text-foreground">{signal.symbol}</td>
                   {currentTier === 'elite' && (
                     <td className="p-3">
                       <div className="flex items-center gap-2">
@@ -230,10 +230,10 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
                       </div>
                     </td>
                   )}
-                  <td className="p-3 text-sm text-[#e2e8f0] font-mono">
+                  <td className="p-3 text-sm text-foreground font-mono">
                     ${signal.initialPrice.toFixed(4)}
                   </td>
-                  <td className="p-3 text-sm text-[#e2e8f0] font-mono">
+                  <td className="p-3 text-sm text-foreground font-mono">
                     ${signal.currentPrice.toFixed(4)}
                   </td>
                   <td className="p-3 text-sm">
@@ -246,7 +246,7 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
                     {signal.status === 'closed' && formatPnL(signal.realizedPnl)}
                     {!['in_position', 'closed'].includes(signal.status) && '-'}
                   </td>
-                  <td className="p-3 text-sm text-[#64748b]">
+                  <td className="p-3 text-sm text-muted-foreground">
                     {formatDistanceToNow(signal.createdAt, { addSuffix: true })}
                   </td>
                   <td className="p-3">
@@ -258,7 +258,7 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
                             e.stopPropagation();
                             onAnalyzeSignal?.(signal);
                           }}
-                          className="px-2 py-1 text-xs bg-[#8efbba] text-[#0d1421] rounded hover:bg-[#7ce3a8] transition-colors"
+                          className="px-2 py-1 text-xs bg-primary text-background rounded hover:bg-primary/90 transition-colors"
                         >
                           Analyze
                         </button>
@@ -281,7 +281,7 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
                 
                 {/* Expanded Row - Signal Details */}
                 {expandedRows.has(signal.id) && (
-                  <tr className="bg-[#1a2332]">
+                  <tr className="bg-muted">
                     <td colSpan={currentTier === 'elite' ? 9 : 8} className="p-4">
                       <SignalDetails signal={signal} />
                     </td>
@@ -293,7 +293,7 @@ export function EnhancedSignalsTable({ strategyId, onAnalyzeSignal, onExecuteTra
         </table>
         
         {filteredSignals.length === 0 && (
-          <div className="text-center py-8 text-[#64748b]">
+          <div className="text-center py-8 text-muted-foreground">
             No signals found
           </div>
         )}
@@ -325,10 +325,10 @@ function SignalDetails({ signal }: { signal: SignalLifecycle }) {
     <div className="space-y-4">
       {/* Matched Conditions */}
       <div>
-        <h4 className="text-sm font-medium text-[#8efbba] mb-2">Matched Conditions</h4>
+        <h4 className="text-sm font-medium text-primary mb-2">Matched Conditions</h4>
         <div className="flex flex-wrap gap-2">
           {signal.matchedConditions.map((condition, i) => (
-            <span key={i} className="px-2 py-1 bg-[#0d1421] rounded text-xs text-[#e2e8f0]">
+            <span key={i} className="px-2 py-1 bg-background rounded text-xs text-foreground">
               {condition}
             </span>
           ))}
@@ -338,24 +338,24 @@ function SignalDetails({ signal }: { signal: SignalLifecycle }) {
       {/* Analysis Results */}
       {signal.analysis && (
         <div>
-          <h4 className="text-sm font-medium text-[#8efbba] mb-2">AI Analysis</h4>
-          <div className="bg-[#0d1421] rounded p-3 space-y-2">
+          <h4 className="text-sm font-medium text-primary mb-2">AI Analysis</h4>
+          <div className="bg-background rounded p-3 space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-[#64748b]">Decision:</span>
-              <span className="text-sm text-[#e2e8f0]">{signal.analysis.decision.replace('_', ' ')}</span>
+              <span className="text-sm text-muted-foreground">Decision:</span>
+              <span className="text-sm text-foreground">{signal.analysis.decision.replace('_', ' ')}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-[#64748b]">Confidence:</span>
-              <span className="text-sm text-[#e2e8f0]">{(signal.analysis.confidence * 100).toFixed(1)}%</span>
+              <span className="text-sm text-muted-foreground">Confidence:</span>
+              <span className="text-sm text-foreground">{(signal.analysis.confidence * 100).toFixed(1)}%</span>
             </div>
             {signal.analysis.direction && (
               <div className="flex justify-between">
-                <span className="text-sm text-[#64748b]">Direction:</span>
-                <span className="text-sm text-[#e2e8f0]">{signal.analysis.direction.toUpperCase()}</span>
+                <span className="text-sm text-muted-foreground">Direction:</span>
+                <span className="text-sm text-foreground">{signal.analysis.direction.toUpperCase()}</span>
               </div>
             )}
-            <div className="pt-2 border-t border-[#1a2332]">
-              <p className="text-sm text-[#e2e8f0]">{signal.analysis.reasoning}</p>
+            <div className="pt-2 border-t border-border">
+              <p className="text-sm text-foreground">{signal.analysis.reasoning}</p>
             </div>
           </div>
         </div>
@@ -364,20 +364,20 @@ function SignalDetails({ signal }: { signal: SignalLifecycle }) {
       {/* Monitoring History */}
       {signal.monitoringUpdates && signal.monitoringUpdates.length > 0 && (
         <div>
-          <h4 className="text-sm font-medium text-[#8efbba] mb-2">Monitoring History</h4>
+          <h4 className="text-sm font-medium text-primary mb-2">Monitoring History</h4>
           <div className="space-y-2">
             {signal.monitoringUpdates.map((update, i) => (
-              <div key={i} className="bg-[#0d1421] rounded p-3 flex justify-between items-center">
+              <div key={i} className="bg-background rounded p-3 flex justify-between items-center">
                 <div className="space-y-1">
-                  <p className="text-sm text-[#e2e8f0]">{update.reason}</p>
-                  <p className="text-xs text-[#64748b]">
+                  <p className="text-sm text-foreground">{update.reason}</p>
+                  <p className="text-xs text-muted-foreground">
                     {formatDistanceToNow(update.timestamp, { addSuffix: true })}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-mono text-[#e2e8f0]">${update.price.toFixed(4)}</p>
+                  <p className="text-sm font-mono text-foreground">${update.price.toFixed(4)}</p>
                   {update.confidence && (
-                    <p className="text-xs text-[#64748b]">{(update.confidence * 100).toFixed(1)}%</p>
+                    <p className="text-xs text-muted-foreground">{(update.confidence * 100).toFixed(1)}%</p>
                   )}
                 </div>
               </div>
@@ -406,33 +406,33 @@ function SignalDetails({ signal }: { signal: SignalLifecycle }) {
       {/* Closed Trade Details */}
       {signal.trade && signal.status === 'closed' && (
         <div>
-          <h4 className="text-sm font-medium text-[#8efbba] mb-2">Trade Details (Closed)</h4>
-          <div className="bg-[#0d1421] rounded p-3 grid grid-cols-2 gap-3">
+          <h4 className="text-sm font-medium text-primary mb-2">Trade Details (Closed)</h4>
+          <div className="bg-background rounded p-3 grid grid-cols-2 gap-3">
             <div>
-              <span className="text-sm text-[#64748b]">Entry:</span>
-              <p className="text-sm font-mono text-[#e2e8f0]">${signal.trade.entryPrice?.toFixed(4) || '-'}</p>
+              <span className="text-sm text-muted-foreground">Entry:</span>
+              <p className="text-sm font-mono text-foreground">${signal.trade.entryPrice?.toFixed(4) || '-'}</p>
             </div>
             <div>
-              <span className="text-sm text-[#64748b]">Exit:</span>
-              <p className="text-sm font-mono text-[#e2e8f0]">${signal.trade.currentPrice?.toFixed(4) || '-'}</p>
+              <span className="text-sm text-muted-foreground">Exit:</span>
+              <p className="text-sm font-mono text-foreground">${signal.trade.currentPrice?.toFixed(4) || '-'}</p>
             </div>
             <div>
-              <span className="text-sm text-[#64748b]">Result:</span>
+              <span className="text-sm text-muted-foreground">Result:</span>
               <p className="text-sm">
                 {formatPnL(signal.trade.pnlPercentage)}
               </p>
             </div>
             <div>
-              <span className="text-sm text-[#64748b]">P&L:</span>
+              <span className="text-sm text-muted-foreground">P&L:</span>
               <p className={`text-sm ${signal.trade.pnl && signal.trade.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                 ${signal.trade.pnl?.toFixed(2) || '-'}
               </p>
             </div>
           </div>
           {signal.trade.closeReason && (
-            <div className="mt-2 p-3 bg-[#0d1421] rounded">
-              <p className="text-sm text-[#64748b] mb-1">Close Reason:</p>
-              <p className="text-sm text-[#e2e8f0]">{signal.trade.closeReason}</p>
+            <div className="mt-2 p-3 bg-background rounded">
+              <p className="text-sm text-muted-foreground mb-1">Close Reason:</p>
+              <p className="text-sm text-foreground">{signal.trade.closeReason}</p>
             </div>
           )}
         </div>

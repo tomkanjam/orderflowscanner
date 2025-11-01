@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trader } from '../../abstractions/trader.interfaces';
+import { Switch } from '@/components/ui/switch';
 
 interface TraderCardProps {
   trader: Trader;
@@ -19,7 +20,6 @@ export const TraderCard: React.FC<TraderCardProps> = ({
 
   const handleToggleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onToggle(trader.id);
   };
 
   const handleCardClick = () => {
@@ -33,15 +33,8 @@ export const TraderCard: React.FC<TraderCardProps> = ({
       onClick={handleCardClick}
       className="bg-card border border-border rounded-lg p-4 active:scale-[0.99] transition-all cursor-pointer"
     >
-      {/* Header Row: Icon, Name, Toggle */}
+      {/* Header Row: Name & Toggle */}
       <div className="flex items-center gap-3 mb-2">
-        {/* Icon */}
-        <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
-          <span className="text-lg">
-            {trader.isBuiltIn ? '⚡' : '🎯'}
-          </span>
-        </div>
-
         {/* Name & Category */}
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-base truncate">{trader.name}</h3>
@@ -50,22 +43,14 @@ export const TraderCard: React.FC<TraderCardProps> = ({
           </p>
         </div>
 
-        {/* Toggle Switch - Big and touch-friendly */}
-        <button
-          onClick={handleToggleClick}
-          className={`relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-            trader.enabled ? 'bg-green-500' : 'bg-muted'
-          }`}
-          role="switch"
-          aria-checked={trader.enabled}
-          aria-label={`Toggle ${trader.name}`}
-        >
-          <span
-            className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-              trader.enabled ? 'translate-x-6' : 'translate-x-0'
-            }`}
+        {/* Toggle Switch - Using shadcn/ui component */}
+        <div onClick={handleToggleClick}>
+          <Switch
+            checked={trader.enabled}
+            onCheckedChange={() => onToggle(trader.id)}
+            aria-label={`Toggle ${trader.name}`}
           />
-        </button>
+        </div>
       </div>
 
       {/* Description - Always show first line */}

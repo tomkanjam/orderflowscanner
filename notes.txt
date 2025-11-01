@@ -1,2 +1,4 @@
 To do:
-- UI cleanup
+- UI cleanup.
+- complete breaintrust instrumentation and full trader automation on go backend projects. 20251024-110600-000-PROJECT-complete-braintrust-integration.md.
+-

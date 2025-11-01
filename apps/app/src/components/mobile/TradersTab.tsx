@@ -99,9 +99,9 @@ export const TradersTab: React.FC<TradersTabProps> = ({ onCreateTrader }) => {
       </div>
 
       {/* Trader Cards - Scrollable */}
-      <div className="flex-1 overflow-y-auto px-4 py-3">
+      <div className="flex-1 overflow-y-auto px-4 py-4">
         {filteredTraders.length > 0 ? (
-          <div className="space-y-3 pb-24">
+          <div className="space-y-4 pb-24">
             {filteredTraders.map(trader => (
               <TraderCard
                 key={trader.id}

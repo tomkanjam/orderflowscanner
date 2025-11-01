@@ -12,6 +12,8 @@ The app is not yet in production. There are no produciton users but we want to l
 
 **Mobile-first.** This is every trader's dream: build fully automated AI traders with natural language, manage them on the go, stay connected to markets anywhere. Design for thumb-first interactions on phones, scale up gracefully to tablets and desktops. 44px+ tap targets, vertical scrolling, progressive disclosure, instant feedback. Reference: `~/.claude/skills/design.md`
 
+**shadcn/ui only.** MANDATORY: Use shadcn/ui components exclusively for ALL UI elements. NEVER create custom components. Use the shadcn MCP server to add components. This ensures professional, accessible, consistent design throughout the app.
+
 ## Current initiative
 ### End-to-end trader workflow implementation
 1. Create trader

@@ -14,11 +14,7 @@ import { sharedMarketData } from '../src/shared/SharedMarketData';
 import * as screenerHelpers from '../screenerHelpers';
 import { MobileTab } from '../src/components/mobile/BottomNavigation';
 import { BottomSheet } from '../src/components/mobile/BottomSheet';
-import { TraderList } from '../src/components/TraderList';
-import { CreateSignalButton } from '../src/components/tiers/CreateSignalButton';
-import { FilterInput } from '../src/components/FilterInput';
-import { TabBar } from '../src/components/TabBar';
-import { useDebouncedValue } from '../src/hooks/useDebouncedValue'; 
+import { TradersTab } from '../src/components/mobile/TradersTab'; 
 
 type ScreenerHelpersType = typeof screenerHelpers;
 
@@ -110,11 +106,6 @@ const MainContent: React.FC<MainContentProps> = ({
   const { currentTier } = useSubscription();
   const [selectedSignal, setSelectedSignal] = useState<SignalLifecycle | null>(null);
 
-  // Traders tab state (mobile)
-  const [traderFilterQuery, setTraderFilterQuery] = useState('');
-  const [activeTraderTab, setActiveTraderTab] = useState<'builtin' | 'personal' | 'favorites'>('builtin');
-  const debouncedTraderQuery = useDebouncedValue(traderFilterQuery, 300);
-
   // Memoize klines to prevent unnecessary recalculations
   const chartKlines = useMemo(() => {
     if (!selectedSymbolForChart) {
@@ -180,51 +171,11 @@ const MainContent: React.FC<MainContentProps> = ({
               </div>
             )}
 
-            {/* Traders Tab - Reuses Sidebar components */}
+            {/* Traders Tab - Simple mobile-first design */}
             {activeMobileTab === 'traders' && (
-              <div className="h-full overflow-y-auto p-4 flex flex-col bg-background">
-                {/* Create Signal Button */}
-                <div className="mb-4">
-                  <CreateSignalButton onClick={() => setActiveMobileTab('create')} />
-                </div>
-
-                {/* Search/Filter Input */}
-                <div className="mb-4">
-                  <FilterInput
-                    value={traderFilterQuery}
-                    onChange={setTraderFilterQuery}
-                    placeholder="Search signals..."
-                  />
-                </div>
-
-                {/* Tab Bar */}
-                <div className="mb-4">
-                  <TabBar
-                    tabs={[
-                      { id: 'builtin', label: 'Built-in' },
-                      { id: 'personal', label: 'Personal' },
-                      { id: 'favorites', label: 'Favorites' }
-                    ]}
-                    activeTab={activeTraderTab}
-                    onTabChange={(tab) => setActiveTraderTab(tab as 'builtin' | 'personal' | 'favorites')}
-                  />
-                </div>
-
-                {/* Trader List */}
-                <div className="flex-1">
-                  <TraderList
-                    onCreateTrader={() => setActiveMobileTab('create')}
-                    onEditTrader={(trader) => {
-                      // Could open edit modal in future
-                      console.log('Edit trader:', trader);
-                    }}
-                    onSelectTrader={onSelectTrader}
-                    selectedTraderId={selectedTraderId}
-                    activeTab={activeTraderTab}
-                    filterQuery={debouncedTraderQuery}
-                  />
-                </div>
-              </div>
+              <TradersTab
+                onCreateTrader={() => setActiveMobileTab('create')}
+              />
             )}
 
             {/* Create Tab - TODO: Implement mobile create signal form */}

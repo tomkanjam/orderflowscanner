@@ -8,12 +8,20 @@
     "build:clean": "rm -rf dist apps/app/dist",
     "build:app": "pnpm --filter app build",
     "build:copy": "cp -r apps/app/dist dist",
-    "dev:app": "pnpm --filter app dev"
+    "dev:app": "pnpm --filter app dev",
+    "evals": "tsx scripts/run-evals.ts",
+    "evals:filter": "braintrust eval filter-code.eval.ts",
+    "evals:metadata": "braintrust eval trader-metadata.eval.ts",
+    "evals:analysis": "braintrust eval signal-analysis.eval.ts",
+    "evals:local": "tsx scripts/run-evals.ts --no-send-logs"
   },
   "dependencies": {
+    "autoevals": "^0.0.131",
+    "braintrust": "^0.4.8",
     "shadcn": "^3.5.0"
   },
   "devDependencies": {
+    "tsx": "^4.20.6",
     "typescript": "~5.7.2"
   }
 }

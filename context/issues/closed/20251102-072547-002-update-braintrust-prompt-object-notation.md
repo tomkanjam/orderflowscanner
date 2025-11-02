@@ -12,7 +12,13 @@ Update the `regenerate-filter-go` prompt in Braintrust to generate filter code u
 - Depends on: `context/issues/open/20251102-072547-001-transform-kline-to-object-format.md`
 
 ## Progress
-Awaiting implementation.
+Completed. Braintrust prompt updated to version 4.0 with extended Kline struct and volume analysis examples.
+
+## Completion
+**Closed:** 2025-11-02 07:43:26
+**Outcome:** Success
+**Commits:** e7089e2
+**Braintrust Version:** 4.0 (transaction ID: 1000196070990596915)
 
 ## Spec
 

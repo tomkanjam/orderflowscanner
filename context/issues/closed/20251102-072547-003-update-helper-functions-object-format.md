@@ -12,7 +12,12 @@ Update helper functions in the filter execution environment to work with object-
 - Depends on: `context/issues/open/20251102-072547-001-transform-kline-to-object-format.md`
 
 ## Progress
-Awaiting implementation.
+Completed. Helper functions updated to use object notation and two new volume helpers added.
+
+## Completion
+**Closed:** 2025-11-02 07:43:26
+**Outcome:** Success
+**Commits:** e7089e2
 
 ## Spec
 

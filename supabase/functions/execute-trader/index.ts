@@ -84,7 +84,7 @@ const helpers = `
   // Helper functions with "get" prefix (used by filter code)
   const getLatestBollingerBands = (klines, period, stdDev) => {
     if (!klines || klines.length < period) return null;
-    const closes = klines.map(k => parseFloat(k[4]));
+    const closes = klines.map(k => k.close);
     const recentCloses = closes.slice(-period);
     const sma = recentCloses.reduce((a, b) => a + b, 0) / period;
     const variance = recentCloses.reduce((sum, price) => sum + Math.pow(price - sma, 2), 0) / period;
@@ -98,8 +98,27 @@ const helpers = `
 
   const getLatestRSI = (klines, period = 14) => {
     if (!klines || klines.length < period + 1) return null;
-    const closes = klines.map(k => parseFloat(k[4]));
+    const closes = klines.map(k => k.close);
     return calculateRSI(closes, period);
+  };
+
+  const getLatestVolumeProfile = (klines) => {
+    if (!klines || klines.length === 0) return null;
+    const latest = klines[klines.length - 1];
+    return {
+      buyVolume: latest.buyVolume,
+      sellVolume: latest.sellVolume,
+      volumeDelta: latest.volumeDelta,
+      buyPressure: latest.buyVolume / latest.volume,
+      sellPressure: latest.sellVolume / latest.volume
+    };
+  };
+
+  const getAverageVolumeDelta = (klines, period = 20) => {
+    if (!klines || klines.length < period) return null;
+    const recent = klines.slice(-period);
+    const sum = recent.reduce((acc, k) => acc + k.volumeDelta, 0);
+    return sum / period;
   };
 
   // Create helpers object for filter code access
@@ -108,7 +127,9 @@ const helpers = `
     calculateRSI,
     calculateVolumeMA,
     getLatestBollingerBands,
-    getLatestRSI
+    getLatestRSI,
+    getLatestVolumeProfile,
+    getAverageVolumeDelta
   };
 `;
 
@@ -158,24 +179,31 @@ async function executeTraderFilter(
       };
 
       // Process klines for each timeframe
-      // Filter code expects array format: [[openTime, open, high, low, close, volume, ...], ...]
+      // Filter code expects object format with pre-computed volume metrics
       const klines: Record<string, any> = {};
       for (const [timeframe, data] of Object.entries(klinesData)) {
         if (data.length > 0) {
-          // Convert to array format that filter code expects
-          klines[timeframe] = data.map(k => [
-            k.openTime,           // [0]
-            k.open.toString(),    // [1]
-            k.high.toString(),    // [2]
-            k.low.toString(),     // [3]
-            k.close.toString(),   // [4] - filter code uses parseFloat(kline[4])
-            k.volume.toString(),  // [5]
-            k.closeTime,          // [6]
-            k.quoteAssetVolume.toString(),     // [7]
-            k.numberOfTrades,     // [8]
-            k.takerBuyBaseAssetVolume.toString(), // [9]
-            k.takerBuyQuoteAssetVolume.toString() // [10]
-          ]);
+          // Convert to object format with volume enrichment
+          klines[timeframe] = data.map(k => {
+            const volume = k.volume;
+            const buyVolume = k.takerBuyBaseAssetVolume;
+            const sellVolume = volume - buyVolume;
+
+            return {
+              openTime: k.openTime,
+              closeTime: k.closeTime,
+              open: k.open,
+              high: k.high,
+              low: k.low,
+              close: k.close,
+              volume: volume,
+              buyVolume: buyVolume,
+              sellVolume: sellVolume,
+              volumeDelta: buyVolume - sellVolume,
+              quoteVolume: k.quoteAssetVolume,
+              trades: k.numberOfTrades
+            };
+          });
         }
       }
 

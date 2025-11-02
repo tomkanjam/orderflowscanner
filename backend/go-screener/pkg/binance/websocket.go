@@ -181,19 +181,30 @@ func (w *WSClient) handleKlineEvent(message []byte) error {
 		return nil // Skip incomplete candles
 	}
 
-	// Convert to our Kline type
+	// Convert to our Kline type with volume enrichment
+	volume := parseFloat(event.Kline.Volume)
+	buyVolume := parseFloat(event.Kline.TakerBuyBaseVolume)
+	sellVolume := volume - buyVolume
+	volumeDelta := buyVolume - sellVolume
+
 	kline := types.Kline{
-		OpenTime:                 event.Kline.StartTime,
-		Open:                     parseFloat(event.Kline.Open),
-		High:                     parseFloat(event.Kline.High),
-		Low:                      parseFloat(event.Kline.Low),
-		Close:                    parseFloat(event.Kline.Close),
-		Volume:                   parseFloat(event.Kline.Volume),
-		CloseTime:                event.Kline.CloseTime,
-		QuoteAssetVolume:         parseFloat(event.Kline.QuoteVolume),
-		NumberOfTrades:           event.Kline.TradeCount,
-		TakerBuyBaseAssetVolume:  parseFloat(event.Kline.TakerBuyBaseVolume),
+		OpenTime:    event.Kline.StartTime,
+		Open:        parseFloat(event.Kline.Open),
+		High:        parseFloat(event.Kline.High),
+		Low:         parseFloat(event.Kline.Low),
+		Close:       parseFloat(event.Kline.Close),
+		Volume:      volume,
+		BuyVolume:   buyVolume,
+		SellVolume:  sellVolume,
+		VolumeDelta: volumeDelta,
+		QuoteVolume: parseFloat(event.Kline.QuoteVolume),
+		Trades:      event.Kline.TradeCount,
+		CloseTime:   event.Kline.CloseTime,
+
+		// Legacy fields (internal use only)
+		TakerBuyBaseAssetVolume:  buyVolume,
 		TakerBuyQuoteAssetVolume: parseFloat(event.Kline.TakerBuyQuoteVolume),
+		NumberOfTrades:           event.Kline.TradeCount,
 	}
 
 	// Update cache

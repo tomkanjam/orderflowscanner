@@ -382,17 +382,28 @@ func parseKline(raw []interface{}) (types.Kline, error) {
 		return types.Kline{}, fmt.Errorf("failed to parse takerBuyQuoteAssetVolume: %w", err)
 	}
 
+	// Compute volume enrichment fields
+	buyVolume := takerBuyBaseAssetVolume
+	sellVolume := volume - buyVolume
+	volumeDelta := buyVolume - sellVolume
+
 	return types.Kline{
-		OpenTime:                 openTime,
-		Open:                     open,
-		High:                     high,
-		Low:                      low,
-		Close:                    close,
-		Volume:                   volume,
-		CloseTime:                closeTime,
-		QuoteAssetVolume:         quoteAssetVolume,
-		NumberOfTrades:           int(numberOfTrades),
+		OpenTime:    openTime,
+		Open:        open,
+		High:        high,
+		Low:         low,
+		Close:       close,
+		Volume:      volume,
+		BuyVolume:   buyVolume,
+		SellVolume:  sellVolume,
+		VolumeDelta: volumeDelta,
+		QuoteVolume: quoteAssetVolume,
+		Trades:      int(numberOfTrades),
+		CloseTime:   closeTime,
+
+		// Legacy fields (internal use only)
 		TakerBuyBaseAssetVolume:  takerBuyBaseAssetVolume,
 		TakerBuyQuoteAssetVolume: takerBuyQuoteAssetVolume,
+		NumberOfTrades:           int(numberOfTrades),
 	}, nil
 }

@@ -5,20 +5,26 @@ import (
 	"time"
 )
 
-// Kline represents a single candlestick
+// Kline represents a single candlestick with volume enrichment
 // Format from Binance: [openTime, open, high, low, close, volume, closeTime, quoteAssetVolume, numberOfTrades, takerBuyBaseAssetVolume, takerBuyQuoteAssetVolume, ignore]
 type Kline struct {
-	OpenTime                 int64   `json:"openTime"`
-	Open                     float64 `json:"open"`
-	High                     float64 `json:"high"`
-	Low                      float64 `json:"low"`
-	Close                    float64 `json:"close"`
-	Volume                   float64 `json:"volume"`
-	CloseTime                int64   `json:"closeTime"`
-	QuoteAssetVolume         float64 `json:"quoteAssetVolume"`
-	NumberOfTrades           int     `json:"numberOfTrades"`
-	TakerBuyBaseAssetVolume  float64 `json:"takerBuyBaseAssetVolume"`
-	TakerBuyQuoteAssetVolume float64 `json:"takerBuyQuoteAssetVolume"`
+	OpenTime    int64   `json:"openTime"`
+	Open        float64 `json:"open"`
+	High        float64 `json:"high"`
+	Low         float64 `json:"low"`
+	Close       float64 `json:"close"`
+	Volume      float64 `json:"volume"`      // Total base asset volume
+	BuyVolume   float64 `json:"buyVolume"`   // Taker buy base asset volume (aggressive buys)
+	SellVolume  float64 `json:"sellVolume"`  // Taker sell volume (calculated: Volume - BuyVolume)
+	VolumeDelta float64 `json:"volumeDelta"` // Net buy/sell pressure (BuyVolume - SellVolume)
+	QuoteVolume float64 `json:"quoteVolume"` // Total quote asset volume (dollar volume)
+	Trades      int     `json:"trades"`      // Number of trades in this candle
+	CloseTime   int64   `json:"closeTime"`
+
+	// Legacy fields (kept for backward compatibility, not exposed in JSON for filter code)
+	TakerBuyBaseAssetVolume  float64 `json:"-"` // Internal use only
+	TakerBuyQuoteAssetVolume float64 `json:"-"` // Internal use only
+	NumberOfTrades           int     `json:"-"` // Internal use only
 }
 
 // Ticker represents real-time price data from Binance

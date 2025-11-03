@@ -21,18 +21,15 @@ interface ObservabilityEvent {
 class ObservabilityService {
   private batchQueue: ObservabilityEvent[] = [];
   private batchTimer: NodeJS.Timeout | null = null;
-  private isEnabled: boolean = true;
+  private isEnabled: boolean = false; // Disabled - all LLM tracing moved to Braintrust
   private traceIdMap: Map<string, string> = new Map();
 
   constructor() {
-    // Check if observability should be enabled
-    this.isEnabled = import.meta.env.VITE_LANGFUSE_ENABLED !== 'false';
-    
-    // Also check if Supabase is configured
-    if (!supabase) {
-      console.warn('Supabase not configured. Observability disabled.');
-      this.isEnabled = false;
-    }
+    // Frontend user journey tracking disabled
+    // All LLM observability now handled by Braintrust (edge functions + Go backend)
+    this.isEnabled = false;
+
+    console.log('[Observability] Frontend tracking disabled - LLM tracing handled by Braintrust');
   }
 
   private async checkAuth(): Promise<boolean> {
@@ -47,73 +44,13 @@ class ObservabilityService {
   }
 
   async trackEvent(event: ObservabilityEvent): Promise<string | undefined> {
-    if (!this.isEnabled || !supabase) return;
-
-    // Check if user is authenticated
-    const isAuthenticated = await this.checkAuth();
-    if (!isAuthenticated) {
-      console.debug('User not authenticated. Skipping observability tracking.');
-      return;
-    }
-
-    // Add timestamp
-    const timestampedEvent = {
-      ...event,
-      timestamp: Date.now(),
-    };
-
-    // For critical events, send immediately
-    if (event.type === 'error' || event.type === 'generation' || event.type === 'analysis') {
-      try {
-        const { data, error } = await supabase.functions.invoke('langfuse-proxy', {
-          body: timestampedEvent,
-        });
-        
-        if (error) {
-          console.error('Failed to track event:', error);
-        } else if (data?.traceId) {
-          return data.traceId;
-        }
-      } catch (error) {
-        console.error('Failed to track event:', error);
-        // Don't throw - observability should never break the app
-      }
-      return;
-    }
-
-    // For other events, batch them
-    this.batchQueue.push(timestampedEvent);
-    
-    if (this.batchQueue.length >= 10) {
-      this.flushBatch();
-    } else if (!this.batchTimer) {
-      this.batchTimer = setTimeout(() => this.flushBatch(), 5000);
-    }
+    // Disabled - all LLM tracing handled by Braintrust in edge functions and Go backend
+    return undefined;
   }
 
   private async flushBatch(): Promise<void> {
-    if (this.batchQueue.length === 0 || !supabase) return;
-
-    const events = [...this.batchQueue];
-    this.batchQueue = [];
-    
-    if (this.batchTimer) {
-      clearTimeout(this.batchTimer);
-      this.batchTimer = null;
-    }
-
-    try {
-      const { error } = await supabase.functions.invoke('langfuse-batch', {
-        body: { events },
-      });
-      
-      if (error) {
-        console.error('Failed to flush batch:', error);
-      }
-    } catch (error) {
-      console.error('Failed to flush batch:', error);
-      // Could implement retry logic here
-    }
+    // Disabled - no-op
+    return;
   }
 
   // Helper method to generate trace IDs

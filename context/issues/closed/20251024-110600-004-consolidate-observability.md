@@ -128,3 +128,18 @@ Braintrust is better suited for LLM-first observability.
 - Documentation updated
 - No loss of observability coverage
 - Reduced operational complexity
+
+## Progress Update
+
+✅ **COMPLETED** (2025-11-03)
+
+All steps complete:
+1. Removed Langfuse edge functions (langfuse-proxy, langfuse-batch)
+2. Disabled frontend observabilityService
+3. Single platform: Braintrust only
+
+## Completion
+
+**Closed:** 2025-11-03
+**Outcome:** Success
+**Commits:** f700173

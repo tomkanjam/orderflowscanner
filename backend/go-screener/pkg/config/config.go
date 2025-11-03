@@ -27,6 +27,10 @@ type Config struct {
 	SupabaseServiceKey string
 	SupabaseAnonKey    string
 
+	// Braintrust settings (observability)
+	BraintrustAPIKey   string
+	BraintrustProjectID string
+
 	// Machine settings (for Fly.io deployment)
 	MachineID     string
 	UserID        string
@@ -69,6 +73,9 @@ func Load() (*Config, error) {
 		SupabaseURL:        getEnv("SUPABASE_URL", ""),
 		SupabaseServiceKey: supabaseServiceKey, // Use decoded value
 		SupabaseAnonKey:    getEnv("SUPABASE_ANON_KEY", ""),
+
+		BraintrustAPIKey:   getEnv("BRAINTRUST_API_KEY", ""),
+		BraintrustProjectID: getEnv("BRAINTRUST_PROJECT_ID", ""),
 
 		MachineID:     getEnv("MACHINE_ID", fmt.Sprintf("machine_%d", time.Now().Unix())),
 		UserID:        getEnv("USER_ID", ""),

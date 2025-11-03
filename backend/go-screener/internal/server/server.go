@@ -84,6 +84,8 @@ func New(cfg *config.Config) (*Server, error) {
 	// 3. Initialize Analysis Engine (optional - skip if OpenRouter key not provided)
 	analysisConfig := analysis.DefaultConfig()
 	analysisConfig.OpenRouterAPIKey = cfg.GetOpenRouterAPIKey() // Add method to get API key from env
+	analysisConfig.BraintrustAPIKey = cfg.BraintrustAPIKey
+	analysisConfig.BraintrustProjectID = cfg.BraintrustProjectID
 
 	var analysisEngine *analysis.Engine = nil
 	if analysisConfig.OpenRouterAPIKey != "" {

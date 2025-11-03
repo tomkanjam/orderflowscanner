@@ -47,6 +47,10 @@ type Config struct {
 	Temperature      float64
 	MaxTokens        int
 
+	// Braintrust configuration
+	BraintrustAPIKey   string
+	BraintrustProjectID string
+
 	// Queue configuration
 	QueueSize      int
 	WorkerCount    int

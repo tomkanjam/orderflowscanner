@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vyx/go-screener/pkg/braintrust"
 	"github.com/vyx/go-screener/pkg/openrouter"
 	"github.com/vyx/go-screener/pkg/supabase"
 )
@@ -18,6 +19,7 @@ type Engine struct {
 	calculator *Calculator
 	prompter   *Prompter
 	supabase   *supabase.Client
+	braintrust *braintrust.Client
 
 	// Queue management
 	queue       chan *AnalysisRequest
@@ -46,6 +48,13 @@ func NewEngine(config *Config, supabaseClient *supabase.Client) (*Engine, error)
 		return nil, fmt.Errorf("failed to create OpenRouter client: %w", err)
 	}
 
+	// Create Braintrust client (optional - warns if not configured)
+	btClient, err := braintrust.NewClient(config.BraintrustAPIKey, config.BraintrustProjectID)
+	if err != nil {
+		log.Printf("[AnalysisEngine] Warning: Braintrust client init failed: %v (tracing disabled)", err)
+		btClient = &braintrust.Client{} // Disabled client
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	engine := &Engine{
@@ -54,6 +63,7 @@ func NewEngine(config *Config, supabaseClient *supabase.Client) (*Engine, error)
 		calculator:  NewCalculator(config.DefaultKlineLimit),
 		prompter:    NewPrompter(),
 		supabase:    supabaseClient,
+		braintrust:  btClient,
 		queue:       make(chan *AnalysisRequest, config.QueueSize),
 		rateLimiter: make(chan struct{}, config.MaxConcurrent),
 		ctx:         ctx,
@@ -89,6 +99,11 @@ func (e *Engine) Stop() error {
 
 	// Wait for all workers to finish
 	e.workerWg.Wait()
+
+	// Flush Braintrust traces
+	if err := e.braintrust.Flush(); err != nil {
+		log.Printf("[AnalysisEngine] Warning: Failed to flush Braintrust traces: %v", err)
+	}
 
 	log.Printf("[AnalysisEngine] ✅ Stopped successfully")
 	return nil
@@ -141,66 +156,87 @@ func (e *Engine) worker(id int) {
 
 // processRequest analyzes a single signal
 func (e *Engine) processRequest(req *AnalysisRequest) error {
-	startTime := time.Now()
-	log.Printf("[AnalysisEngine] Processing signal %s (queued for %v)",
-		req.SignalID, time.Since(req.QueuedAt))
-
-	// 1. Calculate indicators
-	indicators, err := e.calculator.CalculateIndicators(req)
-	if err != nil {
-		return fmt.Errorf("calculate indicators: %w", err)
+	// Wrap entire analysis with Braintrust tracing
+	metadata := braintrust.TraceMetadata{
+		Operation:     "analyze-signal",
+		Symbol:        req.Symbol,
+		SignalID:      req.SignalID,
+		Model:         e.config.DefaultModel,
+		PromptVersion: "v1.0", // TODO: Load from config
+		AdditionalTags: map[string]interface{}{
+			"trader_id": req.TraderID,
+			"user_id":   req.UserID,
+			"interval":  req.Interval,
+		},
 	}
 
-	log.Printf("[AnalysisEngine] Calculated %d indicators for signal %s",
-		len(indicators), req.SignalID)
+	_, err := e.braintrust.TraceAnalysis(e.ctx, metadata, func() (interface{}, error) {
+		startTime := time.Now()
+		log.Printf("[AnalysisEngine] Processing signal %s (queued for %v)",
+			req.SignalID, time.Since(req.QueuedAt))
 
-	// 2. Build prompt
-	promptStr, err := e.prompter.BuildAnalysisPrompt(req, indicators)
-	if err != nil {
-		return fmt.Errorf("build prompt: %w", err)
-	}
+		// 1. Calculate indicators
+		indicators, err := e.calculator.CalculateIndicators(req)
+		if err != nil {
+			return nil, fmt.Errorf("calculate indicators: %w", err)
+		}
 
-	// 3. Call OpenRouter with rate limiting
-	e.rateLimiter <- struct{}{} // Acquire semaphore
-	defer func() { <-e.rateLimiter }() // Release semaphore
+		log.Printf("[AnalysisEngine] Calculated %d indicators for signal %s",
+			len(indicators), req.SignalID)
 
-	ctx, cancel := context.WithTimeout(e.ctx, e.config.RequestTimeout)
-	defer cancel()
+		// 2. Build prompt
+		promptStr, err := e.prompter.BuildAnalysisPrompt(req, indicators)
+		if err != nil {
+			return nil, fmt.Errorf("build prompt: %w", err)
+		}
 
-	chatReq := &openrouter.ChatRequest{
-		SystemPrompt: openrouter.SystemPrompts.SignalAnalysis,
-		UserPrompt:   promptStr,
-	}
+		// 3. Call OpenRouter with rate limiting
+		e.rateLimiter <- struct{}{} // Acquire semaphore
+		defer func() { <-e.rateLimiter }() // Release semaphore
 
-	resp, err := e.openRouter.Chat(ctx, chatReq)
-	if err != nil {
-		return fmt.Errorf("openrouter call: %w", err)
-	}
+		ctx, cancel := context.WithTimeout(e.ctx, e.config.RequestTimeout)
+		defer cancel()
 
-	log.Printf("[AnalysisEngine] Received AI response for signal %s (latency: %v, tokens: %d)",
-		req.SignalID, resp.Latency, resp.Usage.TotalTokens)
+		chatReq := &openrouter.ChatRequest{
+			SystemPrompt: openrouter.SystemPrompts.SignalAnalysis,
+			UserPrompt:   promptStr,
+		}
 
-	// 4. Parse response
-	analysisResult, err := openrouter.ParseAnalysisResult(resp.Content)
-	if err != nil {
-		return fmt.Errorf("parse response: %w", err)
-	}
+		resp, err := e.openRouter.Chat(ctx, chatReq)
+		if err != nil {
+			return nil, fmt.Errorf("openrouter call: %w", err)
+		}
 
-	// 5. Validate and sanitize
-	if err := openrouter.ValidateAndSanitize(analysisResult); err != nil {
-		return fmt.Errorf("validate response: %w", err)
-	}
+		log.Printf("[AnalysisEngine] Received AI response for signal %s (latency: %v, tokens: %d)",
+			req.SignalID, resp.Latency, resp.Usage.TotalTokens)
 
-	// 6. Save to database
-	totalLatency := time.Since(startTime)
-	if err := e.saveAnalysisResult(req, analysisResult, indicators, resp, totalLatency); err != nil {
-		return fmt.Errorf("save analysis: %w", err)
-	}
+		// Update metadata with token usage
+		metadata.TokensUsed = resp.Usage.TotalTokens
 
-	log.Printf("[AnalysisEngine] ✅ Completed analysis for signal %s: decision=%s confidence=%.2f (total: %v)",
-		req.SignalID, analysisResult.Decision, analysisResult.Confidence, totalLatency)
+		// 4. Parse response
+		analysisResult, err := openrouter.ParseAnalysisResult(resp.Content)
+		if err != nil {
+			return nil, fmt.Errorf("parse response: %w", err)
+		}
 
-	return nil
+		// 5. Validate and sanitize
+		if err := openrouter.ValidateAndSanitize(analysisResult); err != nil {
+			return nil, fmt.Errorf("validate response: %w", err)
+		}
+
+		// 6. Save to database
+		totalLatency := time.Since(startTime)
+		if err := e.saveAnalysisResult(req, analysisResult, indicators, resp, totalLatency); err != nil {
+			return nil, fmt.Errorf("save analysis: %w", err)
+		}
+
+		log.Printf("[AnalysisEngine] ✅ Completed analysis for signal %s: decision=%s confidence=%.2f (total: %v)",
+			req.SignalID, analysisResult.Decision, analysisResult.Confidence, totalLatency)
+
+		return analysisResult, nil
+	})
+
+	return err
 }
 
 // saveAnalysisResult persists the analysis to the database

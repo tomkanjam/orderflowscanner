@@ -35,10 +35,10 @@ export async function handleGenerateTraderMetadata(
 
     console.log(`[GenerateTraderMetadata] Generating metadata for user prompt (streaming: ${stream})`);
 
-    // Load prompt template
+    // Load prompt template (with version from config)
     const prompt = await promptLoader.loadPromptWithVariables('generate-trader-metadata', {
       userDescription: userPrompt
-    });
+    }, config.promptVersion);
 
     console.log(`[GenerateTraderMetadata] User prompt: "${userPrompt}"`);
     console.log(`[GenerateTraderMetadata] Final prompt length: ${prompt.length} chars`);

@@ -37,15 +37,15 @@ export async function handleGenerateFilterCode(
 
     console.log(`[GenerateFilterCode] Generating filter for ${conditions.length} conditions`);
 
-    // 1. Load prompt template
-    const promptTemplate = await promptLoader.loadPrompt('regenerate-filter-go');
+    // 1. Load prompt template (with version from config)
+    const promptTemplate = await promptLoader.loadPrompt('regenerate-filter-go', config.promptVersion);
 
     // 2. Build prompt with variables
     const conditionsList = conditions.map((c: string, i: number) => `${i + 1}. ${c}`).join('\n');
     const prompt = await promptLoader.loadPromptWithVariables('regenerate-filter-go', {
       conditions: conditionsList,
       klineInterval
-    });
+    }, config.promptVersion);
 
     // 3. Call OpenRouter (using config for model selection)
     const result = await openRouterClient.generateStructuredResponse(prompt, {

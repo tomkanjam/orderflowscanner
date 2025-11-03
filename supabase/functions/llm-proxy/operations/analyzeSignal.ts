@@ -35,8 +35,8 @@ export async function handleAnalyzeSignal(
 
     console.log(`[AnalyzeSignal] Analyzing signal ${signalId} for ${symbol}`);
 
-    // 1. Load prompt template from Braintrust
-    const promptTemplate = await promptLoader.loadPrompt('analyze-signal');
+    // 1. Load prompt template from Braintrust (with version from config)
+    const promptTemplate = await promptLoader.loadPrompt('analyze-signal', config.promptVersion);
 
     // 2. Build prompt with variables
     const strategyInstructions = typeof strategy === 'object'
@@ -48,7 +48,7 @@ export async function handleAnalyzeSignal(
       price: price?.toString() || 'unknown',
       strategy: strategyInstructions,
       timestamp: timestamp || new Date().toISOString()
-    });
+    }, config.promptVersion);
 
     // 3. Call OpenRouter with structured response format
     const result = await openRouterClient.generateStructuredResponse(prompt, {

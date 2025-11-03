@@ -46,27 +46,31 @@ export class PromptLoaderV2 {
    * NO FALLBACK - throws error if prompt not found
    *
    * @param slug - Prompt slug (e.g., 'regenerate-filter-go', 'generate-trader-metadata')
+   * @param version - Optional prompt version (e.g., 'v1.0', 'v1.2'). If not provided, loads latest.
    * @returns Prompt content string
    */
-  async loadPrompt(slug: string): Promise<string> {
+  async loadPrompt(slug: string, version?: string): Promise<string> {
+    // Use version in cache key to cache different versions separately
+    const cacheKey = version ? `${slug}@${version}` : slug;
+
     // Check cache first
-    const cached = this.cache.get(slug);
+    const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.cachedAt < this.cacheTTL) {
-      console.log(`[PromptLoader] Cache hit for prompt: ${slug}`);
+      console.log(`[PromptLoader] Cache hit for prompt: ${cacheKey}`);
       return cached.content;
     }
 
-    console.log(`[PromptLoader] Loading prompt from Braintrust: ${slug}`);
+    console.log(`[PromptLoader] Loading prompt from Braintrust: ${cacheKey}`);
 
-    const content = await this.loadFromBraintrustAPI(slug);
+    const content = await this.loadFromBraintrustAPI(slug, version);
 
     // Cache the prompt
-    this.cache.set(slug, {
+    this.cache.set(cacheKey, {
       content,
       cachedAt: Date.now()
     });
 
-    console.log(`[PromptLoader] Loaded from Braintrust: ${slug} (${content.length} chars)`);
+    console.log(`[PromptLoader] Loaded from Braintrust: ${cacheKey} (${content.length} chars)`);
     return content;
   }
 
@@ -74,11 +78,19 @@ export class PromptLoaderV2 {
    * Load prompt from Braintrust REST API
    *
    * Uses direct REST API call instead of SDK to avoid SDK/REST disconnect issue
+   *
+   * @param slug - Prompt slug
+   * @param version - Optional version string. If provided, fetches specific version. Otherwise fetches latest.
    */
-  private async loadFromBraintrustAPI(slug: string): Promise<string> {
-    const url = `https://api.braintrust.dev/v1/prompt?project_id=${this.braintrustProjectId}&slug=${slug}`;
+  private async loadFromBraintrustAPI(slug: string, version?: string): Promise<string> {
+    // Build URL with optional version parameter
+    let url = `https://api.braintrust.dev/v1/prompt?project_id=${this.braintrustProjectId}&slug=${slug}`;
+    if (version) {
+      url += `&version=${encodeURIComponent(version)}`;
+    }
 
-    console.log(`[PromptLoader] Fetching from Braintrust REST API: ${slug}`);
+    const displayName = version ? `${slug}@${version}` : slug;
+    console.log(`[PromptLoader] Fetching from Braintrust REST API: ${displayName}`);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -91,7 +103,7 @@ export class PromptLoaderV2 {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Braintrust API error (${response.status}): ${errorText}`
+        `Braintrust API error (${response.status}) for ${displayName}: ${errorText}`
       );
     }
 
@@ -99,14 +111,14 @@ export class PromptLoaderV2 {
 
     // Response format: { objects: [...] }
     if (!data.objects || data.objects.length === 0) {
-      throw new Error(`Prompt '${slug}' not found in Braintrust project`);
+      throw new Error(`Prompt '${displayName}' not found in Braintrust project`);
     }
 
     const promptObject = data.objects[0];
 
     // Extract content from prompt_data structure
     if (!promptObject.prompt_data || !promptObject.prompt_data.prompt) {
-      throw new Error(`Prompt '${slug}' has invalid structure - missing prompt_data.prompt`);
+      throw new Error(`Prompt '${displayName}' has invalid structure - missing prompt_data.prompt`);
     }
 
     const promptData = promptObject.prompt_data.prompt;
@@ -128,7 +140,7 @@ export class PromptLoaderV2 {
     }
 
     throw new Error(
-      `Prompt '${slug}' has unsupported format. Type: ${promptData.type}, Keys: ${Object.keys(promptData).join(', ')}`
+      `Prompt '${displayName}' has unsupported format. Type: ${promptData.type}, Keys: ${Object.keys(promptData).join(', ')}`
     );
   }
 
@@ -137,10 +149,11 @@ export class PromptLoaderV2 {
    *
    * @param slug - Prompt slug
    * @param variables - Object with variable replacements (e.g., {conditions: '...', klineInterval: '1h'})
+   * @param version - Optional prompt version
    * @returns Prompt with variables replaced
    */
-  async loadPromptWithVariables(slug: string, variables: Record<string, string>): Promise<string> {
-    let prompt = await this.loadPrompt(slug);
+  async loadPromptWithVariables(slug: string, variables: Record<string, string>, version?: string): Promise<string> {
+    let prompt = await this.loadPrompt(slug, version);
 
     // Replace all {{variable}} placeholders
     for (const [key, value] of Object.entries(variables)) {

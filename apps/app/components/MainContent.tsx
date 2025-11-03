@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Ticker, Kline, CustomIndicatorConfig, KlineInterval, SignalLogEntry, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress } from '../types';
-import { TraderSignalsTable } from '../src/components/TraderSignalsTable';
+import { SignalsTable } from '../src/components/SignalsTable';
 import { SignalHistorySidebar } from '../src/components/SignalHistorySidebar';
 import { SignalLifecycle } from '../src/abstractions/interfaces';
 import { signalManager } from '../src/services/signalManager';
@@ -144,7 +144,7 @@ const MainContent: React.FC<MainContentProps> = ({
 
                 {/* Signals Section - Scrollable */}
                 <div className="flex-1 overflow-hidden">
-                  <TraderSignalsTable
+                  <SignalsTable
                     tickers={tickers}
                     traders={traders}
                     selectedTraderId={selectedTraderId}
@@ -234,7 +234,7 @@ const MainContent: React.FC<MainContentProps> = ({
               />
               <div className="mt-2 flex flex-1 overflow-hidden">
                 <div className={`${!isMobile ? 'flex-1' : 'w-full'} overflow-hidden`}>
-                  <TraderSignalsTable
+                  <SignalsTable
                     tickers={tickers}
                     traders={traders}
                     selectedTraderId={selectedTraderId}

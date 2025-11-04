@@ -197,6 +197,30 @@ func (m *Manager) GetStatus(traderID string) (*TraderStatus, error) {
 	return &status, nil
 }
 
+// ExecuteImmediate executes a trader immediately using cached data
+// Returns execution results without waiting for next candle close event
+func (m *Manager) ExecuteImmediate(traderID string) (*ExecutionResult, error) {
+	// Get trader from registry
+	trader, exists := m.registry.Get(traderID)
+	if !exists {
+		return nil, fmt.Errorf("trader %s not found in registry", traderID)
+	}
+
+	// Ensure trader is added to executor
+	// This loads the trader if it's not already loaded
+	if err := m.executor.AddTrader(trader); err != nil {
+		return nil, fmt.Errorf("failed to add trader to executor: %w", err)
+	}
+
+	// Execute immediately via executor
+	result, err := m.executor.ExecuteImmediate(traderID)
+	if err != nil {
+		return nil, fmt.Errorf("immediate execution failed: %w", err)
+	}
+
+	return result, nil
+}
+
 // ListActive returns all active traders (running or starting)
 func (m *Manager) ListActive() []*Trader {
 	running := m.registry.GetByState(StateRunning)

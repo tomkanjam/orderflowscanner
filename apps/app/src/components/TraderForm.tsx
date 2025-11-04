@@ -411,10 +411,21 @@ export function TraderForm({
             default_enabled: isBuiltIn ? defaultEnabled : undefined
           })
         });
-        
+
+        // Execute trader immediately to generate initial signals
+        try {
+          setGenerateProgress('Generating initial signals...');
+          await traderManager.executeTraderImmediate(trader.id);
+          console.log('[TraderForm] Initial signals generated successfully');
+        } catch (execError) {
+          // Log but don't fail - trader was created successfully
+          console.error('[TraderForm] Failed to generate initial signals:', execError);
+          // User will see signals on next candle close
+        }
+
         onTraderCreated?.(trader);
       }
-      
+
       // Clear any pending prompt from localStorage on successful creation
       localStorage.removeItem('pendingScreenerPrompt');
       resetForm();

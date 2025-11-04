@@ -268,6 +268,58 @@ export class TraderManager implements ITraderManager {
     }
   }
 
+  /**
+   * Execute trader immediately using cached data
+   * This generates initial signals right after trader creation
+   */
+  async executeTraderImmediate(id: string): Promise<{
+    traderId: string;
+    timestamp: string;
+    totalSymbols: number;
+    matchCount: number;
+    executionTimeMs: number;
+  }> {
+    try {
+      if (!supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('User not authenticated');
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/execute-trader-immediate`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ traderId: id }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to execute trader');
+      }
+
+      const result = await response.json();
+      console.log(`[traderManager] Immediate execution completed: ${result.matchCount} signals generated`);
+
+      return result;
+    } catch (error) {
+      console.error('Failed to execute trader immediately:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to execute trader');
+    }
+  }
+
   async enableTrader(
     id: string,
     options?: {

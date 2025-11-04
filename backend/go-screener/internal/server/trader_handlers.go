@@ -203,6 +203,49 @@ func (h *TraderHandler) ReloadTrader(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ExecuteImmediate handles POST /api/v1/traders/{id}/execute-immediate
+func (h *TraderHandler) ExecuteImmediate(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	traderID := vars["id"]
+
+	// Get user from context (set by TierMiddleware)
+	user, ok := r.Context().Value("user").(*types.User)
+	if !ok {
+		respondJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "Unauthorized",
+		})
+		return
+	}
+
+	// Get trader from registry to verify ownership
+	status, err := h.manager.GetStatus(traderID)
+	if err != nil {
+		respondJSON(w, http.StatusNotFound, map[string]string{
+			"error": "Trader not found",
+		})
+		return
+	}
+
+	// Verify user owns this trader
+	if status.UserID != user.ID {
+		respondJSON(w, http.StatusForbidden, map[string]string{
+			"error": "You do not have permission to execute this trader",
+		})
+		return
+	}
+
+	// Execute trader immediately
+	result, err := h.manager.ExecuteImmediate(traderID)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, result)
+}
+
 // AuthMiddleware validates Supabase JWT tokens
 func AuthMiddleware(supabase *supabase.Client) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

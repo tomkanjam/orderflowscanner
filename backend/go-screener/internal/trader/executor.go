@@ -359,6 +359,155 @@ func (e *Executor) executeTrader(trader *Trader, triggerInterval string) {
 	}
 }
 
+// ExecutionResult holds the result of immediate trader execution
+type ExecutionResult struct {
+	TraderID       string    `json:"traderId"`
+	Timestamp      time.Time `json:"timestamp"`
+	TotalSymbols   int       `json:"totalSymbols"`
+	MatchCount     int       `json:"matchCount"`
+	Signals        []Signal  `json:"signals"`
+	ExecutionTime  int64     `json:"executionTimeMs"`
+	CacheHits      int       `json:"cacheHits"`
+	CacheMisses    int       `json:"cacheMisses"`
+}
+
+// ExecuteImmediate executes a trader immediately using cached candle data
+// This is used for immediate signal generation after trader creation
+func (e *Executor) ExecuteImmediate(traderID string) (*ExecutionResult, error) {
+	startTime := time.Now()
+	log.Printf("[Executor] ExecuteImmediate: Starting immediate execution for trader %s", traderID)
+
+	// Get trader from registry or load from DB
+	e.tradersMu.RLock()
+	trader, exists := e.traders[traderID]
+	e.tradersMu.RUnlock()
+
+	if !exists {
+		log.Printf("[Executor] ExecuteImmediate: Trader %s not in registry, loading from DB", traderID)
+		// Try to load from database via manager
+		// For now, return error - trader should be loaded by manager before calling this
+		return nil, fmt.Errorf("trader %s not found in executor registry", traderID)
+	}
+
+	log.Printf("[Executor] ExecuteImmediate: Trader %s found, fetching symbols", traderID)
+
+	// Get symbols to screen
+	symbols, err := e.getSymbolsToScreen(trader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get symbols: %w", err)
+	}
+	log.Printf("[Executor] ExecuteImmediate: Got %d symbols", len(symbols))
+
+	// Get timeframes from config
+	timeframes := trader.Config.Timeframes
+	if len(timeframes) == 0 {
+		timeframes = []string{"5m"}
+	}
+	log.Printf("[Executor] ExecuteImmediate: Fetching kline data for %d timeframes", len(timeframes))
+
+	// Fetch kline data (uses cache when available)
+	klineData, err := e.fetchKlineData(symbols, timeframes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch kline data: %w", err)
+	}
+	log.Printf("[Executor] ExecuteImmediate: Fetched kline data for %d symbols", len(klineData))
+
+	// Batch fetch ticker data
+	log.Printf("[Executor] ExecuteImmediate: Fetching ticker data")
+	tickerData, err := e.binance.GetMultipleTickers(e.ctx, symbols)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ticker data: %w", err)
+	}
+	log.Printf("[Executor] ExecuteImmediate: Fetched ticker data for %d symbols", len(tickerData))
+
+	// Execute filter for each symbol in parallel
+	log.Printf("[Executor] ExecuteImmediate: Starting parallel filter execution")
+	numWorkers := runtime.NumCPU()
+	symbolCh := make(chan string, len(symbols))
+	signalCh := make(chan *Signal, len(symbols))
+	errorCh := make(chan error, len(symbols))
+
+	workerCtx, workerCancel := context.WithCancel(e.ctx)
+	defer workerCancel()
+
+	var wg sync.WaitGroup
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			for symbol := range symbolCh {
+				select {
+				case <-workerCtx.Done():
+					return
+				default:
+				}
+
+				// Get ticker and klines for this symbol
+				ticker, tickerOk := tickerData[symbol]
+				klines, klinesOk := klineData[symbol]
+
+				if !tickerOk || !klinesOk {
+					log.Printf("[Executor] ExecuteImmediate: Missing data for symbol %s", symbol)
+					continue
+				}
+
+				// Execute filter
+				signal, err := e.executeFilter(trader, symbol, ticker, klines)
+				if err != nil {
+					errorCh <- err
+					continue
+				}
+
+				if signal != nil {
+					signalCh <- signal
+				}
+			}
+		}(i)
+	}
+
+	// Send symbols to workers
+	for _, symbol := range symbols {
+		symbolCh <- symbol
+	}
+	close(symbolCh)
+
+	// Wait for all workers to complete
+	wg.Wait()
+	close(signalCh)
+	close(errorCh)
+
+	// Collect signals
+	signals := make([]Signal, 0)
+	for signal := range signalCh {
+		signals = append(signals, *signal)
+	}
+	log.Printf("[Executor] ExecuteImmediate: Generated %d signals", len(signals))
+
+	// Save signals to database (triggers AI analysis via DB trigger)
+	if len(signals) > 0 {
+		log.Printf("[Executor] ExecuteImmediate: Saving %d signals to database", len(signals))
+		if err := e.saveSignals(signals); err != nil {
+			return nil, fmt.Errorf("failed to save signals: %w", err)
+		}
+		log.Printf("[Executor] ExecuteImmediate: Signals saved successfully")
+	}
+
+	executionTime := time.Since(startTime).Milliseconds()
+	log.Printf("[Executor] ExecuteImmediate: Completed in %dms", executionTime)
+
+	// Return execution result
+	return &ExecutionResult{
+		TraderID:      traderID,
+		Timestamp:     startTime,
+		TotalSymbols:  len(symbols),
+		MatchCount:    len(signals),
+		Signals:       signals,
+		ExecutionTime: executionTime,
+		CacheHits:     0, // TODO: Track cache hits if needed
+		CacheMisses:   0, // TODO: Track cache misses if needed
+	}, nil
+}
+
 // queueSignalsForAnalysis queues signals for AI analysis
 func (e *Executor) queueSignalsForAnalysis(trader *Trader, signals []Signal) error {
 	log.Printf("[Executor] 🔍 queueSignalsForAnalysis: Starting with %d signals", len(signals))

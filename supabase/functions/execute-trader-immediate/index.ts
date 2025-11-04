@@ -1,0 +1,138 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface ExecuteImmediateRequest {
+  traderId: string;
+}
+
+serve(async (req) => {
+  const timestamp = new Date().toISOString();
+
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    console.log(`[${timestamp}] execute-trader-immediate invoked`);
+
+    // Get authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { traderId }: ExecuteImmediateRequest = await req.json();
+    console.log(`[${timestamp}] Request: traderId=${traderId}`);
+
+    if (!traderId) {
+      return new Response(
+        JSON.stringify({ error: 'traderId is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Initialize Supabase client with user's JWT
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
+      }
+    });
+
+    // Get user from JWT
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error(`[${timestamp}] Auth error:`, userError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[${timestamp}] User authenticated: ${user.id}`);
+
+    // Get user subscription from profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error(`[${timestamp}] Failed to get profile:`, profileError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to get user profile' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const subscription = profile as { subscription_tier: string };
+
+    // Free tier cannot execute traders
+    if (subscription.subscription_tier === 'free') {
+      return new Response(
+        JSON.stringify({
+          error: 'Upgrade required',
+          message: 'Free tier users cannot execute traders. Upgrade to Pro or Elite.'
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[${timestamp}] User tier: ${subscription.subscription_tier}`);
+
+    // Call Go backend API to execute trader immediately
+    const goBackendUrl = Deno.env.get('GO_BACKEND_URL') || 'http://localhost:8080';
+    const executeUrl = `${goBackendUrl}/api/v1/traders/${traderId}/execute-immediate`;
+
+    console.log(`[${timestamp}] Calling Go backend: ${executeUrl}`);
+
+    const backendResponse = await fetch(executeUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const responseData = await backendResponse.json();
+
+    if (!backendResponse.ok) {
+      console.error(`[${timestamp}] Backend error (${backendResponse.status}):`, responseData);
+      return new Response(
+        JSON.stringify(responseData),
+        {
+          status: backendResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    console.log(`[${timestamp}] ✅ Trader executed successfully - ${responseData.matchCount} signals generated`);
+
+    return new Response(
+      JSON.stringify(responseData),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error(`[${timestamp}] ❌ Error:`, error);
+    return new Response(
+      JSON.stringify({
+        error: 'Internal server error',
+        details: error.message
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

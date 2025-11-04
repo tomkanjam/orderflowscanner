@@ -50,25 +50,43 @@ This project implements the complete trade execution infrastructure needed to en
 
 ## Sub-issues
 
+**Phase 1: Paper Trading (Build & validate without risk)**
 - [ ] `context/issues/open/20251104-125004-001-positions-schema-and-lifecycle.md` - Design positions table and lifecycle state machine
-- [ ] `context/issues/open/20251104-125004-002-ccxt-binance-integration.md` - Integrate CCXT for Binance Spot trading
-- [ ] `context/issues/open/20251104-125004-003-order-execution-engine.md` - Build order execution and tracking
 - [ ] `context/issues/open/20251104-125004-004-risk-management-system.md` - Implement risk limits and safety controls
-- [ ] `context/issues/open/20251104-125004-005-api-key-management.md` - Secure storage and encryption for API keys
-- [ ] `context/issues/open/20251104-125004-006-paper-trading-mode.md` - Simulated trading for testing without risk
+- [ ] `context/issues/open/20251104-125004-006-paper-trading-mode.md` - Simulated trading execution engine
 - [ ] `context/issues/open/20251104-125004-007-pnl-calculation-engine.md` - Real-time profit/loss tracking
-- [ ] `context/issues/open/20251104-125004-008-trade-execution-testing.md` - End-to-end testing and rollout
+- [ ] `context/issues/open/20251104-125004-009-paper-trading-testing.md` - Validate paper trading with 100+ trades
+
+**Phase 2: Real Trading (Once paper trading proven)**
+- [ ] `context/issues/open/20251104-125004-002-ccxt-binance-integration.md` - Integrate CCXT for Binance Spot trading
+- [ ] `context/issues/open/20251104-125004-003-order-execution-engine.md` - Build real order execution and tracking
+- [ ] `context/issues/open/20251104-125004-005-api-key-management.md` - Secure storage and encryption for API keys
+- [ ] `context/issues/open/20251104-125004-008-trade-execution-testing.md` - Testnet and production rollout
 
 ## Progress
 
 **Current Status: NOT STARTED**
 
-This project is the critical path for completing the automated trading vision. Signal monitoring is ready and waiting for this infrastructure.
+**Implementation Strategy:**
+1. **Phase 1: Paper Trading** - Build complete workflow using simulated execution
+   - Validate entire system without risk
+   - Test position management, PnL, risk limits
+   - Prove the architecture works end-to-end
+   - Estimate: 2-3 weeks
+
+2. **Phase 2: Real Trading** - Add CCXT for actual exchange execution
+   - Drop in CCXT replacement for paper executor
+   - Add API key management
+   - Gradual rollout with real money
+   - Estimate: 3-4 weeks
+
+This approach allows us to validate the complete trading workflow safely before touching real money.
 
 ## Spec
 
 ### High-Level Architecture
 
+**Phase 1: Paper Trading (Simulated)**
 ```
 Signal with decision="enter_trade"
             ↓
@@ -76,11 +94,11 @@ Signal with decision="enter_trade"
             ↓
     Check risk limits (position size, daily loss, etc.)
             ↓ PASS
-    Decrypt user API keys (Supabase Edge Function)
+    Get current market price (real Binance data)
             ↓
-    Execute order via CCXT (Binance Spot)
+    Simulate order fill (instant fill at market price + slippage)
             ↓
-    Store position in database
+    Store position in database (is_paper_trade=true)
             ↓
     Update signal status → "in_position"
             ↓
@@ -88,12 +106,31 @@ Signal with decision="enter_trade"
             ↓
     AI decides to close/adjust
             ↓
-    Execute close order
+    Simulate close order
             ↓
     Calculate PnL, update position
             ↓
-    Store trade history
+    Update paper balance
 ```
+
+**Phase 2: Real Trading (CCXT)**
+```
+Signal with decision="enter_trade"
+            ↓
+    Trade Execution Engine (Go)
+            ↓
+    Check risk limits
+            ↓ PASS
+    Decrypt user API keys (Edge Function)
+            ↓
+    Execute REAL order via CCXT (Binance Spot)
+            ↓
+    Store position in database (is_paper_trade=false)
+            ↓
+    [Rest of flow identical to paper trading]
+```
+
+**Key insight:** Paper trading uses the same workflow as real trading, just swaps the execution mechanism.
 
 ### Core Components
 
@@ -158,68 +195,68 @@ CREATED → SUBMITTING → OPEN → CLOSING → CLOSED
 
 ### Key Design Decisions
 
-1. **CCXT over custom REST** - Battle-tested library with unified API
-2. **Go backend execution** - Low latency, type safety, easier error handling
-3. **Encrypted API keys in database** - Edge Function decrypts on-demand
-4. **Separate tables for positions/orders/trades** - Full audit trail
-5. **Paper trading first** - Test everything without risk before live
+1. **Paper trading first, real trading second** - Validate complete workflow before touching real money
+2. **Simulated execution uses real market data** - Paper trades reflect actual market conditions
+3. **Identical architecture for paper and real** - Only execution mechanism differs (swap paper executor for CCXT)
+4. **Go backend execution** - Low latency, type safety, easier error handling
+5. **Separate tables for positions/orders/trades** - Full audit trail
 6. **Mandatory risk limits** - Every trader must have limits configured
 7. **PostgreSQL for state** - ACID guarantees for money operations
 8. **Event-driven updates** - Position changes emit events for monitoring
 
+**Phase-specific:**
+- **Phase 1:** No API keys needed, instant fills, zero external dependencies
+- **Phase 2:** Add CCXT + API key encryption as drop-in replacement
+
 ### Implementation Phases
 
-**Phase 1: Schema & Lifecycle (3-4 days)**
-- Design positions/orders/trades tables
-- Implement state machine logic
-- Add database triggers for lifecycle events
-- Unit tests for state transitions
+**PHASE 1: PAPER TRADING (2-3 weeks)**
 
-**Phase 2: CCXT Integration (4-5 days)**
-- Set up CCXT in Go (via Python subprocess or Go bindings)
-- Implement Binance Spot client wrapper
-- Handle order submission, cancellation, query
-- Error handling and retry logic
-- Integration tests with Binance testnet
+**Week 1: Foundation**
+- Day 1-2: Positions/orders/trades schema and state machine (sub-issue 001)
+- Day 3-4: Risk management system implementation (sub-issue 004)
+- Day 5: Paper trading executor skeleton (sub-issue 006)
 
-**Phase 3: Order Execution (5-7 days)**
-- Build OrderExecutor service
-- Implement order submission workflow
-- Order status polling and updates
-- Position opening logic
-- Unit and integration tests
+**Week 2: Paper Trading Core**
+- Day 1-3: Complete paper trading execution engine (sub-issue 006)
+  - Simulated order fills
+  - Real market data integration
+  - Paper balance tracking
+- Day 4-5: PnL calculation engine (sub-issue 007)
+  - Unrealized PnL updates
+  - Realized PnL on close
+  - Performance metrics
 
-**Phase 4: Risk Management (3-4 days)**
-- Implement RiskManager service
-- Position size calculations
-- Loss limit tracking
-- Order validation rules
-- Emergency stop mechanism
+**Week 3: Testing & Validation**
+- Day 1-3: Paper trading testing (sub-issue 009)
+  - 100+ automated paper trades
+  - Verify PnL accuracy
+  - Test risk limits
+  - Validate position lifecycle
+- Day 4-5: Integration with monitoring workflow
+  - Position opened → monitoring starts
+  - AI management decisions
+  - Position close workflow
 
-**Phase 5: API Key Management (2-3 days)**
-- Create user_api_keys table with encryption
-- Edge Function for key decryption
-- Key validation and testing endpoint
-- Security audit
+**Phase 1 Deliverable:** Fully functional paper trading system that validates entire workflow
 
-**Phase 6: Paper Trading (3-4 days)**
-- Simulated order execution
-- Mock Binance responses
-- PnL calculation on fake fills
-- Testing framework
+**PHASE 2: REAL TRADING (3-4 weeks)**
 
-**Phase 7: PnL Tracking (2-3 days)**
-- Real-time PnL calculation
-- Unrealized vs realized PnL
-- Trade history aggregation
-- Performance metrics
+**Week 1: CCXT Integration**
+- Day 1-3: CCXT service setup (sub-issue 002)
+- Day 4-5: Real order execution engine (sub-issue 003)
 
-**Phase 8: Testing & Rollout (5-7 days)**
-- End-to-end paper trading tests
-- Testnet trading (small amounts)
-- Security review
-- Deploy to production with 1 test user
-- Monitor for 1 week before wider rollout
+**Week 2: Security & API Keys**
+- Day 1-3: API key management (sub-issue 005)
+- Day 4-5: Security audit and testing
+
+**Week 3-4: Gradual Rollout**
+- Testnet validation (sub-issue 008)
+- Production micro-trades
+- Limited beta
+- Full rollout
+
+**Phase 2 Deliverable:** Production-ready real money trading
 
 ### Success Criteria
 

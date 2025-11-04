@@ -45,7 +45,7 @@ Currently we have basic auto-trigger AI analysis (migration 028) that analyzes s
 ## Sub-issues
 
 - [x] `context/issues/closed/20251025-102927-001-enable-candle-close-events.md` - ✅ Enable candle close event emission (Go backend)
-- [ ] `context/issues/open/20251025-102927-002-setup-monitoring-workflow.md` - Implement setup monitoring (conditional)
+- [x] `context/issues/open/20251025-102927-002-setup-monitoring-workflow.md` - ✅ Implement setup monitoring (conditional)
 - [ ] `context/issues/open/20251025-102927-003-position-management-workflow.md` - Implement position management (always active)
 - [ ] `context/issues/open/20251025-102927-004-workflow-state-management.md` - Add workflow_schedules table (optional enhancement)
 - [ ] `context/issues/open/20251025-102927-005-testing-and-rollout.md` - End-to-end testing and gradual rollout
@@ -53,6 +53,14 @@ Currently we have basic auto-trigger AI analysis (migration 028) that analyzes s
 ## Progress
 
 **2025-10-25:** ✅ Sub-issue 001 completed - Candle close events now emitted from WebSocket
+**2025-11-04:** ✅ Sub-issue 002 completed - Setup monitoring workflow fully implemented
+
+Monitoring engine now:
+- Subscribes to candle CLOSE events (fixed from candle open)
+- Calls llm-proxy via HTTP for reanalysis
+- Loads active monitors from signals table WHERE status='monitoring'
+- Database trigger (migration 032) auto-updates signal status from analysis decisions
+- Simplified architecture: status field is source of truth (no PostgreSQL NOTIFY needed)
 
 ## Spec
 

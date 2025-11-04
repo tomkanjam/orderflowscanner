@@ -238,16 +238,19 @@ export class TraderManager implements ITraderManager {
   async deleteTrader(id: string): Promise<void> {
     try {
       if (supabase) {
-        const { error, count } = await supabase
+        // Use .select() to verify deletion actually happened
+        // RLS policies can silently block deletes, returning empty data array
+        const { data, error } = await supabase
           .from('traders')
           .delete()
-          .eq('id', id);
+          .eq('id', id)
+          .select();
 
         if (error) throw error;
 
-        // Check if the delete actually affected any rows
-        // RLS policies can silently block deletes, returning count: 0
-        if (count === 0) {
+        // Check if any rows were actually deleted
+        // If data is empty, either RLS blocked it or record doesn't exist
+        if (!data || data.length === 0) {
           throw new Error('You do not have permission to delete this trader');
         }
       }

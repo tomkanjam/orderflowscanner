@@ -61,9 +61,9 @@ serve(async (req) => {
 
     console.log(`[${timestamp}] User authenticated: ${user.id}`);
 
-    // Get user subscription from profiles table
+    // Get user subscription from user_profiles table
     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('subscription_tier')
       .eq('id', user.id)
       .single();

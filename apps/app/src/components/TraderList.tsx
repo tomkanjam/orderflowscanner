@@ -13,6 +13,7 @@ import { ExpandableSignalCard } from './ExpandableSignalCard';
 import { CategoryHeader } from './CategoryHeader';
 import { useCloudExecution } from '../hooks/useCloudExecution';
 import { CloudExecutionPanel } from './cloud/CloudExecutionPanel';
+import { ConfirmDialog } from './ConfirmDialog';
 
 type TabType = 'builtin' | 'personal' | 'favorites';
 
@@ -37,6 +38,10 @@ export function TraderList({
   const [loading, setLoading] = useState(true);
   const [showCloudPanel, setShowCloudPanel] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; trader: Trader | null }>({
+    open: false,
+    trader: null,
+  });
   const { currentTier, preferences, canCreateSignal, remainingSignals, toggleFavoriteSignal, profile } = useSubscription();
   const { user } = useAuth();
   const cloudExecution = useCloudExecution();
@@ -142,16 +147,22 @@ export function TraderList({
     return traderManager.getEffectiveEnabled(trader, user?.id);
   }, [user?.id]);
 
-  const handleDeleteTrader = async (trader: Trader) => {
-    if (window.confirm(`Delete signal "${trader.name}"? This cannot be undone.`)) {
-      try {
-        await traderManager.deleteTrader(trader.id);
-        if (selectedTraderId === trader.id) {
-          onSelectTrader?.(null);
-        }
-      } catch (error) {
-        console.error('Failed to delete trader:', error);
+  const handleDeleteTrader = (trader: Trader) => {
+    setDeleteConfirm({ open: true, trader });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.trader) return;
+
+    try {
+      await traderManager.deleteTrader(deleteConfirm.trader.id);
+      if (selectedTraderId === deleteConfirm.trader.id) {
+        onSelectTrader?.(null);
       }
+    } catch (error) {
+      console.error('Failed to delete trader:', error);
+      // Show error message to user
+      alert(error instanceof Error ? error.message : 'Failed to delete trader');
     }
   };
 
@@ -371,6 +382,18 @@ export function TraderList({
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onOpenChange={(open) => setDeleteConfirm({ open, trader: null })}
+        title="Delete Trader?"
+        description={`Are you sure you want to delete "${deleteConfirm.trader?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={confirmDelete}
+        destructive
+      />
     </div>
   );
 }

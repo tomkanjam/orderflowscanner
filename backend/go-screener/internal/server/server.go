@@ -111,6 +111,10 @@ func New(cfg *config.Config) (*Server, error) {
 		binanceAdapter := monitoring.NewBinanceAdapter(binanceClient)
 
 		monitoringConfig := monitoring.DefaultConfig()
+		// Set Supabase connection details for llm-proxy calls
+		monitoringConfig.SupabaseURL = cfg.SupabaseURL
+		monitoringConfig.SupabaseServiceKey = cfg.SupabaseServiceKey
+
 		monitoringEngine = monitoring.NewEngine(
 			monitoringConfig,
 			analysisEngine,

@@ -27,12 +27,15 @@ type MonitoringState struct {
 
 // Config holds monitoring engine configuration
 type Config struct {
-	MaxReanalyses      int           // Default max reanalyses before expiry (5)
-	ReanalysisInterval time.Duration // Minimum time between reanalyses (1 candle)
-	LoadOnStartup      bool          // Load active monitors from DB on startup
+	MaxReanalyses       int           // Default max reanalyses before expiry (5)
+	ReanalysisInterval  time.Duration // Minimum time between reanalyses (1 candle)
+	LoadOnStartup       bool          // Load active monitors from DB on startup
+	SupabaseURL         string        // Supabase project URL for llm-proxy calls
+	SupabaseServiceKey  string        // Supabase service role key for authentication
 }
 
 // DefaultConfig returns default monitoring configuration
+// Note: SupabaseURL and SupabaseServiceKey must be set separately
 func DefaultConfig() *Config {
 	return &Config{
 		MaxReanalyses:      5,

@@ -238,16 +238,6 @@ export class TraderManager implements ITraderManager {
   async deleteTrader(id: string): Promise<void> {
     try {
       if (supabase) {
-        console.log('[TraderManager] Attempting database delete for id:', id);
-
-        // Check current session
-        const { data: sessionData } = await supabase.auth.getSession();
-        console.log('[TraderManager] Session state:', {
-          hasSession: !!sessionData.session,
-          userId: sessionData.session?.user?.id,
-          expiresAt: sessionData.session?.expires_at
-        });
-
         // Use .select() to verify deletion actually happened
         // RLS policies can silently block deletes, returning empty data array
         const { data, error } = await supabase
@@ -256,33 +246,20 @@ export class TraderManager implements ITraderManager {
           .eq('id', id)
           .select();
 
-        console.log('[TraderManager] Delete result:', {
-          error: error?.message || null,
-          errorCode: error?.code || null,
-          dataLength: data?.length || 0,
-          deletedRows: data
-        });
-
-        if (error) {
-          console.error('[TraderManager] Supabase error:', error);
-          throw error;
-        }
+        if (error) throw error;
 
         // Check if any rows were actually deleted
         // If data is empty, either RLS blocked it or record doesn't exist
         if (!data || data.length === 0) {
-          console.error('[TraderManager] No rows deleted - RLS blocked or not found');
           throw new Error('You do not have permission to delete this trader');
         }
-
-        console.log('[TraderManager] Database delete successful');
       }
 
       this.traders.delete(id);
       this.notifyDeleteSubscribers(id); // Notify deletion listeners first
       this.notifySubscribers();
     } catch (error) {
-      console.error('[TraderManager] Delete failed:', error);
+      console.error('Failed to delete trader:', error);
       // Re-throw with user-friendly message if available
       if (error instanceof Error) {
         throw error;

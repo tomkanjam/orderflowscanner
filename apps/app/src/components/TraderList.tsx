@@ -154,52 +154,25 @@ export function TraderList({
   const confirmDelete = async () => {
     if (!deleteConfirm.trader) return;
 
-    console.log('[DELETE] Starting delete process:', {
-      trader: {
-        id: deleteConfirm.trader.id,
-        name: deleteConfirm.trader.name,
-        userId: deleteConfirm.trader.userId,
-        isBuiltIn: deleteConfirm.trader.isBuiltIn
-      },
-      auth: {
-        user_id: user?.id,
-        profile_id: profile?.id,
-        profile_is_admin: profile?.is_admin
-      }
-    });
-
     // Validate user is authenticated
     if (!user?.id) {
-      console.error('[DELETE] No user.id - session expired');
       alert('Your session has expired. Please log in again to delete traders.');
       return;
     }
 
     // Validate user has permission
-    const hasPermission = profile?.is_admin || deleteConfirm.trader.userId === user.id;
-    console.log('[DELETE] Permission check:', {
-      is_admin: profile?.is_admin,
-      trader_userId: deleteConfirm.trader.userId,
-      current_user_id: user.id,
-      userId_match: deleteConfirm.trader.userId === user.id,
-      hasPermission
-    });
-
-    if (!hasPermission) {
-      console.error('[DELETE] Permission denied');
+    if (!profile?.is_admin && deleteConfirm.trader.userId !== user.id) {
       alert('You do not have permission to delete this trader.');
       return;
     }
 
     try {
-      console.log('[DELETE] Calling traderManager.deleteTrader()');
       await traderManager.deleteTrader(deleteConfirm.trader.id);
-      console.log('[DELETE] Delete successful');
       if (selectedTraderId === deleteConfirm.trader.id) {
         onSelectTrader?.(null);
       }
     } catch (error) {
-      console.error('[DELETE] Delete failed:', error);
+      console.error('Failed to delete trader:', error);
       // Show error message to user
       alert(error instanceof Error ? error.message : 'Failed to delete trader');
     }

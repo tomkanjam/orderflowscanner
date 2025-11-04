@@ -181,13 +181,13 @@ func (e *Executor) handleCandleEvent(event *eventbus.CandleEvent) {
 	// Execute each matching trader
 	for _, trader := range matchingTraders {
 		// Execute in goroutine to avoid blocking
-		go e.executeTrader(trader)
+		go e.executeTrader(trader, event.Interval)
 	}
 }
 
 // executeTrader executes a single trader's filter
-func (e *Executor) executeTrader(trader *Trader) {
-	log.Printf("[Executor] 🎯 DEBUG: Executing trader %s (has fixes: UUID+nil+klineData)", trader.ID)
+func (e *Executor) executeTrader(trader *Trader, triggerInterval string) {
+	log.Printf("[Executor] 🎯 DEBUG: Executing trader %s (has fixes: UUID+nil+klineData) on interval %s", trader.ID, triggerInterval)
 
 	// Recover from panics to prevent crashing
 	defer func() {
@@ -270,7 +270,7 @@ func (e *Executor) executeTrader(trader *Trader) {
 				log.Printf("[Executor] Worker %d processing symbol %s", workerID, symbol)
 
 				// Process symbol
-				signal, err := e.processSymbol(workerCtx, symbol, trader, klineData, tickerData, timeframes)
+				signal, err := e.processSymbol(workerCtx, symbol, trader, klineData, tickerData, timeframes, triggerInterval)
 				if err != nil {
 					log.Printf("[Executor] Worker %d: Error processing %s: %v", workerID, symbol, err)
 					errorCh <- err
@@ -539,7 +539,7 @@ func (e *Executor) fetchKlineData(symbols []string, timeframes []string) (map[st
 
 // processSymbol processes a single symbol through the filter
 // Returns a signal if the filter matches, nil otherwise
-func (e *Executor) processSymbol(ctx context.Context, symbol string, trader *Trader, klineData map[string]map[string][]types.Kline, tickerData map[string]*types.SimplifiedTicker, timeframes []string) (*Signal, error) {
+func (e *Executor) processSymbol(ctx context.Context, symbol string, trader *Trader, klineData map[string]map[string][]types.Kline, tickerData map[string]*types.SimplifiedTicker, timeframes []string, triggerInterval string) (*Signal, error) {
 	// Check context cancellation
 	select {
 	case <-ctx.Done():
@@ -593,6 +593,7 @@ func (e *Executor) processSymbol(ctx context.Context, symbol string, trader *Tra
 			TraderID:    trader.ID,
 			UserID:      trader.UserID,
 			Symbol:      symbol,
+			Interval:    triggerInterval,
 			TriggeredAt: time.Now(),
 			Price:       ticker.LastPrice,
 			Volume:      ticker.QuoteVolume,
@@ -617,7 +618,7 @@ func (e *Executor) saveSignals(signals []Signal) error {
 			TraderID:              signal.TraderID,
 			UserID:                signal.UserID,
 			Symbol:                signal.Symbol,
-			Interval:              "5m", // Default interval
+			Interval:              signal.Interval, // Use the actual trigger interval
 			Timestamp:             signal.TriggeredAt,
 			PriceAtSignal:         signal.Price,
 			ChangePercentAtSignal: 0, // Will be calculated from ticker data

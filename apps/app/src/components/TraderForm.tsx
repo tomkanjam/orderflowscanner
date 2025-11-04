@@ -36,7 +36,7 @@ export function TraderForm({
   const [filterConditions, setFilterConditions] = useState<string[]>(editingTrader?.filter?.description || []);
   const [aiAnalysisLimit, setAiAnalysisLimit] = useState(editingTrader?.strategy.aiAnalysisLimit || 100);
   const [modelTier, setModelTier] = useState<ModelTier>(editingTrader?.strategy.modelTier || 'standard');
-  const [filterInterval, setFilterInterval] = useState<KlineInterval>(editingTrader?.filter?.interval || KlineInterval.ONE_MINUTE);
+  const [filterInterval, setFilterInterval] = useState<KlineInterval>(editingTrader?.filter?.interval || KlineInterval.FIVE_MINUTES);
   const [maxConcurrentAnalysis, setMaxConcurrentAnalysis] = useState(editingTrader?.strategy.maxConcurrentAnalysis || 3);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
@@ -94,10 +94,10 @@ export function TraderForm({
       setFilterConditions(editingTrader.filter?.description || []);
       setAiAnalysisLimit(editingTrader.strategy?.aiAnalysisLimit || 100);
       setModelTier(editingTrader.strategy?.modelTier || 'standard');
-      setFilterInterval(editingTrader.filter?.interval || KlineInterval.ONE_MINUTE);
+      setFilterInterval(editingTrader.filter?.interval || KlineInterval.FIVE_MINUTES);
       setMaxConcurrentAnalysis(editingTrader.strategy?.maxConcurrentAnalysis || 3);
       originalConditionsRef.current = editingTrader.filter?.description || [];
-      originalIntervalRef.current = editingTrader.filter?.interval || KlineInterval.ONE_MINUTE;
+      originalIntervalRef.current = editingTrader.filter?.interval || KlineInterval.FIVE_MINUTES;
     }
   }, [editingTrader]);
 
@@ -745,6 +745,15 @@ export function TraderForm({
             <p className="text-xs text-[var(--nt-text-muted)] mt-1">
               The time interval for candlestick data this trader will analyze
             </p>
+            {editingTrader && filterInterval !== originalIntervalRef.current && (
+              <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-200">
+                  <strong>Warning:</strong> You've changed the interval from {originalIntervalRef.current} to {filterInterval}.
+                  Consider regenerating the filter code to ensure it's optimized for the new interval.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* AI Analysis Data Limit */}

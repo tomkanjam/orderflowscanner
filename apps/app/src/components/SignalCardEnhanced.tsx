@@ -266,7 +266,7 @@ export const SignalCardEnhanced = React.memo(function SignalCardEnhanced({
             <div className="signal-card__metric">
               <span className="signal-card__metric-label">Interval:</span>
               <span className="signal-card__metric-value">
-                {signal.filter?.refreshInterval || '15m'}
+                {signal.filter?.refreshInterval || '5m'}
               </span>
             </div>
             <div className="signal-card__metric">

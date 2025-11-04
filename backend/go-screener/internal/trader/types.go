@@ -106,6 +106,7 @@ type Signal struct {
 	TraderID    string                 `json:"trader_id"`
 	UserID      string                 `json:"user_id"`
 	Symbol      string                 `json:"symbol"`
+	Interval    string                 `json:"interval"`           // The interval that triggered this signal
 	TriggeredAt time.Time              `json:"triggered_at"`
 	Price       float64                `json:"price"`
 	Volume      float64                `json:"volume"`

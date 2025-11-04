@@ -249,13 +249,29 @@ UI: Signals visible immediately (< 2 seconds total)
 
 **Closed:** 2025-11-04 20:08:05
 **Outcome:** Success
-**Commits:** 719ef61, 0b5f31f
+**Commits:** 719ef61, 0b5f31f, 32ac267, 2b892b7
 
 Successfully implemented immediate signal generation feature. Users now see signals within 2 seconds of creating a trader instead of waiting up to 60 minutes for the next candle close. The implementation reuses existing execution logic, maintains the event-driven architecture, and provides graceful error handling.
 
-**Post-deployment bug fix (0b5f31f):**
-- Fixed `ReferenceError: setGenerateProgress is not defined` in TraderForm.tsx:417
-- Bug was causing silent failures - immediate execution was never called
-- Root cause: Incorrect state setter name used during initial implementation
-- Fix: Removed undefined function call (progress indicator not needed for quick execution)
-- Testing note: Requires browser refresh after deployment
+**Post-deployment bug fixes:**
+
+1. **Frontend error (0b5f31f):**
+   - Fixed `ReferenceError: setGenerateProgress is not defined` in TraderForm.tsx:417
+   - Bug was causing silent failures - immediate execution was never called
+   - Root cause: Incorrect state setter name used during initial implementation
+   - Fix: Removed undefined function call (progress indicator not needed for quick execution)
+   - Testing note: Requires browser refresh after deployment
+
+2. **Edge Function table name (32ac267):**
+   - Fixed "Failed to get user profile" error
+   - Bug: Edge Function querying non-existent 'profiles' table
+   - Fix: Changed to correct table name 'user_profiles' at line 66
+   - Deployed as Edge Function version 2
+
+3. **Go Backend compilation error (2b892b7):**
+   - Fixed `e.executeFilter undefined` compilation error at line 455
+   - Bug: Called non-existent method instead of using existing processSymbol()
+   - Root cause: Invented method name during initial implementation
+   - Fix: Use processSymbol() with first timeframe as trigger interval
+   - Deployed to Fly.io (vyx-app)
+   - Verification: Endpoint returns 401 (auth working) instead of 404

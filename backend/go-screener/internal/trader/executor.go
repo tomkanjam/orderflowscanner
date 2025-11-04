@@ -422,6 +422,14 @@ func (e *Executor) ExecuteImmediate(traderID string) (*ExecutionResult, error) {
 
 	// Execute filter for each symbol in parallel
 	log.Printf("[Executor] ExecuteImmediate: Starting parallel filter execution")
+
+	// Use first timeframe as trigger interval (same logic as event-driven execution)
+	triggerInterval := timeframes[0]
+	if triggerInterval == "" {
+		triggerInterval = "5m" // Fallback
+	}
+	log.Printf("[Executor] ExecuteImmediate: Using trigger interval %s", triggerInterval)
+
 	numWorkers := runtime.NumCPU()
 	symbolCh := make(chan string, len(symbols))
 	signalCh := make(chan *Signal, len(symbols))
@@ -442,17 +450,8 @@ func (e *Executor) ExecuteImmediate(traderID string) (*ExecutionResult, error) {
 				default:
 				}
 
-				// Get ticker and klines for this symbol
-				ticker, tickerOk := tickerData[symbol]
-				klines, klinesOk := klineData[symbol]
-
-				if !tickerOk || !klinesOk {
-					log.Printf("[Executor] ExecuteImmediate: Missing data for symbol %s", symbol)
-					continue
-				}
-
-				// Execute filter
-				signal, err := e.executeFilter(trader, symbol, ticker, klines)
+				// Process symbol using existing method
+				signal, err := e.processSymbol(workerCtx, symbol, trader, klineData, tickerData, timeframes, triggerInterval)
 				if err != nil {
 					errorCh <- err
 					continue

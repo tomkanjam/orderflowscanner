@@ -201,3 +201,35 @@ Users don't need migration - the database tables and data remain intact. The Go 
 - 30 min: Update ActivityPanel to fetch from DB
 - 30 min: Clean up WorkflowStatus and App initialization
 - 30-60 min: Build, test, fix any issues
+
+## Completion
+
+**Closed:** 2025-11-04 08:55:00
+**Outcome:** Success
+**Commits:** 75791bc
+
+### Summary
+
+Successfully removed all browser-based workflow monitoring code:
+
+**Files Deleted:**
+- `apps/app/src/services/workflowManager.ts` (584 lines)
+- `apps/app/src/services/klineEventBus.ts` (120 lines)
+- `apps/app/src/components/WorkflowStatus.tsx`
+
+**Files Modified:**
+- `apps/app/src/components/ActivityPanel.tsx` - Now fetches monitoring decisions from Supabase
+- `apps/app/src/components/SignalsTable.tsx` - Removed WorkflowStatus component
+- `apps/app/App.tsx` - Removed workflowManager initialization and klineEventBus emissions
+
+**Verification:**
+- ✅ Build passes without errors
+- ✅ No remaining references to removed files
+- ✅ ActivityPanel interface defined to match database schema
+- ✅ Direct Supabase queries implemented
+- ✅ Database tables preserved for Go backend
+
+**Net Result:**
+- Removed 901 lines of duplicate browser code
+- Added 248 lines (issue doc + direct DB queries)
+- Single source of truth: Go backend continuous monitoring

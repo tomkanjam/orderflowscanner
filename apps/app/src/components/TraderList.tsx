@@ -154,6 +154,18 @@ export function TraderList({
   const confirmDelete = async () => {
     if (!deleteConfirm.trader) return;
 
+    // Validate user is authenticated
+    if (!user?.id) {
+      alert('Your session has expired. Please log in again to delete traders.');
+      return;
+    }
+
+    // Validate user has permission
+    if (!profile?.is_admin && deleteConfirm.trader.userId !== user.id) {
+      alert('You do not have permission to delete this trader.');
+      return;
+    }
+
     try {
       await traderManager.deleteTrader(deleteConfirm.trader.id);
       if (selectedTraderId === deleteConfirm.trader.id) {
@@ -303,7 +315,7 @@ export function TraderList({
                 const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
                 const isSelected = selectedTraderId === trader.id;
                 const isExpanded = expandedCardId === trader.id;
-                const canEditDelete = profile?.is_admin || trader.userId === profile?.id;
+                const canEditDelete = profile?.is_admin || trader.userId === user?.id;
 
                 return (
                   <ExpandableSignalCard
@@ -349,7 +361,7 @@ export function TraderList({
                 const isSelected = selectedTraderId === trader.id;
                 const isExpanded = expandedCardId === trader.id;
                 const effectivelyEnabled = getEffectiveEnabled(trader);
-                const canEditDelete = profile?.is_admin || trader.userId === profile?.id;
+                const canEditDelete = profile?.is_admin || trader.userId === user?.id;
 
                 return (
                   <ExpandableSignalCard

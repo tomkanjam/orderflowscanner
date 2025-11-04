@@ -27,8 +27,6 @@ import { serverExecutionService } from './src/services/serverExecutionService';
 import { Trader } from './src/abstractions/trader.interfaces';
 import { useIndicatorWorker } from './hooks/useIndicatorWorker';
 import ActivityPanel from './src/components/ActivityPanel';
-import { klineEventBus } from './src/services/klineEventBus';
-import { workflowManager } from './src/services/workflowManager';
 import { tradingManager } from './src/services/tradingManager';
 import { memoryMonitor } from './src/utils/memoryMonitor';
 import { webSocketManager } from './src/utils/webSocketManager';
@@ -250,11 +248,6 @@ const AppContent: React.FC = () => {
     let unsubscribeSignals: (() => void) | null = null;
 
     if (user && !authLoading) {
-      // Initialize workflow manager
-      workflowManager.initialize().catch(error => {
-        console.error('[WorkflowManager] Initialization error:', error);
-      });
-
       // Initialize trading manager
       tradingManager.initialize().catch(error => {
         console.error('[TradingManager] Initialization error:', error);
@@ -316,7 +309,6 @@ const AppContent: React.FC = () => {
       tradingManager.shutdown().catch(error => {
         console.error('[TradingManager] Shutdown error:', error);
       });
-      workflowManager.shutdown();
       serverExecutionService.cleanup().catch(error => {
         console.error('[ServerExecutionService] Cleanup error:', error);
       });
@@ -839,14 +831,7 @@ const AppContent: React.FC = () => {
         console.warn(`[MissingData] Symbol ${symbol} has old data: ${ageMinutes.toFixed(0)} minutes behind`);
       }
     }
-    
-    // Emit candle close event for workflows
-    if (isClosed) {
-      klineEventBus.emit(symbol, interval, kline).catch(error => {
-        console.error('[KlineEventBus] Error emitting event:', error);
-      });
-    }
-    
+
     // Track bar counts for signal deduplication (only for 1m interval)
     if (isClosed && interval === KlineInterval.ONE_MINUTE) {
       const currentCount = klineUpdateCountRef.current.get(symbol) || 0;

@@ -4,7 +4,6 @@ import { signalManager } from '../services/signalManager';
 import { Ticker, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
 import { Bell, BellOff, X, ChevronDown, ChevronRight, AlertCircle, Clock, CheckCircle, XCircle, DollarSign } from 'lucide-react';
-import { WorkflowStatus } from './WorkflowStatus';
 import { AutoTradeButton } from './AutoTradeButton';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useInView } from 'react-intersection-observer';
@@ -491,9 +490,6 @@ function SignalsTableComponent({
                           </div>
                         )}
                         <div className="flex items-center gap-2 mt-1">
-                          {signal.status === 'monitoring' && (
-                            <WorkflowStatus signalId={signal.id} compact={true} />
-                          )}
                           {signal.status === 'ready' && (
                             <AutoTradeButton signalId={signal.id} />
                           )}

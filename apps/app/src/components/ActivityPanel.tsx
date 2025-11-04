@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Signal, SignalStatus, MonitoringUpdate, Trade } from '../../src/abstractions/interfaces';
-import { workflowManager, MonitoringDecision } from '../services/workflowManager';
+import { supabase } from '../config/supabase';
 
 interface ActivityPanelProps {
   signals: Signal[];
@@ -10,6 +10,25 @@ interface ActivityPanelProps {
   isMobile?: boolean;
   selectedSignalId?: string | null;
   onRowClick?: (symbol: string, traderId?: string, signalId?: string) => void;
+}
+
+// MonitoringDecision interface matching database schema
+interface MonitoringDecision {
+  id: string;
+  signal_id: string;
+  timestamp: Date;
+  price: number;
+  volume?: number;
+  decision: 'enter' | 'continue' | 'abandon';
+  confidence: number;
+  reasoning: string;
+  trade_plan?: {
+    entry: number;
+    stopLoss: number;
+    takeProfit: number;
+    positionSize: number;
+  };
+  indicators?: any;
 }
 
 interface ActivityEvent {
@@ -41,16 +60,30 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
 
   // Fetch monitoring decisions when a signal is selected
   useEffect(() => {
-    if (selectedSignalId) {
-      workflowManager.getMonitoringDecisions(selectedSignalId).then(decisions => {
-        setMonitoringDecisions(prev => {
-          const newMap = new Map(prev);
-          newMap.set(selectedSignalId, decisions);
-          return newMap;
+    if (selectedSignalId && supabase) {
+      supabase
+        .from('monitoring_decisions')
+        .select('*')
+        .eq('signal_id', selectedSignalId)
+        .order('timestamp', { ascending: false })
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Failed to fetch monitoring decisions:', error);
+            return;
+          }
+
+          // Convert timestamp strings to Date objects
+          const decisions = (data || []).map(d => ({
+            ...d,
+            timestamp: new Date(d.timestamp)
+          }));
+
+          setMonitoringDecisions(prev => {
+            const newMap = new Map(prev);
+            newMap.set(selectedSignalId, decisions);
+            return newMap;
+          });
         });
-      }).catch(error => {
-        console.error('Failed to fetch monitoring decisions:', error);
-      });
     }
   }, [selectedSignalId]);
 
@@ -128,7 +161,7 @@ const ActivityPanel: React.FC<ActivityPanelProps> = ({
       }
     });
 
-    // Add monitoring decisions from workflowManager
+    // Add monitoring decisions from database
     monitoringDecisions.forEach((decisions, signalId) => {
       const signal = signals.find(s => s.id === signalId);
       if (signal) {

@@ -26,8 +26,8 @@ AI-powered cryptocurrency screener with fully automated trading. Users describe 
          │
          v
 ┌─────────────────┐
-│ 3. Filter       │  Cron (1 min) → execute-trader Edge Function
-│    Execution    │  Fetch klines from Go server → sandbox eval
+│ 3. Filter       │  WebSocket candle close → EventBus → Go Executor
+│    Execution    │  Yaegi interpreter → Go filter code execution
 └────────┬────────┘
          │
          v
@@ -129,56 +129,63 @@ traced(async (span) => {
 
 ## 3. Filter Execution & Signal Creation
 
-**Trigger:** Cron job every 1 minute → `/trigger-executions`
+**Trigger:** WebSocket candle close event → EventBus broadcast
 
-### Execution Flow (execute-trader/index.ts:115-203)
-```typescript
-// 1. Fetch ticker + klines from Go server
-const tickerData = await fetchTicker(symbol);
-const klinesData = await Promise.all(
-  requiredTimeframes.map(tf => fetchKlines(symbol, tf, 100))
-);
+### Execution Flow (backend/go-screener/internal/trader/executor.go:188-360)
 
-// 2. Build execution context
-const ticker = { symbol, price, volume, priceChangePercent, ... };
-const timeframes = { '1m': [...], '5m': [...], '1h': [...] };
+**Event-Driven Architecture:**
+```
+1. Binance WebSocket receives candle close
+   ↓
+2. WSClient publishes CandleCloseEvent to EventBus
+   ↓
+3. Executor receives event, finds matching traders
+   ↓
+4. For each trader requiring this interval:
+   - Get last closed candles from cache (all required timeframes)
+   - Execute Go filter code via Yaegi interpreter
+   - MarketData struct: ticker + timeframes map
+   ↓
+5. If filter returns true:
+   - Create signal with symbol, price, metadata
+   - Batch insert to trader_signals table
+   - Database trigger fires (AI analysis for Elite users)
+```
 
-// 3. Sandbox execution
-const filterFunction = new Function(
-  'ticker',
-  'timeframes',
-  helpers + '\n' + trader.filter.code
-);
-const matched = Boolean(filterFunction(ticker, timeframes));
+**Go Filter Code Structure:**
+```go
+// Filter receives MarketData with ticker and kline data
+func Filter(data MarketData) bool {
+  ticker := data.Ticker
+  klines5m := data.Timeframes["5m"]
+  klines1h := data.Timeframes["1h"]
 
-// 4. Store signals + broadcast
-if (matched) {
-  await supabase.from('trader_signals').insert({
-    trader_id, symbols: [symbol], timestamp, metadata
-  });
+  // Calculate indicators using built-in helpers
+  rsi := CalculateRSI(ClosePrices(klines5m), 14)
+  ma50 := CalculateMA(ClosePrices(klines1h), 50)
 
-  await supabase.channel('signals').send({
-    type: 'broadcast',
-    event: 'new-signal',
-    payload: { traderId, symbols, timestamp }
-  });
+  // Return true if conditions met
+  return ticker.Price > ma50 && rsi < 30
 }
 ```
 
-**Helper Functions Available:**
-- `calculateMA(prices, period)`
+**Built-in Indicator Functions:**
+- `CalculateMA(prices []float64, period int) float64`
 - `calculateRSI(prices, period)`
 - `getLatestBollingerBands(klines, period, stdDev)`
 - `getLatestRSI(klines, period)`
 
 **Performance:**
-- Execution: Sub-1 second per trader
-- Concurrency: All traders in parallel via `Promise.allSettled`
+- Execution: ~1 second per 100 symbols
+- Concurrency: Worker pool (# CPU cores)
+- Cache hit rate: 99%+ (WebSocket-fed)
+- Real-time: Signals generated on actual candle close
 
 **Files:**
-- `supabase/functions/execute-trader/index.ts`
-- `supabase/functions/trigger-executions/index.ts`
-- `supabase/functions/_shared/goServerClient.ts`
+- `backend/go-screener/internal/trader/executor.go` (lines 188-360)
+- `backend/go-screener/internal/eventbus/bus.go` (pub/sub system)
+- `backend/go-screener/pkg/binance/websocket.go` (candle streaming)
+- `backend/go-screener/pkg/yaegi/executor.go` (Go interpreter)
 
 ---
 

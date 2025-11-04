@@ -286,31 +286,6 @@ class ServerExecutionService {
   }
 
   /**
-   * Manually trigger trader execution (for testing)
-   * In production, this is handled by the scheduled Edge Function
-   */
-  async triggerTraderExecution(traderId: string, symbols: string[]): Promise<ExecutionResult> {
-    const response = await fetch(`${supabaseUrl}/functions/v1/execute-trader`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseAnonKey}`
-      },
-      body: JSON.stringify({
-        traderId,
-        symbols
-      })
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Execution failed: ${error}`);
-    }
-
-    return response.json();
-  }
-
-  /**
    * Toggle trader enabled state
    */
   async toggleTraderEnabled(id: string, enabled: boolean): Promise<void> {

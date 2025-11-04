@@ -3,4 +3,4 @@ To do:
 - UI cleanup.
 - complete breaintrust instrumentation and full trader automation on go backend projects. 20251024-110600-000-PROJECT-complete-braintrust-integration.md.
 - Logs show: "Cache miss for BTCUSDT@5m, falling back to REST" (why are we seeing cache misses?)(track in grafana)
--
+- Run filter for last candle on scan creation so that the user doesn't have to wait for the next candle close.

@@ -114,34 +114,37 @@ export function ExpandableSignalCard({
         ${isSelected ? 'ring-2 ring-primary' : ''}
       `}
     >
-      {/* Header - CollapsibleTrigger */}
-      <CollapsibleTrigger className="flex items-center gap-2 px-3 h-10 cursor-pointer w-full">
-        {/* Type icon - no color */}
-        <div className="flex-shrink-0 text-muted-foreground">
-          {signal.isBuiltIn ? (
-            <Activity className="w-4 h-4" title="Signal" />
-          ) : (
-            <Bot className="w-4 h-4" title="AI Trader" />
-          )}
-        </div>
+      {/* Header - Wrapper with CollapsibleTrigger and Menu */}
+      <div className="flex items-center gap-2 px-3 h-10 w-full">
+        {/* CollapsibleTrigger - clickable area */}
+        <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
+          {/* Type icon - no color */}
+          <div className="flex-shrink-0 text-muted-foreground">
+            {signal.isBuiltIn ? (
+              <Activity className="w-4 h-4" title="Signal" />
+            ) : (
+              <Bot className="w-4 h-4" title="AI Trader" />
+            )}
+          </div>
 
-        {/* Name - colored when running */}
-        <span className={`flex-1 truncate text-sm font-medium min-w-0 ${getNameColor()}`}>
-          {signal.name}
-        </span>
-
-        {/* Status badge - only for special states */}
-        {getStatusBadge() && (
-          <span className={`text-xs font-medium px-2 py-0.5 rounded ${getStatusBadge()!.color} ${
-            getStatusBadge()!.color === 'text-cyan-500'
-              ? 'bg-cyan-500/10 border border-cyan-500/20'
-              : 'bg-green-500/10 border border-green-500/20'
-          }`}>
-            {getStatusBadge()!.text}
+          {/* Name - colored when running */}
+          <span className={`flex-1 truncate text-sm font-medium min-w-0 ${getNameColor()}`}>
+            {signal.name}
           </span>
-        )}
 
-        {/* Menu */}
+          {/* Status badge - only for special states */}
+          {getStatusBadge() && (
+            <span className={`text-xs font-medium px-2 py-0.5 rounded ${getStatusBadge()!.color} ${
+              getStatusBadge()!.color === 'text-cyan-500'
+                ? 'bg-cyan-500/10 border border-cyan-500/20'
+                : 'bg-green-500/10 border border-green-500/20'
+            }`}>
+              {getStatusBadge()!.text}
+            </span>
+          )}
+        </CollapsibleTrigger>
+
+        {/* Menu - outside the trigger */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -218,7 +221,7 @@ export function ExpandableSignalCard({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      </CollapsibleTrigger>
+      </div>
 
       {/* Expanded Content */}
       <CollapsibleContent className="overflow-y-auto overflow-x-hidden max-h-96">

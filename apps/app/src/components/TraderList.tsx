@@ -292,7 +292,7 @@ export function TraderList({
                 const isFavorite = preferences?.favorite_signals?.includes(trader.id) || false;
                 const isSelected = selectedTraderId === trader.id;
                 const isExpanded = expandedCardId === trader.id;
-                const canEditDelete = profile?.is_admin || trader.createdBy === profile?.id;
+                const canEditDelete = profile?.is_admin || trader.userId === profile?.id;
 
                 return (
                   <ExpandableSignalCard
@@ -338,7 +338,7 @@ export function TraderList({
                 const isSelected = selectedTraderId === trader.id;
                 const isExpanded = expandedCardId === trader.id;
                 const effectivelyEnabled = getEffectiveEnabled(trader);
-                const canEditDelete = profile?.is_admin || trader.createdBy === profile?.id;
+                const canEditDelete = profile?.is_admin || trader.userId === profile?.id;
 
                 return (
                   <ExpandableSignalCard

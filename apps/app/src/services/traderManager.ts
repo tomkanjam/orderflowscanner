@@ -238,12 +238,18 @@ export class TraderManager implements ITraderManager {
   async deleteTrader(id: string): Promise<void> {
     try {
       if (supabase) {
-        const { error } = await supabase
+        const { error, count } = await supabase
           .from('traders')
           .delete()
           .eq('id', id);
 
         if (error) throw error;
+
+        // Check if the delete actually affected any rows
+        // RLS policies can silently block deletes, returning count: 0
+        if (count === 0) {
+          throw new Error('You do not have permission to delete this trader');
+        }
       }
 
       this.traders.delete(id);
@@ -251,6 +257,10 @@ export class TraderManager implements ITraderManager {
       this.notifySubscribers();
     } catch (error) {
       console.error('Failed to delete trader:', error);
+      // Re-throw with user-friendly message if available
+      if (error instanceof Error) {
+        throw error;
+      }
       throw new Error('Failed to delete trader');
     }
   }

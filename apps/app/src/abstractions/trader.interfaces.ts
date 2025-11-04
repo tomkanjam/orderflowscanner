@@ -218,6 +218,7 @@ export interface TraderGeneration {
   riskParameters: RiskManagement;
   requiredTimeframes?: KlineInterval[];
   language?: 'javascript' | 'go'; // Language for filter execution (default: 'go' for new traders)
+  interval?: KlineInterval; // Extracted interval from natural language description
 }
 
 // Events

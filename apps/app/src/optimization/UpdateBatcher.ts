@@ -125,10 +125,6 @@ export class UpdateBatcher<K, V> {
     // Process the batch
     try {
       processCallback(updates);
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[UpdateBatcher] Processed batch of ${updates.size} updates`);
-      }
     } catch (error) {
       console.error('[UpdateBatcher] Error processing batch:', error);
     }
@@ -149,9 +145,6 @@ export class UpdateBatcher<K, V> {
   private shouldFlushImmediately(): boolean {
     // Check batch size limit
     if (this.pendingUpdates.size >= this.config.maxBatchSize) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[UpdateBatcher] Flushing due to batch size limit');
-      }
       return true;
     }
 

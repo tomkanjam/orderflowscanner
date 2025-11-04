@@ -224,7 +224,10 @@ export function TraderForm({
       );
       
       setGeneratedTrader(generated);
-      
+
+      // Use the extracted interval from AI if available, otherwise keep current
+      const extractedInterval = generated.interval || filterInterval;
+
       // Switch to manual mode and populate fields
       setMode('manual');
       setManualName(generated.suggestedName);
@@ -232,8 +235,9 @@ export function TraderForm({
       setManualFilterCode(generated.filterCode);
       setManualStrategy(generated.strategyInstructions);
       setFilterConditions(generated.filterDescription || []);
+      setFilterInterval(extractedInterval); // Use the extracted interval
       originalConditionsRef.current = generated.filterDescription || [];
-      originalIntervalRef.current = filterInterval;
+      originalIntervalRef.current = extractedInterval;
     } catch (error) {
       console.error('Failed to generate trader:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate trader');

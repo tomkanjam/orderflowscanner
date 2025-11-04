@@ -1,5 +1,5 @@
 
-import { AiFilterResponse, Kline, Ticker, CustomIndicatorConfig, IndicatorDataPoint } from '../types';
+import { AiFilterResponse, Kline, Ticker, CustomIndicatorConfig, IndicatorDataPoint, KlineInterval } from '../types';
 import { KLINE_HISTORY_LIMIT, KLINE_HISTORY_LIMIT_FOR_ANALYSIS } from "../constants";
 import * as helpers from '../screenerHelpers'; // Import all helpers
 import { observability } from './observabilityService';
@@ -302,6 +302,45 @@ export async function generateTraderMetadata(
     }
 }
 
+/**
+ * Convert timeframe string (like "1h", "5m", "1d") to KlineInterval enum
+ */
+function parseTimeframeToInterval(timeframe: string | undefined): KlineInterval {
+    const normalizedTimeframe = timeframe?.toLowerCase().trim();
+
+    switch (normalizedTimeframe) {
+        case '1m':
+        case '1min':
+        case '1 minute':
+            return KlineInterval.ONE_MINUTE;
+        case '5m':
+        case '5min':
+        case '5 minutes':
+            return KlineInterval.FIVE_MINUTES;
+        case '15m':
+        case '15min':
+        case '15 minutes':
+            return KlineInterval.FIFTEEN_MINUTES;
+        case '1h':
+        case '1hr':
+        case '1 hour':
+        case '60m':
+            return KlineInterval.ONE_HOUR;
+        case '4h':
+        case '4hr':
+        case '4 hours':
+            return KlineInterval.FOUR_HOURS;
+        case '1d':
+        case '1day':
+        case '1 day':
+        case '24h':
+            return KlineInterval.ONE_DAY;
+        default:
+            console.warn(`[parseTimeframeToInterval] Unknown timeframe "${timeframe}", defaulting to 5m`);
+            return KlineInterval.FIVE_MINUTES;
+    }
+}
+
 // Two-step trader generation - for backward compatibility
 export async function generateTrader(
     userPrompt: string,
@@ -316,14 +355,18 @@ export async function generateTrader(
         console.log('[generateTrader] Step 1: Generating metadata...');
         const metadata = await generateTraderMetadata(userPrompt, modelName, onStream);
 
-        // Step 2: Generate filter code (Go)
+        // Parse the timeframe from metadata (e.g., "1h", "5m") to KlineInterval
+        const extractedInterval = parseTimeframeToInterval(metadata.timeframe);
+        console.log(`[generateTrader] Extracted interval from metadata: ${metadata.timeframe} -> ${extractedInterval}`);
+
+        // Step 2: Generate filter code (Go) using the extracted interval
         console.log('[generateTrader] Step 2: Generating Go filter code...');
         onStream?.({ type: 'progress', progress: 95 });
 
         const { filterCode, requiredTimeframes, language } = await generateFilterCode(
             metadata.conditions,
             modelName,
-            klineInterval
+            extractedInterval // Use extracted interval instead of passed parameter
         );
 
         // Combine results
@@ -336,7 +379,8 @@ export async function generateTrader(
             indicators: metadata.indicators || [],
             riskParameters: metadata.riskParameters,
             requiredTimeframes: requiredTimeframes,
-            language: language // 'go' for all new traders
+            language: language, // 'go' for all new traders
+            interval: extractedInterval // Include the extracted interval from metadata
         };
 
         // Track the generation

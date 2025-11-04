@@ -414,7 +414,6 @@ export function TraderForm({
 
         // Execute trader immediately to generate initial signals
         try {
-          setGenerateProgress('Generating initial signals...');
           await traderManager.executeTraderImmediate(trader.id);
           console.log('[TraderForm] Initial signals generated successfully');
         } catch (execError) {

@@ -8,8 +8,7 @@ import (
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
 
-	"github.com/yourusername/go-screener/pkg/indicators"
-	"github.com/yourusername/go-screener/pkg/types"
+	"github.com/vyx/go-screener/pkg/types"
 )
 
 // SeriesExecutor handles execution of series code for indicator data generation
@@ -43,15 +42,9 @@ func (se *SeriesExecutor) ExecuteSeriesCode(
 		return nil, fmt.Errorf("failed to import stdlib: %w", err)
 	}
 
-	// Import indicators package
-	if err := i.Use(indicators.Symbols); err != nil {
-		return nil, fmt.Errorf("failed to import indicators: %w", err)
-	}
-
-	// Import types package
-	if err := i.Use(types.Symbols); err != nil {
-		return nil, fmt.Errorf("failed to import types: %w", err)
-	}
+	// TODO: Import indicators and types packages when Symbols exports are available
+	// These packages don't export Symbols yet - this feature is not currently working
+	// but the module is kept for future implementation
 
 	// Wrap series code in function
 	fullCode := fmt.Sprintf(`

@@ -2,8 +2,11 @@ package server
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/vyx/go-screener/internal/trader"
@@ -270,17 +273,48 @@ func AuthMiddleware(supabase *supabase.Client) func(http.Handler) http.Handler {
 				return
 			}
 
-			// TODO: Validate JWT token with Supabase
-			// For now, we'll extract the user ID from the token payload
-			// In production, this should verify the signature
+			// Extract user ID from JWT token payload
+			// JWT format: header.payload.signature
+			parts := strings.Split(token, ".")
+			if len(parts) != 3 {
+				respondJSON(w, http.StatusUnauthorized, map[string]string{
+					"error": "Invalid token format",
+				})
+				return
+			}
 
-			// Placeholder: Extract user ID from token (not secure, just for structure)
-			// In production, use a proper JWT library to verify and decode
-			userID := "placeholder-user-id"
+			// Decode the payload (second part)
+			payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+			if err != nil {
+				respondJSON(w, http.StatusUnauthorized, map[string]string{
+					"error": "Failed to decode token payload",
+				})
+				return
+			}
+
+			// Parse the payload JSON
+			var claims struct {
+				Sub string `json:"sub"` // User ID
+				Exp int64  `json:"exp"` // Expiration time
+			}
+			if err := json.Unmarshal(payload, &claims); err != nil {
+				respondJSON(w, http.StatusUnauthorized, map[string]string{
+					"error": "Failed to parse token claims",
+				})
+				return
+			}
+
+			// Validate that we have a user ID
+			if claims.Sub == "" {
+				respondJSON(w, http.StatusUnauthorized, map[string]string{
+					"error": "Token missing user ID (sub claim)",
+				})
+				return
+			}
 
 			// Store user ID in context
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, "userID", userID)
+			ctx = context.WithValue(ctx, "userID", claims.Sub)
 			ctx = context.WithValue(ctx, "token", token)
 
 			next.ServeHTTP(w, r.WithContext(ctx))

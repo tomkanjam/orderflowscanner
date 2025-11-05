@@ -14,7 +14,14 @@ The current `regenerate-filter-go` prompt only generates filter code (boolean ev
 
 ## Progress
 
-Starting prompt engineering phase.
+✅ **Completed** (2025-01-05)
+
+- Updated Braintrust prompt to v5.0
+- Added seriesCode output field
+- Added indicators array specification
+- Included complete examples (RSI, Bollinger Bands)
+- Uploaded to Braintrust with metadata
+- Transaction ID: 1000196089248994349
 
 ## Spec
 

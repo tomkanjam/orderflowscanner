@@ -14,7 +14,14 @@ Need to store series code in traders table and indicator data in signals table t
 
 ## Progress
 
-Pending - will start after prompt engineering is complete.
+✅ **Completed** (2025-01-05)
+
+- Created migration file: 034_add_indicator_data_to_signals.sql
+- Applied to production database (jtpqkbybuxbcvqeffmtf)
+- Column added: signals.indicator_data JSONB (nullable)
+- Index created: idx_signals_indicator_data (GIN)
+- Column comment added for documentation
+- Schema verified via SQL query
 
 ## Spec
 

@@ -19,6 +19,7 @@ interface ChartDisplayProps {
   signalLog: SignalLogEntry[];
   historicalSignals?: HistoricalSignal[];
   isMobile?: boolean;
+  preCalculatedIndicators?: Record<string, Array<{ x: number; y: number; y2?: number; y3?: number }>>; // Backend-calculated indicator data
 }
 
 // Signal marker plugin for highlighting signals on the chart
@@ -187,7 +188,7 @@ const crosshairPlugin = {
     }
 };
 
-const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, historicalSignals = [], isMobile = false }) => {
+const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, historicalSignals = [], isMobile = false, preCalculatedIndicators }) => {
 
   const priceCanvasRef = useRef<HTMLCanvasElement>(null);
   const priceChartInstanceRef = useRef<Chart | null>(null);
@@ -326,7 +327,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
     setWheelZoomEnabled(enabled);
   }, []); 
 
-  // Calculate indicators when they change
+  // Calculate indicators when they change (or use pre-calculated from backend)
   useEffect(() => {
     if (!indicators || !klines || klines.length === 0) {
       setCalculatedIndicators(new Map());
@@ -334,6 +335,30 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
       return;
     }
 
+    // If we have pre-calculated indicators from backend, use them directly
+    if (preCalculatedIndicators) {
+      const resultsMap = new Map<string, IndicatorDataPoint[]>();
+
+      indicators.forEach(indicator => {
+        const backendData = preCalculatedIndicators[indicator.id];
+        if (backendData) {
+          // Convert backend format to IndicatorDataPoint format
+          const indicatorPoints: IndicatorDataPoint[] = backendData.map(point => ({
+            x: point.x,
+            y: point.y,
+            y2: point.y2,
+            y3: point.y3
+          }));
+          resultsMap.set(indicator.id, indicatorPoints);
+        }
+      });
+
+      setCalculatedIndicators(resultsMap);
+      setLoadingStates(new Map()); // Clear all loading states
+      return;
+    }
+
+    // Otherwise, calculate using Web Worker (legacy path for signals without backend data)
     // Initialize loading states for all indicators
     const newLoadingStates = new Map<string, { isLoading: boolean; startTime: number }>();
     indicators.forEach(indicator => {
@@ -391,7 +416,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
       cancelCalculations(indicators.map(ind => ind.id));
       // console.log(`[DEBUG ${new Date().toISOString()}] Cancelled pending calculations for symbol: ${symbol}`);
     };
-  }, [indicators, klines, calculateIndicators, cancelCalculations, symbol]);
+  }, [indicators, klines, calculateIndicators, cancelCalculations, symbol, preCalculatedIndicators]);
 
   // Create or recreate charts only when symbol or interval changes
   useEffect(() => {

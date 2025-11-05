@@ -388,3 +388,13 @@ klines5m := data.Klines["5m"]
 ## Output Format
 
 Return valid JSON only. No markdown, no explanatory text outside JSON.
+
+---
+
+## Trading Conditions
+
+Generate code for the following conditions:
+
+{{conditions}}
+
+**Primary timeframe:** {{klineInterval}}

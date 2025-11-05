@@ -49,7 +49,34 @@ Update the prompt to include:
 
 ## Progress
 
-Issue created. Need to update prompt file and re-upload to Braintrust.
+✅ **FIXED** (2025-11-05 20:56)
+
+**Root Cause Identified:**
+The prompt file `regenerate-filter-go-streamlined.md` was missing the Mustache template variables `{{conditions}}` and `{{klineInterval}}` at the end. The `promptLoader.loadPromptWithVariables()` function expects these placeholders to inject the user's actual trading conditions into the prompt.
+
+Without these variables:
+- User's trading conditions were never sent to the LLM
+- LLM received an incomplete prompt with just instructions
+- LLM responded conversationally ("I'm ready...") instead of with JSON
+
+**Fix Applied:**
+1. Added section at end of prompt:
+   ```markdown
+   ## Trading Conditions
+
+   Generate code for the following conditions:
+
+   {{conditions}}
+
+   **Primary timeframe:** {{klineInterval}}
+   ```
+
+2. Uploaded to Braintrust as v5.1 (transaction: 1000196091334955886)
+3. Committed fix: df62059
+4. Cache will clear in 5 minutes (20:56 → 21:01 UTC)
+
+**Testing:**
+Need to wait for Braintrust cache to clear, then create a new trader to verify the fix works.
 
 ## Spec
 

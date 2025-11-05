@@ -79,7 +79,8 @@ func (t *Trader) GetFilter() (*TraderFilter, error) {
 
 // TraderFilter contains the executable code and metadata for a trader
 type TraderFilter struct {
-	Code                string               `json:"code"`                // Go code to execute
+	Code                string               `json:"code"`                // Go code to execute (filter - returns bool)
+	SeriesCode          string               `json:"seriesCode"`          // Go code for indicator series (returns map[string]interface{})
 	Description         []string             `json:"description"`         // Human-readable description
 	Indicators          []IndicatorConfig    `json:"indicators"`          // Indicators to calculate for visualization
 	RequiredTimeframes  []string             `json:"requiredTimeframes"`  // Required timeframes (e.g., ["5m", "1h"])
@@ -113,18 +114,19 @@ type TraderPreferences struct {
 
 // Signal represents a triggered trading signal
 type Signal struct {
-	ID                    string    `json:"id"`
-	TraderID              string    `json:"trader_id"`
-	UserID                *string   `json:"user_id,omitempty"` // Nullable for built-in traders
-	Symbol                string    `json:"symbol"`
-	Interval              string    `json:"interval"`
-	Timestamp             time.Time `json:"timestamp"`
-	PriceAtSignal         float64   `json:"price_at_signal"`
-	ChangePercentAtSignal float64   `json:"change_percent_at_signal"`
-	VolumeAtSignal        float64   `json:"volume_at_signal"`
-	Count                 int       `json:"count"` // Dedupe count
-	Source                string    `json:"source"` // "browser" or "cloud"
-	MachineID             *string   `json:"machine_id,omitempty"`
+	ID                    string                 `json:"id"`
+	TraderID              string                 `json:"trader_id"`
+	UserID                *string                `json:"user_id,omitempty"` // Nullable for built-in traders
+	Symbol                string                 `json:"symbol"`
+	Interval              string                 `json:"interval"`
+	Timestamp             time.Time              `json:"timestamp"`
+	PriceAtSignal         float64                `json:"price_at_signal"`
+	ChangePercentAtSignal float64                `json:"change_percent_at_signal"`
+	VolumeAtSignal        float64                `json:"volume_at_signal"`
+	Count                 int                    `json:"count"` // Dedupe count
+	Source                string                 `json:"source"` // "browser" or "cloud"
+	MachineID             *string                `json:"machine_id,omitempty"`
+	IndicatorData         map[string]interface{} `json:"indicator_data,omitempty"` // Calculated indicator values for visualization
 }
 
 // MarketData contains all data needed for signal evaluation

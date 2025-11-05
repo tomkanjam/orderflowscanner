@@ -115,7 +115,7 @@ type TraderPreferences struct {
 type Signal struct {
 	ID                    string    `json:"id"`
 	TraderID              string    `json:"trader_id"`
-	UserID                string    `json:"user_id"`
+	UserID                *string   `json:"user_id,omitempty"` // Nullable for built-in traders
 	Symbol                string    `json:"symbol"`
 	Interval              string    `json:"interval"`
 	Timestamp             time.Time `json:"timestamp"`

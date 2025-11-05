@@ -761,10 +761,16 @@ func (e *Executor) saveSignals(signals []Signal) error {
 	// Convert to types.Signal slice
 	dbSignals := make([]*types.Signal, 0, len(signals))
 	for _, signal := range signals {
+		// Handle user_id: use nil for built-in traders (user_id="system"), otherwise use actual UUID
+		var userID *string
+		if signal.UserID != "" && signal.UserID != "system" {
+			userID = &signal.UserID
+		}
+
 		dbSignals = append(dbSignals, &types.Signal{
 			ID:                    signal.ID,
 			TraderID:              signal.TraderID,
-			UserID:                signal.UserID,
+			UserID:                userID, // NULL for built-in traders
 			Symbol:                signal.Symbol,
 			Interval:              signal.Interval, // Use the actual trigger interval
 			Timestamp:             signal.TriggeredAt,

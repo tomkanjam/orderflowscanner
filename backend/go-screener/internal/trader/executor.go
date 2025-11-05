@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vyx/go-screener/internal/analysis"
 	"github.com/vyx/go-screener/internal/eventbus"
+	"github.com/vyx/go-screener/internal/screener"
 	"github.com/vyx/go-screener/pkg/binance"
 	"github.com/vyx/go-screener/pkg/cache"
 	"github.com/vyx/go-screener/pkg/supabase"
@@ -22,6 +23,7 @@ import (
 // EVENT-DRIVEN: Subscribes to candle events instead of timer-based execution
 type Executor struct {
 	yaegi        *yaegi.Executor
+	seriesExec   *screener.SeriesExecutor // NEW: For executing series code
 	binance      *binance.Client
 	supabase     *supabase.Client
 	analysisEng  AnalysisEngine
@@ -53,8 +55,12 @@ func NewExecutor(
 ) *Executor {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Create series executor with 5 second timeout
+	seriesExec := screener.NewSeriesExecutor(5 * time.Second)
+
 	return &Executor{
 		yaegi:       yaegi,
+		seriesExec:  seriesExec,
 		binance:     binance,
 		supabase:    supabase,
 		analysisEng: analysisEng,
@@ -748,6 +754,32 @@ func (e *Executor) processSymbol(ctx context.Context, symbol string, trader *Tra
 			Metadata:    make(map[string]interface{}),
 			CreatedAt:   time.Now(),
 		}
+
+		// Execute series code if available (for indicator visualization)
+		if trader.Config.SeriesCode != "" {
+			log.Printf("[Executor] Executing series code for %s", symbol)
+
+			indicatorData, err := e.seriesExec.ExecuteSeriesCode(ctx, trader.Config.SeriesCode, marketData)
+			if err != nil {
+				// Log error but don't fail signal creation (graceful degradation)
+				log.Printf("[Executor] Series code execution failed for %s: %v", symbol, err)
+			} else {
+				// Validate output format
+				expectedIndicators := make([]string, len(trader.Config.Indicators))
+				for i, ind := range trader.Config.Indicators {
+					expectedIndicators[i] = ind.ID
+				}
+
+				if err := e.seriesExec.ValidateSeriesOutput(indicatorData, expectedIndicators); err != nil {
+					log.Printf("[Executor] Series output validation failed for %s: %v", symbol, err)
+				} else {
+					// Store indicator data with signal
+					signal.IndicatorData = indicatorData
+					log.Printf("[Executor] Successfully generated indicator data for %s: %d indicators", symbol, len(indicatorData))
+				}
+			}
+		}
+
 		return signal, nil
 	}
 
@@ -780,6 +812,7 @@ func (e *Executor) saveSignals(signals []Signal) error {
 			Count:                 1,
 			Source:                "cloud",
 			MachineID:             nil,
+			IndicatorData:         signal.IndicatorData, // NEW: Include indicator visualization data
 		})
 	}
 

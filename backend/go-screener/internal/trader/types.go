@@ -45,6 +45,7 @@ func (s TraderState) IsValid() bool {
 type TraderConfig struct {
 	// Filter configuration
 	FilterCode        string              `json:"filter_code"`
+	SeriesCode        string              `json:"series_code"`         // NEW: Code for generating indicator series data
 	ScreeningInterval time.Duration       `json:"screening_interval"`
 	Symbols           []string            `json:"symbols"`
 	Timeframes        []string            `json:"timeframes"`

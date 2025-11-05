@@ -7,15 +7,17 @@
  *
  * Each operation specifies:
  * - modelId: OpenRouter model identifier
- * - promptVersion: Semantic version for prompt tracking
  * - temperature: Randomness (0 = deterministic, 1 = creative)
  * - maxTokens: Maximum response length
+ *
+ * Prompts are always fetched from Braintrust (latest version).
+ * Update prompts directly in Braintrust UI for immediate effect (5min cache TTL).
  *
  * To update based on Braintrust evaluations:
  * 1. Run evals comparing models/prompts
  * 2. Identify winner (highest score)
- * 3. Update config below
- * 4. Deploy edge function
+ * 3. Update config below (for models) or Braintrust UI (for prompts)
+ * 4. Deploy edge function (if changing models)
  */
 
 export const OPERATION_CONFIGS = {
@@ -28,7 +30,6 @@ export const OPERATION_CONFIGS = {
    */
   'generate-trader-metadata': {
     modelId: 'google/gemini-2.5-flash',
-    promptVersion: 'v1.2',
     temperature: 0.7,
     maxTokens: 2000,
     description: 'Extract strategy metadata from user description'
@@ -43,7 +44,6 @@ export const OPERATION_CONFIGS = {
    */
   'generate-filter-code': {
     modelId: 'anthropic/claude-haiku-4.5',
-    promptVersion: 'v1.1',
     temperature: 0.4, // Lower temperature for code generation
     maxTokens: 4000,
     description: 'Generate Go filter code from trading conditions'
@@ -58,7 +58,6 @@ export const OPERATION_CONFIGS = {
    */
   'generate-trader': {
     modelId: 'google/gemini-2.5-flash',
-    promptVersion: 'v1.1',
     temperature: 0.6,
     maxTokens: 6000,
     description: 'Generate complete trader from user description'
@@ -73,7 +72,6 @@ export const OPERATION_CONFIGS = {
    */
   'analyze-signal': {
     modelId: 'google/gemini-2.5-flash',
-    promptVersion: 'v1.0',
     temperature: 0.2, // Low temperature for consistent analysis
     maxTokens: 2000,
     description: 'Analyze trading signal and generate decision'

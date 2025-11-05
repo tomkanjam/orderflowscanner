@@ -92,7 +92,7 @@ serve(async (req) => {
     console.log(`[${timestamp}] User tier: ${subscription.subscription_tier}`);
 
     // Call Go backend API to execute trader immediately
-    const goBackendUrl = Deno.env.get('GO_BACKEND_URL') || 'http://localhost:8080';
+    const goBackendUrl = Deno.env.get('GO_SERVER_URL') || 'https://vyx-app.fly.dev';
     const executeUrl = `${goBackendUrl}/api/v1/traders/${traderId}/execute-immediate`;
 
     console.log(`[${timestamp}] Calling Go backend: ${executeUrl}`);

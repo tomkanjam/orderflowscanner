@@ -62,7 +62,7 @@ serve(async (req) => {
     console.log(`[${timestamp}] Authenticated user: ${user.id}`);
 
     // Call shared Go backend API to stop trader
-    const goBackendUrl = Deno.env.get('GO_BACKEND_URL') || 'http://localhost:8080';
+    const goBackendUrl = Deno.env.get('GO_SERVER_URL') || 'https://vyx-app.fly.dev';
     const stopUrl = `${goBackendUrl}/api/v1/traders/${traderId}/stop`;
 
     console.log(`[${timestamp}] Calling Go backend: ${stopUrl}`);

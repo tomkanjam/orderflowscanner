@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/vyx/go-screener/internal/trader"
@@ -260,13 +261,27 @@ func (h *TraderHandler) ExecuteImmediate(w http.ResponseWriter, r *http.Request)
 	// If not in registry, try loading from database (handles newly created traders)
 	status, err := h.manager.GetStatus(traderID)
 	if err != nil {
-		// Trader not in registry - try loading from database
-		if loadErr := h.manager.LoadTraderByID(traderID); loadErr != nil {
+		// Trader not in registry - try loading from database with retry logic
+		// to handle race condition where trader INSERT hasn't committed yet
+		var loadErr error
+		for i := 0; i < 3; i++ {
+			loadErr = h.manager.LoadTraderByID(traderID)
+			if loadErr == nil {
+				break
+			}
+			// If not the last attempt, wait before retrying
+			if i < 2 {
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+
+		if loadErr != nil {
 			respondJSON(w, http.StatusNotFound, map[string]string{
 				"error": "Trader not found",
 			})
 			return
 		}
+
 		// Try getting status again after loading
 		status, err = h.manager.GetStatus(traderID)
 		if err != nil {

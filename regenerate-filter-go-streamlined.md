@@ -6,13 +6,29 @@ You will receive conditions describing a trading filter. Generate a JSON object 
 ```json
 {
   "requiredTimeframes": ["1m", "5m", ...],
-  "filterCode": "// Go function body"
+  "filterCode": "// Go function body for signal detection",
+  "seriesCode": "// Go function body for indicator visualization data",
+  "indicators": [
+    {
+      "id": "unique_id",
+      "name": "Display Name",
+      "type": "line",
+      "panel": true,
+      "params": {}
+    }
+  ]
 }
 ```
 
-## Function Signature
+**IMPORTANT:** You must generate ALL FOUR fields. The `seriesCode` and `indicators` are required for chart visualization.
 
-Generate ONLY the function body (code inside braces). Do NOT include function declaration, package, imports, or markdown.
+## Code Generation Requirements
+
+You must generate TWO pieces of code:
+
+### 1. filterCode (Signal Detection)
+
+Fast boolean evaluation that runs on every candle. Generate ONLY the function body.
 
 ```go
 func Filter(data MarketData) *types.SignalResult {
@@ -22,6 +38,50 @@ func Filter(data MarketData) *types.SignalResult {
 ```
 
 **Return:** `*types.SignalResult` (NOT bool)
+
+### 2. seriesCode (Indicator Visualization)
+
+Slower data collection that runs ONLY when a signal triggers. Generate ONLY the function body.
+
+```go
+func CalculateSeries(data *types.MarketData) map[string]interface{} {
+    result := make(map[string]interface{})
+
+    // Get klines for the PRIMARY timeframe (first in requiredTimeframes)
+    klines := data.Klines["5m"]  // Use actual timeframe from requiredTimeframes
+    if klines == nil || len(klines) < 150 {
+        return result
+    }
+
+    // Calculate indicator series (last 150 points)
+    // Example for RSI:
+    rsiValues := []map[string]interface{}{}
+    rsiResult := indicators.CalculateRSI(klines, 14)
+    if rsiResult != nil {
+        start := 0
+        if len(rsiResult.Values) > 150 {
+            start = len(rsiResult.Values) - 150
+        }
+        for i := start; i < len(rsiResult.Values); i++ {
+            if rsiResult.Values[i] != 0 {
+                rsiValues = append(rsiValues, map[string]interface{}{
+                    "x": klines[i].CloseTime,
+                    "y": rsiResult.Values[i],
+                })
+            }
+        }
+    }
+    result["rsi_14"] = rsiValues
+
+    return result
+}
+```
+
+**Return:** `map[string]interface{}` where:
+- Keys match indicator IDs in the `indicators` array
+- Values are arrays of data points: `[{x: timestamp, y: value}, ...]`
+- Include last 150 points (or less if insufficient data)
+- Multi-line indicators use `y2`, `y3` fields (e.g., Bollinger Bands)
 
 ## Type Definitions
 
@@ -206,7 +266,19 @@ return types.BuildSignalResult(true, klinesToReturn, indicatorsMap, reasoning)
 ```json
 {
   "requiredTimeframes": ["15m"],
-  "filterCode": "klines := data.Klines[\"15m\"]\nif klines == nil || len(klines) < 50 {\n    return types.BuildSimpleSignalResult(false)\n}\n\nrsi := indicators.GetLatestRSI(klines, 14)\nif rsi == nil || *rsi >= 30 {\n    return types.BuildSimpleSignalResult(false)\n}\n\n// Build indicators map\nrsiResult := indicators.CalculateRSI(klines, 14)\nif rsiResult == nil {\n    return types.BuildSimpleSignalResult(false)\n}\n\ntrimmedRSI := types.TrimWarmupZeros(rsiResult.Values)\nklinesToReturn := klines[len(klines)-50:]\nif len(trimmedRSI) > len(klinesToReturn) {\n    trimmedRSI = trimmedRSI[len(trimmedRSI)-len(klinesToReturn):]\n}\n\nindicatorsMap := make(map[string]types.IndicatorData)\nindicatorsMap[\"RSI\"] = types.BuildIndicatorData(\n    *rsi,\n    types.ToInterfaceSlice(trimmedRSI),\n    map[string]interface{}{\"period\": 14},\n)\n\nreasoning := fmt.Sprintf(\"RSI oversold at %.2f (< 30)\", *rsi)\nreturn types.BuildSignalResult(true, klinesToReturn, indicatorsMap, reasoning)"
+  "filterCode": "klines := data.Klines[\"15m\"]\nif klines == nil || len(klines) < 50 {\n    return types.BuildSimpleSignalResult(false)\n}\n\nrsi := indicators.GetLatestRSI(klines, 14)\nif rsi == nil || *rsi >= 30 {\n    return types.BuildSimpleSignalResult(false)\n}\n\n// Build indicators map\nrsiResult := indicators.CalculateRSI(klines, 14)\nif rsiResult == nil {\n    return types.BuildSimpleSignalResult(false)\n}\n\ntrimmedRSI := types.TrimWarmupZeros(rsiResult.Values)\nklinesToReturn := klines[len(klines)-50:]\nif len(trimmedRSI) > len(klinesToReturn) {\n    trimmedRSI = trimmedRSI[len(trimmedRSI)-len(klinesToReturn):]\n}\n\nindicatorsMap := make(map[string]types.IndicatorData)\nindicatorsMap[\"RSI\"] = types.BuildIndicatorData(\n    *rsi,\n    types.ToInterfaceSlice(trimmedRSI),\n    map[string]interface{}{\"period\": 14},\n)\n\nreasoning := fmt.Sprintf(\"RSI oversold at %.2f (< 30)\", *rsi)\nreturn types.BuildSignalResult(true, klinesToReturn, indicatorsMap, reasoning)",
+  "seriesCode": "result := make(map[string]interface{})\n\nklines := data.Klines[\"15m\"]\nif klines == nil || len(klines) < 150 {\n    return result\n}\n\nrsiResult := indicators.CalculateRSI(klines, 14)\nif rsiResult == nil {\n    return result\n}\n\nrsiValues := []map[string]interface{}{}\nstart := 0\nif len(rsiResult.Values) > 150 {\n    start = len(rsiResult.Values) - 150\n}\n\nfor i := start; i < len(rsiResult.Values); i++ {\n    if rsiResult.Values[i] != 0 {\n        rsiValues = append(rsiValues, map[string]interface{}{\n            \"x\": klines[i].CloseTime,\n            \"y\": rsiResult.Values[i],\n        })\n    }\n}\n\nresult[\"rsi_14\"] = rsiValues\nreturn result",
+  "indicators": [
+    {
+      "id": "rsi_14",
+      "name": "RSI (14)",
+      "type": "line",
+      "panel": true,
+      "params": {
+        "period": 14
+      }
+    }
+  ]
 }
 ```
 
@@ -224,7 +296,28 @@ return types.BuildSignalResult(true, klinesToReturn, indicatorsMap, reasoning)
 ```json
 {
   "requiredTimeframes": ["1m", "5m"],
-  "filterCode": "// Check 1m RSI\nklines1m := data.Klines[\"1m\"]\nif klines1m == nil || len(klines1m) < 50 {\n    return types.BuildSimpleSignalResult(false)\n}\n\nrsi1m := indicators.GetLatestRSI(klines1m, 14)\nif rsi1m == nil || *rsi1m >= 30 {\n    return types.BuildSimpleSignalResult(false)\n}\n\n// Check 5m EMA\nklines5m := data.Klines[\"5m\"]\nif klines5m == nil || len(klines5m) < 50 {\n    return types.BuildSimpleSignalResult(false)\n}\n\nema50 := indicators.CalculateEMA(klines5m, 50)\nif ema50 == nil {\n    return types.BuildSimpleSignalResult(false)\n}\n\nlastClose := klines5m[len(klines5m)-1].Close\nif lastClose <= *ema50 {\n    return types.BuildSimpleSignalResult(false)\n}\n\n// Build indicators with alignment\nrsiResult := indicators.CalculateRSI(klines1m, 14)\nemaSeries := indicators.CalculateEMASeries(klines5m, 50)\n\nif rsiResult == nil || len(emaSeries) == 0 {\n    return types.BuildSimpleSignalResult(false)\n}\n\ntrimmedRSI := types.TrimWarmupZeros(rsiResult.Values)\ntrimmedEMA := types.TrimWarmupZeros(emaSeries)\n\nklinesToReturn := klines5m[len(klines5m)-50:]\n\nif len(trimmedRSI) > len(klinesToReturn) {\n    trimmedRSI = trimmedRSI[len(trimmedRSI)-len(klinesToReturn):]\n}\nif len(trimmedEMA) > len(klinesToReturn) {\n    trimmedEMA = trimmedEMA[len(trimmedEMA)-len(klinesToReturn):]\n}\n\nindicatorsMap := make(map[string]types.IndicatorData)\nindicatorsMap[\"RSI\"] = types.BuildIndicatorData(\n    *rsi1m,\n    types.ToInterfaceSlice(trimmedRSI),\n    map[string]interface{}{\"period\": 14},\n)\nindicatorsMap[\"EMA50\"] = types.BuildIndicatorData(\n    *ema50,\n    types.ToInterfaceSlice(trimmedEMA),\n    map[string]interface{}{\"period\": 50},\n)\n\nreasoning := fmt.Sprintf(\"1m RSI: %.2f (oversold), 5m price $%.2f above EMA50 $%.2f\", *rsi1m, lastClose, *ema50)\nreturn types.BuildSignalResult(true, klinesToReturn, indicatorsMap, reasoning)"
+  "filterCode": "// Check 1m RSI\nklines1m := data.Klines[\"1m\"]\nif klines1m == nil || len(klines1m) < 50 {\n    return types.BuildSimpleSignalResult(false)\n}\n\nrsi1m := indicators.GetLatestRSI(klines1m, 14)\nif rsi1m == nil || *rsi1m >= 30 {\n    return types.BuildSimpleSignalResult(false)\n}\n\n// Check 5m EMA\nklines5m := data.Klines[\"5m\"]\nif klines5m == nil || len(klines5m) < 50 {\n    return types.BuildSimpleSignalResult(false)\n}\n\nema50 := indicators.CalculateEMA(klines5m, 50)\nif ema50 == nil {\n    return types.BuildSimpleSignalResult(false)\n}\n\nlastClose := klines5m[len(klines5m)-1].Close\nif lastClose <= *ema50 {\n    return types.BuildSimpleSignalResult(false)\n}\n\n// Build indicators with alignment\nrsiResult := indicators.CalculateRSI(klines1m, 14)\nemaSeries := indicators.CalculateEMASeries(klines5m, 50)\n\nif rsiResult == nil || len(emaSeries) == 0 {\n    return types.BuildSimpleSignalResult(false)\n}\n\ntrimmedRSI := types.TrimWarmupZeros(rsiResult.Values)\ntrimmedEMA := types.TrimWarmupZeros(emaSeries)\n\nklinesToReturn := klines5m[len(klines5m)-50:]\n\nif len(trimmedRSI) > len(klinesToReturn) {\n    trimmedRSI = trimmedRSI[len(trimmedRSI)-len(klinesToReturn):]\n}\nif len(trimmedEMA) > len(klinesToReturn) {\n    trimmedEMA = trimmedEMA[len(trimmedEMA)-len(klinesToReturn):]\n}\n\nindicatorsMap := make(map[string]types.IndicatorData)\nindicatorsMap[\"RSI\"] = types.BuildIndicatorData(\n    *rsi1m,\n    types.ToInterfaceSlice(trimmedRSI),\n    map[string]interface{}{\"period\": 14},\n)\nindicatorsMap[\"EMA50\"] = types.BuildIndicatorData(\n    *ema50,\n    types.ToInterfaceSlice(trimmedEMA),\n    map[string]interface{}{\"period\": 50},\n)\n\nreasoning := fmt.Sprintf(\"1m RSI: %.2f (oversold), 5m price $%.2f above EMA50 $%.2f\", *rsi1m, lastClose, *ema50)\nreturn types.BuildSignalResult(true, klinesToReturn, indicatorsMap, reasoning)",
+  "seriesCode": "result := make(map[string]interface{})\n\nklines1m := data.Klines[\"1m\"]\nif klines1m == nil || len(klines1m) < 150 {\n    return result\n}\n\nrsiResult := indicators.CalculateRSI(klines1m, 14)\nif rsiResult != nil {\n    rsiValues := []map[string]interface{}{}\n    start := 0\n    if len(rsiResult.Values) > 150 {\n        start = len(rsiResult.Values) - 150\n    }\n    for i := start; i < len(rsiResult.Values); i++ {\n        if rsiResult.Values[i] != 0 {\n            rsiValues = append(rsiValues, map[string]interface{}{\n                \"x\": klines1m[i].CloseTime,\n                \"y\": rsiResult.Values[i],\n            })\n        }\n    }\n    result[\"rsi_14\"] = rsiValues\n}\n\nklines5m := data.Klines[\"5m\"]\nif klines5m != nil && len(klines5m) >= 50 {\n    emaSeries := indicators.CalculateEMASeries(klines5m, 50)\n    if len(emaSeries) > 0 {\n        emaValues := []map[string]interface{}{}\n        start := 0\n        if len(emaSeries) > 150 {\n            start = len(emaSeries) - 150\n        }\n        for i := start; i < len(emaSeries); i++ {\n            if emaSeries[i] != 0 {\n                emaValues = append(emaValues, map[string]interface{}{\n                    \"x\": klines5m[i].CloseTime,\n                    \"y\": emaSeries[i],\n                })\n            }\n        }\n        result[\"ema_50\"] = emaValues\n    }\n}\n\nreturn result",
+  "indicators": [
+    {
+      "id": "rsi_14",
+      "name": "RSI (14)",
+      "type": "line",
+      "panel": true,
+      "params": {
+        "period": 14
+      }
+    },
+    {
+      "id": "ema_50",
+      "name": "EMA (50)",
+      "type": "line",
+      "panel": false,
+      "params": {
+        "period": 50
+      }
+    }
+  ]
 }
 ```
 

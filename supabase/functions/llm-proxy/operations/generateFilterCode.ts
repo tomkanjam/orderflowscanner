@@ -63,15 +63,17 @@ export async function handleGenerateFilterCode(
       throw new Error('Missing or invalid requiredTimeframes in response');
     }
 
-    // 5. Build response
+    // 5. Build response (include seriesCode and indicators for visualization)
     const filterResult = {
       filterCode: result.data.filterCode,
+      seriesCode: result.data.seriesCode || '',          // NEW: For backend indicator calculation
+      indicators: result.data.indicators || [],           // NEW: For chart rendering metadata
       requiredTimeframes: result.data.requiredTimeframes,
       language: 'go'
     };
 
     console.log(
-      `[GenerateFilterCode] Successfully generated filter code (${result.data.filterCode.length} chars, ${result.tokensUsed} tokens)`
+      `[GenerateFilterCode] Successfully generated filter code (${result.data.filterCode.length} chars, ${result.tokensUsed} tokens, ${filterResult.indicators.length} indicators)`
     );
 
     // Log operation outputs to Braintrust
@@ -80,6 +82,8 @@ export async function handleGenerateFilterCode(
       metrics: {
         total_tokens: result.tokensUsed,
         code_length: result.data.filterCode.length,
+        series_code_length: result.data.seriesCode?.length || 0,
+        indicator_count: filterResult.indicators.length,
         timeframes_count: result.data.requiredTimeframes.length
       }
     });

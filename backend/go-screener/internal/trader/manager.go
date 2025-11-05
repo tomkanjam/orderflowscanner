@@ -574,12 +574,13 @@ func convertDBTraderToRuntime(dbTrader *types.Trader) (*Trader, error) {
 	// Create TraderConfig from filter
 	config := &TraderConfig{
 		FilterCode:        filter.Code,
-		ScreeningInterval: 5 * time.Minute, // Default
-		Symbols:           []string{},      // Empty = screen all top symbols
+		SeriesCode:        filter.SeriesCode, // Add series code for indicator generation
+		ScreeningInterval: 5 * time.Minute,   // Default
+		Symbols:           []string{},        // Empty = screen all top symbols
 		Timeframes:        filter.RequiredTimeframes,
-		Indicators:        convertIndicators(filter.Indicators),
-		MaxSignalsPerRun:  10,              // Default limit
-		TimeoutPerRun:     1 * time.Second, // Default timeout
+		Indicators:        filter.Indicators, // No conversion needed - same type
+		MaxSignalsPerRun:  10,                // Default limit
+		TimeoutPerRun:     1 * time.Second,   // Default timeout
 	}
 
 	log.Printf("[Manager] DEBUG: Trader %s (%s) - Timeframes: %v", dbTrader.ID, dbTrader.Name, config.Timeframes)
@@ -598,20 +599,4 @@ func convertDBTraderToRuntime(dbTrader *types.Trader) (*Trader, error) {
 		dbTrader.Description,
 		config,
 	), nil
-}
-
-// convertIndicators converts database indicator configs to runtime configs
-func convertIndicators(dbIndicators []types.IndicatorConfig) []IndicatorConfig {
-	if len(dbIndicators) == 0 {
-		return []IndicatorConfig{}
-	}
-
-	result := make([]IndicatorConfig, len(dbIndicators))
-	for i, ind := range dbIndicators {
-		result[i] = IndicatorConfig{
-			Type:       ind.Name, // Map Name to Type
-			Parameters: ind.Params,
-		}
-	}
-	return result
 }

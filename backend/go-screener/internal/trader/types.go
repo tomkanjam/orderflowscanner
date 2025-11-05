@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/vyx/go-screener/pkg/types"
 )
 
 // TraderState represents the lifecycle state of a trader
@@ -44,22 +46,16 @@ func (s TraderState) IsValid() bool {
 // TraderConfig holds the configuration for a trader
 type TraderConfig struct {
 	// Filter configuration
-	FilterCode        string              `json:"filter_code"`
-	SeriesCode        string              `json:"series_code"`         // NEW: Code for generating indicator series data
-	ScreeningInterval time.Duration       `json:"screening_interval"`
-	Symbols           []string            `json:"symbols"`
-	Timeframes        []string            `json:"timeframes"`
-	Indicators        []IndicatorConfig   `json:"indicators"`
+	FilterCode        string                 `json:"filter_code"`
+	SeriesCode        string                 `json:"series_code"`         // NEW: Code for generating indicator series data
+	ScreeningInterval time.Duration          `json:"screening_interval"`
+	Symbols           []string               `json:"symbols"`
+	Timeframes        []string               `json:"timeframes"`
+	Indicators        []types.IndicatorConfig `json:"indicators"`          // Use types.IndicatorConfig which has ID field
 
 	// Resource limits
 	MaxSignalsPerRun  int                 `json:"max_signals_per_run"`
 	TimeoutPerRun     time.Duration       `json:"timeout_per_run"`
-}
-
-// IndicatorConfig defines a technical indicator for the trader
-type IndicatorConfig struct {
-	Type       string                 `json:"type"`        // "sma", "rsi", "macd", etc.
-	Parameters map[string]interface{} `json:"parameters"`  // indicator-specific params
 }
 
 // Trader represents a running trading strategy instance

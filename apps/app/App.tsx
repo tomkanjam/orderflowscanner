@@ -1134,6 +1134,13 @@ const AppContent: React.FC = () => {
     return null;
   }, [selectedSymbolForChart, selectedSignalTraderId, selectedTraderId, traders]);
 
+  // Get pre-calculated indicator data from selected signal (if available)
+  const preCalculatedIndicators = useMemo(() => {
+    if (!selectedSignalId) return undefined;
+
+    const selectedSignal = allSignals.find(s => s.id === selectedSignalId);
+    return selectedSignal?.indicatorData;
+  }, [selectedSignalId, allSignals]);
 
   // Calculate active signal count
   const activeSignalCount = allSignals.filter(signal => signal.status === 'active').length;
@@ -1208,6 +1215,7 @@ const AppContent: React.FC = () => {
             klineInterval={klineInterval}
             selectedSymbolForChart={selectedSymbolForChart}
             chartConfigForDisplay={chartConfigForDisplay}
+            preCalculatedIndicators={preCalculatedIndicators}
             onRowClick={handleRowClick}
             selectedSignalId={selectedSignalId}
             onAiInfoClick={handleAiInfoClick}
@@ -1276,10 +1284,11 @@ const AppContent: React.FC = () => {
         traders={traders} // Pass traders to MainContent
         selectedTraderId={selectedTraderId} // Pass selected trader
         onSelectTrader={setSelectedTraderId} // Pass selection callback
-        currentFilterFn={null} 
+        currentFilterFn={null}
         klineInterval={klineInterval}
         selectedSymbolForChart={selectedSymbolForChart}
         chartConfigForDisplay={chartConfigForDisplay}
+        preCalculatedIndicators={preCalculatedIndicators}
         onRowClick={handleRowClick}
         selectedSignalId={selectedSignalId}
         onAiInfoClick={handleAiInfoClick}

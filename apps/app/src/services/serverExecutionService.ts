@@ -248,7 +248,7 @@ class ServerExecutionService {
     try {
       let query = supabase
         .from('signals')
-        .select('*')
+        .select('*, indicator_data')  // Explicitly include indicator_data JSONB column
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 

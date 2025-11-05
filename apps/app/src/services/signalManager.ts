@@ -137,6 +137,7 @@ export class SignalManager {
     created_at: string;
     price_at_signal?: number;
     metadata?: any;
+    indicator_data?: Record<string, Array<{ x: number; y: number; y2?: number; y3?: number }>>;
   }>, append: boolean = false): void {
     console.log(`[SignalManager] Loading ${dbSignals.length} signals from database (append: ${append})`);
 
@@ -152,6 +153,7 @@ export class SignalManager {
         status: 'new', // Default status for loaded signals
         currentPrice: dbSignal.price_at_signal || dbSignal.metadata?.price_at_signal || 0,
         priceChange: 0,
+        indicatorData: dbSignal.indicator_data, // Include backend-calculated indicator data
       };
 
       // Only add if not already exists (avoid duplicates)
@@ -172,6 +174,7 @@ export class SignalManager {
     created_at: string;
     price_at_signal?: number;
     metadata?: any;
+    indicator_data?: Record<string, Array<{ x: number; y: number; y2?: number; y3?: number }>>;
   }): void {
     // Skip if signal already exists (avoid duplicates)
     if (this.signals.has(dbSignal.id)) {
@@ -190,6 +193,7 @@ export class SignalManager {
       status: 'new',
       currentPrice: dbSignal.price_at_signal || dbSignal.metadata?.price_at_signal || 0,
       priceChange: 0,
+      indicatorData: dbSignal.indicator_data, // Include backend-calculated indicator data
     };
 
     this.signals.set(signal.id, signal);

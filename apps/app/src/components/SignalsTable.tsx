@@ -3,7 +3,7 @@ import { SignalLifecycle, SignalStatus } from '../abstractions/interfaces';
 import { signalManager } from '../services/signalManager';
 import { Ticker, HistoricalSignal, HistoricalScanConfig, HistoricalScanProgress, KlineHistoryConfig } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
-import { Bell, BellOff, X, ChevronDown, ChevronRight, AlertCircle, Clock, CheckCircle, XCircle, DollarSign } from 'lucide-react';
+import { Bell, BellOff, X, AlertCircle, Clock, CheckCircle, XCircle, DollarSign } from 'lucide-react';
 import { AutoTradeButton } from './AutoTradeButton';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useInView } from 'react-intersection-observer';
@@ -58,7 +58,6 @@ function SignalsTableComponent({
 }: SignalsTableProps) {
   const { currentTier } = useSubscription();
   const [signals, setSignals] = useState<SignalLifecycle[]>([]);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [newSignalTimestamps, setNewSignalTimestamps] = useState<Set<number>>(new Set());
   const [soundEnabled, setSoundEnabled] = useState(() => {
     return localStorage.getItem('traderSignalSoundEnabled') === 'true';
@@ -166,16 +165,6 @@ function SignalsTableComponent({
     const newValue = !soundEnabled;
     setSoundEnabled(newValue);
     localStorage.setItem('traderSignalSoundEnabled', newValue.toString());
-  };
-
-  const toggleRowExpanded = (signalId: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(signalId)) {
-      newExpanded.delete(signalId);
-    } else {
-      newExpanded.add(signalId);
-    }
-    setExpandedRows(newExpanded);
   };
 
   // Filter and sort signals
@@ -417,7 +406,6 @@ function SignalsTableComponent({
         <Table>
           <TableHeader className="sticky top-0 bg-muted/95 backdrop-blur z-10">
             <TableRow>
-              <TableHead className="w-8"></TableHead>
               <TableHead>Time</TableHead>
               <TableHead>Symbol</TableHead>
               <TableHead>Signal</TableHead>
@@ -430,27 +418,20 @@ function SignalsTableComponent({
           </TableHeader>
           <TableBody>
             {enhancedSignals.map((signal) => (
-              <React.Fragment key={signal.id}>
-                <TableRow
-                  className={cn(
-                    "cursor-pointer",
-                    selectedSignalId === signal.id && "bg-amber-500/10 border-l-4 border-l-amber-500"
-                  )}
-                  onClick={() => {
-                    toggleRowExpanded(signal.id);
-                    onRowClick?.(signal.symbol, signal.traderId, signal.id);
-                    onSignalSelect?.(signal);
-                  }}
-                >
-                  <TableCell>
-                    {expandedRows.has(signal.id) ?
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" /> :
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    }
-                  </TableCell>
-                  <TableCell className="text-xs md:text-sm text-muted-foreground">
-                    {formatDistanceToNow(signal.createdAt, { addSuffix: true })}
-                  </TableCell>
+              <TableRow
+                key={signal.id}
+                className={cn(
+                  "cursor-pointer",
+                  selectedSignalId === signal.id && "bg-amber-500/10 border-l-4 border-l-amber-500"
+                )}
+                onClick={() => {
+                  onRowClick?.(signal.symbol, signal.traderId, signal.id);
+                  onSignalSelect?.(signal);
+                }}
+              >
+                <TableCell className="text-xs md:text-sm text-muted-foreground">
+                  {formatDistanceToNow(signal.createdAt, { addSuffix: true })}
+                </TableCell>
                   <TableCell className={cn(
                     "font-medium",
                     newSignalTimestamps.has(signal.createdAt.getTime()) && "animate-pulse text-amber-500"
@@ -506,26 +487,16 @@ function SignalsTableComponent({
                   <TableCell className="text-right text-sm">
                     {formatPriceChange(signal.initialPrice, signal.currentMarketPrice)}
                   </TableCell>
-                  <TableCell className="text-right text-sm hidden sm:table-cell">
-                    {signal.volume24h ? signal.volume24h.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'}
-                  </TableCell>
-                </TableRow>
-
-                {/* Expanded Row Details */}
-                {expandedRows.has(signal.id) && (
-                  <TableRow className="bg-muted">
-                    <TableCell colSpan={currentTier === 'elite' ? 9 : 8} className="p-4">
-                      <SignalDetails signal={signal} />
-                    </TableCell>
-                  </TableRow>
-                )}
-              </React.Fragment>
+                <TableCell className="text-right text-sm hidden sm:table-cell">
+                  {signal.volume24h ? signal.volume24h.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'}
+                </TableCell>
+              </TableRow>
             ))}
 
             {/* Historical Signals Separator */}
             {selectedTraderId && sortedHistoricalSignals.length > 0 && (
               <TableRow className="bg-muted/50 border-t border-b">
-                <TableCell colSpan={currentTier === 'elite' ? 9 : 8} className="text-center py-2 text-sm text-primary font-medium">
+                <TableCell colSpan={currentTier === 'elite' ? 8 : 7} className="text-center py-2 text-sm text-primary font-medium">
                   📊 Historical Signals (Found in Past Data)
                 </TableCell>
               </TableRow>
@@ -542,7 +513,6 @@ function SignalsTableComponent({
                   className="opacity-75 cursor-pointer"
                   onClick={() => onRowClick?.(signal.symbol, signal.traderId)}
                 >
-                  <TableCell></TableCell>
                   <TableCell className="text-xs md:text-sm text-muted-foreground">
                     {new Date(signal.klineTimestamp).toLocaleString()}
                   </TableCell>
@@ -578,7 +548,7 @@ function SignalsTableComponent({
 
             {signals.length === 0 && historicalSignals.length === 0 && !isLoadingMore && (
               <TableRow>
-                <TableCell colSpan={currentTier === 'elite' ? 9 : 8} className="text-center text-muted-foreground p-4">
+                <TableCell colSpan={currentTier === 'elite' ? 8 : 7} className="text-center text-muted-foreground p-4">
                   No signals generated yet. Enable your traders to start capturing signals.
                 </TableCell>
               </TableRow>
@@ -606,76 +576,6 @@ function SignalsTableComponent({
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-// Signal Details Component
-function SignalDetails({ signal }: { signal: SignalLifecycle }) {
-  return (
-    <div className="space-y-4">
-      {/* Matched Conditions */}
-      <div>
-        <h4 className="text-sm font-medium text-primary mb-2">Matched Conditions</h4>
-        <div className="flex flex-wrap gap-2">
-          {signal.matchedConditions.map((condition, i) => (
-            <span key={i} className="px-2 py-1 bg-background rounded text-xs">
-              {condition}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Analysis Results */}
-      {signal.analysis && (
-        <div>
-          <h4 className="text-sm font-medium text-primary mb-2">AI Analysis</h4>
-          <div className="bg-background rounded p-3 space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Decision:</span>
-              <span className="text-sm">{signal.analysis.decision.replace('_', ' ')}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Confidence:</span>
-              <span className="text-sm">{(signal.analysis.confidence * 100).toFixed(1)}%</span>
-            </div>
-            {signal.analysis.direction && (
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Direction:</span>
-                <span className="text-sm">{signal.analysis.direction.toUpperCase()}</span>
-              </div>
-            )}
-            <div className="pt-2 border-t">
-              <p className="text-sm">{signal.analysis.reasoning}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Monitoring History */}
-      {signal.monitoringUpdates && signal.monitoringUpdates.length > 0 && (
-        <div>
-          <h4 className="text-sm font-medium text-primary mb-2">Monitoring History</h4>
-          <div className="space-y-2">
-            {signal.monitoringUpdates.map((update, i) => (
-              <div key={i} className="bg-background rounded p-3 flex justify-between items-center">
-                <div className="space-y-1">
-                  <p className="text-sm">{update.reason}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(update.timestamp, { addSuffix: true })}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-mono">${update.price.toFixed(4)}</p>
-                  {update.confidence && (
-                    <p className="text-xs text-muted-foreground">{(update.confidence * 100).toFixed(1)}%</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -43,12 +43,24 @@ func (h *TraderHandler) StartTrader(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get trader from registry to verify ownership
+	// If not in registry, try loading from database (handles newly created traders)
 	status, err := h.manager.GetStatus(traderID)
 	if err != nil {
-		respondJSON(w, http.StatusNotFound, map[string]string{
-			"error": "Trader not found",
-		})
-		return
+		// Trader not in registry - try loading from database
+		if loadErr := h.manager.LoadTraderByID(traderID); loadErr != nil {
+			respondJSON(w, http.StatusNotFound, map[string]string{
+				"error": "Trader not found",
+			})
+			return
+		}
+		// Try getting status again after loading
+		status, err = h.manager.GetStatus(traderID)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Failed to load trader",
+			})
+			return
+		}
 	}
 
 	// Verify user owns this trader
@@ -88,12 +100,24 @@ func (h *TraderHandler) StopTrader(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get trader status to verify ownership
+	// If not in registry, try loading from database (handles newly created traders)
 	status, err := h.manager.GetStatus(traderID)
 	if err != nil {
-		respondJSON(w, http.StatusNotFound, map[string]string{
-			"error": "Trader not found",
-		})
-		return
+		// Trader not in registry - try loading from database
+		if loadErr := h.manager.LoadTraderByID(traderID); loadErr != nil {
+			respondJSON(w, http.StatusNotFound, map[string]string{
+				"error": "Trader not found",
+			})
+			return
+		}
+		// Try getting status again after loading
+		status, err = h.manager.GetStatus(traderID)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Failed to load trader",
+			})
+			return
+		}
 	}
 
 	// Verify user owns this trader
@@ -133,12 +157,24 @@ func (h *TraderHandler) GetTraderStatus(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Get trader status
+	// If not in registry, try loading from database (handles newly created traders)
 	status, err := h.manager.GetStatus(traderID)
 	if err != nil {
-		respondJSON(w, http.StatusNotFound, map[string]string{
-			"error": "Trader not found",
-		})
-		return
+		// Trader not in registry - try loading from database
+		if loadErr := h.manager.LoadTraderByID(traderID); loadErr != nil {
+			respondJSON(w, http.StatusNotFound, map[string]string{
+				"error": "Trader not found",
+			})
+			return
+		}
+		// Try getting status again after loading
+		status, err = h.manager.GetStatus(traderID)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Failed to load trader",
+			})
+			return
+		}
 	}
 
 	// Verify user owns this trader
@@ -221,12 +257,24 @@ func (h *TraderHandler) ExecuteImmediate(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Get trader from registry to verify ownership
+	// If not in registry, try loading from database (handles newly created traders)
 	status, err := h.manager.GetStatus(traderID)
 	if err != nil {
-		respondJSON(w, http.StatusNotFound, map[string]string{
-			"error": "Trader not found",
-		})
-		return
+		// Trader not in registry - try loading from database
+		if loadErr := h.manager.LoadTraderByID(traderID); loadErr != nil {
+			respondJSON(w, http.StatusNotFound, map[string]string{
+				"error": "Trader not found",
+			})
+			return
+		}
+		// Try getting status again after loading
+		status, err = h.manager.GetStatus(traderID)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Failed to load trader",
+			})
+			return
+		}
 	}
 
 	// Verify user owns this trader

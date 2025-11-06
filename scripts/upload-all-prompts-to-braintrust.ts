@@ -3,7 +3,9 @@
 /**
  * Upload All Prompts to Braintrust
  *
- * Uploads complete prompt content to Braintrust as single source of truth.
+ * Uploads prompt content from git source files to Braintrust with file hashing.
+ * Git source files are the source of truth. Braintrust is the runtime cache.
+ *
  * Run: deno run --allow-net --allow-read --allow-env scripts/upload-all-prompts-to-braintrust.ts
  */
 
@@ -12,7 +14,19 @@ const BRAINTRUST_PROJECT_ID = Deno.env.get("BRAINTRUST_PROJECT_ID") || "5df22744
 
 if (!BRAINTRUST_API_KEY) {
   console.error("Error: BRAINTRUST_API_KEY environment variable is required");
+  console.error("Get your API key from: https://www.braintrust.dev/app/settings/api-keys");
   Deno.exit(1);
+}
+
+/**
+ * Calculate SHA-256 hash of content
+ */
+async function calculateHash(content: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(content);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 interface PromptConfig {
@@ -62,10 +76,13 @@ async function uploadPrompt(config: PromptConfig): Promise<void> {
   }
 
   const lineCount = promptContent.split('\n').length;
+  const fileHash = await calculateHash(promptContent);
+
   console.log(`   Source: ${config.sourcePath}`);
   console.log(`   Lines: ${lineCount}`);
+  console.log(`   Hash: ${fileHash.substring(0, 16)}...`);
 
-  // Prepare payload
+  // Prepare payload with git hash in metadata
   const payload = {
     project_id: BRAINTRUST_PROJECT_ID,
     slug: config.slug,
@@ -84,6 +101,11 @@ async function uploadPrompt(config: PromptConfig): Promise<void> {
           ...(config.responseFormat && { response_format: config.responseFormat })
         }
       }
+    },
+    metadata: {
+      git_source_hash: fileHash,
+      git_source_path: config.sourcePath,
+      uploaded_at: new Date().toISOString()
     }
   };
 
@@ -187,8 +209,8 @@ async function main() {
   console.log("\n🎉 All prompts uploaded successfully!");
   console.log("\nNext steps:");
   console.log("1. Verify prompts in Braintrust UI: https://www.braintrust.dev/app/AI%20Trader/p/prompts");
-  console.log("2. Test edge functions with new prompts");
-  console.log("3. Remove local prompt files and duplicates");
+  console.log("2. Commit prompt source files to git");
+  console.log("3. Test edge functions with new prompts");
 }
 
 if (import.meta.main) {

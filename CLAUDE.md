@@ -38,24 +38,74 @@ Required for all environments:
 
 ### Prompt Management Architecture
 
-**Braintrust is the ONLY source of truth for all LLM prompts. No exceptions.**
+**Hybrid Approach: Git as Source of Truth, Braintrust as Runtime Cache**
 
-- All prompts are stored in Braintrust (https://www.braintrust.dev/app/AI%20Trader/p/prompts)
-- NO local .md files with prompt content
-- NO hardcoded prompts in code
-- NO database tables with prompt content
-- NO fallback mechanisms
+Git is the source of truth for prompts. Braintrust is automatically kept in sync via upload scripts and enforced by pre-commit hooks and CI.
 
-Current prompts:
-- `regenerate-filter-go` - Go filter code generation (731 lines with full indicator API docs)
-- `analyze-signal` - Trading signal analysis and decision making
+#### Source Files (Git)
+Prompt source files are stored in git:
+- `backend/go-screener/prompts/regenerate-filter-go.md` - Go filter code generation
+- `supabase/functions/llm-proxy/prompts/analyze-signal.md` - Trading signal analysis
 
-Upload script: `scripts/upload-all-prompts-to-braintrust.ts`
+#### Runtime (Braintrust)
+Prompts are deployed to Braintrust for use by edge functions:
+- https://www.braintrust.dev/app/AI%20Trader/p/prompts
+- 5-minute cache TTL
+- Version history tracked automatically
 
-To update prompts:
-1. Edit in Braintrust UI or via API
-2. Changes take effect immediately (5-minute cache TTL)
-3. Version history tracked automatically in Braintrust
+#### Workflow
+
+**Initial Setup (Get Prompts from Braintrust):**
+```bash
+# Download current prompts from Braintrust to git
+deno run --allow-net --allow-read --allow-write --allow-env scripts/download-prompts-from-braintrust.ts
+
+# Commit to git
+git add backend/go-screener/prompts supabase/functions/llm-proxy/prompts
+git commit -m "chore: add prompt source files"
+```
+
+**Updating Prompts:**
+1. Edit prompt files in git directly:
+   - `backend/go-screener/prompts/regenerate-filter-go.md`
+   - `supabase/functions/llm-proxy/prompts/analyze-signal.md`
+
+2. Upload to Braintrust:
+   ```bash
+   deno run --allow-net --allow-read --allow-env scripts/upload-all-prompts-to-braintrust.ts
+   ```
+
+3. Verify sync:
+   ```bash
+   deno run --allow-net --allow-read --allow-env scripts/verify-prompt-sync.ts
+   ```
+
+4. Commit changes:
+   ```bash
+   git add backend/go-screener/prompts supabase/functions/llm-proxy/prompts
+   git commit -m "feat: update regenerate-filter-go prompt"
+   ```
+
+**Sync Enforcement:**
+- **Pre-commit hook**: Blocks commits if prompt files changed but Braintrust not updated
+- **GitHub Actions CI**: Verifies sync on all PRs touching prompt files
+- **File hashing**: SHA-256 hashes stored in Braintrust metadata for verification
+
+**Emergency: If Prompts Get Out of Sync**
+```bash
+# Option 1: Upload local changes to Braintrust
+deno run --allow-net --allow-read --allow-env scripts/upload-all-prompts-to-braintrust.ts
+
+# Option 2: Download Braintrust changes to git
+deno run --allow-net --allow-read --allow-write --allow-env scripts/download-prompts-from-braintrust.ts
+```
+
+#### Rules
+- NEVER edit prompts directly in Braintrust UI (use git source files)
+- NEVER hardcode prompts in code
+- NEVER create prompt tables in database
+- ALWAYS upload to Braintrust after editing source files
+- ALWAYS verify sync before committing
 
 ## Tier Access Rules
 - **Anonymous**: View basic signals, charts, real-time triggers only

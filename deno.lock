@@ -1792,7 +1792,10 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:autoevals@^0.0.131",
+        "npm:braintrust@~0.4.8",
         "npm:shadcn@^3.5.0",
+        "npm:tsx@^4.20.6",
         "npm:typescript@~5.7.2"
       ]
     }

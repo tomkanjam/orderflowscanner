@@ -28,13 +28,6 @@ The app is not yet in production. There are no produciton users but we want to l
 Use pnpm
 Use only production supabase and production fly environments. No local stuff!
 
-### Environment Variables
-Required for all environments:
-- `BRAINTRUST_API_KEY` - Braintrust API authentication
-- `BRAINTRUST_PROJECT_ID` - Braintrust project ID (5df22744-d29c-4b01-b18b-e3eccf2ddbba)
-- `SUPABASE_URL` - Supabase project URL
-- `SUPABASE_SERVICE_ROLE_KEY` - Supabase admin key
-- `OPENROUTER_API_KEY` - OpenRouter API key for LLM calls
 
 ### Prompt Management
 
@@ -107,6 +100,7 @@ Create issue files in `context/issues/open/` with format:
 - For project issues, include `PROJECT` in filename to indicate it's a parent issue
 - Link to projects: Add "Part of: `path/to/project-issue.md`" in Linked Items
 - Link to initiatives: Set **Initiative:** field (see Current Initiatives below)
+- Do not pollute the /docs folder with issue docs. Keep issue docs in `context/issues/open/` and `context/issues/closed/`.
 
 ### Implementation Flow
 1. **Spec**: Deep dive into all related code - engineering review, architecture analysis, and planning. Extensive research, extremely concise output (100 lines max)

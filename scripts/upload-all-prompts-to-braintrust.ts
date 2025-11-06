@@ -39,12 +39,32 @@ const prompts: PromptConfig[] = [
     responseFormat: { type: "json_object" }
   },
   {
+    slug: "generate-filter-code",
+    name: "Generate Filter Code (Go)",
+    description: "Generates Go filter code from trading conditions",
+    sourcePath: "./backend/go-screener/prompts/generate-filter-code.md",
+    model: "anthropic/claude-haiku-4.5",
+    temperature: 0.4,
+    maxTokens: 4000,
+    responseFormat: { type: "json_object" }
+  },
+  {
     slug: "analyze-signal",
     name: "Analyze Trading Signal",
     description: "Analyzes trading signals and provides structured decision with risk management",
     sourcePath: "./supabase/functions/llm-proxy/prompts/analyze-signal.md",
     model: "google/gemini-2.5-flash",
     temperature: 0.2,
+    maxTokens: 2000,
+    responseFormat: { type: "json_object" }
+  },
+  {
+    slug: "generate-trader-metadata",
+    name: "Generate Trader Metadata",
+    description: "Extracts strategy metadata from user description",
+    sourcePath: "./supabase/functions/llm-proxy/prompts/generate-trader-metadata.md",
+    model: "google/gemini-2.5-flash",
+    temperature: 0.7,
     maxTokens: 2000,
     responseFormat: { type: "json_object" }
   }

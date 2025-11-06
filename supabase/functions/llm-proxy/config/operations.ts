@@ -43,7 +43,7 @@ export const OPERATION_CONFIGS = {
    * Braintrust scorers: ValidGoCode, FilterCodeRequirements, ConditionCoverage
    */
   'generate-filter-code': {
-    modelId: 'anthropic/claude-haiku-4.5',
+    modelId: 'google/gemini-2.5-flash', // Changed from Claude Haiku - Gemini properly supports JSON mode
     temperature: 0.4, // Lower temperature for code generation
     maxTokens: 4000,
     description: 'Generate Go filter code from trading conditions'

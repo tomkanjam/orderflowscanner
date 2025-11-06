@@ -207,6 +207,7 @@ export async function generateTraderMetadata(
         let buffer = '';
         let metadata: TraderMetadata | null = null;
         let chunkCount = 0;
+        let currentEvent = ''; // Persist across chunks
 
         console.log('[generateTraderMetadata] Starting SSE stream processing...');
 
@@ -225,7 +226,6 @@ export async function generateTraderMetadata(
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
 
-            let currentEvent = '';
             for (const line of lines) {
                 console.log(`[generateTraderMetadata] Processing line:`, line);
 

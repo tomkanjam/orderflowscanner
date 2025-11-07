@@ -19,7 +19,16 @@ The legacy prompt is outdated, confusing, and not referenced anywhere in runtime
 
 ## Progress
 
-(No work started yet)
+**REVERTED** (2025-11-07 09:02)
+
+Initial cleanup was attempted but reverted (commit `a3e8b47`) because:
+- The prompt exists in Braintrust and should be tracked in git
+- Git files should mirror Braintrust state for versioning/auditing
+- Even unused prompts should be maintained for historical consistency
+
+**Decision:** Keep `generate-filter-code.md` in git. It remains unused by runtime code but provides git-Braintrust synchronization.
+
+**Note:** The Braintrust trace name `generate_filter_code` is just an operation label and doesn't mean this prompt is used. The actual prompt loaded is `regenerate-filter-go`.
 
 ## Spec
 
@@ -77,4 +86,8 @@ Consider archiving the `generate-filter-code` prompt in Braintrust UI if it exis
 
 ## Completion
 
-(Add completion details when done)
+**Closed:** 2025-11-07 09:02:00
+**Outcome:** Abandoned - Keeping for git-Braintrust sync
+**Commits:** f6fd69c (issue creation), 744d325 (deletion attempt), a3e8b47 (revert)
+
+Decision: Maintain both prompts in git and Braintrust for now. While `generate-filter-code` is not used in runtime code, keeping git-Braintrust synchronized is more important for versioning and auditing purposes.

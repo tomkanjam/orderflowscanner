@@ -383,6 +383,7 @@ export function TraderForm({
           userId: (profile?.is_admin && isBuiltIn) ? undefined : user?.id,
           filter: {
             code: finalFilterCode,
+            seriesCode: generatedTrader?.seriesCode || '', // Include seriesCode for indicator visualization
             description: validConditions,
             indicators: generatedTrader?.indicators || [],
             refreshInterval: filterInterval,

@@ -78,7 +78,7 @@ export async function generateFilterCode(
     conditions: string[],
     modelName: string = 'gemini-2.5-pro',
     klineInterval: string = '1h'
-): Promise<{ filterCode: string, requiredTimeframes?: string[], language: 'go' }> {
+): Promise<{ filterCode: string, seriesCode: string, indicators: any[], requiredTimeframes?: string[], language: 'go' }> {
     try {
         // Call llm-proxy Edge Function via OpenRouter
         const { supabase } = await import('../src/config/supabase');
@@ -120,7 +120,7 @@ export async function generateFilterCode(
             throw new Error(result.error?.message || 'Filter code generation failed');
         }
 
-        const { filterCode, requiredTimeframes } = result.data;
+        const { filterCode, seriesCode, indicators, requiredTimeframes } = result.data;
 
         if (!filterCode) {
             throw new Error('Response is missing filterCode');
@@ -139,9 +139,13 @@ export async function generateFilterCode(
         console.log('[generateFilterCode] Successfully generated Go filter code via llm-proxy');
         console.log('[generateFilterCode] Required timeframes:', requiredTimeframes);
         console.log('[generateFilterCode] Code length:', filterCode.length);
+        console.log('[generateFilterCode] SeriesCode length:', seriesCode?.length || 0);
+        console.log('[generateFilterCode] Indicators count:', indicators?.length || 0);
 
         return {
             filterCode,
+            seriesCode: seriesCode || '',
+            indicators: indicators || [],
             requiredTimeframes,
             language: 'go'
         };
@@ -363,7 +367,7 @@ export async function generateTrader(
         console.log('[generateTrader] Step 2: Generating Go filter code...');
         onStream?.({ type: 'progress', progress: 95 });
 
-        const { filterCode, requiredTimeframes, language } = await generateFilterCode(
+        const { filterCode, seriesCode, indicators, requiredTimeframes, language } = await generateFilterCode(
             metadata.conditions,
             modelName,
             extractedInterval // Use extracted interval instead of passed parameter
@@ -374,9 +378,10 @@ export async function generateTrader(
             suggestedName: metadata.suggestedName,
             description: metadata.strategyInstructions, // Use strategy instructions as description
             filterCode: filterCode,
+            seriesCode: seriesCode, // Now includes seriesCode
             filterDescription: metadata.conditions,
             strategyInstructions: metadata.strategyInstructions,
-            indicators: metadata.indicators || [],
+            indicators: indicators || metadata.indicators || [], // Prefer generated indicators
             riskParameters: metadata.riskParameters,
             requiredTimeframes: requiredTimeframes,
             language: language, // 'go' for all new traders

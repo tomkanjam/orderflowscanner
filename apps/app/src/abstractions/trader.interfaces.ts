@@ -60,6 +60,7 @@ export interface CloudConfig {
 
 export interface TraderFilter {
   code: string;
+  seriesCode?: string; // Go code for indicator visualization (returns map[string]interface{})
   description: string[];
   indicators?: CustomIndicatorConfig[];
   refreshInterval?: KlineInterval; // How often to check for new signals (renamed from interval)
@@ -212,6 +213,7 @@ export interface TraderGeneration {
   suggestedName: string;
   description: string;
   filterCode: string;
+  seriesCode?: string; // Go code for indicator visualization
   filterDescription: string[];
   strategyInstructions: string;
   indicators: CustomIndicatorConfig[];

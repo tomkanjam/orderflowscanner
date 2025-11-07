@@ -19,7 +19,14 @@ The legacy prompt is outdated, confusing, and not referenced anywhere in runtime
 
 ## Progress
 
-(No work started yet)
+✅ **COMPLETED** (2025-11-07 08:15)
+
+All legacy references removed:
+1. ✅ Deleted `backend/go-screener/prompts/generate-filter-code.md`
+2. ✅ Removed from `scripts/upload-all-prompts-to-braintrust.ts`
+3. ✅ Removed from `supabase/functions/llm-proxy/config/operations.ts`
+4. ✅ Updated `CLAUDE.md` to show only regenerate-filter-go.md
+5. ✅ Verified upload script structure is valid
 
 ## Spec
 
@@ -77,4 +84,8 @@ Consider archiving the `generate-filter-code` prompt in Braintrust UI if it exis
 
 ## Completion
 
-(Add completion details when done)
+**Closed:** 2025-11-07 08:15:00
+**Outcome:** Success
+**Commits:** f6fd69c (issue creation), [cleanup commit]
+
+Successfully removed all references to the legacy `generate-filter-code.md` prompt. The codebase now uses only `regenerate-filter-go.md` for Go filter code generation, eliminating confusion and maintaining only the comprehensive, actively-maintained prompt with full indicator visualization support.

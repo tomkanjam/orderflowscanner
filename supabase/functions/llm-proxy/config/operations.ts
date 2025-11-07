@@ -36,20 +36,6 @@ export const OPERATION_CONFIGS = {
   },
 
   /**
-   * Generate Go filter code from conditions
-   *
-   * Purpose: Convert trading conditions into executable Go code
-   * Optimization goal: Code correctness, all conditions covered, no imports
-   * Braintrust scorers: ValidGoCode, FilterCodeRequirements, ConditionCoverage
-   */
-  'generate-filter-code': {
-    modelId: 'google/gemini-2.5-flash', // Changed from Claude Haiku - Gemini properly supports JSON mode
-    temperature: 0.4, // Lower temperature for code generation
-    maxTokens: 4000,
-    description: 'Generate Go filter code from trading conditions'
-  },
-
-  /**
    * Generate complete trader (metadata + code + strategy)
    *
    * Purpose: End-to-end trader generation from user prompt

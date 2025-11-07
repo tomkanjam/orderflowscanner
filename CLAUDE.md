@@ -32,8 +32,7 @@ Use only production supabase and production fly environments. No local stuff!
 ### Prompt Management
 
 Prompts are stored in git as markdown files and deployed to Braintrust for runtime use:
-- `backend/go-screener/prompts/regenerate-filter-go.md` - Go filter code generation (primary)
-- `backend/go-screener/prompts/generate-filter-code.md` - Go filter code generation (alternate)
+- `backend/go-screener/prompts/regenerate-filter-go.md` - Go filter code generation
 - `supabase/functions/llm-proxy/prompts/analyze-signal.md` - Trading signal analysis
 - `supabase/functions/llm-proxy/prompts/generate-trader-metadata.md` - Strategy metadata extraction
 

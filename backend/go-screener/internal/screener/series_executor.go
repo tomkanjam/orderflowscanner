@@ -122,10 +122,20 @@ func (se *SeriesExecutor) ValidateSeriesOutput(
 
 	// Validate each indicator's data format
 	for key, value := range output {
-		// Try to type assert to slice
-		dataPoints, ok := value.([]interface{})
-		if !ok {
-			return fmt.Errorf("indicator %s: invalid data format, expected []interface{}", key)
+		// Try to type assert to slice - handle both []interface{} and []map[string]interface{}
+		var dataPoints []interface{}
+
+		switch v := value.(type) {
+		case []interface{}:
+			dataPoints = v
+		case []map[string]interface{}:
+			// Convert []map[string]interface{} to []interface{}
+			dataPoints = make([]interface{}, len(v))
+			for i, m := range v {
+				dataPoints[i] = m
+			}
+		default:
+			return fmt.Errorf("indicator %s: invalid data format, expected []interface{} or []map[string]interface{}, got %T", key, value)
 		}
 
 		// Check data points have required fields

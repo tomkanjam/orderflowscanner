@@ -9,6 +9,7 @@ import (
 	"github.com/traefik/yaegi/stdlib"
 
 	"github.com/vyx/go-screener/pkg/types"
+	"github.com/vyx/go-screener/pkg/yaegi"
 )
 
 // SeriesExecutor handles execution of series code for indicator data generation
@@ -42,17 +43,18 @@ func (se *SeriesExecutor) ExecuteSeriesCode(
 		return nil, fmt.Errorf("failed to import stdlib: %w", err)
 	}
 
-	// TODO: Import indicators and types packages when Symbols exports are available
-	// These packages don't export Symbols yet - this feature is not currently working
-	// but the module is kept for future implementation
+	// Import custom symbols (indicators and types packages)
+	if err := i.Use(yaegi.GetCustomSymbols()); err != nil {
+		return nil, fmt.Errorf("failed to import custom symbols: %w", err)
+	}
 
 	// Wrap series code in function
 	fullCode := fmt.Sprintf(`
 package main
 
 import (
-	"github.com/yourusername/go-screener/pkg/indicators"
-	"github.com/yourusername/go-screener/pkg/types"
+	"github.com/vyx/go-screener/pkg/indicators"
+	"github.com/vyx/go-screener/pkg/types"
 )
 
 func calculateSeries(data *types.MarketData) map[string]interface{} {

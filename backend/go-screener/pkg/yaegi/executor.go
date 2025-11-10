@@ -26,7 +26,7 @@ func NewExecutor() (*Executor, error) {
 	}
 
 	// Load our custom symbols (types and indicators)
-	if err := i.Use(getCustomSymbols()); err != nil {
+	if err := i.Use(GetCustomSymbols()); err != nil {
 		return nil, fmt.Errorf("failed to load custom symbols: %w", err)
 	}
 
@@ -44,7 +44,7 @@ func (e *Executor) ExecuteFilter(code string, data *types.MarketData) (bool, err
 	}
 
 	// Load custom symbols
-	if err := i.Use(getCustomSymbols()); err != nil {
+	if err := i.Use(GetCustomSymbols()); err != nil {
 		return false, fmt.Errorf("failed to load custom symbols: %w", err)
 	}
 
@@ -105,8 +105,8 @@ func (e *Executor) ExecuteFilterWithTimeout(code string, data *types.MarketData,
 	}
 }
 
-// getCustomSymbols returns our custom symbols for Yaegi
-func getCustomSymbols() map[string]map[string]reflect.Value {
+// GetCustomSymbols returns our custom symbols for Yaegi (exported for use in other packages)
+func GetCustomSymbols() map[string]map[string]reflect.Value {
 	return map[string]map[string]reflect.Value{
 		"github.com/vyx/go-screener/pkg/types/types": {
 			"Kline":             reflect.ValueOf((*types.Kline)(nil)),
@@ -162,7 +162,7 @@ func (e *Executor) ValidateCode(code string) error {
 	}
 
 	// Load custom symbols
-	if err := i.Use(getCustomSymbols()); err != nil {
+	if err := i.Use(GetCustomSymbols()); err != nil {
 		return fmt.Errorf("failed to load custom symbols: %w", err)
 	}
 

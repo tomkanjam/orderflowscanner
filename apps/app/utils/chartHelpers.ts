@@ -18,16 +18,21 @@ export interface EmptyChartDataset {
 /**
  * Creates empty dataset structure for Chart.js when indicator data is not yet available
  * This ensures charts render immediately with proper structure while calculating
+ *
+ * DEFENSIVE: Handles missing style property (legacy/malformed indicators)
  */
 export function createEmptyDatasets(indicator: CustomIndicatorConfig): EmptyChartDataset[] {
+  // Ensure style exists with defaults
+  const style = indicator.style || { color: '#8efbba', lineWidth: 1.5 };
+
   if (indicator.chartType === 'bar') {
     return [{
       type: 'bar',
       label: indicator.name,
       data: [],
-      backgroundColor: Array.isArray(indicator.style.color)
-        ? indicator.style.color[0]
-        : (indicator.style.color || '#9ca3af')
+      backgroundColor: Array.isArray(style.color)
+        ? style.color[0]
+        : (style.color || '#9ca3af')
     }];
   }
 
@@ -36,10 +41,10 @@ export function createEmptyDatasets(indicator: CustomIndicatorConfig): EmptyChar
     type: 'line',
     label: indicator.name,
     data: [],
-    borderColor: Array.isArray(indicator.style.color)
-      ? indicator.style.color[0]
-      : (indicator.style.color || '#8efbba'),
-    borderWidth: indicator.style.lineWidth || 1.5,
+    borderColor: Array.isArray(style.color)
+      ? style.color[0]
+      : (style.color || '#8efbba'),
+    borderWidth: style.lineWidth || 1.5,
     pointRadius: 0,
     fill: false
   }];
@@ -48,12 +53,17 @@ export function createEmptyDatasets(indicator: CustomIndicatorConfig): EmptyChar
 /**
  * Creates populated datasets from calculated indicator data
  * Extracted from ChartDisplay.tsx for reusability
+ *
+ * DEFENSIVE: Handles missing style property (legacy/malformed indicators)
  */
 export function createIndicatorDatasets(
   dataPoints: IndicatorDataPoint[],
   indicator: CustomIndicatorConfig
 ): any[] {
   const datasets: any[] = [];
+
+  // Ensure style exists with defaults
+  const style = indicator.style || { color: '#8efbba', lineWidth: 1.5 };
 
   if (indicator.chartType === 'bar') {
     // Bar chart (e.g., Volume, MACD Histogram)
@@ -66,16 +76,16 @@ export function createIndicatorDatasets(
         if (point?.color) return point.color;
 
         // Default coloring based on positive/negative
-        if (indicator.style.barColors) {
+        if (style.barColors) {
           const val = point?.y || 0;
-          if (val > 0) return indicator.style.barColors.positive || '#10b981';
-          if (val < 0) return indicator.style.barColors.negative || '#ef4444';
-          return indicator.style.barColors.neutral || '#71717a';
+          if (val > 0) return style.barColors.positive || '#10b981';
+          if (val < 0) return style.barColors.negative || '#ef4444';
+          return style.barColors.neutral || '#71717a';
         }
 
-        return Array.isArray(indicator.style.color)
-          ? indicator.style.color[0]
-          : (indicator.style.color || '#9ca3af');
+        return Array.isArray(style.color)
+          ? style.color[0]
+          : (style.color || '#9ca3af');
       }
     });
   } else if (indicator.chartType === 'line') {
@@ -83,9 +93,9 @@ export function createIndicatorDatasets(
     const hasMultipleLines = dataPoints.some(p => p.y2 !== undefined);
 
     if (hasMultipleLines) {
-      const colors = Array.isArray(indicator.style.color)
-        ? indicator.style.color
-        : [indicator.style.color || '#8efbba'];
+      const colors = Array.isArray(style.color)
+        ? style.color
+        : [style.color || '#8efbba'];
 
       const lineNames = ['', ' Signal', ' Lower', ' 4th'];
       ['y', 'y2', 'y3', 'y4'].forEach((key, idx) => {
@@ -110,7 +120,7 @@ export function createIndicatorDatasets(
               label: `${indicator.name}${lineNames[idx]}`,
               data: dataPoints.map(p => ({x: p.x, y: p[yKey]})),
               borderColor: colors[idx] || colors[0],
-              borderWidth: indicator.style.lineWidth || 1.5,
+              borderWidth: style.lineWidth || 1.5,
               pointRadius: 0,
               fill: false,
               borderDash: idx > 0 && indicator.name.toLowerCase().includes('rsi') ? [5, 5] : undefined
@@ -124,14 +134,14 @@ export function createIndicatorDatasets(
         type: 'line',
         label: indicator.name,
         data: dataPoints.map(p => ({x: p.x, y: p.y})),
-        borderColor: Array.isArray(indicator.style.color)
-          ? indicator.style.color[0]
-          : (indicator.style.color || '#8efbba'),
-        borderWidth: indicator.style.lineWidth || 1.5,
+        borderColor: Array.isArray(style.color)
+          ? style.color[0]
+          : (style.color || '#8efbba'),
+        borderWidth: style.lineWidth || 1.5,
         pointRadius: 0,
-        fill: indicator.style.fillColor ? {
+        fill: style.fillColor ? {
           target: 'origin',
-          above: indicator.style.fillColor
+          above: style.fillColor
         } : false
       });
     }

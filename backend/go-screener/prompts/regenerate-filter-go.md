@@ -321,22 +321,40 @@ return result
 
 Describes each indicator for frontend rendering.
 
+**CRITICAL:** You MUST include ALL required fields for each indicator. Missing fields will cause chart rendering to crash.
+
 ```json
 {
   "id": "rsi_14",
   "name": "RSI (14)",
-  "type": "line",
+  "chartType": "line",
   "panel": true,
+  "calculateFunction": "",
+  "style": {
+    "color": "#8efbba",
+    "lineWidth": 1.5
+  },
   "params": {"period": 14}
 }
 ```
 
-**Fields:**
+**Required Fields:**
 - `id`: Unique identifier (must match seriesCode keys)
 - `name`: Display name for chart legend
-- `type`: "line" or "bar"
+- `chartType`: "line" or "bar" (NOT "type")
 - `panel`: `true` = separate panel below chart, `false` = overlay on price
+- `calculateFunction`: Empty string "" (Go backend handles calculation)
+- `style`: Object with `color` and `lineWidth`
+  - `color`: Hex color string (single) or array of colors (multi-line)
+  - `lineWidth`: Number (typically 1.5)
+  - `barColors`: Only for bar charts: `{"positive": "#hex", "negative": "#hex", "neutral": "#hex"}`
 - `params`: Parameters used in calculation
+
+**Color Palette** (use these for consistency):
+- Line indicators: `#8efbba` (mint green)
+- Overlay indicators: `#fbbf24` (amber)
+- Bar indicators: `#9ca3af` (gray)
+- Multi-line: `["#8efbba", "#fbbf24", "#f87171"]` (mint, amber, red)
 
 **Examples:**
 
@@ -345,23 +363,52 @@ Describes each indicator for frontend rendering.
   {
     "id": "rsi_14",
     "name": "RSI (14)",
-    "type": "line",
+    "chartType": "line",
     "panel": true,
+    "calculateFunction": "",
+    "style": {
+      "color": "#8efbba",
+      "lineWidth": 1.5
+    },
     "params": {"period": 14}
   },
   {
     "id": "volume",
     "name": "Volume",
-    "type": "bar",
+    "chartType": "bar",
     "panel": true,
+    "calculateFunction": "",
+    "style": {
+      "color": "#9ca3af"
+    },
     "params": {}
   },
   {
     "id": "bb_20_2",
     "name": "Bollinger Bands (20,2)",
-    "type": "line",
+    "chartType": "line",
     "panel": false,
+    "calculateFunction": "",
+    "style": {
+      "color": ["#fbbf24", "#8efbba", "#fbbf24"],
+      "lineWidth": 1.5
+    },
     "params": {"period": 20, "stdDev": 2}
+  },
+  {
+    "id": "macd_histogram",
+    "name": "MACD Histogram",
+    "chartType": "bar",
+    "panel": true,
+    "calculateFunction": "",
+    "style": {
+      "barColors": {
+        "positive": "#10b981",
+        "negative": "#ef4444",
+        "neutral": "#6b7280"
+      }
+    },
+    "params": {"fastPeriod": 12, "slowPeriod": 26, "signalPeriod": 9}
   }
 ]
 ```

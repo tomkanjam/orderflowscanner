@@ -1139,7 +1139,7 @@ const AppContent: React.FC = () => {
     if (!selectedSignalId) return undefined;
 
     const selectedSignal = allSignals.find(s => s.id === selectedSignalId);
-    return selectedSignal?.indicatorData;
+    return selectedSignal?.indicator_data;
   }, [selectedSignalId, allSignals]);
 
   // Calculate active signal count

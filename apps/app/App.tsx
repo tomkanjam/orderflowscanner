@@ -1139,6 +1139,9 @@ const AppContent: React.FC = () => {
     if (!selectedSignalId) return undefined;
 
     const selectedSignal = allSignals.find(s => s.id === selectedSignalId);
+    console.log('[App.tsx DEBUG] selectedSignalId:', selectedSignalId);
+    console.log('[App.tsx DEBUG] selectedSignal:', selectedSignal);
+    console.log('[App.tsx DEBUG] indicator_data:', selectedSignal?.indicator_data);
     return selectedSignal?.indicator_data;
   }, [selectedSignalId, allSignals]);
 

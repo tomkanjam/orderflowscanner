@@ -35,7 +35,8 @@ export function useInfiniteSignals({ traderIds, batchSize = 50 }: UseInfiniteSig
           symbol: s.symbols[0],
           created_at: s.timestamp,
           price_at_signal: s.metadata?.price_at_signal,
-          metadata: s.metadata
+          metadata: s.metadata,
+          indicator_data: s.metadata?.indicator_data  // Extract indicator_data from metadata
         }));
 
         // Load signals into signalManager (append mode)

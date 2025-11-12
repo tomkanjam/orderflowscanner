@@ -337,14 +337,10 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
     // If we have pre-calculated indicators from backend, use them directly
     if (preCalculatedIndicators) {
-      console.log('[ChartDisplay DEBUG] preCalculatedIndicators:', preCalculatedIndicators);
-      console.log('[ChartDisplay DEBUG] indicators config:', indicators);
-
       const resultsMap = new Map<string, IndicatorDataPoint[]>();
 
       indicators.forEach(indicator => {
         const backendData = preCalculatedIndicators[indicator.id];
-        console.log(`[ChartDisplay DEBUG] Checking indicator.id="${indicator.id}", found data:`, backendData ? `${backendData.length} points` : 'NO DATA');
         if (backendData) {
           // Convert backend format to IndicatorDataPoint format
           const indicatorPoints: IndicatorDataPoint[] = backendData.map(point => ({

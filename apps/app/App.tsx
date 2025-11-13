@@ -1139,6 +1139,13 @@ const AppContent: React.FC = () => {
     if (!selectedSignalId) return undefined;
 
     const selectedSignal = allSignals.find(s => s.id === selectedSignalId);
+    if (selectedSignal?.indicatorData) {
+      console.log('[App] Selected signal has indicatorData:', {
+        signalId: selectedSignalId,
+        keys: Object.keys(selectedSignal.indicatorData),
+        hasKlines: !!selectedSignal.indicatorData.klines
+      });
+    }
     return selectedSignal?.indicatorData;
   }, [selectedSignalId, allSignals]);
 

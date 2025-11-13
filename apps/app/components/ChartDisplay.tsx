@@ -20,6 +20,7 @@ interface ChartDisplayProps {
   historicalSignals?: HistoricalSignal[];
   isMobile?: boolean;
   preCalculatedIndicators?: Record<string, Array<{ x: number; y: number; y2?: number; y3?: number }>>; // Backend-calculated indicator data
+  preCalculatedKlines?: Array<{x: number; o: number; h: number; l: number; c: number; v: number}>; // Backend-calculated klines
 }
 
 // Signal marker plugin for highlighting signals on the chart
@@ -188,7 +189,7 @@ const crosshairPlugin = {
     }
 };
 
-const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, historicalSignals = [], isMobile = false, preCalculatedIndicators }) => {
+const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators, interval, signalLog, historicalSignals = [], isMobile = false, preCalculatedIndicators, preCalculatedKlines }) => {
 
   const priceCanvasRef = useRef<HTMLCanvasElement>(null);
   const priceChartInstanceRef = useRef<Chart | null>(null);
@@ -329,7 +330,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
   // Calculate indicators when they change (or use pre-calculated from backend)
   useEffect(() => {
-    if (!indicators || !klines || klines.length === 0) {
+    if (!indicators || (!klines && !preCalculatedKlines) || (klines && klines.length === 0 && !preCalculatedKlines)) {
       setCalculatedIndicators(new Map());
       setLoadingStates(new Map());
       return;
@@ -438,14 +439,20 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
 
     // Don't proceed if we don't have the necessary data
     // Create chart immediately - don't wait for calculations
-    if (!symbol || !klines || klines.length === 0) {
+    if (!symbol || (!klines && !preCalculatedKlines) || (klines && klines.length === 0 && !preCalculatedKlines)) {
       return;
     }
 
-
-    const candlestickData: CandlestickDataPoint[] = klines.map(k => ({
-      x: k[0], o: parseFloat(k[1]), h: parseFloat(k[2]), l: parseFloat(k[3]), c: parseFloat(k[4]),
-    }));
+    // Use pre-calculated klines if available, otherwise convert from props
+    const candlestickData: CandlestickDataPoint[] = preCalculatedKlines
+      ? preCalculatedKlines.map(k => ({ x: k.x, o: k.o, h: k.h, l: k.l, c: k.c }))
+      : klines!.map(k => ({
+          x: k[0],
+          o: parseFloat(k[1]),
+          h: parseFloat(k[2]),
+          l: parseFloat(k[3]),
+          c: parseFloat(k[4])
+        }));
 
     // Group indicators by panel
     const overlayIndicators = indicators?.filter(ind => !ind.panel) || [];
@@ -825,14 +832,20 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({ symbol, klines, indicators,
   // Separate effect to update chart data without recreating the chart
   useEffect(() => {
     // console.log(`[DEBUG ${new Date().toISOString()}] Chart data update useEffect triggered. Has price chart: ${!!priceChartInstanceRef.current}, klines: ${klines?.length || 0}, calculatedIndicators size: ${calculatedIndicators.size}`);
-    if (!priceChartInstanceRef.current || !klines || klines.length === 0) {
+    if (!priceChartInstanceRef.current || (!klines && !preCalculatedKlines) || (klines && klines.length === 0 && !preCalculatedKlines)) {
       return;
     }
 
-
-    const candlestickData: CandlestickDataPoint[] = klines.map(k => ({
-      x: k[0], o: parseFloat(k[1]), h: parseFloat(k[2]), l: parseFloat(k[3]), c: parseFloat(k[4]),
-    }));
+    // Use pre-calculated klines if available, otherwise convert from props
+    const candlestickData: CandlestickDataPoint[] = preCalculatedKlines
+      ? preCalculatedKlines.map(k => ({ x: k.x, o: k.o, h: k.h, l: k.l, c: k.c }))
+      : klines!.map(k => ({
+          x: k[0],
+          o: parseFloat(k[1]),
+          h: parseFloat(k[2]),
+          l: parseFloat(k[3]),
+          c: parseFloat(k[4])
+        }));
 
     const chart = priceChartInstanceRef.current;
     if (chart && chart.data.datasets[0]) {

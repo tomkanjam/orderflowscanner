@@ -132,7 +132,10 @@ export interface SignalLifecycle {
   analysisHistory?: AnalysisResult[]; // History of all analyses
 
   // Indicator visualization data
-  indicatorData?: Record<string, Array<{ x: number; y: number; y2?: number; y3?: number }>>; // Pre-calculated indicator values from backend
+  indicatorData?: {
+    klines?: Array<{x: number; o: number; h: number; l: number; c: number; v: number}>;
+    [indicatorId: string]: any; // Indicators or klines
+  }; // Pre-calculated indicator values and klines from backend
   
   // Monitoring data
   monitoringStarted?: Date;

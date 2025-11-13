@@ -33,6 +33,7 @@ interface MainContentProps {
   selectedSymbolForChart: string | null;
   chartConfigForDisplay: CustomIndicatorConfig[] | null;
   preCalculatedIndicators?: Record<string, Array<{ x: number; y: number; y2?: number; y3?: number }>>; // Backend-calculated indicators
+  preCalculatedKlines?: Array<{x: number; o: number; h: number; l: number; c: number; v: number}>; // Backend-calculated klines
   onRowClick: (symbol: string, traderId?: string, signalId?: string) => void;
   selectedSignalId?: string | null;
   onAiInfoClick: (symbol: string, event: React.MouseEvent) => void;
@@ -80,6 +81,7 @@ const MainContent: React.FC<MainContentProps> = ({
   selectedSymbolForChart,
   chartConfigForDisplay,
   preCalculatedIndicators,
+  preCalculatedKlines,
   onRowClick,
   selectedSignalId,
   onAiInfoClick,
@@ -142,6 +144,7 @@ const MainContent: React.FC<MainContentProps> = ({
                     historicalSignals={historicalSignals}
                     isMobile={true}
                     preCalculatedIndicators={preCalculatedIndicators}
+                    preCalculatedKlines={preCalculatedKlines}
                   />
                 </div>
 
@@ -235,6 +238,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 historicalSignals={historicalSignals} // Pass historicalSignals to ChartDisplay
                 isMobile={false}
                 preCalculatedIndicators={preCalculatedIndicators}
+                preCalculatedKlines={preCalculatedKlines}
               />
               <div className="mt-2 flex flex-1 overflow-hidden">
                 <div className={`${!isMobile ? 'flex-1' : 'w-full'} overflow-hidden`}>

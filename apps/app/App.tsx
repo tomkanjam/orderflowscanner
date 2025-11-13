@@ -1142,6 +1142,13 @@ const AppContent: React.FC = () => {
     return selectedSignal?.indicatorData;
   }, [selectedSignalId, allSignals]);
 
+  const preCalculatedKlines = useMemo(() => {
+    if (!selectedSignalId) return undefined;
+
+    const selectedSignal = allSignals.find(s => s.id === selectedSignalId);
+    return selectedSignal?.indicatorData?.klines;
+  }, [selectedSignalId, allSignals]);
+
   // Calculate active signal count
   const activeSignalCount = allSignals.filter(signal => signal.status === 'active').length;
 
@@ -1216,6 +1223,7 @@ const AppContent: React.FC = () => {
             selectedSymbolForChart={selectedSymbolForChart}
             chartConfigForDisplay={chartConfigForDisplay}
             preCalculatedIndicators={preCalculatedIndicators}
+            preCalculatedKlines={preCalculatedKlines}
             onRowClick={handleRowClick}
             selectedSignalId={selectedSignalId}
             onAiInfoClick={handleAiInfoClick}
@@ -1289,6 +1297,7 @@ const AppContent: React.FC = () => {
         selectedSymbolForChart={selectedSymbolForChart}
         chartConfigForDisplay={chartConfigForDisplay}
         preCalculatedIndicators={preCalculatedIndicators}
+        preCalculatedKlines={preCalculatedKlines}
         onRowClick={handleRowClick}
         selectedSignalId={selectedSignalId}
         onAiInfoClick={handleAiInfoClick}

@@ -773,6 +773,12 @@ func (e *Executor) processSymbol(ctx context.Context, symbol string, trader *Tra
 				if err := e.seriesExec.ValidateSeriesOutput(indicatorData, expectedIndicators); err != nil {
 					log.Printf("[Executor] Series output validation failed for %s: %v", symbol, err)
 				} else {
+					// Include candlestick data for chart rendering
+					if klines, exists := marketData.Klines[triggerInterval]; exists && len(klines) > 0 {
+						indicatorData["klines"] = serializeKlines(klines, 150)
+						log.Printf("[Executor] Added %d klines for %s", len(indicatorData["klines"].([]map[string]interface{})), symbol)
+					}
+
 					// Store indicator data with signal
 					signal.IndicatorData = indicatorData
 					log.Printf("[Executor] Successfully generated indicator data for %s: %d indicators", symbol, len(indicatorData))
@@ -823,6 +829,32 @@ func (e *Executor) saveSignals(signals []Signal) error {
 
 	log.Printf("[Executor] Successfully saved %d signals in batch", len(dbSignals))
 	return nil
+}
+
+// serializeKlines converts kline data to chart-ready format
+// Returns last `limit` klines in format: {x: timestamp, o, h, l, c, v}
+func serializeKlines(klines []types.Kline, limit int) []map[string]interface{} {
+	if klines == nil || len(klines) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	start := 0
+	if len(klines) > limit {
+		start = len(klines) - limit
+	}
+
+	result := make([]map[string]interface{}, 0, len(klines)-start)
+	for i := start; i < len(klines); i++ {
+		result = append(result, map[string]interface{}{
+			"x": klines[i].CloseTime,
+			"o": klines[i].Open,
+			"h": klines[i].High,
+			"l": klines[i].Low,
+			"c": klines[i].Close,
+			"v": klines[i].Volume,
+		})
+	}
+	return result
 }
 
 // parseFloat parses a string to float64

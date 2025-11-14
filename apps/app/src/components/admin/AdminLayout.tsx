@@ -2,12 +2,12 @@ import React from 'react';
 import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
-import { Users, FileText, Search, BarChart3, ArrowLeft } from 'lucide-react';
+import { Users, FileText, Search, BarChart3, ArrowLeft, Server } from 'lucide-react';
 
 export const AdminLayout: React.FC = () => {
   const { user } = useAuthContext();
   const { profile } = useSubscription();
-  
+
   // Check if user is authorized admin
   const isAuthorized = profile?.is_admin === true;
 
@@ -17,6 +17,7 @@ export const AdminLayout: React.FC = () => {
 
   const navItems = [
     { path: '/admin/users', label: 'User Management', icon: Users },
+    { path: '/admin/fly-apps', label: 'Fly Apps', icon: Server },
     { path: '/admin/prompts', label: 'Prompt Manager', icon: FileText },
     { path: '/admin/evaluation', label: 'Prompt Evaluation', icon: Search },
     { path: '/admin/trader-stats', label: 'Trader Stats', icon: BarChart3 },

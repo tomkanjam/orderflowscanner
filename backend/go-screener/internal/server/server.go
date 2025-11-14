@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -394,11 +395,22 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // Handler functions
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	runMode := os.Getenv("RUN_MODE")
+	if runMode == "" {
+		runMode = "shared_backend"
+	}
+
+	userID := os.Getenv("USER_ID")
+	traderCount := s.traderManager.GetRegistry().Count()
+
 	health := types.HealthStatus{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Version:   s.config.Version,
-		Uptime:    time.Since(s.startTime).Seconds(),
+		Status:      "healthy",
+		Timestamp:   time.Now(),
+		Version:     s.config.Version,
+		Uptime:      time.Since(s.startTime).Seconds(),
+		RunMode:     runMode,
+		UserID:      userID,
+		TraderCount: traderCount,
 	}
 
 	respondJSON(w, http.StatusOK, health)

@@ -19,6 +19,26 @@ func main() {
 		log.Println("No .env file found or error loading it, using environment variables")
 	}
 
+	// Determine run mode
+	runMode := os.Getenv("RUN_MODE")
+	if runMode == "" {
+		runMode = "shared_backend" // Default to shared mode
+	}
+
+	log.Printf("========================================")
+	log.Printf("Starting server in %s mode", runMode)
+	log.Printf("========================================")
+
+	if runMode == "user_dedicated" {
+		userID := os.Getenv("USER_ID")
+		if userID == "" {
+			log.Fatal("USER_ID required for user_dedicated mode")
+		}
+		log.Printf("Running dedicated instance for user: %s", userID)
+	} else {
+		log.Printf("Running shared backend (built-in traders only)")
+	}
+
 	// Debug: Log all environment variables
 	log.Println("==== Environment Variables ====")
 	for _, env := range os.Environ() {

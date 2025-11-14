@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -259,6 +260,11 @@ func (m *Manager) GetMetrics() map[string]interface{} {
 	return metrics
 }
 
+// GetRegistry returns the trader registry
+func (m *Manager) GetRegistry() *Registry {
+	return m.registry
+}
+
 // LoadTradersFromDB loads traders from the database and registers them
 // This is called on server startup to restore trader state
 func (m *Manager) LoadTradersFromDB() error {
@@ -269,15 +275,51 @@ func (m *Manager) LoadTradersFromDB() error {
 	loaded := 0
 	failed := 0
 
-	// Fetch ALL enabled traders from Supabase (built-in + user traders)
-	allTraders, err := m.supabase.GetAllTraders(m.ctx)
-	if err != nil {
-		log.Printf("[Manager] Failed to fetch traders: %v", err)
-		TradersLoadDuration.Observe(time.Since(startTime).Seconds())
-		return nil // Don't fail server startup, just log
+	// Determine run mode and fetch appropriate traders
+	runMode := os.Getenv("RUN_MODE")
+	if runMode == "" {
+		runMode = "shared_backend" // Default to shared mode
 	}
 
-	log.Printf("[Manager] Found %d enabled traders in database", len(allTraders))
+	var allTraders []types.Trader
+	var err error
+
+	if runMode == "user_dedicated" {
+		// User-dedicated mode: Load only this user's traders (exclude built-in)
+		userID := os.Getenv("USER_ID")
+		if userID == "" {
+			log.Printf("[Manager] ERROR: USER_ID required for user_dedicated mode")
+			return fmt.Errorf("USER_ID required for user_dedicated mode")
+		}
+
+		log.Printf("[Manager] Loading traders for user: %s (user_dedicated mode)", userID)
+		allTraders, err = m.supabase.GetTraders(m.ctx, userID)
+		if err != nil {
+			log.Printf("[Manager] Failed to fetch user traders: %v", err)
+			TradersLoadDuration.Observe(time.Since(startTime).Seconds())
+			return nil // Don't fail server startup, just log
+		}
+
+		// Filter out built-in traders (user-dedicated instances should not run built-in)
+		var userTraders []types.Trader
+		for _, trader := range allTraders {
+			if !trader.IsBuiltIn && trader.Enabled {
+				userTraders = append(userTraders, trader)
+			}
+		}
+		allTraders = userTraders
+	} else {
+		// Shared backend mode: Load only built-in traders
+		log.Printf("[Manager] Loading built-in traders (shared_backend mode)")
+		allTraders, err = m.supabase.GetBuiltInTraders(m.ctx)
+		if err != nil {
+			log.Printf("[Manager] Failed to fetch built-in traders: %v", err)
+			TradersLoadDuration.Observe(time.Since(startTime).Seconds())
+			return nil // Don't fail server startup, just log
+		}
+	}
+
+	log.Printf("[Manager] Found %d traders to load in %s mode", len(allTraders), runMode)
 
 	// Convert and register each trader
 	for _, dbTrader := range allTraders {

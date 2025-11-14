@@ -148,10 +148,13 @@ type SimplifiedTicker struct {
 
 // HealthStatus represents the health check response
 type HealthStatus struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Version   string    `json:"version"`
-	Uptime    float64   `json:"uptime"` // seconds
+	Status      string    `json:"status"`
+	Timestamp   time.Time `json:"timestamp"`
+	Version     string    `json:"version"`
+	Uptime      float64   `json:"uptime"` // seconds
+	RunMode     string    `json:"run_mode,omitempty"`
+	UserID      string    `json:"user_id,omitempty"`
+	TraderCount int       `json:"trader_count,omitempty"`
 }
 
 // ErrorResponse represents an API error

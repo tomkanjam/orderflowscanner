@@ -4,6 +4,7 @@ import App from '../../App';
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { PromptManager } from '../components/admin/PromptManager';
 import { UserManager } from '../components/admin/UserManager';
+import { UserFlyAppsManager } from '../components/admin/UserFlyAppsManager';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { StyleGuide } from '../pages/StyleGuide';
@@ -83,6 +84,7 @@ export const AppRouter: React.FC = () => {
         >
           <Route index element={<Navigate to="/admin/users" replace />} />
           <Route path="users" element={<UserManager />} />
+          <Route path="fly-apps" element={<UserFlyAppsManager />} />
           <Route path="prompts" element={<PromptManager />} />
           <Route path="evaluation" element={<PromptEvaluation />} />
           <Route path="trader-stats" element={<TraderStats />} />

@@ -4,6 +4,64 @@ const FLY_API_BASE = "https://api.machines.dev/v1";
 const FLY_API_TOKEN = Deno.env.get("FLY_API_TOKEN")!;
 const FLY_ORG_SLUG = Deno.env.get("FLY_ORG_SLUG") || "personal";
 
+// Fly.io pricing (as of 2024, shared-cpu-1x)
+// Source: https://fly.io/docs/about/pricing/
+const FLY_PRICING = {
+  // CPU pricing per vCPU per month
+  cpu_per_vcpu_monthly: 2.50,
+  // Memory pricing per GB per month
+  memory_per_gb_monthly: 2.00,
+  // Minimum cost (always-on machine)
+  minimum_monthly: 5.00,
+};
+
+/**
+ * Calculate estimated monthly cost for a Fly machine
+ */
+export function calculateMonthlyCost(cpuCount: number, memoryMb: number): number {
+  const memoryGb = memoryMb / 1024;
+  const cpuCost = cpuCount * FLY_PRICING.cpu_per_vcpu_monthly;
+  const memoryCost = memoryGb * FLY_PRICING.memory_per_gb_monthly;
+  const totalCost = cpuCost + memoryCost;
+
+  // Round to 2 decimal places
+  return Math.round(Math.max(totalCost, FLY_PRICING.minimum_monthly) * 100) / 100;
+}
+
+/**
+ * Sleep for specified milliseconds
+ */
+export function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Retry a function with exponential backoff
+ */
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  initialDelayMs: number = 1000
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+
+      if (attempt < maxRetries - 1) {
+        const delayMs = initialDelayMs * Math.pow(2, attempt);
+        console.log(`Retry attempt ${attempt + 1} failed, waiting ${delayMs}ms before retry...`);
+        await sleep(delayMs);
+      }
+    }
+  }
+
+  throw lastError || new Error("Max retries exceeded");
+}
+
 interface FlyAppConfig {
   org_slug: string;
   app_name: string;

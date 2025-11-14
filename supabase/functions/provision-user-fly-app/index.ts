@@ -4,6 +4,8 @@ import {
   createFlyApp,
   deployFlyMachine,
   generateFlyAppName,
+  calculateMonthlyCost,
+  retryWithBackoff,
 } from "../_shared/flyClient.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -47,6 +49,9 @@ serve(async (req) => {
     }
 
     const appName = generateFlyAppName(user_id);
+    const cpuCount = 2;
+    const memoryMb = 512;
+    const monthlyCost = calculateMonthlyCost(cpuCount, memoryMb);
 
     // Insert provisioning record
     const { data: flyApp, error: insertError } = await supabase
@@ -58,8 +63,9 @@ serve(async (req) => {
         status: "provisioning",
         region: DEFAULT_REGION,
         docker_image: DOCKER_IMAGE,
-        cpu_count: 2,
-        memory_mb: 512,
+        cpu_count: cpuCount,
+        memory_mb: memoryMb,
+        monthly_cost_estimate_usd: monthlyCost,
       })
       .select()
       .single();
@@ -84,11 +90,47 @@ serve(async (req) => {
       metadata: { tier, region: DEFAULT_REGION },
     });
 
-    // Create Fly app
-    const createResult = await createFlyApp(user_id);
+    // Create Fly app with retry logic
+    let createResult;
+    try {
+      createResult = await retryWithBackoff(
+        () => createFlyApp(user_id),
+        3, // max retries
+        2000 // initial delay 2s
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Update status to error
+      await supabase
+        .from("user_fly_apps")
+        .update({
+          status: "error",
+          error_message: errorMessage,
+          retry_count: 3,
+        })
+        .eq("id", flyApp.id);
+
+      await supabase.from("user_fly_app_events").insert({
+        fly_app_id: flyApp.id,
+        user_id,
+        event_type: "provision_failed",
+        status: "error",
+        error_details: errorMessage,
+        metadata: { max_retries_exceeded: true },
+      });
+
+      return new Response(
+        JSON.stringify({ error: "Failed to create Fly app after retries", details: errorMessage }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
     if (!createResult.success) {
-      // Update status to error
+      // This shouldn't happen after retries, but handle it
       await supabase
         .from("user_fly_apps")
         .update({

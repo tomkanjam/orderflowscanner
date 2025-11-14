@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { supabase } from '../../config/supabase';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Activity, AlertCircle, CheckCircle, Clock, DollarSign, Server, ExternalLink } from 'lucide-react';
 import { FlyAppEventLog } from './FlyAppEventLog';
 
@@ -17,9 +17,8 @@ interface UserFlyApp {
   last_health_check: string | null;
   created_at: string;
   monthly_cost_estimate_usd: number | null;
-  user_profiles?: {
-    email: string;
-  };
+  email: string;
+  display_name: string | null;
 }
 
 export const UserFlyAppsManager: React.FC = () => {
@@ -38,12 +37,8 @@ export const UserFlyAppsManager: React.FC = () => {
   async function loadApps() {
     try {
       const { data, error } = await supabase
-        .from('user_fly_apps')
-        .select(`
-          *,
-          user_profiles!inner(email)
-        `)
-        .is('deleted_at', null)
+        .from('user_fly_apps_with_profiles')
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -230,7 +225,7 @@ export const UserFlyAppsManager: React.FC = () => {
                 {apps.map(app => (
                   <TableRow key={app.id} className="border-gray-700 hover:bg-gray-700/50">
                     <TableCell className="text-gray-200">
-                      {app.user_profiles?.email || 'Unknown'}
+                      {app.email || 'Unknown'}
                     </TableCell>
                     <TableCell className="font-mono text-sm">
                       <a

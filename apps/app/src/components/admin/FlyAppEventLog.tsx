@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { Badge } from '../ui/badge';
-import { Card, CardContent } from '../ui/card';
+import { supabase } from '../../config/supabase';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle, XCircle, Clock, AlertCircle, Activity } from 'lucide-react';
 
 interface FlyAppEvent {

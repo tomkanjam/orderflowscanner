@@ -21,6 +21,8 @@ export default defineConfig(({ mode }) => {
       },
       // Enable SharedArrayBuffer support (required by SharedMarketData)
       server: {
+        host: '0.0.0.0', // Listen on all network interfaces
+        port: 5173, // Default Vite port
         headers: {
           'Cross-Origin-Embedder-Policy': 'require-corp',
           'Cross-Origin-Opener-Policy': 'same-origin',

@@ -292,12 +292,19 @@ func (m *Manager) LoadTradersFromDB() error {
 			return fmt.Errorf("USER_ID required for user_dedicated mode")
 		}
 
+		log.Printf("[Manager] DEBUG: Environment USER_ID=%s", userID)
 		log.Printf("[Manager] Loading traders for user: %s (user_dedicated mode)", userID)
 		allTraders, err = m.supabase.GetTraders(m.ctx, userID)
 		if err != nil {
 			log.Printf("[Manager] Failed to fetch user traders: %v", err)
 			TradersLoadDuration.Observe(time.Since(startTime).Seconds())
 			return nil // Don't fail server startup, just log
+		}
+
+		log.Printf("[Manager] DEBUG: GetTraders returned %d traders before filtering", len(allTraders))
+		for i, t := range allTraders {
+			log.Printf("[Manager] DEBUG: Pre-filter trader %d: id=%s, name=%s, user_id=%v, is_built_in=%v, enabled=%v",
+				i, t.ID, t.Name, t.UserID, t.IsBuiltIn, t.Enabled)
 		}
 
 		// Filter out built-in traders (user-dedicated instances should not run built-in)
@@ -307,6 +314,7 @@ func (m *Manager) LoadTradersFromDB() error {
 				userTraders = append(userTraders, trader)
 			}
 		}
+		log.Printf("[Manager] DEBUG: After filtering: %d user traders (non-built-in, enabled)", len(userTraders))
 		allTraders = userTraders
 	} else {
 		// Shared backend mode: Load only built-in traders

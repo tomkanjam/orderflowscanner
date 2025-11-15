@@ -64,6 +64,10 @@ func (c *Client) GetAllTraders(ctx context.Context) ([]types.Trader, error) {
 func (c *Client) GetTraders(ctx context.Context, userID string) ([]types.Trader, error) {
 	url := fmt.Sprintf("%s/rest/v1/traders?user_id=eq.%s&select=*", c.baseURL, userID)
 
+	// Debug logging
+	log.Printf("[Supabase] GetTraders called with userID: %s", userID)
+	log.Printf("[Supabase] Request URL: %s", url)
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -71,20 +75,41 @@ func (c *Client) GetTraders(ctx context.Context, userID string) ([]types.Trader,
 
 	c.setHeaders(req)
 
+	// Debug log headers (excluding sensitive values)
+	log.Printf("[Supabase] Request headers: apikey=%s..., Authorization=Bearer %s...",
+		c.serviceKey[:10], c.serviceKey[:10])
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
 
+	log.Printf("[Supabase] Response status: %d", resp.StatusCode)
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		log.Printf("[Supabase] Error response body: %s", string(body))
 		return nil, fmt.Errorf("supabase API error: %s - %s", resp.Status, string(body))
 	}
 
+	// Read the body first so we can log it
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	log.Printf("[Supabase] Response body: %s", string(bodyBytes))
+
 	var traders []types.Trader
-	if err := json.NewDecoder(resp.Body).Decode(&traders); err != nil {
+	if err := json.Unmarshal(bodyBytes, &traders); err != nil {
 		return nil, fmt.Errorf("failed to decode traders: %w", err)
+	}
+
+	log.Printf("[Supabase] Decoded %d traders", len(traders))
+	for i, t := range traders {
+		log.Printf("[Supabase] Trader %d: id=%s, name=%s, user_id=%v, is_built_in=%v, enabled=%v",
+			i, t.ID, t.Name, t.UserID, t.IsBuiltIn, t.Enabled)
 	}
 
 	return traders, nil

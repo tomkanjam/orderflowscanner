@@ -11,7 +11,7 @@ import {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const DOCKER_IMAGE = Deno.env.get("DOCKER_IMAGE") || "registry.fly.io/vyx-app:latest";
-const DEFAULT_REGION = Deno.env.get("FLY_DEFAULT_REGION") || "sjc";
+const DEFAULT_REGION = Deno.env.get("FLY_DEFAULT_REGION") || "sin"; // Singapore - required for Binance API access
 
 serve(async (req) => {
   try {

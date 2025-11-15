@@ -25,7 +25,7 @@ serve(async (req) => {
     console.log(`[${timestamp}] provision-machine invoked`);
     console.log(`[${timestamp}] Method: ${req.method}`);
 
-    const { userId, region = 'sjc', cpuPriority = 'normal' }: ProvisionRequest = await req.json();
+    const { userId, region = 'sin', cpuPriority = 'normal' }: ProvisionRequest = await req.json(); // Singapore - required for Binance API access
     console.log(`[${timestamp}] Request: userId=${userId}, region=${region}, cpuPriority=${cpuPriority}`);
 
     // Initialize Supabase client

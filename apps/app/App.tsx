@@ -254,7 +254,8 @@ const AppContent: React.FC = () => {
       });
 
       // Initialize server execution Realtime subscriptions for signal updates
-      serverExecutionService.initializeRealtime().catch(error => {
+      // IMPORTANT: Pass user.id to filter signals to only this user (prevents receiving all users' signals)
+      serverExecutionService.initializeRealtime(user.id).catch(error => {
         console.error('[ServerExecutionService] Realtime initialization error:', error);
       });
 

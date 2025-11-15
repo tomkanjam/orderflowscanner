@@ -53,8 +53,9 @@ class ServerExecutionService {
 
   /**
    * Initialize Realtime subscription for signal updates
+   * @param userId - Optional user ID to filter signals. If provided, only listens to signals for this user.
    */
-  async initializeRealtime(): Promise<void> {
+  async initializeRealtime(userId?: string): Promise<void> {
     if (!supabase) {
       console.warn('[ServerExecutionService] Supabase not initialized - skipping realtime setup');
       return;
@@ -65,15 +66,26 @@ class ServerExecutionService {
       await this.signalChannel.unsubscribe();
     }
 
+    // Build postgres_changes config with optional user filter
+    const postgresChangesConfig: any = {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'signals'
+    };
+
+    // Add user filter if userId is provided (CRITICAL: Filters to only current user's signals)
+    if (userId) {
+      postgresChangesConfig.filter = `user_id=eq.${userId}`;
+      console.log(`[ServerExecutionService] Initializing Realtime with user filter: user_id=${userId}`);
+    } else {
+      console.warn('[ServerExecutionService] Initializing Realtime WITHOUT user filter - will receive ALL signals from ALL users!');
+    }
+
     // Create new subscription - listen to database INSERT events instead of broadcasts
     this.signalChannel = supabase.channel('signals')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'signals'
-        },
+        postgresChangesConfig,
         (payload) => {
           console.log('[ServerExecutionService] New signal from database:', payload);
           const signal: TraderSignal = {

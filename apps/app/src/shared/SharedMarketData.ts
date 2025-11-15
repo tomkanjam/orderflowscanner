@@ -31,77 +31,82 @@ export interface SharedMarketDataConfig {
 }
 
 export class SharedMarketData {
-  private tickerBuffer: SharedArrayBuffer;
-  private klineBuffer: SharedArrayBuffer;
-  private metadataBuffer: SharedArrayBuffer;
-  private updateCounterBuffer: SharedArrayBuffer;
-  
+  private tickerBuffer: SharedArrayBuffer | ArrayBuffer;
+  private klineBuffer: SharedArrayBuffer | ArrayBuffer;
+  private metadataBuffer: SharedArrayBuffer | ArrayBuffer;
+  private updateCounterBuffer: SharedArrayBuffer | ArrayBuffer;
+
   // Double buffering for race-condition free updates
-  private updateFlagsA: SharedArrayBuffer;
-  private updateFlagsB: SharedArrayBuffer;
+  private updateFlagsA: SharedArrayBuffer | ArrayBuffer;
+  private updateFlagsB: SharedArrayBuffer | ArrayBuffer;
   private currentWriteBuffer: 'A' | 'B' = 'A';
   private flagsViewA: Uint32Array;
   private flagsViewB: Uint32Array;
-  
+
   // Maps for O(1) lookups
   private symbolIndexMap: Map<string, number> = new Map();
   private indexToSymbol: Map<number, string> = new Map();
   private intervalIndexMap: Map<KlineInterval, number> = new Map();
-  
+
   // Views for data access
   private tickerView: Float64Array;
   private klineView: Float64Array;
   private metadataView: Uint8Array;
   private updateCounter: Int32Array;
-  
+
   // Rate limiting
   private lastUpdateTime: Map<string, number> = new Map();
   private readonly MIN_UPDATE_INTERVAL = 100; // ms between updates per symbol
-  
+
   // Debug ring buffer for tracking recent updates
   private debugMode = false;
   private updateHistory: Array<{symbol: string, timestamp: number, type: 'ticker' | 'kline'}> = [];
   private readonly MAX_HISTORY = 100;
-  
+
   private isInitialized = false;
+  private isSharedArrayBufferAvailable = false;
 
   constructor(config?: SharedMarketDataConfig) {
     // Check if SharedArrayBuffer is available
-    if (typeof SharedArrayBuffer === 'undefined') {
-      throw new Error('SharedArrayBuffer is not available. Ensure COOP/COEP headers are set.');
+    this.isSharedArrayBufferAvailable = typeof SharedArrayBuffer !== 'undefined';
+
+    if (!this.isSharedArrayBufferAvailable) {
+      console.warn('SharedArrayBuffer is not available. Falling back to ArrayBuffer (performance may be degraded on some features).');
     }
 
-    // Initialize shared buffers
-    this.tickerBuffer = new SharedArrayBuffer(TICKER_BUFFER_SIZE);
-    this.klineBuffer = new SharedArrayBuffer(KLINE_BUFFER_SIZE);
-    this.metadataBuffer = new SharedArrayBuffer(METADATA_BUFFER_SIZE);
-    this.updateCounterBuffer = new SharedArrayBuffer(4);
-    
+    // Initialize buffers (use SharedArrayBuffer if available, otherwise ArrayBuffer)
+    const BufferType = this.isSharedArrayBufferAvailable ? SharedArrayBuffer : ArrayBuffer;
+
+    this.tickerBuffer = new BufferType(TICKER_BUFFER_SIZE);
+    this.klineBuffer = new BufferType(KLINE_BUFFER_SIZE);
+    this.metadataBuffer = new BufferType(METADATA_BUFFER_SIZE);
+    this.updateCounterBuffer = new BufferType(4);
+
     // Initialize double buffers for update flags
     const flagBufferSize = SYMBOL_UPDATE_FLAGS_SIZE * Uint32Array.BYTES_PER_ELEMENT;
-    this.updateFlagsA = new SharedArrayBuffer(flagBufferSize);
-    this.updateFlagsB = new SharedArrayBuffer(flagBufferSize);
+    this.updateFlagsA = new BufferType(flagBufferSize);
+    this.updateFlagsB = new BufferType(flagBufferSize);
     this.flagsViewA = new Uint32Array(this.updateFlagsA);
     this.flagsViewB = new Uint32Array(this.updateFlagsB);
-    
+
     // Create typed array views
     this.tickerView = new Float64Array(this.tickerBuffer);
     this.klineView = new Float64Array(this.klineBuffer);
     this.metadataView = new Uint8Array(this.metadataBuffer);
-    
+
     // Update counter for synchronization
     this.updateCounter = new Int32Array(this.updateCounterBuffer);
-    
+
     // Initialize interval mapping
     const intervals: KlineInterval[] = ['1m', '5m', '15m', '1h', '4h', '1d'] as KlineInterval[];
     intervals.forEach((interval, index) => {
       this.intervalIndexMap.set(interval, index);
     });
-    
+
     // Check for debug mode
-    this.debugMode = typeof localStorage !== 'undefined' && 
+    this.debugMode = typeof localStorage !== 'undefined' &&
                      localStorage.getItem('DEBUG_SYMBOL_UPDATES') === 'true';
-    
+
     this.isInitialized = true;
   }
 

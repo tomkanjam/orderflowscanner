@@ -26,20 +26,200 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Check if user already has a Fly app
-    const { data: existing } = await supabase
+    // Check if user already has a Fly app (including deleted ones)
+    const { data: existingApps } = await supabase
       .from("user_fly_apps")
       .select("*")
       .eq("user_id", user_id)
-      .is("deleted_at", null)
-      .single();
+      .order("created_at", { ascending: false });
 
-    if (existing) {
+    // Check for active app first
+    const activeApp = existingApps?.find(app => !app.deleted_at);
+    if (activeApp) {
       return new Response(
         JSON.stringify({
           success: true,
           message: "User already has a Fly app",
-          app_name: existing.fly_app_name,
+          app_name: activeApp.fly_app_name,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Check for deleted app that can be reactivated
+    const deletedApp = existingApps?.[0]; // Most recent
+    if (deletedApp && deletedApp.deleted_at) {
+      // Reactivate the deleted app instead of creating a new one
+      const { error: reactivateError } = await supabase
+        .from("user_fly_apps")
+        .update({
+          deleted_at: null,
+          status: "provisioning",
+          error_message: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", deletedApp.id);
+
+      if (reactivateError) {
+        console.error("Failed to reactivate fly app:", reactivateError);
+        return new Response(
+          JSON.stringify({ error: "Failed to reactivate Fly app", details: reactivateError }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // Use the reactivated app name for provisioning
+      const appName = deletedApp.fly_app_name;
+
+      // Log reactivation event
+      await supabase.from("user_fly_app_events").insert({
+        fly_app_id: deletedApp.id,
+        user_id,
+        event_type: "provision_started",
+        status: "provisioning",
+        metadata: { tier, region: DEFAULT_REGION, reactivated: true },
+      });
+
+      // Continue with Fly app creation (app may not exist on Fly.io)
+      let createResult;
+      try {
+        createResult = await retryWithBackoff(
+          () => createFlyApp(user_id),
+          3,
+          2000
+        );
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        await supabase
+          .from("user_fly_apps")
+          .update({
+            status: "error",
+            error_message: errorMessage,
+            retry_count: 3,
+          })
+          .eq("id", deletedApp.id);
+
+        await supabase.from("user_fly_app_events").insert({
+          fly_app_id: deletedApp.id,
+          user_id,
+          event_type: "provision_failed",
+          status: "error",
+          error_details: errorMessage,
+          metadata: { max_retries_exceeded: true },
+        });
+
+        return new Response(
+          JSON.stringify({ error: "Failed to create Fly app after retries", details: errorMessage }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      if (!createResult.success) {
+        await supabase
+          .from("user_fly_apps")
+          .update({
+            status: "error",
+            error_message: createResult.error,
+            retry_count: 1,
+          })
+          .eq("id", deletedApp.id);
+
+        await supabase.from("user_fly_app_events").insert({
+          fly_app_id: deletedApp.id,
+          user_id,
+          event_type: "provision_failed",
+          status: "error",
+          error_details: createResult.error,
+        });
+
+        return new Response(
+          JSON.stringify({ error: "Failed to create Fly app", details: createResult.error }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // Deploy machine to the app
+      const deployResult = await deployFlyMachine({
+        app_name: appName,
+        region: DEFAULT_REGION,
+        docker_image: DOCKER_IMAGE,
+        cpu_count: 2,
+        memory_mb: 512,
+        env: {
+          USER_ID: user_id,
+          SUPABASE_URL: SUPABASE_URL,
+          SUPABASE_SERVICE_KEY: SUPABASE_SERVICE_KEY,
+          GEMINI_API_KEY: Deno.env.get("GEMINI_API_KEY") || "",
+          BRAINTRUST_API_KEY: Deno.env.get("BRAINTRUST_API_KEY") || "",
+          BRAINTRUST_PROJECT_ID: Deno.env.get("BRAINTRUST_PROJECT_ID") || "",
+          OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY") || "",
+          RUN_MODE: "user_dedicated",
+        },
+      });
+
+      if (!deployResult.success) {
+        await supabase
+          .from("user_fly_apps")
+          .update({
+            status: "error",
+            error_message: deployResult.error,
+          })
+          .eq("id", deletedApp.id);
+
+        await supabase.from("user_fly_app_events").insert({
+          fly_app_id: deletedApp.id,
+          user_id,
+          event_type: "provision_failed",
+          status: "error",
+          error_details: deployResult.error,
+        });
+
+        return new Response(
+          JSON.stringify({ error: "Failed to deploy machine", details: deployResult.error }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // Update status to active
+      await supabase
+        .from("user_fly_apps")
+        .update({
+          status: "active",
+          deployed_at: new Date().toISOString(),
+          health_status: "unknown",
+        })
+        .eq("id", deletedApp.id);
+
+      await supabase.from("user_fly_app_events").insert({
+        fly_app_id: deletedApp.id,
+        user_id,
+        event_type: "provision_completed",
+        status: "active",
+        metadata: { machine_id: deployResult.machineId, reactivated: true },
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          app_name: appName,
+          machine_id: deployResult.machineId,
+          message: "Fly app reactivated and provisioned successfully",
         }),
         {
           status: 200,

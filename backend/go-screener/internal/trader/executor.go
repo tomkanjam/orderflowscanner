@@ -806,13 +806,13 @@ func (e *Executor) saveSignals(signals []Signal) error {
 		}
 
 		// Get user_fly_app_id for user-specific signals
-		var machineID *string
+		var flyAppID *string
 		if userID != nil {
-			flyAppID, err := e.supabase.GetUserFlyAppID(e.ctx, *userID)
+			appID, err := e.supabase.GetUserFlyAppID(e.ctx, *userID)
 			if err != nil {
 				log.Printf("[Executor] Warning: failed to get fly_app_id for user %s: %v", *userID, err)
-			} else if flyAppID != nil {
-				machineID = flyAppID
+			} else if appID != nil {
+				flyAppID = appID
 			}
 		}
 
@@ -828,7 +828,7 @@ func (e *Executor) saveSignals(signals []Signal) error {
 			VolumeAtSignal:        signal.Volume,
 			Count:                 1,
 			Source:                "cloud",
-			MachineID:             machineID, // user_fly_apps.id for dedicated Fly apps
+			FlyAppID:              flyAppID, // user_fly_apps.id for dedicated Fly apps
 			IndicatorData:         signal.IndicatorData, // NEW: Include indicator visualization data
 		})
 	}

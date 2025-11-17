@@ -125,7 +125,7 @@ type Signal struct {
 	VolumeAtSignal        float64                `json:"volume_at_signal"`
 	Count                 int                    `json:"count"` // Dedupe count
 	Source                string                 `json:"source"` // "browser" or "cloud"
-	MachineID             *string                `json:"machine_id,omitempty"`
+	FlyAppID              *string                `json:"fly_app_id,omitempty"` // References user_fly_apps.id for dedicated apps
 	IndicatorData         map[string]interface{} `json:"indicator_data,omitempty"` // Calculated indicator values for visualization
 }
 

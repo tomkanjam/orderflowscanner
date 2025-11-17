@@ -382,3 +382,40 @@ func (c *Client) HealthCheck() error {
 
 	return nil
 }
+
+// GetUserFlyAppID fetches the user_fly_apps.id for a given user
+// Returns nil if user doesn't have a dedicated Fly app
+func (c *Client) GetUserFlyAppID(ctx context.Context, userID string) (*string, error) {
+	url := fmt.Sprintf("%s/rest/v1/user_fly_apps?user_id=eq.%s&deleted_at=is.null&select=id", c.baseURL, userID)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	c.setHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("supabase API error: %s - %s", resp.Status, string(body))
+	}
+
+	var apps []struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&apps); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(apps) == 0 {
+		return nil, nil // User doesn't have a dedicated Fly app
+	}
+
+	return &apps[0].ID, nil
+}

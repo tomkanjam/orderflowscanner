@@ -19,7 +19,14 @@ The Fly app provisioning system for Pro/Elite users has multiple critical bugs p
 2. Fixed provision-user-fly-app edge function to handle deleted records (reactivation logic)
 3. Manually configured vyx-user-35682909 with correct environment variables
 
-**Current Status**: Machine is running in user_dedicated mode but experiencing 401 auth errors when polling for traders. Need to verify SUPABASE_SERVICE_KEY and complete provisioning automation.
+**2025-11-17 12:00**: Continued investigation and discovered database architecture mismatch:
+- Machine `vyx-user-35682909` (ID: 568344ea667318) is running and healthy in Singapore region
+- `user_fly_apps` table shows status "active" - automated provisioning working
+- **Critical finding**: Signals have `machine_id: null` due to architecture mismatch between `cloud_machines` (old) and `user_fly_apps` (new) tables
+- Go backend sets `MachineID: nil` in signals (executor.go:820)
+- No `cloud_machines` record exists for new Fly app provisioning system
+
+**Current Status**: Automated provisioning appears to be working (edge function deployed, reactivation logic in place, machine running), but signals cannot be properly attributed to user-dedicated machines due to database architecture issue. Need to decide on migration path for `cloud_machines` vs `user_fly_apps`.
 
 ## Spec
 
@@ -65,6 +72,20 @@ The Fly app provisioning system for Pro/Elite users has multiple critical bugs p
 - **Current Error**: `Poll error: unexpected status 401: {"message":"Invalid API key"}`
 - **Issue**: Service role key not being correctly passed from edge function to Fly machine
 - **Fix Needed**: Verify key format and use Fly secrets API for persistence
+- **Status**: User confirmed SUPABASE_SERVICE_ROLE_KEY is set in Edge Functions secrets. Architecture is correct (edge function reads SUPABASE_SERVICE_ROLE_KEY, passes to Fly as SUPABASE_SERVICE_KEY).
+
+**8. Database Architecture Mismatch - cloud_machines vs user_fly_apps**
+- **Issue**: Two separate database systems exist for tracking Fly machines
+  - `cloud_machines` table: Old system, has record with `machine_id: "vyx-63eea370"`, status "starting"
+  - `user_fly_apps` table: New system, has record with `fly_app_name: "vyx-user-35682909"`, status "active"
+- **Impact**: Signals table has foreign key to `cloud_machines.id` via `machine_id` column, but new provisioning system doesn't create `cloud_machines` records
+- **Result**: All signals from user-dedicated machines have `machine_id: null` because:
+  1. Go backend sets `MachineID: nil` when creating signals (executor.go:820)
+  2. No `cloud_machines` record exists for the new Fly app
+- **Fix Needed**: Either:
+  - Option A: Migrate to use `user_fly_apps` as the source of truth, update signals FK
+  - Option B: Create `cloud_machines` records during `user_fly_apps` provisioning
+  - Option C: Deprecate `cloud_machines` entirely and track machine_id as simple string in signals
 
 ### Implementation Plan
 

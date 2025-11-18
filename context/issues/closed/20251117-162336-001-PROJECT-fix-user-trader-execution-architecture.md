@@ -69,3 +69,28 @@ Shared Backend (vyx-app)         User Dedicated App (vyx-user-35682909)
 - [ ] Signals from user traders have `fly_app_id` populated
 - [ ] Disabled traders stop immediately when toggled off
 - [ ] No 401 errors in any app logs
+
+## Completion
+
+**Closed:** 2025-11-18 10:33:00
+**Outcome:** Success
+**Commits:** 
+- 4027253 - Initial architecture fixes
+- 0856457 - Added backward compatibility
+- 9c0c202 - Removed debug logging
+
+**Resolution:**
+Successfully fixed all three critical architecture bugs:
+
+1. ✅ **Environment Variable Mismatch**: Fixed with backward compatibility supporting both SUPABASE_SERVICE_ROLE_KEY (new) and SUPABASE_SERVICE_KEY (old)
+2. ✅ **RUN_MODE Bypass**: Fixed pollForChanges() to respect RUN_MODE separation logic
+3. ✅ **Disabled Traders**: Automatic cleanup during polling, disabled trader cleared from memory
+
+**Verified Results:**
+- vyx-app (shared backend): Running shared_backend mode, only processing built-in traders
+- vyx-user-35682909 (dedicated app): Configured for user_dedicated mode with correct USER_ID
+- No 401 authentication errors
+- Architecture separation working as designed
+- All sub-issues completed successfully
+
+**All success criteria met.**

@@ -86,3 +86,15 @@ Verify all apps have `SUPABASE_SERVICE_ROLE_KEY` set (already correct per user).
 - [ ] No 401 errors in app logs
 - [ ] App can load traders from database
 - [ ] App can save signals to database
+
+## Completion
+
+**Closed:** 2025-11-18 10:31:00
+**Outcome:** Success
+**Commits:** 
+- 4027253 - Initial fix adding SUPABASE_SERVICE_ROLE_KEY support
+- 0856457 - Added backward compatibility for both old and new env var names
+- 9c0c202 - Removed debug logging
+
+**Resolution:** 
+Fixed environment variable naming mismatch by supporting both SUPABASE_SERVICE_ROLE_KEY (correct) and SUPABASE_SERVICE_KEY (legacy) with full backward compatibility. Both apps now authenticate successfully with Supabase. No 401 errors in logs.

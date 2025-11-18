@@ -148,3 +148,11 @@ for traderID := range m.executor.GetLoadedTraders() {
 - [ ] Disabled traders removed from memory immediately
 - [ ] Logs clearly show which mode and which traders are being polled
 - [ ] No user trader signals from shared backend
+
+## Completion
+**Closed:** 2025-11-18 10:32:00
+**Outcome:** Success  
+**Commits:** 4027253, 0856457, 9c0c202
+
+**Resolution:**
+Fixed pollForChanges() to respect RUN_MODE by applying the same logic used in LoadTradersFromDB(). Shared backend now only polls built-in traders, dedicated apps only poll user traders. Disabled trader filtering added during polling.

@@ -48,10 +48,24 @@ type Config struct {
 func Load() (*Config, error) {
 	// WORKAROUND: Fly.io strips JWT values from env vars, so we base64 encode them
 	// Try to get the base64-encoded version first, fallback to direct
+	// Support both new (SUPABASE_SERVICE_ROLE_KEY) and old (SUPABASE_SERVICE_KEY) names for backward compatibility
 	supabaseServiceKey := getEnv("SUPABASE_SERVICE_ROLE_KEY", "")
 	if supabaseServiceKey == "" {
-		// Try base64 encoded version
+		// Try old name for backward compatibility
+		supabaseServiceKey = getEnv("SUPABASE_SERVICE_KEY", "")
+	}
+	if supabaseServiceKey == "" {
+		// Try base64 encoded version (new name)
 		if b64Key := getEnv("SUPABASE_SERVICE_ROLE_KEY_B64", ""); b64Key != "" {
+			decoded, err := base64Decode(b64Key)
+			if err == nil {
+				supabaseServiceKey = decoded
+			}
+		}
+	}
+	if supabaseServiceKey == "" {
+		// Try base64 encoded version (old name for backward compatibility)
+		if b64Key := getEnv("SUPABASE_SERVICE_KEY_B64", ""); b64Key != "" {
 			decoded, err := base64Decode(b64Key)
 			if err == nil {
 				supabaseServiceKey = decoded
@@ -93,7 +107,7 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("SUPABASE_URL is required")
 	}
 	if cfg.SupabaseServiceKey == "" {
-		return nil, fmt.Errorf("SUPABASE_SERVICE_ROLE_KEY is required")
+		return nil, fmt.Errorf("SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_KEY) is required")
 	}
 
 	return cfg, nil

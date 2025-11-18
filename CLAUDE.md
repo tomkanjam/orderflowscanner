@@ -27,6 +27,7 @@ The app is not yet in production. There are no produciton users but we want to l
 ## Development Environment
 Use pnpm
 Use only production supabase and production fly environments. No local stuff!
+Only Use "sin" fly region.
 
 
 ### Prompt Management

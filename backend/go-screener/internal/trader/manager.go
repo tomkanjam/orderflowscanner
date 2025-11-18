@@ -478,11 +478,44 @@ func (m *Manager) StartPolling(interval time.Duration) {
 
 // pollForChanges polls the database for trader changes and handles deletions AND additions
 func (m *Manager) pollForChanges() {
-	// Get all enabled traders from database (built-in + user)
-	allTraders, err := m.supabase.GetAllTraders(m.ctx)
-	if err != nil {
-		log.Printf("[Manager] Poll error: %v", err)
-		return
+	// Determine run mode and fetch appropriate traders (respecting RUN_MODE)
+	runMode := os.Getenv("RUN_MODE")
+	if runMode == "" {
+		runMode = "shared_backend" // Default to shared mode
+	}
+
+	var allTraders []types.Trader
+	var err error
+
+	if runMode == "user_dedicated" {
+		// User-dedicated mode: Load only this user's traders (exclude built-in)
+		userID := os.Getenv("USER_ID")
+		if userID == "" {
+			log.Printf("[Manager] ERROR: USER_ID required for user_dedicated mode during polling")
+			return
+		}
+
+		allTraders, err = m.supabase.GetTraders(m.ctx, userID)
+		if err != nil {
+			log.Printf("[Manager] Poll error (user_dedicated): %v", err)
+			return
+		}
+
+		// Filter out built-in traders and disabled traders
+		var userTraders []types.Trader
+		for _, trader := range allTraders {
+			if !trader.IsBuiltIn && trader.Enabled {
+				userTraders = append(userTraders, trader)
+			}
+		}
+		allTraders = userTraders
+	} else {
+		// Shared backend mode: Load only built-in traders
+		allTraders, err = m.supabase.GetBuiltInTraders(m.ctx)
+		if err != nil {
+			log.Printf("[Manager] Poll error (shared_backend): %v", err)
+			return
+		}
 	}
 
 	// Build set of database trader IDs

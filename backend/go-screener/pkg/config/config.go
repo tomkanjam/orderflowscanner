@@ -57,19 +57,29 @@ func Load() (*Config, error) {
 	if supabaseServiceKey == "" {
 		// Try base64 encoded version (new name)
 		if b64Key := getEnv("SUPABASE_SERVICE_ROLE_KEY_B64", ""); b64Key != "" {
+			fmt.Printf("[Config] Trying to decode SUPABASE_SERVICE_ROLE_KEY_B64 (length: %d)\n", len(b64Key))
 			decoded, err := base64Decode(b64Key)
 			if err == nil {
 				supabaseServiceKey = decoded
+				fmt.Printf("[Config] Successfully decoded SUPABASE_SERVICE_ROLE_KEY_B64\n")
+			} else {
+				fmt.Printf("[Config] Failed to decode SUPABASE_SERVICE_ROLE_KEY_B64: %v\n", err)
 			}
 		}
 	}
 	if supabaseServiceKey == "" {
 		// Try base64 encoded version (old name for backward compatibility)
 		if b64Key := getEnv("SUPABASE_SERVICE_KEY_B64", ""); b64Key != "" {
+			fmt.Printf("[Config] Trying to decode SUPABASE_SERVICE_KEY_B64 (length: %d)\n", len(b64Key))
 			decoded, err := base64Decode(b64Key)
 			if err == nil {
 				supabaseServiceKey = decoded
+				fmt.Printf("[Config] Successfully decoded SUPABASE_SERVICE_KEY_B64\n")
+			} else {
+				fmt.Printf("[Config] Failed to decode SUPABASE_SERVICE_KEY_B64: %v\n", err)
 			}
+		} else {
+			fmt.Printf("[Config] SUPABASE_SERVICE_KEY_B64 is empty or not set\n")
 		}
 	}
 

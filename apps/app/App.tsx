@@ -269,7 +269,8 @@ const AppContent: React.FC = () => {
           symbol: signal.symbols[0], // TraderSignal has array, database has single symbol
           created_at: signal.timestamp,
           price_at_signal: signal.metadata?.price_at_signal,
-          metadata: signal.metadata
+          metadata: signal.metadata,
+          indicator_data: signal.metadata?.indicator_data // Extract indicator data for chart visualization
         };
         signalManager.addSignalFromDatabase(dbSignal);
       });
@@ -292,7 +293,8 @@ const AppContent: React.FC = () => {
             symbol: s.symbols[0], // TraderSignal has array, database has single symbol
             created_at: s.timestamp,
             price_at_signal: s.metadata?.price_at_signal,
-            metadata: s.metadata
+            metadata: s.metadata,
+            indicator_data: s.metadata?.indicator_data // Extract indicator data for chart visualization
           }));
           signalManager.loadInitialSignals(dbSignals);
         }
